@@ -24,9 +24,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.joshiminh.wallbase.ui.explore.ExploreScreen
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
@@ -42,6 +42,26 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             WallBaseTheme {
+                val sourceOptions = remember {
+                    mutableStateListOf(
+                        SourceOption(
+                            name = "Google Photos",
+                            description = "Login and pick albums."
+                        ),
+                        SourceOption(
+                            name = "Google Drive",
+                            description = "Login and pick folders."
+                        ),
+                        SourceOption(
+                            name = "Reddit",
+                            description = "Add subs, set sort/time, filter resolution."
+                        ),
+                        SourceOption(
+                            name = "Websites",
+                            description = "Add template or custom scrape rule."
+                        )
+                    )
+                }
                 val navController = rememberNavController()
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -52,9 +72,9 @@ class MainActivity : ComponentActivity() {
                         startDestination = Screen.Explore.route,
                         modifier = Modifier.padding(innerPadding)
                     ) {
-                        composable(Screen.Explore.route) { ExploreScreen() }
+                        composable(Screen.Explore.route) { ExploreScreen(sourceOptions) }
                         composable(Screen.Library.route) { LibraryScreen() }
-                        composable(Screen.Sources.route) { SourcesScreen() }
+                        composable(Screen.Sources.route) { SourcesScreen(sourceOptions) }
                         composable(Screen.Settings.route) { SettingsScreen() }
                     }
                 }
@@ -89,13 +109,6 @@ fun BottomBar(navController: NavHostController) {
 }
 
 @Composable
-fun ExploreScreen() {
-    Box(Modifier.fillMaxSize().padding(16.dp)) {
-        Text(text = "Explore")
-    }
-}
-
-@Composable
 fun LibraryScreen() {
     Box(Modifier.fillMaxSize().padding(16.dp)) {
         Text(text = "Library")
@@ -103,26 +116,7 @@ fun LibraryScreen() {
 }
 
 @Composable
-fun SourcesScreen() {
-    val sources = listOf(
-        SourceOption(
-            name = "Google Photos",
-            description = "Login and pick albums."
-        ),
-        SourceOption(
-            name = "Google Drive",
-            description = "Login and pick folders."
-        ),
-        SourceOption(
-            name = "Reddit",
-            description = "Add subs, set sort/time, filter resolution."
-        ),
-        SourceOption(
-            name = "Websites",
-            description = "Add template or custom scrape rule."
-        )
-    )
-
+fun SourcesScreen(sources: List<SourceOption>) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(sources, key = { it.name }) { source ->
             SourceCard(source)
@@ -137,11 +131,15 @@ fun SettingsScreen() {
     }
 }
 
-data class SourceOption(val name: String, val description: String)
+data class SourceOption(
+    val name: String,
+    val description: String,
+    val enabled: MutableState<Boolean> = mutableStateOf(false)
+)
 
 @Composable
 fun SourceCard(source: SourceOption) {
-    var enabled by rememberSaveable(source.name) { mutableStateOf(false) }
+    val enabled = source.enabled
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -158,7 +156,7 @@ fun SourceCard(source: SourceOption) {
                 Spacer(Modifier.height(4.dp))
                 Text(text = source.description, style = MaterialTheme.typography.bodyMedium)
             }
-            Switch(checked = enabled, onCheckedChange = { enabled = it })
+            Switch(checked = enabled.value, onCheckedChange = { enabled.value = it })
         }
     }
 }
@@ -168,15 +166,35 @@ fun SourceCard(source: SourceOption) {
 fun AppPreview() {
     WallBaseTheme {
         val navController = rememberNavController()
+        val sourceOptions = remember {
+            mutableStateListOf(
+                SourceOption(
+                    name = "Google Photos",
+                    description = "Login and pick albums."
+                ),
+                SourceOption(
+                    name = "Google Drive",
+                    description = "Login and pick folders."
+                ),
+                SourceOption(
+                    name = "Reddit",
+                    description = "Add subs, set sort/time, filter resolution."
+                ),
+                SourceOption(
+                    name = "Websites",
+                    description = "Add template or custom scrape rule."
+                )
+            )
+        }
         Scaffold(bottomBar = { BottomBar(navController) }) { innerPadding ->
             NavHost(
                 navController = navController,
                 startDestination = Screen.Explore.route,
                 modifier = Modifier.padding(innerPadding)
             ) {
-                composable(Screen.Explore.route) { ExploreScreen() }
+                composable(Screen.Explore.route) { ExploreScreen(sourceOptions) }
                 composable(Screen.Library.route) { LibraryScreen() }
-                composable(Screen.Sources.route) { SourcesScreen() }
+                composable(Screen.Sources.route) { SourcesScreen(sourceOptions) }
                 composable(Screen.Settings.route) { SettingsScreen() }
             }
         }
