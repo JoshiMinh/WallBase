@@ -50,9 +50,10 @@ fun WallBaseTheme(
         else -> LightColorScheme
     }
 
+    val typography = if (darkTheme) DarkTypography else LightTypography
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = typography,
         content = content
     )
 }

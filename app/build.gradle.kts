@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
@@ -54,6 +55,7 @@ dependencies {
     // Compose BOM keeps versions aligned
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
+    implementation(libs.androidx.foundation)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
@@ -63,6 +65,24 @@ dependencies {
 
     implementation(libs.navigation.compose)
     implementation(libs.androidx.navigation.compose)
+
+    // Google authentication and APIs
+    implementation(libs.play.services.auth)
+    implementation(libs.google.api.client.android)
+    implementation(libs.google.drive)
+    implementation(libs.google.photos)
+    implementation(libs.google.identity)
+
+    // Local file access
+    implementation(libs.documentfile)
+
+    // Image loading
+    implementation(libs.coil.compose)
+
+    // Room database
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    kapt(libs.room.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
