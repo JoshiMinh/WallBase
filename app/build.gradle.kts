@@ -60,8 +60,8 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
 
-    // Navigation Compose (keep only ONE)
-    implementation(libs.androidx.navigation.compose)
+    // Navigation Compose
+    implementation(libs.navigation.compose)
 
     // Google authentication and APIs
     implementation(libs.play.services.auth)
