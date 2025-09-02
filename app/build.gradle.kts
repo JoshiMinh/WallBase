@@ -1,9 +1,8 @@
-// app/build.gradle.kts
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("org.jetbrains.kotlin.kapt")
+    id("org.jetbrains.kotlin.kapt") // or: alias(libs.plugins.kotlin.kapt) if you have it in the catalog
 }
 
 android {
@@ -61,9 +60,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
 
-    // Navigation Compose
-
-    implementation(libs.navigation.compose)
+    // Navigation Compose (keep only ONE)
     implementation(libs.androidx.navigation.compose)
 
     // Google authentication and APIs
