@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.joshiminh.wallbase.SourceOption
 
 /**
  * Explore screen displaying wallpapers grouped by source.
@@ -23,10 +24,11 @@ import coil.request.ImageRequest
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExploreScreen() {
-    val sources = listOf("Photos", "Drive")
+fun ExploreScreen(sources: List<SourceOption>) {
+    val enabledSources = sources.filter { it.enabled.value }
     var selectedTab by remember { mutableStateOf(0) }
     var previewUrl by remember { mutableStateOf<String?>(null) }
+    if (selectedTab >= enabledSources.size) selectedTab = 0
 
     Scaffold(
         topBar = {
@@ -39,38 +41,51 @@ fun ExploreScreen() {
                         }
                     }
                 )
-                ScrollableTabRow(selectedTabIndex = selectedTab) {
-                    sources.forEachIndexed { index, title ->
-                        Tab(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            text = { Text(title) }
-                        )
+                if (enabledSources.isNotEmpty()) {
+                    ScrollableTabRow(selectedTabIndex = selectedTab) {
+                        enabledSources.forEachIndexed { index, source ->
+                            Tab(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                text = { Text(source.name) }
+                            )
+                        }
                     }
                 }
             }
         }
     ) { padding ->
-        val items = remember(selectedTab) {
-            // Placeholder images for each source
-            List(20) { "https://picsum.photos/300/600?random=${'$'}selectedTab${'$'}it" }
-        }
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 128.dp),
-            modifier = Modifier.padding(padding)
-        ) {
-            items(items) { url ->
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(url)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(4.dp)
-                        .aspectRatio(9f / 16f)
-                        .clickable { previewUrl = url }
-                )
+        if (enabledSources.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Enable a source to get started")
+            }
+        } else {
+            val items = remember(selectedTab) {
+                // Placeholder images for each source
+                List(20) { "https://picsum.photos/300/600?random=${'$'}selectedTab${'$'}it" }
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 128.dp),
+                modifier = Modifier.padding(padding)
+            ) {
+                items(items) { url ->
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(url)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .aspectRatio(9f / 16f)
+                            .clickable { previewUrl = url }
+                    )
+                }
             }
         }
     }
