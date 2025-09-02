@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,13 +24,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
-    data object Explore : Screen("explore", "Explore", Icons.Filled.Explore)
-    data object Library : Screen("library", "Library", Icons.Filled.Collections)
-    data object Sources : Screen("sources", "Sources", Icons.Filled.Dns)
-    data object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
+    object Explore : Screen("explore", "Explore", Icons.Filled.Explore)
+    object Library : Screen("library", "Library", Icons.Filled.Collections)
+    object Sources : Screen("sources", "Sources", Icons.Filled.Dns)
+    object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
 }
 
 class MainActivity : ComponentActivity() {
@@ -88,12 +90,16 @@ fun BottomBar(navController: NavHostController) {
 
 @Composable
 fun ExploreScreen() {
-    Text(text = "Explore")
+    Box(Modifier.fillMaxSize().padding(16.dp)) {
+        Text(text = "Explore")
+    }
 }
 
 @Composable
 fun LibraryScreen() {
-    Text(text = "Library")
+    Box(Modifier.fillMaxSize().padding(16.dp)) {
+        Text(text = "Library")
+    }
 }
 
 @Composable
@@ -118,7 +124,7 @@ fun SourcesScreen() {
     )
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(sources) { source ->
+        items(sources, key = { it.name }) { source ->
             SourceCard(source)
         }
     }
@@ -126,14 +132,16 @@ fun SourcesScreen() {
 
 @Composable
 fun SettingsScreen() {
-    Text(text = "Settings")
+    Box(Modifier.fillMaxSize().padding(16.dp)) {
+        Text(text = "Settings")
+    }
 }
 
 data class SourceOption(val name: String, val description: String)
 
 @Composable
 fun SourceCard(source: SourceOption) {
-    var enabled by rememberSaveable { mutableStateOf(false) }
+    var enabled by rememberSaveable(source.name) { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -147,6 +155,7 @@ fun SourceCard(source: SourceOption) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = source.name, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(4.dp))
                 Text(text = source.description, style = MaterialTheme.typography.bodyMedium)
             }
             Switch(checked = enabled, onCheckedChange = { enabled = it })
@@ -173,4 +182,3 @@ fun AppPreview() {
         }
     }
 }
-
