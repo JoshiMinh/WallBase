@@ -27,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.joshiminh.wallbase.ui.explore.ExploreScreen
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 
 sealed class Screen(val route: String, val title: String, val icon: ImageVector) {
@@ -85,13 +86,6 @@ fun BottomBar(navController: NavHostController) {
                 label = { Text(screen.title) }
             )
         }
-    }
-}
-
-@Composable
-fun ExploreScreen() {
-    Box(Modifier.fillMaxSize().padding(16.dp)) {
-        Text(text = "Explore")
     }
 }
 
