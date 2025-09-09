@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.theme
+package com.joshiminh.wallbase.theme
 
 import androidx.compose.ui.graphics.Color
 

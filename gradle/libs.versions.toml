@@ -1,32 +1,105 @@
+# gradle/libs.versions.toml
+
 [versions]
-agp = "8.13.0"
-kotlin = "2.0.21"
-coreKtx = "1.10.1"
-junit = "4.13.2"
-junitVersion = "1.1.5"
-espressoCore = "3.5.1"
-lifecycleRuntimeKtx = "2.6.1"
-activityCompose = "1.8.0"
-composeBom = "2024.09.00"
+# Tooling
+agp = "8.13.0"                                 # Android Gradle Plugin :contentReference[oaicite:0]{index=0}
+kotlin = "2.2.10"                              # Kotlin Gradle plugin :contentReference[oaicite:1]{index=1}
+ksp = "2.2.10-RC2-2.0.2"                       # KSP that matches Kotlin 2.2.10 :contentReference[oaicite:2]{index=2}
+
+# Compose
+compose-bom = "2025.08.01"                     # Latest production BOM (1.9 core) :contentReference[oaicite:3]{index=3}
+
+# AndroidX core
+core-ktx = "1.17.0"                            # Stable core-ktx :contentReference[oaicite:4]{index=4}
+lifecycle-ktx = "2.9.3"                        # Stable Lifecycle runtime ktx :contentReference[oaicite:5]{index=5}
+activity-compose = "1.10.1"                    # Stable Activity Compose :contentReference[oaicite:6]{index=6}
+documentfile = "1.1.0"
+
+# Auth (Credential Manager + Google bridge)
+credentials = "1.5.0"                          # Stable credentials API :contentReference[oaicite:7]{index=7}
+credentials-play-services = "1.5.0"            # Bridge to Google Password Manager (runtimeOnly) :contentReference[oaicite:8]{index=8}
+googleid = "1.1.1"                             # Sign in with Google on Credential Manager :contentReference[oaicite:9]{index=9}
+
+# Google APIs
+google-api-client-android = "2.8.1"            # Base client for Android :contentReference[oaicite:10]{index=10}
+google-drive = "v3-rev20250829-2.0.0"          # Drive REST client rev
+google-photos = "1.7.3"                        # Photos Library Java client :contentReference[oaicite:12]{index=12}
+
+# SAF helper
+anggrayudi-storage = "2.2.0"                   # SimpleStorage from Maven Central :contentReference[oaicite:13]{index=13}
+
+# Coil 3
+coil3 = "3.3.0"                                # Coil v3 line (Compose 1.9 compatible) :contentReference[oaicite:14]{index=14}
+
+# Room & WorkManager
+room = "2.7.2"                                 # Stable Room (compatible with Work 2.10.x) :contentReference[oaicite:15]{index=15}
+work = "2.10.3"                                # Latest stable WorkManager :contentReference[oaicite:16]{index=16}
+
+# Testing
+junit4 = "4.13.2"
+androidx-test-ext-junit = "1.3.0"              # JUnit extensions (stable line) :contentReference[oaicite:17]{index=17}
+espresso = "3.7.0"
+ui-text = "1.9.0"
+navigation-compose = "2.9.3"                             # Espresso latest stable :contentReference[oaicite:18]{index=18}
 
 [libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
-junit = { group = "junit", name = "junit", version.ref = "junit" }
-androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
-androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
-androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
-androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
-androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
-androidx-ui = { group = "androidx.compose.ui", name = "ui" }
-androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
-androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
-androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
-androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
-androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+# AndroidX core
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle-ktx" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+
+# Compose (managed by BOM)
+androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
+androidx-ui = { module = "androidx.compose.ui:ui" }
+androidx-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
+androidx-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-material3 = { module = "androidx.compose.material3:material3" }
+androidx-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+androidx-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+
+# DocumentFile (SAF helpers)
+androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
+
+# Credential Manager + Google Sign-In bridge
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+androidx-credentials-play-services = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials-play-services" }
+googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+# (Legacy) Google Play Services Auth – only if you still need old GSI APIs; otherwise prefer Credential Manager
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version = "21.4.0" } # deprecated path; FYI :contentReference[oaicite:19]{index=19}
+
+# Google APIs (Drive + Photos)
+google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "google-api-client-android" }
+google-api-services-drive = { module = "com.google.apis:google-api-services-drive", version.ref = "google-drive" }
+google-photos-library-client = { module = "com.google.photos.library:google-photos-library-client", version.ref = "google-photos" }
+
+# SAF helper lib
+anggrayudi-storage = { module = "com.anggrayudi:storage", version.ref = "anggrayudi-storage" }
+
+# Coil 3 – I provide both aliases so either libs.coil.compose or libs.coil3.compose works
+#noinspection SimilarGradleDependency
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
+#noinspection SimilarGradleDependency
+coil3-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
+coil3-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil3" }
+
+# Room
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+
+# WorkManager
+androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+
+# Testing
+junit = { module = "junit:junit", version.ref = "junit4" }
+androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-test-ext-junit" }
+androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
+androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "ui-text" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
