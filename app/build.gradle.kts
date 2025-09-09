@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -59,9 +60,24 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
 
-    // Navigation Compose
+    // Google services and storage
+    implementation(libs.google.play.services.auth)
+    implementation(libs.google.play.services.drive)
+    implementation(libs.google.photos.library)
+    implementation(libs.androidx.documentfile)
 
-    implementation(libs.navigation.compose)
+    // Image loading
+    implementation(libs.coil.compose)
+
+    // Local database
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    // Background work
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // Navigation Compose
     implementation(libs.androidx.navigation.compose)
 
     testImplementation(libs.junit)
