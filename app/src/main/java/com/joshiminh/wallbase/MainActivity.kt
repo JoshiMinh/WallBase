@@ -4,11 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.annotation.DrawableRes
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -18,7 +20,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -30,6 +37,7 @@ import com.joshiminh.wallbase.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.ExploreScreen
 import com.joshiminh.wallbase.ui.LibraryScreen
 import com.joshiminh.wallbase.ui.SettingsScreen
+import com.joshiminh.wallbase.ui.Source
 import com.joshiminh.wallbase.ui.SourcesScreen
 
 class MainActivity : ComponentActivity() {
@@ -37,29 +45,57 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            WallBaseTheme {
-                WallBaseApp()
+            val systemDark = isSystemInDarkTheme()
+            var followSystem by remember { mutableStateOf(true) }
+            var darkTheme by remember { mutableStateOf(systemDark) }
+            val sources = remember {
+                mutableStateListOf(
+                    Source("google_photos", R.drawable.google_photos, "Google Photos", "Login, pick albums"),
+                    Source("google_drive", R.drawable.google_drive, "Google Drive", "Login, pick folder(s)"),
+                    Source("reddit", R.drawable.reddit, "Reddit", "Add subs, sort/time, filters"),
+                    Source("pinterest", R.drawable.pinterest, "Pinterest", "(planned)"),
+                    Source("websites", android.R.drawable.ic_menu_search, "Websites", "Templates or custom rules"),
+                    Source("local", android.R.drawable.ic_menu_gallery, "Local", "Device Photo Picker / SAF")
+                )
+            }
+            val useDarkTheme = if (followSystem) systemDark else darkTheme
+            WallBaseTheme(darkTheme = useDarkTheme) {
+                WallBaseApp(
+                    sources = sources,
+                    darkTheme = darkTheme,
+                    followSystem = followSystem,
+                    onToggleDarkTheme = { darkTheme = it },
+                    onToggleFollowSystem = { followSystem = it }
+                )
             }
         }
     }
 }
 
 /** Top-level routes for bottom navigation */
-private enum class RootRoute(val route: String, val label: String) {
-    Explore("explore", "Explore"),
-    Library("library", "Library"),
-    Sources("sources", "Sources"),
-    Settings("settings", "Settings")
+private enum class RootRoute(
+    val route: String,
+    val label: String,
+    @DrawableRes val icon: Int
+) {
+    Explore("explore", "Explore", android.R.drawable.ic_menu_search),
+    Library("library", "Library", android.R.drawable.ic_menu_gallery),
+    Sources("sources", "Sources", android.R.drawable.ic_menu_manage),
+    Settings("settings", "Settings", android.R.drawable.ic_menu_preferences)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WallBaseApp() {
+fun WallBaseApp(
+    sources: List<Source>,
+    darkTheme: Boolean,
+    followSystem: Boolean,
+    onToggleDarkTheme: (Boolean) -> Unit,
+    onToggleFollowSystem: (Boolean) -> Unit
+) {
     val navController = rememberNavController()
-    val currentDestination by navController.currentBackStackEntryAsState()
-        .let { state -> state.value?.destination }.let { destState ->
-            androidx.compose.runtime.rememberUpdatedState(destState)
-        }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -91,8 +127,13 @@ fun WallBaseApp() {
                                 }
                             }
                         },
-                        // Placeholder icon to avoid extra dependencies for now
-                        icon = { Spacer(Modifier.size(24.dp)) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(id = item.icon),
+                                contentDescription = item.label,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
                         label = { Text(item.label) }
                     )
                 }
@@ -104,10 +145,17 @@ fun WallBaseApp() {
             startDestination = RootRoute.Explore.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(RootRoute.Explore.route) { ExploreScreen() }
+            composable(RootRoute.Explore.route) { ExploreScreen(sources) }
             composable(RootRoute.Library.route) { LibraryScreen() }
-            composable(RootRoute.Sources.route) { SourcesScreen() }
-            composable(RootRoute.Settings.route) { SettingsScreen() }
+            composable(RootRoute.Sources.route) { SourcesScreen(sources) }
+            composable(RootRoute.Settings.route) {
+                SettingsScreen(
+                    darkTheme = darkTheme,
+                    followSystem = followSystem,
+                    onToggleDarkTheme = onToggleDarkTheme,
+                    onToggleFollowSystem = onToggleFollowSystem
+                )
+            }
         }
     }
 }
