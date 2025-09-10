@@ -23,15 +23,20 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.joshiminh.wallbase.data.Source
 import com.joshiminh.wallbase.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.ExploreScreen
 import com.joshiminh.wallbase.ui.LibraryScreen
@@ -43,8 +48,23 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            WallBaseTheme {
-                WallBaseApp()
+            var darkTheme by remember { mutableStateOf(false) }
+            val sources = remember {
+                listOf(
+                    Source(R.drawable.google_photos, "Google Photos", "Login, pick albums", true, true),
+                    Source(R.drawable.google_drive, "Google Drive", "Login, pick folder(s)", true, true),
+                    Source(R.drawable.reddit, "Reddit", "Add subs, sort/time, filters", true, true),
+                    Source(R.drawable.pinterest, "Pinterest", "(planned)", true, true),
+                    Source(android.R.drawable.ic_menu_search, "Websites", "Templates or custom rules", false, false),
+                    Source(android.R.drawable.ic_menu_gallery, "Local", "Device Photo Picker / SAF", false, false)
+                ).toMutableStateList()
+            }
+            WallBaseTheme(darkTheme = darkTheme) {
+                WallBaseApp(
+                    sources = sources,
+                    darkTheme = darkTheme,
+                    onToggleDarkTheme = { darkTheme = it }
+                )
             }
         }
     }
@@ -64,7 +84,11 @@ private enum class RootRoute(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WallBaseApp() {
+fun WallBaseApp(
+    sources: SnapshotStateList<Source>,
+    darkTheme: Boolean,
+    onToggleDarkTheme: (Boolean) -> Unit
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -117,10 +141,15 @@ fun WallBaseApp() {
             startDestination = RootRoute.Explore.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(RootRoute.Explore.route) { ExploreScreen() }
+            composable(RootRoute.Explore.route) { ExploreScreen(sources) }
             composable(RootRoute.Library.route) { LibraryScreen() }
-            composable(RootRoute.Sources.route) { SourcesScreen() }
-            composable(RootRoute.Settings.route) { SettingsScreen() }
+            composable(RootRoute.Sources.route) { SourcesScreen(sources) }
+            composable(RootRoute.Settings.route) {
+                SettingsScreen(
+                    darkTheme = darkTheme,
+                    onToggleDarkTheme = onToggleDarkTheme
+                )
+            }
         }
     }
 }
