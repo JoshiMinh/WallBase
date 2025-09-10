@@ -4,11 +4,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -20,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
@@ -45,21 +51,23 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Top-level routes for bottom navigation */
-private enum class RootRoute(val route: String, val label: String) {
-    Explore("explore", "Explore"),
-    Library("library", "Library"),
-    Sources("sources", "Sources"),
-    Settings("settings", "Settings")
+private enum class RootRoute(
+    val route: String,
+    val label: String,
+    val icon: ImageVector
+) {
+    Explore("explore", "Explore", Icons.Outlined.Explore),
+    Library("library", "Library", Icons.Outlined.Collections),
+    Sources("sources", "Sources", Icons.Outlined.Cloud),
+    Settings("settings", "Settings", Icons.Outlined.Settings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WallBaseApp() {
     val navController = rememberNavController()
-    val currentDestination by navController.currentBackStackEntryAsState()
-        .let { state -> state.value?.destination }.let { destState ->
-            androidx.compose.runtime.rememberUpdatedState(destState)
-        }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -91,8 +99,13 @@ fun WallBaseApp() {
                                 }
                             }
                         },
-                        // Placeholder icon to avoid extra dependencies for now
-                        icon = { Spacer(Modifier.size(24.dp)) },
+                        icon = {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.label,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        },
                         label = { Text(item.label) }
                     )
                 }
