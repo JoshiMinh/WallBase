@@ -33,6 +33,7 @@ coil3 = "3.3.0"                                # Coil v3 line (Compose 1.9 compa
 
 # Room & WorkManager
 material-icons-extended = "<version>"
+retrofit = "<version>"
 room = "2.7.2"                                 # Stable Room (compatible with Work 2.10.x) :contentReference[oaicite:15]{index=15}
 work = "2.10.3"                                # Latest stable WorkManager :contentReference[oaicite:16]{index=16}
 
@@ -99,6 +100,7 @@ androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-t
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
 androidx-compose-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "ui-text" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }
+retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

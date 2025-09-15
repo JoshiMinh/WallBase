@@ -79,12 +79,15 @@ dependencies {
 
     // Optional: DocumentFile API
     implementation(libs.androidx.documentfile)
+    implementation(libs.play.services.auth)
+    implementation(libs.retrofit)
 
     // ---------- Image Loading (Coil v3) ----------
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network.okhttp)
 
     // ---------- Room (with KSP) ----------
+
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
