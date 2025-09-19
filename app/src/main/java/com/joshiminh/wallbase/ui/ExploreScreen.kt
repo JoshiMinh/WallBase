@@ -27,9 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -50,17 +50,15 @@ fun ExploreScreen(
     exploreViewModel: ExploreViewModel = viewModel(factory = ExploreViewModel.Factory)
 ) {
     val tabs = sources.filter { it.enabled && it.showInExplore }
-    var selectedTab by remember { mutableIntStateOf(0) }
     val uiState by exploreViewModel.uiState.collectAsStateWithLifecycle()
+    val selectedTab = tabs.indexOfFirst { it.key == uiState.activeSourceKey }
+        .takeIf { it >= 0 } ?: 0
 
     LaunchedEffect(tabs) {
-        if (tabs.isNotEmpty() && selectedTab >= tabs.size) {
-            selectedTab = 0
+        if (tabs.isNotEmpty()) {
+            val initialSource = tabs.getOrNull(selectedTab) ?: tabs.first()
+            exploreViewModel.selectSource(initialSource)
         }
-    }
-
-    LaunchedEffect(tabs, selectedTab) {
-        tabs.getOrNull(selectedTab)?.let { exploreViewModel.loadSource(it) }
     }
 
     if (tabs.isEmpty()) {
@@ -71,7 +69,7 @@ fun ExploreScreen(
                 tabs.forEachIndexed { index, tab ->
                     Tab(
                         selected = selectedTab == index,
-                        onClick = { selectedTab = index },
+                        onClick = { exploreViewModel.selectSource(tab) },
                         text = { Text(tab.title) }
                     )
                 }
@@ -82,29 +80,47 @@ fun ExploreScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                when {
-                    uiState.isLoading -> {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                val pullRefreshState = rememberPullRefreshState(
+                    refreshing = uiState.isRefreshing,
+                    onRefresh = { tabs.getOrNull(selectedTab)?.let(exploreViewModel::refresh) }
+                )
+
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .pullRefresh(pullRefreshState)
+                ) {
+                    when {
+                        uiState.isLoading -> {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
+
+                        uiState.errorMessage != null -> {
+                            ErrorState(
+                                message = uiState.errorMessage!!,
+                                onRetry = { tabs.getOrNull(selectedTab)?.let(exploreViewModel::refresh) }
+                            )
+                        }
+
+                        uiState.wallpapers.isEmpty() -> {
+                            val activeSource = tabs.getOrNull(selectedTab)?.title ?: "this source"
+                            EmptyState(message = "No wallpapers found for $activeSource.")
+                        }
+
+                        else -> {
+                            WallpaperGrid(
+                                wallpapers = uiState.wallpapers,
+                                onWallpaperSelected = onWallpaperSelected,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
 
-                    uiState.errorMessage != null -> {
-                        ErrorState(
-                            message = uiState.errorMessage!!,
-                            onRetry = { tabs.getOrNull(selectedTab)?.let(exploreViewModel::refresh) }
-                        )
-                    }
-
-                    uiState.wallpapers.isEmpty() -> {
-                        val activeSource = tabs.getOrNull(selectedTab)?.title ?: "this source"
-                        EmptyState(message = "No wallpapers found for $activeSource.")
-                    }
-
-                    else -> {
-                        WallpaperGrid(
-                            wallpapers = uiState.wallpapers,
-                            onWallpaperSelected = onWallpaperSelected
-                        )
-                    }
+                    PullRefreshIndicator(
+                        refreshing = uiState.isRefreshing,
+                        state = pullRefreshState,
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    )
                 }
             }
         }
@@ -114,10 +130,11 @@ fun ExploreScreen(
 @Composable
 private fun WallpaperGrid(
     wallpapers: List<WallpaperItem>,
-    onWallpaperSelected: (WallpaperItem) -> Unit
+    onWallpaperSelected: (WallpaperItem) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     LazyVerticalGrid(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         columns = GridCells.Adaptive(minSize = 160.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),

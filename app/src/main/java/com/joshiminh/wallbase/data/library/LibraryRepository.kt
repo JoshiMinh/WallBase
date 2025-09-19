@@ -8,6 +8,7 @@ import android.provider.OpenableColumns
 import com.joshiminh.wallbase.data.local.dao.WallpaperDao
 import com.joshiminh.wallbase.data.local.entity.WallpaperEntity
 import com.joshiminh.wallbase.data.source.SourceKeys
+import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -66,6 +67,37 @@ class LibraryRepository(
             if (wallpapers.isNotEmpty()) {
                 wallpaperDao.insertWallpapers(wallpapers)
             }
+        }
+    }
+
+    suspend fun addWallpaper(wallpaper: WallpaperItem): Boolean {
+        val sourceKey = wallpaper.sourceKey
+            ?: throw IllegalArgumentException("Wallpaper is missing a source key")
+
+        return withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val result = wallpaperDao.insertWallpaper(
+                WallpaperEntity(
+                    sourceKey = sourceKey,
+                    remoteId = wallpaper.id,
+                    source = wallpaper.sourceName ?: sourceKey,
+                    title = wallpaper.title.ifBlank { "Wallpaper" },
+                    description = null,
+                    imageUrl = wallpaper.imageUrl,
+                    sourceUrl = wallpaper.sourceUrl,
+                    localUri = null,
+                    width = null,
+                    height = null,
+                    colorPalette = null,
+                    fileSizeBytes = null,
+                    isFavorite = false,
+                    isDownloaded = false,
+                    appliedAt = null,
+                    addedAt = now,
+                    updatedAt = now
+                )
+            )
+            result != -1L
         }
     }
 

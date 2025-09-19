@@ -27,7 +27,12 @@ class WallpaperRepository(
             SourceKeys.WEBSITES -> webScraper.scrapeImagesFromUrl(customWebsiteUrl, limit = 30)
             else -> emptyList()
         }
-        return wallpapers.map { it.copy(sourceName = source.title) }
+        return wallpapers.map {
+            it.copy(
+                sourceName = source.title,
+                sourceKey = source.key
+            )
+        }
     }
 
     suspend fun searchRedditCommunities(query: String, limit: Int = 10): List<RedditCommunity> =

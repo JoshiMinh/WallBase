@@ -12,5 +12,6 @@ data class WallpaperItem(
     val title: String,
     val imageUrl: String,
     val sourceUrl: String,
-    val sourceName: String? = null
+    val sourceName: String? = null,
+    val sourceKey: String? = null
 ) : Parcelable
