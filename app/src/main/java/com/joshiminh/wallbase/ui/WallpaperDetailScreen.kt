@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -29,6 +30,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +71,7 @@ fun WallpaperDetailRoute(
         uiState = uiState,
         onPreviewTargetSelected = viewModel::updatePreviewTarget,
         onApplyTarget = viewModel::applyWallpaper,
+        onAddToLibrary = viewModel::addToLibrary,
         snackbarHostState = snackbarHostState
     )
 }
@@ -77,6 +81,7 @@ private fun WallpaperDetailScreen(
     uiState: WallpaperDetailViewModel.WallpaperDetailUiState,
     onPreviewTargetSelected: (WallpaperTarget) -> Unit,
     onApplyTarget: (WallpaperTarget) -> Unit,
+    onAddToLibrary: () -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
     val wallpaper = uiState.wallpaper ?: return
@@ -86,6 +91,8 @@ private fun WallpaperDetailScreen(
     } else {
         WallpaperTarget.HOME
     }
+    val canAddToLibrary = wallpaper.sourceKey != null
+    var showTargetDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -143,6 +150,15 @@ private fun WallpaperDetailScreen(
                 }
             }
 
+            if (uiState.isAddingToLibrary) {
+                AssistChip(
+                    onClick = {},
+                    label = { Text(text = stringResource(R.string.adding_to_library)) },
+                    enabled = false
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+
             if (uiState.isApplying) {
                 AssistChip(
                     onClick = {},
@@ -155,24 +171,17 @@ private fun WallpaperDetailScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = { onApplyTarget(WallpaperTarget.HOME) },
-                    enabled = !uiState.isApplying
+                    onClick = { if (canAddToLibrary) onAddToLibrary() },
+                    enabled = canAddToLibrary && !uiState.isAddingToLibrary
                 ) {
-                    Text(text = stringResource(id = R.string.apply_home_screen))
+                    Text(text = stringResource(id = R.string.add_to_library))
                 }
                 Button(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = { onApplyTarget(WallpaperTarget.LOCK) },
+                    onClick = { showTargetDialog = true },
                     enabled = !uiState.isApplying
                 ) {
-                    Text(text = stringResource(id = R.string.apply_lock_screen))
-                }
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onApplyTarget(WallpaperTarget.BOTH) },
-                    enabled = !uiState.isApplying
-                ) {
-                    Text(text = stringResource(id = R.string.apply_both_screens))
+                    Text(text = stringResource(id = R.string.set_wallpaper))
                 }
             }
 
@@ -182,6 +191,17 @@ private fun WallpaperDetailScreen(
                 Text(text = stringResource(id = R.string.open_original))
             }
         }
+    }
+
+    if (showTargetDialog) {
+        SetWallpaperDialog(
+            onDismiss = { showTargetDialog = false },
+            onTargetSelected = { target ->
+                showTargetDialog = false
+                onApplyTarget(target)
+            },
+            isApplying = uiState.isApplying
+        )
     }
 }
 
@@ -195,6 +215,50 @@ private fun PreviewChip(text: String, selected: Boolean, onClick: () -> Unit) {
             selectedContainerColor = MaterialTheme.colorScheme.primary,
             selectedLabelColor = MaterialTheme.colorScheme.onPrimary
         )
+    )
+}
+
+@Composable
+private fun SetWallpaperDialog(
+    onDismiss: () -> Unit,
+    onTargetSelected: (WallpaperTarget) -> Unit,
+    isApplying: Boolean
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.choose_wallpaper_target)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text = stringResource(R.string.choose_wallpaper_target_message))
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onTargetSelected(WallpaperTarget.HOME) },
+                    enabled = !isApplying
+                ) {
+                    Text(text = stringResource(id = R.string.apply_home_screen))
+                }
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onTargetSelected(WallpaperTarget.LOCK) },
+                    enabled = !isApplying
+                ) {
+                    Text(text = stringResource(id = R.string.apply_lock_screen))
+                }
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { onTargetSelected(WallpaperTarget.BOTH) },
+                    enabled = !isApplying
+                ) {
+                    Text(text = stringResource(id = R.string.apply_both_screens))
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(id = R.string.back))
+            }
+        }
     )
 }
 

@@ -10,4 +10,9 @@
     <string name="apply_both_screens">Set as both screens</string>
     <string name="open_original">Open original post</string>
     <string name="applying_wallpaper">Applying wallpaper…</string>
+    <string name="add_to_library">Add to library</string>
+    <string name="adding_to_library">Adding to library…</string>
+    <string name="set_wallpaper">Set wallpaper</string>
+    <string name="choose_wallpaper_target">Choose where to apply</string>
+    <string name="choose_wallpaper_target_message">Select where you want to set this wallpaper.</string>
 </resources>
