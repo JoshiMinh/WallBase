@@ -1,9 +1,10 @@
+@file:Suppress("UnstableApiUsage")
+
 plugins {
-    // Core plugins
-    alias(libs.plugins.android.application) // Android Application Plugin
-    alias(libs.plugins.kotlin.android)      // Kotlin Android Support
-    alias(libs.plugins.kotlin.compose)      // Jetpack Compose Support
-    alias(libs.plugins.ksp)                 // Kotlin Symbol Processing (for Room, etc.)
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
     id("org.jetbrains.kotlin.plugin.parcelize")
 }
 
@@ -18,13 +19,11 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        // Instrumentation test runner
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            // Enable R8/ProGuard for release builds (disabled for now)
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -33,56 +32,65 @@ android {
         }
     }
 
-    // Enable Compose
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+    }
 
-    // Java compatibility
     compileOptions {
+        // Using Java 21 toolchain with Android
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
+        // coreLibraryDesugaringEnabled not needed for minSdk 26 unless you use newer java.util APIs that require it
     }
 
-    // Kotlin JVM target
-    kotlinOptions { jvmTarget = "21" }
+    kotlinOptions {
+        jvmTarget = "21"
+    }
 
-    // Jetpack Compose options
+    // No need to pin kotlinCompilerExtensionVersion when using recent AGP + Compose BOM.
     composeOptions {
-        // Compose BOM handled in dependencies via platform()
-        useLiveLiterals = false
+        useLiveLiterals = false // NOTE: Deprecated and will be removed in AGP 9.0
     }
 
-    // Packaging exclusions
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
 }
 
 dependencies {
-    // ---------- Jetpack Compose ----------
-    implementation(platform(libs.androidx.compose.bom)) // Compose BOM for version alignment
+    // ---------------- Compose (BOM aligns all androidx.compose.* versions) ----------------
+    implementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    debugImplementation(platform(libs.androidx.compose.bom))
+
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.compose.ui.text)
-    implementation(libs.androidx.navigation.compose)
-    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.foundation)
-    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.ui.text)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.navigation.compose)
 
-    // Tooling & Testing for Compose
+    // Tooling (debug-only)
     debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
-    androidTestImplementation(libs.androidx.ui.test.junit4)
 
-    // ---------- AndroidX Core ----------
+    // Compose UI tests
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // ---------------- AndroidX Core ----------------
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
 
-    // Optional: DocumentFile API
+    // Optional
     implementation(libs.androidx.documentfile)
-    implementation(libs.play.services.auth)
+
+    // ---------------- Networking / JSON ----------------
     implementation(libs.retrofit)
     implementation(libs.retrofit.moshi)
     implementation(libs.okhttp.logging)
@@ -90,26 +98,23 @@ dependencies {
     implementation(libs.moshi.kotlin)
     implementation(libs.jsoup)
 
-    // ---------- Image Loading (Coil v3) ----------
+    // ---------------- Image Loading ----------------
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network.okhttp)
 
-    // ---------- Lifecycle helpers ----------
-    implementation(libs.androidx.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-
-    // ---------- Room (with KSP) ----------
-
+    // ---------------- Room (KSP) ----------------
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // ---------- Background Work ----------
+    // ---------------- WorkManager ----------------
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.work.runtime.ktx)
 
-    // ---------- Testing ----------
+    // ---------------- Google Play Services (Auth) ----------------
+    implementation(libs.play.services.auth)
+
+    // ---------------- Testing ----------------
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

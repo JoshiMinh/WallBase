@@ -20,8 +20,8 @@
     <string name="choose_wallpaper_target">Choose where to apply</string>
     <string name="choose_wallpaper_target_message">Select where you want to set this wallpaper.</string>
     <string name="preview_unavailable_title">Preview unavailable</string>
-    <string name="preview_unavailable_message">Your device couldn't open the wallpaper preview.</string>
-    <string name="preview_unavailable_message_with_reason">Your device couldn't open the wallpaper preview (%1$s).</string>
+    <string name="preview_unavailable_message">Your device couldn\'t open the wallpaper preview.</string>
+    <string name="preview_unavailable_message_with_reason">Your device couldn\'t open the wallpaper preview (%1$s).</string>
     <string name="preview_apply_question">Apply the wallpaper directly to the %1$s?</string>
     <string name="apply_without_preview">Apply without preview</string>
     <string name="request_wallpaper_permission">Grant wallpaper access</string>
