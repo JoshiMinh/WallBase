@@ -4,7 +4,7 @@ import com.joshiminh.wallbase.R
 
 val GooglePhotosSource = SourceSeed(
     key = SourceKeys.GOOGLE_PHOTOS,
-    icon = R.drawable.google_photos,
+    iconRes = R.drawable.google_photos,
     title = "Google Photos",
     description = "Login, pick albums",
     showInExplore = true,

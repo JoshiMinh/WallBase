@@ -7,14 +7,22 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import com.joshiminh.wallbase.data.local.dao.WallpaperDao
 import com.joshiminh.wallbase.data.local.entity.WallpaperEntity
+import com.joshiminh.wallbase.data.local.entity.WallpaperWithAlbums
 import com.joshiminh.wallbase.data.source.SourceKeys
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 class LibraryRepository(
     private val wallpaperDao: WallpaperDao
 ) {
+    fun observeSavedWallpapers(): Flow<List<WallpaperItem>> {
+        return wallpaperDao.observeWallpapersWithAlbums()
+            .map { entries -> entries.map(WallpaperWithAlbums::toWallpaperItem) }
+    }
+
     suspend fun importLocalWallpapers(context: Context, uris: List<Uri>) {
         if (uris.isEmpty()) return
 
@@ -99,6 +107,22 @@ class LibraryRepository(
             )
             result != -1L
         }
+    }
+
+    private fun WallpaperWithAlbums.toWallpaperItem(): WallpaperItem {
+        val entity = wallpaper
+        val remoteId = entity.remoteId ?: entity.id.toString()
+        val displayImageUrl = entity.localUri ?: entity.imageUrl
+        val originalUrl = entity.sourceUrl ?: entity.localUri ?: entity.imageUrl
+
+        return WallpaperItem(
+            id = "${entity.sourceKey}:$remoteId",
+            title = entity.title,
+            imageUrl = displayImageUrl,
+            sourceUrl = originalUrl,
+            sourceName = entity.source,
+            sourceKey = entity.sourceKey
+        )
     }
 
     private fun ContentResolver.queryMetadata(uri: Uri): Pair<String, Long?>? {

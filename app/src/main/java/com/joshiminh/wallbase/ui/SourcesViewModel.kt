@@ -10,10 +10,10 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.library.LibraryRepository
 import com.joshiminh.wallbase.data.source.RedditCommunity
 import com.joshiminh.wallbase.data.source.Source
-import com.joshiminh.wallbase.data.source.SourceRepository
 import com.joshiminh.wallbase.data.source.SourceKeys
-import com.joshiminh.wallbase.di.ServiceLocator
+import com.joshiminh.wallbase.data.source.SourceRepository
 import com.joshiminh.wallbase.data.wallpapers.WallpaperRepository
+import com.joshiminh.wallbase.di.ServiceLocator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,25 +41,39 @@ class SourcesViewModel(
                 _uiState.update {
                     it.copy(
                         sources = sources,
-                        existingRedditConfigs = redditConfigs
+                        existingRedditConfigs = redditConfigs,
+                        detectedType = sourceRepository.detectRemoteSourceType(it.urlInput)
                     )
                 }
             }
         }
     }
 
-    fun toggleSource(source: Source, enabled: Boolean) {
-        viewModelScope.launch {
-            sourceRepository.setSourceEnabled(source, enabled)
+    fun updateSourceInput(input: String) {
+        val detected = sourceRepository.detectRemoteSourceType(input)
+        _uiState.update {
+            val shouldClearResults =
+                it.detectedType == SourceRepository.RemoteSourceType.REDDIT &&
+                        detected != SourceRepository.RemoteSourceType.REDDIT
+            it.copy(
+                urlInput = input,
+                detectedType = detected,
+                redditSearchResults = if (shouldClearResults) emptyList() else it.redditSearchResults,
+                redditSearchError = if (shouldClearResults) null else it.redditSearchError
+            )
         }
     }
 
-    fun updateRedditQuery(query: String) {
-        _uiState.update { it.copy(redditQuery = query) }
-    }
-
     fun searchRedditCommunities() {
-        val query = uiState.value.redditQuery.trim()
+        val state = uiState.value
+        if (state.detectedType != SourceRepository.RemoteSourceType.REDDIT) {
+            _uiState.update {
+                it.copy(snackbarMessage = "Enter a subreddit name or URL to search.")
+            }
+            return
+        }
+
+        val query = state.urlInput.trim()
         if (query.length < 2) {
             _uiState.update { it.copy(snackbarMessage = "Enter at least two characters to search.") }
             return
@@ -82,20 +96,16 @@ class SourcesViewModel(
     fun addRedditCommunity(community: RedditCommunity) {
         if (uiState.value.isSearchingReddit) return
         viewModelScope.launch {
-            val result = runCatching {
-                sourceRepository.addRedditSource(
-                    slug = community.name,
-                    displayName = community.displayName,
-                    description = community.description
-                )
-            }
+            val result = runCatching { sourceRepository.addRedditCommunity(community) }
             result.fold(
-                onSuccess = {
+                onSuccess = { source ->
                     _uiState.update {
                         it.copy(
-                            snackbarMessage = "Added ${community.displayName}",
-                            redditQuery = "",
-                            redditSearchResults = emptyList()
+                            snackbarMessage = "Added ${source.title}",
+                            urlInput = "",
+                            detectedType = null,
+                            redditSearchResults = emptyList(),
+                            redditSearchError = null
                         )
                     }
                 },
@@ -108,34 +118,33 @@ class SourcesViewModel(
         }
     }
 
-    fun addRedditFromQuery() {
-        val parsed = parseSubredditInput(uiState.value.redditQuery)
-        if (parsed == null) {
-            _uiState.update { it.copy(snackbarMessage = "Enter a valid subreddit URL or name.") }
+    fun addSourceFromInput() {
+        val input = uiState.value.urlInput
+        if (input.isBlank()) {
+            _uiState.update { it.copy(snackbarMessage = "Enter a subreddit or wallpaper URL.") }
             return
         }
 
         viewModelScope.launch {
-            val result = runCatching {
-                sourceRepository.addRedditSource(
-                    slug = parsed.slug,
-                    displayName = parsed.displayName,
-                    description = null
-                )
-            }
+            val result = runCatching { sourceRepository.addSourceFromInput(input) }
             result.fold(
-                onSuccess = {
+                onSuccess = { source ->
                     _uiState.update {
                         it.copy(
-                            snackbarMessage = "Added ${parsed.displayName}",
-                            redditQuery = "",
-                            redditSearchResults = emptyList()
+                            snackbarMessage = "Added ${source.title}",
+                            urlInput = "",
+                            detectedType = null,
+                            redditSearchResults = emptyList(),
+                            redditSearchError = null
                         )
                     }
                 },
                 onFailure = { error ->
                     _uiState.update {
-                        it.copy(snackbarMessage = error.localizedMessage ?: "Unable to add subreddit.")
+                        it.copy(
+                            snackbarMessage = error.localizedMessage ?: "Unable to add source.",
+                            detectedType = sourceRepository.detectRemoteSourceType(it.urlInput)
+                        )
                     }
                 }
             )
@@ -143,7 +152,9 @@ class SourcesViewModel(
     }
 
     fun clearSearchResults() {
-        _uiState.update { it.copy(redditSearchResults = emptyList(), redditSearchError = null) }
+        _uiState.update {
+            it.copy(redditSearchResults = emptyList(), redditSearchError = null)
+        }
     }
 
     fun removeSource(source: Source) {
@@ -185,7 +196,8 @@ class SourcesViewModel(
 
     data class SourcesUiState(
         val sources: List<Source> = emptyList(),
-        val redditQuery: String = "",
+        val urlInput: String = "",
+        val detectedType: SourceRepository.RemoteSourceType? = null,
         val isSearchingReddit: Boolean = false,
         val redditSearchResults: List<RedditCommunity> = emptyList(),
         val redditSearchError: String? = null,
@@ -206,38 +218,5 @@ class SourcesViewModel(
                 )
             }
         }
-    }
-
-    private fun parseSubredditInput(input: String): ParsedSubreddit? {
-        val trimmed = input.trim()
-        if (trimmed.isBlank()) return null
-
-        val normalized = trimmed
-            .removePrefixIgnoreCase("https://")
-            .removePrefixIgnoreCase("http://")
-            .removePrefixIgnoreCase("www.")
-            .substringAfterDomain("reddit.com/")
-            .removePrefixIgnoreCase("r/")
-            .substringBefore('/')
-            .trim()
-        if (normalized.isBlank()) return null
-
-        val slug = normalized.lowercase(Locale.ROOT)
-        return ParsedSubreddit(slug = slug, displayName = "r/$normalized")
-    }
-
-    private data class ParsedSubreddit(val slug: String, val displayName: String)
-
-    private fun String.removePrefixIgnoreCase(prefix: String): String {
-        return if (startsWith(prefix, ignoreCase = true)) {
-            substring(prefix.length)
-        } else {
-            this
-        }
-    }
-
-    private fun String.substringAfterDomain(domain: String): String {
-        val index = indexOf(domain, ignoreCase = true)
-        return if (index >= 0) substring(index + domain.length) else this
     }
 }

@@ -1,5 +1,6 @@
 package com.joshiminh.wallbase
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -11,9 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Collections
-import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Navigation
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -50,11 +50,11 @@ import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.di.ServiceLocator
 import com.joshiminh.wallbase.theme.WallBaseTheme
+import com.joshiminh.wallbase.ui.BrowseScreen
 import com.joshiminh.wallbase.ui.DriveFolderPickerScreen
-import com.joshiminh.wallbase.ui.ExploreScreen
 import com.joshiminh.wallbase.ui.LibraryScreen
 import com.joshiminh.wallbase.ui.SettingsScreen
-import com.joshiminh.wallbase.ui.SourcesScreen
+import com.joshiminh.wallbase.ui.SourceBrowseRoute
 import com.joshiminh.wallbase.ui.SourcesViewModel
 import com.joshiminh.wallbase.ui.WallpaperDetailRoute
 
@@ -78,11 +78,10 @@ class MainActivity : ComponentActivity() {
                     sourcesUiState = sourcesUiState,
                     darkTheme = darkTheme,
                     onToggleDarkTheme = { darkTheme = it },
-                    onToggleSource = sourcesViewModel::toggleSource,
                     onImportLocalImages = { localImagesPicker.launch(arrayOf("image/*")) },
-                    onUpdateRedditQuery = sourcesViewModel::updateRedditQuery,
+                    onUpdateSourceInput = sourcesViewModel::updateSourceInput,
                     onSearchReddit = sourcesViewModel::searchRedditCommunities,
-                    onAddRedditFromQuery = sourcesViewModel::addRedditFromQuery,
+                    onAddSourceFromInput = sourcesViewModel::addSourceFromInput,
                     onAddRedditCommunity = sourcesViewModel::addRedditCommunity,
                     onClearRedditSearch = sourcesViewModel::clearSearchResults,
                     onRemoveSource = sourcesViewModel::removeSource,
@@ -99,9 +98,8 @@ private enum class RootRoute(
     val label: String,
     val icon: ImageVector
 ) {
-    Explore("explore", "Explore", Icons.Outlined.Explore),
+    Browse("browse", "Browse", Icons.Outlined.Navigation),
     Library("library", "Library", Icons.Outlined.Collections),
-    Sources("sources", "Sources", Icons.Outlined.Cloud),
     Settings("settings", "Settings", Icons.Outlined.Settings)
 }
 
@@ -111,11 +109,10 @@ fun WallBaseApp(
     sourcesUiState: SourcesViewModel.SourcesUiState,
     darkTheme: Boolean,
     onToggleDarkTheme: (Boolean) -> Unit,
-    onToggleSource: (Source, Boolean) -> Unit,
     onImportLocalImages: () -> Unit,
-    onUpdateRedditQuery: (String) -> Unit,
+    onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
-    onAddRedditFromQuery: () -> Unit,
+    onAddSourceFromInput: () -> Unit,
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source) -> Unit,
@@ -126,6 +123,7 @@ fun WallBaseApp(
     val currentDestination = navBackStackEntry?.destination
     val driveToken = remember { "" }
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
+    var topBarTitleOverride by remember { mutableStateOf<String?>(null) }
     val canNavigateBack = navController.previousBackStackEntry != null &&
         currentDestination?.route !in topLevelRoutes
 
@@ -135,7 +133,7 @@ fun WallBaseApp(
             TopAppBar(
                 title = {
                     Text(
-                        text = currentTitle(currentDestination),
+                        text = topBarTitleOverride ?: currentTitle(currentDestination),
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
@@ -187,34 +185,37 @@ fun WallBaseApp(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = RootRoute.Explore.route,
+            startDestination = RootRoute.Browse.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(RootRoute.Explore.route) {
-                ExploreScreen(
-                    sources = sourcesUiState.sources,
+            composable(RootRoute.Browse.route) {
+                BrowseScreen(
+                    uiState = sourcesUiState,
+                    onGoogleDriveClick = { navController.navigate("driveFolders") },
+                    onAddLocalWallpapers = onImportLocalImages,
+                    onUpdateSourceInput = onUpdateSourceInput,
+                    onSearchReddit = onSearchReddit,
+                    onAddSourceFromInput = onAddSourceFromInput,
+                    onAddRedditCommunity = onAddRedditCommunity,
+                    onClearSearchResults = onClearRedditSearch,
+                    onOpenSource = { source ->
+                        navController.navigate("sourceBrowse/${Uri.encode(source.key)}")
+                    },
+                    onRemoveSource = onRemoveSource,
+                    onMessageShown = onSourcesMessageShown
+                )
+            }
+            composable(RootRoute.Library.route) {
+                LibraryScreen(
                     onWallpaperSelected = { wallpaper ->
-                        navController.currentBackStackEntry?.savedStateHandle?.set("wallpaper_detail", wallpaper)
+                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                            "wallpaper_detail",
+                            wallpaper
+                        )
                         navController.navigate("wallpaperDetail") {
                             launchSingleTop = true
                         }
                     }
-                )
-            }
-            composable(RootRoute.Library.route) { LibraryScreen() }
-            composable(RootRoute.Sources.route) {
-                SourcesScreen(
-                    uiState = sourcesUiState,
-                    onToggleSource = onToggleSource,
-                    onGoogleDriveClick = { navController.navigate("driveFolders") },
-                    onAddLocalWallpapers = onImportLocalImages,
-                    onUpdateRedditQuery = onUpdateRedditQuery,
-                    onSearchReddit = onSearchReddit,
-                    onAddRedditFromQuery = onAddRedditFromQuery,
-                    onAddRedditCommunity = onAddRedditCommunity,
-                    onClearSearchResults = onClearRedditSearch,
-                    onRemoveSource = onRemoveSource,
-                    onMessageShown = onSourcesMessageShown
                 )
             }
             composable("driveFolders") {
@@ -222,6 +223,26 @@ fun WallBaseApp(
                     token = driveToken,
                     onFolderPicked = { navController.popBackStack() }
                 )
+            }
+            composable("sourceBrowse/{sourceKey}") { backStackEntry ->
+                val key = backStackEntry.arguments?.getString("sourceKey")
+                if (key.isNullOrBlank()) {
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                } else {
+                    SourceBrowseRoute(
+                        sourceKey = key,
+                        onWallpaperSelected = { wallpaper ->
+                            navController.currentBackStackEntry?.savedStateHandle?.set(
+                                "wallpaper_detail",
+                                wallpaper
+                            )
+                            navController.navigate("wallpaperDetail") {
+                                launchSingleTop = true
+                            }
+                        },
+                        onTitleChange = { override -> topBarTitleOverride = override }
+                    )
+                }
             }
             composable("wallpaperDetail") {
                 val wallpaper = navController.previousBackStackEntry?.savedStateHandle
@@ -248,9 +269,8 @@ fun WallBaseApp(
 }
 
 private fun currentTitle(dest: NavDestination?): String = when {
-    dest.isTopDestination(RootRoute.Explore) -> "Explore"
+    dest.isTopDestination(RootRoute.Browse) -> "Browse"
     dest.isTopDestination(RootRoute.Library) -> "Library"
-    dest.isTopDestination(RootRoute.Sources) -> "Sources"
     dest.isTopDestination(RootRoute.Settings) -> "Settings"
     dest?.route == "wallpaperDetail" -> "Wallpaper"
     dest?.route == "driveFolders" -> "Drive folders"

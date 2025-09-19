@@ -22,7 +22,7 @@ import com.joshiminh.wallbase.data.source.SourceSeed
         AlbumWallpaperCrossRef::class,
         SourceEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -58,13 +58,14 @@ abstract class WallBaseDatabase : RoomDatabase() {
             try {
                 seeds.forEach { seed ->
                     db.execSQL(
-                        "INSERT INTO sources (key, provider_key, title, description, icon_res, show_in_explore, is_enabled, is_local, config) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        "INSERT INTO sources (key, provider_key, title, description, icon_res, icon_url, show_in_explore, is_enabled, is_local, config) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         arrayOf(
                             seed.key,
                             seed.providerKey,
                             seed.title,
                             seed.description,
-                            seed.icon,
+                            seed.iconRes,
+                            seed.iconUrl,
                             if (seed.showInExplore) 1 else 0,
                             if (seed.enabledByDefault) 1 else 0,
                             if (seed.isLocal) 1 else 0,

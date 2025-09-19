@@ -1,6 +1,5 @@
 package com.joshiminh.wallbase.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,7 +28,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -40,22 +38,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.source.RedditCommunity
 import com.joshiminh.wallbase.data.source.Source
 import com.joshiminh.wallbase.data.source.SourceKeys
+import com.joshiminh.wallbase.data.source.SourceRepository
 import java.util.Locale
 
 @Composable
-fun SourcesScreen(
+fun BrowseScreen(
     uiState: SourcesViewModel.SourcesUiState,
-    onToggleSource: (Source, Boolean) -> Unit,
     onGoogleDriveClick: () -> Unit,
     onAddLocalWallpapers: () -> Unit,
-    onUpdateRedditQuery: (String) -> Unit,
+    onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
-    onAddRedditFromQuery: () -> Unit,
+    onAddSourceFromInput: () -> Unit,
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearSearchResults: () -> Unit,
+    onOpenSource: (Source) -> Unit,
     onRemoveSource: (Source) -> Unit,
     onMessageShown: () -> Unit
 ) {
@@ -75,16 +75,17 @@ fun SourcesScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item("reddit_manager") {
-                RedditSourceManagerCard(
-                    query = uiState.redditQuery,
+            item("add_remote_source") {
+                AddSourceFromUrlCard(
+                    input = uiState.urlInput,
+                    detectedType = uiState.detectedType,
                     isSearching = uiState.isSearchingReddit,
                     results = uiState.redditSearchResults,
                     searchError = uiState.redditSearchError,
                     existingConfigs = uiState.existingRedditConfigs,
-                    onQueryChange = onUpdateRedditQuery,
+                    onInputChange = onUpdateSourceInput,
                     onSearch = onSearchReddit,
-                    onAddDirect = onAddRedditFromQuery,
+                    onAddSource = onAddSourceFromInput,
                     onAddResult = onAddRedditCommunity,
                     onClearResults = onClearSearchResults
                 )
@@ -102,7 +103,7 @@ fun SourcesScreen(
                 items(uiState.sources, key = Source::id) { source ->
                     SourceCard(
                         source = source,
-                        onToggleSource = onToggleSource,
+                        onOpenSource = onOpenSource,
                         onGoogleDriveClick = onGoogleDriveClick,
                         onAddLocalWallpapers = onAddLocalWallpapers,
                         onRemoveSource = onRemoveSource
@@ -114,18 +115,23 @@ fun SourcesScreen(
 }
 
 @Composable
-private fun RedditSourceManagerCard(
-    query: String,
+private fun AddSourceFromUrlCard(
+    input: String,
+    detectedType: SourceRepository.RemoteSourceType?,
     isSearching: Boolean,
     results: List<RedditCommunity>,
     searchError: String?,
     existingConfigs: Set<String>,
-    onQueryChange: (String) -> Unit,
+    onInputChange: (String) -> Unit,
     onSearch: () -> Unit,
-    onAddDirect: () -> Unit,
+    onAddSource: () -> Unit,
     onAddResult: (RedditCommunity) -> Unit,
     onClearResults: () -> Unit
 ) {
+    val isReddit = detectedType == SourceRepository.RemoteSourceType.REDDIT
+    val canSearch = isReddit && input.trim().length >= 2 && !isSearching
+    val canAdd = detectedType != null && input.isNotBlank() && !isSearching
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -133,24 +139,46 @@ private fun RedditSourceManagerCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Reddit communities",
+                text = "Add from URL",
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = "Search or paste a subreddit URL to add it as its own source tab.",
+                text = "Paste a subreddit or wallpaper link to create a new source.",
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                modifier = Modifier.padding(top = 4.dp)
             )
 
+            Column(modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)) {
+                SupportedSourceBullet("Reddit Subs")
+                SupportedSourceBullet("Pinterest Boards")
+                SupportedSourceBullet("Alpha Coders")
+                SupportedSourceBullet("Wallpaper Websites")
+            }
+
             OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
+                value = input,
+                onValueChange = onInputChange,
                 label = { Text("Subreddit or URL") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSearch() })
+                keyboardActions = KeyboardActions(onSearch = {
+                    if (isReddit) {
+                        if (canSearch) onSearch()
+                    } else if (canAdd) {
+                        onAddSource()
+                    }
+                })
             )
+
+            if (input.isNotBlank() && detectedType == null) {
+                Text(
+                    text = "Enter a supported link from the sites above.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
 
             Row(
                 modifier = Modifier
@@ -159,15 +187,21 @@ private fun RedditSourceManagerCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(onClick = onSearch, enabled = query.trim().length >= 2 && !isSearching) {
-                    Text("Search")
-                }
-                TextButton(onClick = onAddDirect, enabled = query.isNotBlank() && !isSearching) {
-                    Text("Add directly")
-                }
-                if (results.isNotEmpty()) {
-                    TextButton(onClick = onClearResults, enabled = !isSearching) {
-                        Text("Clear")
+                if (isReddit) {
+                    Button(onClick = onSearch, enabled = canSearch) {
+                        Text("Search")
+                    }
+                    TextButton(onClick = onAddSource, enabled = canAdd) {
+                        Text("Add directly")
+                    }
+                    if (results.isNotEmpty()) {
+                        TextButton(onClick = onClearResults, enabled = !isSearching) {
+                            Text("Clear")
+                        }
+                    }
+                } else {
+                    Button(onClick = onAddSource, enabled = canAdd) {
+                        Text("Add source")
                     }
                 }
             }
@@ -194,7 +228,10 @@ private fun RedditSourceManagerCard(
                 }
 
                 results.isNotEmpty() -> {
-                    Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(
+                        modifier = Modifier.padding(top = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         results.forEach { community ->
                             RedditSearchResult(
                                 community = community,
@@ -207,6 +244,15 @@ private fun RedditSourceManagerCard(
             }
         }
     }
+}
+
+@Composable
+private fun SupportedSourceBullet(text: String) {
+    Text(
+        text = "• $text",
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(vertical = 2.dp)
+    )
 }
 
 @Composable
@@ -243,7 +289,7 @@ private fun RedditSearchResult(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (alreadyAdded) "Already added" else "Tap add to create a new source tab",
+                    text = if (alreadyAdded) "Already added" else "Tap add to create a new source",
                     style = MaterialTheme.typography.bodySmall
                 )
                 TextButton(onClick = { onAdd(community) }, enabled = !alreadyAdded) {
@@ -258,33 +304,51 @@ private fun RedditSearchResult(
 @Composable
 private fun SourceCard(
     source: Source,
-    onToggleSource: (Source, Boolean) -> Unit,
+    onOpenSource: (Source) -> Unit,
     onGoogleDriveClick: () -> Unit,
     onAddLocalWallpapers: () -> Unit,
     onRemoveSource: (Source) -> Unit
 ) {
     val isGoogleDrive = source.providerKey == SourceKeys.GOOGLE_DRIVE
     val isLocal = source.isLocal
-    val isRemovable = source.providerKey == SourceKeys.REDDIT
+    val isRemovable = source.providerKey == SourceKeys.REDDIT ||
+        source.providerKey == SourceKeys.WEBSITES ||
+        source.providerKey == SourceKeys.PINTEREST
+
+    val cardModifier = when {
+        isGoogleDrive -> Modifier
+            .fillMaxWidth()
+            .clickable { onGoogleDriveClick() }
+        !isLocal -> Modifier
+            .fillMaxWidth()
+            .clickable { onOpenSource(source) }
+        else -> Modifier.fillMaxWidth()
+    }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = isGoogleDrive) {
-                if (isGoogleDrive) {
-                    onGoogleDriveClick()
-                }
-            },
+        modifier = cardModifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(id = source.icon),
-                    contentDescription = source.title,
-                    modifier = Modifier.size(28.dp)
-                )
+                if (source.iconUrl != null) {
+                    AsyncImage(
+                        model = source.iconUrl,
+                        contentDescription = source.title,
+                        modifier = Modifier.size(28.dp),
+                        placeholder = source.iconRes?.let { painterResource(id = it) },
+                        error = source.iconRes?.let { painterResource(id = it) }
+                    )
+                } else {
+                    source.iconRes?.let { iconRes ->
+                        Icon(
+                            painter = painterResource(id = iconRes),
+                            contentDescription = source.title,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
                 Spacer(Modifier.size(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(source.title, style = MaterialTheme.typography.titleMedium)
@@ -295,10 +359,6 @@ private fun SourceCard(
                         Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Remove ${source.title}")
                     }
                 }
-                Switch(
-                    checked = source.enabled,
-                    onCheckedChange = { checked -> onToggleSource(source, checked) }
-                )
             }
             if (isLocal) {
                 Spacer(Modifier.size(12.dp))

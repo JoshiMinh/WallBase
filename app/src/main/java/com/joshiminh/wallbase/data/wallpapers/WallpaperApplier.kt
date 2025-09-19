@@ -3,22 +3,29 @@ package com.joshiminh.wallbase.data.wallpapers
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.WallpaperManager
+import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toBitmap
 import coil3.ImageLoader
+import coil3.asDrawable
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import java.io.File
+import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.core.graphics.createBitmap
-import coil3.asDrawable
 
 class WallpaperApplier(
     private val context: Context,
@@ -43,15 +50,7 @@ class WallpaperApplier(
             }
 
             runCatching {
-                val request = ImageRequest.Builder(context)
-                    .data(imageUrl)
-                    .build()
-
-                val result = imageLoader.execute(request)
-                val image = (result as? SuccessResult)?.image
-                    ?: error("Unable to load wallpaper preview")
-                val drawable = image.asDrawable(context.resources)   // <-- replaces .drawable
-                val bitmap = drawable.toSoftwareBitmap()
+                val bitmap = loadWallpaperBitmap(imageUrl)
 
                 // Try Samsung's manager first. If it returns false, fall back to the platform manager.
                 if (!applyWithSamsungManager(bitmap, target)) {
@@ -59,6 +58,33 @@ class WallpaperApplier(
                 }
             }
         }
+
+    suspend fun createSystemPreview(
+        imageUrl: String,
+        target: WallpaperTarget
+    ): Result<PreviewData> = withContext(Dispatchers.IO) {
+        runCatching {
+            val bitmap = loadWallpaperBitmap(imageUrl)
+            val file = createPreviewFile(bitmap)
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val intent = buildPreviewIntent(uri)
+            ensurePreviewHandlerAvailable(intent)
+            grantPreviewPermissions(intent, uri)
+            PreviewData(intent = intent, uri = uri, filePath = file.absolutePath)
+        }
+    }
+
+    fun cleanupPreview(preview: PreviewData) {
+        context.revokeUriPermission(preview.uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val file = File(preview.filePath)
+        if (file.exists()) {
+            file.delete()
+        }
+    }
 
     @SuppressLint("MissingPermission") // Safe: we performed a runtime permission check in apply()
     private fun applyWithWallpaperManager(bitmap: Bitmap, target: WallpaperTarget) {
@@ -96,6 +122,8 @@ class WallpaperApplier(
     }
 }
 
+data class PreviewData(val intent: Intent, val uri: Uri, val filePath: String)
+
 private fun Drawable.toSoftwareBitmap(): Bitmap {
     val targetWidth = intrinsicWidth.takeIf { it > 0 } ?: 1
     val targetHeight = intrinsicHeight.takeIf { it > 0 } ?: 1
@@ -116,4 +144,68 @@ private fun Drawable.toSoftwareBitmap(): Bitmap {
     }
 
     return toBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+}
+
+private fun WallpaperApplier.buildPreviewIntent(uri: Uri): Intent {
+    val manager = WallpaperManager.getInstance(context)
+    val cropIntent = runCatching { manager.getCropAndSetWallpaperIntent(uri) }.getOrNull()
+    val intent = cropIntent ?: Intent(Intent.ACTION_ATTACH_DATA).apply {
+        addCategory(Intent.CATEGORY_DEFAULT)
+        setDataAndType(uri, "image/*")
+        putExtra("mimeType", "image/*")
+        putExtra("from_wallpaper", true)
+    }
+    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    intent.clipData = ClipData.newRawUri("wallpaper", uri)
+    return intent
+}
+
+private fun WallpaperApplier.ensurePreviewHandlerAvailable(intent: Intent) {
+    val resolveInfos = context.packageManager.queryIntentActivities(
+        intent,
+        PackageManager.MATCH_DEFAULT_ONLY
+    )
+    if (resolveInfos.isEmpty()) {
+        throw ActivityNotFoundException("No activity found to handle wallpaper preview")
+    }
+}
+
+private fun WallpaperApplier.grantPreviewPermissions(intent: Intent, uri: Uri) {
+    val resolveInfos = context.packageManager.queryIntentActivities(
+        intent,
+        PackageManager.MATCH_DEFAULT_ONLY
+    )
+    resolveInfos.forEach { info ->
+        context.grantUriPermission(
+            info.activityInfo.packageName,
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+    }
+}
+
+private fun WallpaperApplier.createPreviewFile(bitmap: Bitmap): File {
+    val directory = File(context.cacheDir, "wallpaper_previews").apply {
+        if (!exists()) {
+            mkdirs()
+        }
+    }
+    val file = File.createTempFile("preview_", ".jpg", directory)
+    FileOutputStream(file).use { output ->
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 95, output)
+        output.flush()
+    }
+    return file
+}
+
+private suspend fun WallpaperApplier.loadWallpaperBitmap(imageUrl: String): Bitmap {
+    val request = ImageRequest.Builder(context)
+        .data(imageUrl)
+        .build()
+
+    val result = imageLoader.execute(request)
+    val image = (result as? SuccessResult)?.image
+        ?: error("Unable to load wallpaper preview")
+    val drawable = image.asDrawable(context.resources)
+    return drawable.toSoftwareBitmap()
 }

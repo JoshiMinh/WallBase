@@ -1,10 +1,9 @@
 package com.joshiminh.wallbase.data.source
 
-import androidx.annotation.DrawableRes
-
 data class Source(
     val id: Long,
-    @DrawableRes val icon: Int,
+    val iconRes: Int?,
+    val iconUrl: String?,
     val title: String,
     val description: String,
     val showInExplore: Boolean,

@@ -23,7 +23,9 @@ object ServiceLocator {
 
     fun initialize(context: Context) {
         if (appContext == null) {
-            appContext = context.applicationContext
+            val applicationContext = context.applicationContext
+            appContext = applicationContext
+            WallBaseDatabase.getInstance(applicationContext)
         }
     }
 

@@ -1,10 +1,12 @@
 package com.joshiminh.wallbase.ui
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,8 +21,6 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -31,18 +31,15 @@ import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -58,9 +55,33 @@ fun WallpaperDetailRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = viewModel::onWallpaperPermissionResult
+    )
+    var launchedPreview by remember { mutableStateOf<WallpaperDetailViewModel.WallpaperPreviewLaunch?>(null) }
+    val previewLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        launchedPreview?.let { preview ->
+            viewModel.onPreviewResult(preview, result.resultCode)
+            launchedPreview = null
+        }
+    }
 
     LaunchedEffect(wallpaper.id) {
         viewModel.setWallpaper(wallpaper)
+    }
+
+    LaunchedEffect(uiState.pendingPreview) {
+        val preview = uiState.pendingPreview ?: return@LaunchedEffect
+        launchedPreview = preview
+        try {
+            previewLauncher.launch(preview.preview.intent)
+        } catch (throwable: Throwable) {
+            launchedPreview = null
+            viewModel.onPreviewLaunchFailed(preview, throwable)
+        } finally {
+            viewModel.onPreviewLaunched()
+        }
     }
 
     LaunchedEffect(uiState.message) {
@@ -71,9 +92,9 @@ fun WallpaperDetailRoute(
 
     WallpaperDetailScreen(
         uiState = uiState,
-        onPreviewTargetSelected = viewModel::updatePreviewTarget,
         onApplyTarget = viewModel::applyWallpaper,
         onAddToLibrary = viewModel::addToLibrary,
+        onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         snackbarHostState = snackbarHostState
     )
 }
@@ -81,18 +102,13 @@ fun WallpaperDetailRoute(
 @Composable
 private fun WallpaperDetailScreen(
     uiState: WallpaperDetailViewModel.WallpaperDetailUiState,
-    onPreviewTargetSelected: (WallpaperTarget) -> Unit,
     onApplyTarget: (WallpaperTarget) -> Unit,
     onAddToLibrary: () -> Unit,
+    onRequestPermission: () -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
     val wallpaper = uiState.wallpaper ?: return
     val uriHandler = LocalUriHandler.current
-    val previewTarget = if (uiState.previewTarget == WallpaperTarget.LOCK) {
-        WallpaperTarget.LOCK
-    } else {
-        WallpaperTarget.HOME
-    }
     val canAddToLibrary = wallpaper.sourceKey != null
     var showTargetDialog by remember { mutableStateOf(false) }
 
@@ -104,7 +120,7 @@ private fun WallpaperDetailScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                .verticalScroll(rememberScrollState())   // <— add this
+                .verticalScroll(rememberScrollState())
         ) {
             Text(
                 text = wallpaper.title,
@@ -118,39 +134,45 @@ private fun WallpaperDetailScreen(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     wallpaper.sourceName?.let { sourceName ->
                         Text(
                             text = sourceName,
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Spacer(Modifier.height(12.dp))
                     }
-                    WallpaperPreview(imageUrl = wallpaper.imageUrl, previewTarget = previewTarget)
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = if (previewTarget == WallpaperTarget.LOCK) {
-                            stringResource(id = R.string.preview_lock_screen)
-                        } else {
-                            stringResource(id = R.string.preview_home_screen)
-                        },
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        PreviewChip(
-                            text = stringResource(R.string.preview_home_short),
-                            selected = previewTarget == WallpaperTarget.HOME,
-                            onClick = { onPreviewTargetSelected(WallpaperTarget.HOME) }
-                        )
-                        PreviewChip(
-                            text = stringResource(R.string.preview_lock_short),
-                            selected = previewTarget == WallpaperTarget.LOCK,
-                            onClick = { onPreviewTargetSelected(WallpaperTarget.LOCK) }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(9f / 19.5f)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
+                    ) {
+                        AsyncImage(
+                            model = wallpaper.imageUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
                     }
                 }
+            }
+
+            if (!uiState.hasWallpaperPermission) {
+                Text(
+                    text = stringResource(id = R.string.wallpaper_permission_rationale),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                TextButton(onClick = onRequestPermission) {
+                    Text(text = stringResource(id = R.string.request_wallpaper_permission))
+                }
+                Spacer(Modifier.height(12.dp))
             }
 
             if (uiState.isAddingToLibrary) {
@@ -182,7 +204,7 @@ private fun WallpaperDetailScreen(
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { showTargetDialog = true },
-                    enabled = !uiState.isApplying
+                    enabled = uiState.hasWallpaperPermission && !uiState.isApplying
                 ) {
                     Text(text = stringResource(id = R.string.set_wallpaper))
                 }
@@ -206,19 +228,6 @@ private fun WallpaperDetailScreen(
             isApplying = uiState.isApplying
         )
     }
-}
-
-@Composable
-private fun PreviewChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(text) },
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = MaterialTheme.colorScheme.primary,
-            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-        )
-    )
 }
 
 @Composable
@@ -263,90 +272,4 @@ private fun SetWallpaperDialog(
             }
         }
     )
-}
-
-@Composable
-private fun WallpaperPreview(imageUrl: String, previewTarget: WallpaperTarget) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(9f / 19.5f)
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
-    ) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-
-        val overlay = remember(previewTarget) {
-            when (previewTarget) {
-                WallpaperTarget.LOCK -> lockScreenOverlay()
-                else -> homeScreenOverlay()
-            }
-        }
-
-        overlay()
-    }
-}
-
-private fun homeScreenOverlay(): @Composable () -> Unit = {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.Black.copy(alpha = 0.35f))
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(72.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f))
-                    )
-                )
-        )
-    }
-}
-
-private fun lockScreenOverlay(): @Composable () -> Unit = {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "12:45",
-                style = MaterialTheme.typography.displayLarge,
-                color = Color.White,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Wednesday",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White
-            )
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .height(6.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.7f))
-        )
-    }
 }
