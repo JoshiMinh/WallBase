@@ -19,4 +19,13 @@ interface RedditService {
         @Query("limit") limit: Int = 10,
         @Query("include_over_18") includeOver18: Int = 0
     ): RedditSubredditListingResponse
+
+    @GET("r/{subreddit}/search.json")
+    suspend fun searchSubredditPosts(
+        @Path("subreddit") subreddit: String,
+        @Query("q") query: String,
+        @Query("restrict_sr") restrictToSubreddit: Int = 1,
+        @Query("limit") limit: Int = 40,
+        @Query("sort") sort: String = "relevance"
+    ): RedditListingResponse
 }

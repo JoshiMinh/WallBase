@@ -1,8 +1,10 @@
 package com.joshiminh.wallbase.data.wallpapers
 
+import android.net.Uri
 import com.joshiminh.wallbase.data.source.RedditCommunity
 import com.joshiminh.wallbase.data.source.Source
 import com.joshiminh.wallbase.data.source.SourceKeys
+import com.joshiminh.wallbase.network.RedditListingResponse
 import com.joshiminh.wallbase.network.RedditPost
 import com.joshiminh.wallbase.network.RedditService
 import com.joshiminh.wallbase.network.RedditSubredditChild
@@ -19,12 +21,27 @@ class WallpaperRepository(
     private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
 ) {
 
-    suspend fun fetchWallpapersFor(source: Source): List<WallpaperItem> {
+    suspend fun fetchWallpapersFor(source: Source, query: String? = null): List<WallpaperItem> {
         val provider = source.providerKey.lowercase(Locale.ROOT)
+        val trimmedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
         val wallpapers = when (provider) {
-            SourceKeys.REDDIT -> fetchRedditWallpapers(source.config ?: DEFAULT_REDDIT_SUBREDDIT)
-            SourceKeys.PINTEREST -> webScraper.scrapePinterest(pinterestQuery, limit = 30)
-            SourceKeys.WEBSITES -> webScraper.scrapeImagesFromUrl(customWebsiteUrl, limit = 30)
+            SourceKeys.REDDIT ->
+                fetchRedditWallpapers(source.config ?: DEFAULT_REDDIT_SUBREDDIT, trimmedQuery)
+            SourceKeys.PINTEREST -> {
+                val config = source.config
+                when {
+                    trimmedQuery != null -> webScraper.scrapePinterest(trimmedQuery, limit = 30)
+                    config.isNullOrBlank() -> webScraper.scrapePinterest(pinterestQuery, limit = 30)
+                    config.startsWith("http", ignoreCase = true) ->
+                        webScraper.scrapeImagesFromUrl(config, limit = 30)
+                    else -> webScraper.scrapePinterest(config, limit = 30)
+                }
+            }
+            SourceKeys.WEBSITES -> {
+                val url = source.config ?: customWebsiteUrl
+                val targetUrl = trimmedQuery?.let { buildWebsiteSearchUrl(url, it) } ?: url
+                webScraper.scrapeImagesFromUrl(targetUrl, limit = 30)
+            }
             else -> emptyList()
         }
         return wallpapers.map {
@@ -37,31 +54,27 @@ class WallpaperRepository(
 
     suspend fun searchRedditCommunities(query: String, limit: Int = 10): List<RedditCommunity> =
         withContext(Dispatchers.IO) {
-            runCatching {
-                redditService.searchSubreddits(query = query, limit = limit)
-            }
-                // ✅ Cannot take callable reference to a member extension; use a lambda
-                .mapCatching { it.toCommunities() }
+            runCatching { redditService.searchSubreddits(query = query, limit = limit) }
+                .mapCatching { response -> response.toCommunities() }
                 .getOrElse { emptyList() }
         }
 
-    private suspend fun fetchRedditWallpapers(subreddit: String): List<WallpaperItem> =
+    private suspend fun fetchRedditWallpapers(subreddit: String, query: String?): List<WallpaperItem> =
         withContext(Dispatchers.IO) {
             runCatching {
                 val normalized = subreddit.normalizeSubredditName()
-                redditService.fetchSubreddit(subreddit = normalized)
-            }.mapCatching { response ->
-                response.data?.children.orEmpty().mapNotNull { child ->
-                    val post = child.data ?: return@mapNotNull null
-                    val imageUrl = post.resolveImageUrl() ?: return@mapNotNull null
-                    WallpaperItem(
-                        id = post.id,
-                        title = post.title,
-                        imageUrl = imageUrl,
-                        sourceUrl = post.permalink?.let { "https://www.reddit.com$it" } ?: imageUrl
+                if (query.isNullOrBlank()) {
+                    redditService.fetchSubreddit(subreddit = normalized)
+                } else {
+                    redditService.searchSubredditPosts(
+                        subreddit = normalized,
+                        query = query,
+                        restrictToSubreddit = 1,
+                        limit = 40
                     )
                 }
-            }.getOrElse { emptyList() }
+            }.mapCatching { response -> response.toWallpaperItems() }
+                .getOrElse { emptyList() }
         }
 
     private fun RedditPost.resolveImageUrl(): String? {
@@ -70,6 +83,19 @@ class WallpaperRepository(
         return (previewUrl ?: directUrl)
             ?.replace("&amp;", "&")
             ?.takeIf { it.hasSupportedImageExtension() }
+    }
+
+    private fun RedditListingResponse.toWallpaperItems(): List<WallpaperItem> {
+        return data?.children.orEmpty().mapNotNull { child ->
+            val post = child.data ?: return@mapNotNull null
+            val imageUrl = post.resolveImageUrl() ?: return@mapNotNull null
+            WallpaperItem(
+                id = post.id,
+                title = post.title,
+                imageUrl = imageUrl,
+                sourceUrl = post.permalink?.let { "https://www.reddit.com$it" } ?: imageUrl
+            )
+        }
     }
 
     private fun String.hasSupportedImageExtension(): Boolean {
@@ -82,7 +108,6 @@ class WallpaperRepository(
                 normalized.endsWith(".webp")
     }
 
-    // Member extension is fine; just don't reference it with ::
     private fun RedditSubredditListingResponse.toCommunities(): List<RedditCommunity> {
         return data?.children.orEmpty()
             .mapNotNull(RedditSubredditChild::data)
@@ -94,9 +119,7 @@ class WallpaperRepository(
                     displayName = subreddit.displayNamePrefixed.takeIf { it.isNotBlank() }
                         ?: "r/${name.normalizeSubredditName()}",
                     title = subreddit.title.takeIf { it.isNotBlank() } ?: name,
-                    // ✅ Fix invalid Elvis/nullable call
                     description = subreddit.publicDescription?.takeIf { it.isNotBlank() },
-                    // Prefer iconImage; fall back to communityIcon
                     iconUrl = (subreddit.iconImage ?: subreddit.communityIcon)
                         ?.replace("&amp;", "&")
                 )
@@ -112,6 +135,30 @@ class WallpaperRepository(
         .substringBefore('/')
         .trim()
         .lowercase(Locale.ROOT)
+
+    private fun buildWebsiteSearchUrl(baseUrl: String, query: String): String {
+        if (baseUrl.contains("alphacoders", ignoreCase = true)) {
+            return "https://alphacoders.com/search/view?q=${Uri.encode(query)}"
+        }
+        return runCatching {
+            val uri = Uri.parse(baseUrl)
+            val builder = uri.buildUpon()
+            builder.clearQuery()
+            uri.queryParameterNames
+                .filter { it != "q" }
+                .forEach { name ->
+                    val value = uri.getQueryParameter(name)
+                    if (!value.isNullOrBlank()) {
+                        builder.appendQueryParameter(name, value)
+                    }
+                }
+            builder.appendQueryParameter("q", query)
+            builder.build().toString()
+        }.getOrElse {
+            val separator = if (baseUrl.contains('?')) '&' else '?'
+            "$baseUrl$separator" + "q=${Uri.encode(query)}"
+        }
+    }
 
     private companion object {
         private const val DEFAULT_REDDIT_SUBREDDIT = "wallpapers"

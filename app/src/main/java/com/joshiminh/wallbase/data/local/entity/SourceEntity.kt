@@ -27,7 +27,9 @@ data class SourceEntity(
     @ColumnInfo(name = "description")
     val description: String,
     @ColumnInfo(name = "icon_res")
-    val iconRes: Int,
+    val iconRes: Int?,
+    @ColumnInfo(name = "icon_url")
+    val iconUrl: String?,
     @ColumnInfo(name = "show_in_explore")
     val showInExplore: Boolean,
     @ColumnInfo(name = "is_enabled")
@@ -39,7 +41,8 @@ data class SourceEntity(
 ) {
     fun toDomain(): Source = Source(
         id = id,
-        icon = iconRes,
+        iconRes = iconRes,
+        iconUrl = iconUrl,
         title = title,
         description = description,
         showInExplore = showInExplore,
@@ -56,7 +59,8 @@ data class SourceEntity(
             providerKey = seed.providerKey,
             title = seed.title,
             description = seed.description,
-            iconRes = seed.icon,
+            iconRes = seed.iconRes,
+            iconUrl = seed.iconUrl,
             showInExplore = seed.showInExplore,
             isEnabled = seed.enabledByDefault,
             isLocal = seed.isLocal,

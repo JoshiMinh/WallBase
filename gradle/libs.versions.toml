@@ -4,7 +4,7 @@
 # Tooling
 agp = "8.13.0"                                 # Android Gradle Plugin :contentReference[oaicite:0]{index=0}
 kotlin = "2.2.10"                              # Kotlin Gradle plugin :contentReference[oaicite:1]{index=1}
-ksp = "2.2.10-RC2-2.0.2"                       # KSP that matches Kotlin 2.2.10 :contentReference[oaicite:2]{index=2}
+ksp = "2.2.10-RC2-2.0.2"                       # Latest KSP build available for Kotlin 2.2.10
 
 # Compose
 compose-bom = "2025.08.01"                     # Latest production BOM (1.9 core) :contentReference[oaicite:3]{index=3}

@@ -28,6 +28,9 @@ interface SourceDao {
     @Query("SELECT * FROM sources WHERE key = :key LIMIT 1")
     suspend fun getSourceByKey(key: String): SourceEntity?
 
+    @Query("SELECT * FROM sources WHERE key = :key LIMIT 1")
+    fun observeSourceByKey(key: String): Flow<SourceEntity?>
+
     @Query("SELECT * FROM sources WHERE provider_key = :provider AND config = :config LIMIT 1")
     suspend fun findSourceByProviderAndConfig(provider: String, config: String): SourceEntity?
 

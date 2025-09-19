@@ -4,7 +4,7 @@ import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
 /**
- * Simple representation of a wallpaper entry shown in the Explore screen.
+ * Simple representation of a wallpaper entry shown in browsing screens.
  */
 @Parcelize
 data class WallpaperItem(

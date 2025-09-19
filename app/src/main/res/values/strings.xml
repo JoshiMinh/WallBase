@@ -15,4 +15,6 @@
     <string name="set_wallpaper">Set wallpaper</string>
     <string name="choose_wallpaper_target">Choose where to apply</string>
     <string name="choose_wallpaper_target_message">Select where you want to set this wallpaper.</string>
+    <string name="request_wallpaper_permission">Grant wallpaper access</string>
+    <string name="wallpaper_permission_rationale">Allow WallBase to open the system wallpaper preview so you can confirm the image.</string>
 </resources>

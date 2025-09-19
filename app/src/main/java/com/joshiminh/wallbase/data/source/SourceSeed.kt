@@ -1,14 +1,13 @@
 package com.joshiminh.wallbase.data.source
 
-import androidx.annotation.DrawableRes
-
 /**
  * Describes a built-in source that should be preloaded into the local database on first launch.
  */
 data class SourceSeed(
     val key: String,
     val providerKey: String = key,
-    @DrawableRes val icon: Int,
+    val iconRes: Int? = null,
+    val iconUrl: String? = null,
     val title: String,
     val description: String,
     val showInExplore: Boolean,
@@ -23,6 +22,6 @@ val DefaultSources: List<SourceSeed> = listOf(
     GoogleDriveSource,
     RedditSource,
     PinterestSource,
-    WebsitesSource,
+    AlphaCodersSource,
     LocalSource
 )
