@@ -35,18 +35,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.data.Source
+import com.joshiminh.wallbase.data.source.Source
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 
 @Composable
 fun ExploreScreen(
     sources: List<Source>,
+    onWallpaperSelected: (WallpaperItem) -> Unit,
     exploreViewModel: ExploreViewModel = viewModel(factory = ExploreViewModel.Factory)
 ) {
     val tabs = sources.filter { it.enabled && it.showInExplore }
@@ -100,7 +100,10 @@ fun ExploreScreen(
                     }
 
                     else -> {
-                        WallpaperGrid(wallpapers = uiState.wallpapers)
+                        WallpaperGrid(
+                            wallpapers = uiState.wallpapers,
+                            onWallpaperSelected = onWallpaperSelected
+                        )
                     }
                 }
             }
@@ -109,7 +112,10 @@ fun ExploreScreen(
 }
 
 @Composable
-private fun WallpaperGrid(wallpapers: List<WallpaperItem>) {
+private fun WallpaperGrid(
+    wallpapers: List<WallpaperItem>,
+    onWallpaperSelected: (WallpaperItem) -> Unit
+) {
     LazyVerticalGrid(
         modifier = Modifier.fillMaxSize(),
         columns = GridCells.Adaptive(minSize = 160.dp),
@@ -118,19 +124,24 @@ private fun WallpaperGrid(wallpapers: List<WallpaperItem>) {
         contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         items(wallpapers, key = WallpaperItem::id) { wallpaper ->
-            WallpaperCard(wallpaper)
+            WallpaperCard(
+                item = wallpaper,
+                onClick = { onWallpaperSelected(wallpaper) }
+            )
         }
     }
 }
 
 @Composable
-private fun WallpaperCard(item: WallpaperItem) {
-    val uriHandler = LocalUriHandler.current
+private fun WallpaperCard(
+    item: WallpaperItem,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(0.7f)
-            .clickable { uriHandler.openUri(item.sourceUrl) },
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -163,13 +174,15 @@ private fun WallpaperCard(item: WallpaperItem) {
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = item.sourceUrl,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.8f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    item.sourceName?.let { name ->
+                        Text(
+                            text = name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }

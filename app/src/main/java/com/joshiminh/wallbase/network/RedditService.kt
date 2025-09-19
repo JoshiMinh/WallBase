@@ -12,4 +12,11 @@ interface RedditService {
         @Query("t") timeRange: String = "week",
         @Query("limit") limit: Int = 40
     ): RedditListingResponse
+
+    @GET("subreddits/search.json")
+    suspend fun searchSubreddits(
+        @Query("q") query: String,
+        @Query("limit") limit: Int = 10,
+        @Query("include_over_18") includeOver18: Int = 0
+    ): RedditSubredditListingResponse
 }
