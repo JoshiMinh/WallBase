@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">WallBase</string>
+    <string name="back">Back</string>
+    <string name="preview_home_screen">Home screen preview</string>
+    <string name="preview_lock_screen">Lock screen preview</string>
+    <string name="preview_home_short">Home</string>
+    <string name="preview_lock_short">Lock</string>
+    <string name="apply_home_screen">Set as home screen</string>
+    <string name="apply_lock_screen">Set as lock screen</string>
+    <string name="apply_both_screens">Set as both screens</string>
+    <string name="open_original">Open original post</string>
+    <string name="applying_wallpaper">Applying wallpaper…</string>
 </resources>

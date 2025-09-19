@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.android)      // Kotlin Android Support
     alias(libs.plugins.kotlin.compose)      // Jetpack Compose Support
     alias(libs.plugins.ksp)                 // Kotlin Symbol Processing (for Room, etc.)
+    id("org.jetbrains.kotlin.plugin.parcelize")
 }
 
 android {

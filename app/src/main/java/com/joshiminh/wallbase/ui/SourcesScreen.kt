@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,61 +11,100 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSnackbarHostState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.unit.dp
-import com.joshiminh.wallbase.data.Source
+import com.joshiminh.wallbase.data.source.RedditCommunity
+import com.joshiminh.wallbase.data.source.Source
+import com.joshiminh.wallbase.data.source.SourceKeys
+import java.util.Locale
 
 @Composable
 fun SourcesScreen(
-    sources: SnapshotStateList<Source>,
-    onGoogleDriveClick: () -> Unit
+    uiState: SourcesViewModel.SourcesUiState,
+    onToggleSource: (Source, Boolean) -> Unit,
+    onGoogleDriveClick: () -> Unit,
+    onAddLocalWallpapers: () -> Unit,
+    onUpdateRedditQuery: (String) -> Unit,
+    onSearchReddit: () -> Unit,
+    onAddRedditFromQuery: () -> Unit,
+    onAddRedditCommunity: (RedditCommunity) -> Unit,
+    onClearSearchResults: () -> Unit,
+    onRemoveSource: (Source) -> Unit,
+    onMessageShown: () -> Unit
 ) {
-    LazyColumn(contentPadding = PaddingValues(16.dp)) {
-        itemsIndexed(sources) { index, source ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-                    .clickable(enabled = source.title == "Google Drive") {
-                        if (source.title == "Google Drive") {
-                            onGoogleDriveClick()
-                        }
-                    },
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                ) {
-                    Image(
-                        painter = painterResource(id = source.icon),
-                        contentDescription = source.title,
-                        modifier = Modifier.size(24.dp)
+    val snackbarHostState: SnackbarHostState = rememberSnackbarHostState()
+
+    LaunchedEffect(uiState.snackbarMessage) {
+        val message = uiState.snackbarMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        onMessageShown()
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier.padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item("reddit_manager") {
+                RedditSourceManagerCard(
+                    query = uiState.redditQuery,
+                    isSearching = uiState.isSearchingReddit,
+                    results = uiState.redditSearchResults,
+                    searchError = uiState.redditSearchError,
+                    existingConfigs = uiState.existingRedditConfigs,
+                    onQueryChange = onUpdateRedditQuery,
+                    onSearch = onSearchReddit,
+                    onAddDirect = onAddRedditFromQuery,
+                    onAddResult = onAddRedditCommunity,
+                    onClearResults = onClearSearchResults
+                )
+            }
+
+            if (uiState.sources.isEmpty()) {
+                item("empty_sources") {
+                    Text(
+                        text = "No sources configured",
+                        modifier = Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.bodyLarge
                     )
-                    Spacer(Modifier.size(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(source.title, style = MaterialTheme.typography.titleMedium)
-                        Text(source.description, style = MaterialTheme.typography.bodyMedium)
-                    }
-                    Switch(
-                        checked = source.enabled,
-                        onCheckedChange = { checked ->
-                            sources[index] = source.copy(enabled = checked)
-                        }
+                }
+            } else {
+                items(uiState.sources, key = Source::id) { source ->
+                    SourceCard(
+                        source = source,
+                        onToggleSource = onToggleSource,
+                        onGoogleDriveClick = onGoogleDriveClick,
+                        onAddLocalWallpapers = onAddLocalWallpapers,
+                        onRemoveSource = onRemoveSource
                     )
                 }
             }
@@ -72,3 +112,204 @@ fun SourcesScreen(
     }
 }
 
+@Composable
+private fun RedditSourceManagerCard(
+    query: String,
+    isSearching: Boolean,
+    results: List<RedditCommunity>,
+    searchError: String?,
+    existingConfigs: Set<String>,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    onAddDirect: () -> Unit,
+    onAddResult: (RedditCommunity) -> Unit,
+    onClearResults: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Reddit communities",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "Search or paste a subreddit URL to add it as its own source tab.",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+            )
+
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                label = { Text("Subreddit or URL") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = androidx.compose.ui.text.input.KeyboardActions(onSearch = { onSearch() })
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(onClick = onSearch, enabled = query.trim().length >= 2 && !isSearching) {
+                    Text("Search")
+                }
+                TextButton(onClick = onAddDirect, enabled = query.isNotBlank() && !isSearching) {
+                    Text("Add directly")
+                }
+                if (results.isNotEmpty()) {
+                    TextButton(onClick = onClearResults, enabled = !isSearching) {
+                        Text("Clear")
+                    }
+                }
+            }
+
+            when {
+                isSearching -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                    }
+                }
+
+                searchError != null -> {
+                    Text(
+                        text = searchError,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
+                }
+
+                results.isNotEmpty() -> {
+                    Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        results.forEach { community ->
+                            RedditSearchResult(
+                                community = community,
+                                alreadyAdded = existingConfigs.contains(community.name.lowercase(Locale.ROOT)),
+                                onAdd = onAddResult
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RedditSearchResult(
+    community: RedditCommunity,
+    alreadyAdded: Boolean,
+    onAdd: (RedditCommunity) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(community.displayName, style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = community.title,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+            community.description?.takeIf { it.isNotBlank() }?.let { description ->
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (alreadyAdded) "Already added" else "Tap add to create a new source tab",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TextButton(onClick = { onAdd(community) }, enabled = !alreadyAdded) {
+                    Text(if (alreadyAdded) "Added" else "Add")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SourceCard(
+    source: Source,
+    onToggleSource: (Source, Boolean) -> Unit,
+    onGoogleDriveClick: () -> Unit,
+    onAddLocalWallpapers: () -> Unit,
+    onRemoveSource: (Source) -> Unit
+) {
+    val isGoogleDrive = source.providerKey == SourceKeys.GOOGLE_DRIVE
+    val isLocal = source.isLocal
+    val isRemovable = source.providerKey == SourceKeys.REDDIT
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = isGoogleDrive) {
+                if (isGoogleDrive) {
+                    onGoogleDriveClick()
+                }
+            },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(id = source.icon),
+                    contentDescription = source.title,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(Modifier.size(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(source.title, style = MaterialTheme.typography.titleMedium)
+                    Text(source.description, style = MaterialTheme.typography.bodyMedium)
+                }
+                if (isRemovable) {
+                    IconButton(onClick = { onRemoveSource(source) }) {
+                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Remove ${source.title}")
+                    }
+                }
+                Switch(
+                    checked = source.enabled,
+                    onCheckedChange = { checked -> onToggleSource(source, checked) }
+                )
+            }
+            if (isLocal) {
+                Spacer(Modifier.size(12.dp))
+                Text(
+                    text = "Import local images into your library.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.size(4.dp))
+                TextButton(onClick = onAddLocalWallpapers) {
+                    Text("Add from device")
+                }
+            }
+        }
+    }
+}
