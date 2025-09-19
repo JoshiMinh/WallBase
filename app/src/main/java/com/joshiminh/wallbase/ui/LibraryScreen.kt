@@ -3,7 +3,6 @@ package com.joshiminh.wallbase.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -23,9 +26,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,6 +51,8 @@ fun LibraryScreen(
 ) {
     val uiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
+    var showAlbumDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiState.message) {
         val message = uiState.message ?: return@LaunchedEffect
@@ -56,12 +61,36 @@ fun LibraryScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        floatingActionButton = {
+            if (selectedTab == 1) {
+                ExtendedFloatingActionButton(
+                    onClick = { showAlbumDialog = true },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = stringResource(id = R.string.add_album)
+                        )
+                    },
+                    text = { Text(text = stringResource(id = R.string.add_album)) },
+                    expanded = true,
+                    enabled = !uiState.isCreatingAlbum
+                )
+            }
+        }
     ) { innerPadding ->
         LibraryContent(
             uiState = uiState,
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it },
             onWallpaperSelected = onWallpaperSelected,
-            onCreateAlbum = libraryViewModel::createAlbum,
+            onCreateAlbum = {
+                libraryViewModel.createAlbum(it)
+                showAlbumDialog = false
+            },
+            onRequestCreateAlbum = { showAlbumDialog = true },
+            onDismissCreateAlbum = { showAlbumDialog = false },
+            showAlbumDialog = showAlbumDialog,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -72,20 +101,23 @@ fun LibraryScreen(
 @Composable
 private fun LibraryContent(
     uiState: LibraryViewModel.LibraryUiState,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
     onWallpaperSelected: (WallpaperItem) -> Unit,
     onCreateAlbum: (String) -> Unit,
+    onRequestCreateAlbum: () -> Unit,
+    onDismissCreateAlbum: () -> Unit,
+    showAlbumDialog: Boolean,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf("All Wallpapers", "Albums")
-    var selectedTab by rememberSaveable { mutableStateOf(0) }
-    var showAlbumDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(modifier) {
         TabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, title ->
                 Tab(
                     selected = selectedTab == index,
-                    onClick = { selectedTab = index },
+                    onClick = { onTabSelected(index) },
                     text = { Text(title) }
                 )
             }
@@ -124,7 +156,7 @@ private fun LibraryContent(
                     }
 
                     TextButton(
-                        onClick = { showAlbumDialog = true },
+                        onClick = onRequestCreateAlbum,
                         enabled = !uiState.isCreatingAlbum
                     ) {
                         Text(text = stringResource(id = R.string.add_album))
@@ -140,9 +172,8 @@ private fun LibraryContent(
             isCreating = uiState.isCreatingAlbum,
             onCreate = {
                 onCreateAlbum(it)
-                showAlbumDialog = false
             },
-            onDismiss = { showAlbumDialog = false }
+            onDismiss = onDismissCreateAlbum
         )
     }
 }

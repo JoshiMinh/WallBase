@@ -13,7 +13,6 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
-import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.graphics.createBitmap
@@ -23,15 +22,28 @@ import coil3.asDrawable
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
+import com.joshiminh.wallbase.data.wallpapers.platform.PixelWallpaperHandler
+import com.joshiminh.wallbase.data.wallpapers.platform.SamsungWallpaperHandler
+import com.joshiminh.wallbase.data.wallpapers.platform.WallpaperPlatformHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 class WallpaperApplier(
     val context: Context,
     val imageLoader: ImageLoader = ImageLoader.Builder(context).build()
 ) {
+
+    private val platformHandlers: List<WallpaperPlatformHandler> = listOf(
+        SamsungWallpaperHandler,
+        PixelWallpaperHandler
+    )
+
     /**
      * Applies the wallpaper from [imageUrl] to the given [target].
      * Returns Result.success(Unit) on success, or Result.failure(e) on error.
@@ -52,10 +64,13 @@ class WallpaperApplier(
 
             runCatching {
                 val bitmap = loadWallpaperBitmap(imageUrl)
+                val cropped = cropForApplication(bitmap)
 
-                // Try Samsung's manager first. If it returns false, fall back to the platform manager.
-                if (!applyWithSamsungManager(bitmap, target)) {
-                    applyWithWallpaperManager(bitmap, target)
+                val handled = platformHandlers
+                    .firstOrNull { handler -> handler.isEligible(context) && handler.applyWallpaper(context, cropped, target) }
+
+                if (handled == null) {
+                    applyWithWallpaperManager(cropped, target)
                 }
             }
         }
@@ -72,7 +87,7 @@ class WallpaperApplier(
                 "${context.packageName}.fileprovider",
                 file
             )
-            val intent = buildPreviewIntent(uri)
+            val intent = resolvePreviewIntent(uri)
             ensurePreviewHandlerAvailable(intent)
             grantPreviewPermissions(intent, uri)
             PreviewData(intent = intent, uri = uri, filePath = file.absolutePath)
@@ -98,29 +113,6 @@ class WallpaperApplier(
         manager.setBitmap(bitmap, null, true, flags)
     }
 
-    // Uses Samsung’s SemWallpaperManager via reflection. Returns true if handled.
-    @SuppressLint("PrivateApi", "SoonBlockedPrivateApi", "DiscouragedPrivateApi")
-    private fun applyWithSamsungManager(bitmap: Bitmap, target: WallpaperTarget): Boolean {
-        if (!Build.MANUFACTURER.equals("samsung", ignoreCase = true)) return false
-        return runCatching {
-            val clazz = Class.forName("com.samsung.android.wallpaper.SemWallpaperManager")
-            val getInstance = clazz.getMethod("getInstance", Context::class.java)
-            val instance = getInstance.invoke(null, context)
-            val homeFlag = clazz.getField("FLAG_HOME_SCREEN").getInt(null)
-            val lockFlag = clazz.getField("FLAG_LOCK_SCREEN").getInt(null)
-            val setBitmap = clazz.getMethod("setBitmap", Bitmap::class.java, Int::class.javaPrimitiveType)
-
-            when (target) {
-                WallpaperTarget.HOME -> setBitmap.invoke(instance, bitmap, homeFlag)
-                WallpaperTarget.LOCK -> setBitmap.invoke(instance, bitmap, lockFlag)
-                WallpaperTarget.BOTH -> {
-                    setBitmap.invoke(instance, bitmap, homeFlag)
-                    setBitmap.invoke(instance, bitmap, lockFlag)
-                }
-            }
-            true
-        }.getOrElse { false }
-    }
 }
 
 data class PreviewData(val intent: Intent, val uri: Uri, val filePath: String)
@@ -147,18 +139,26 @@ private fun Drawable.toSoftwareBitmap(): Bitmap {
     return toBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
 }
 
-private fun WallpaperApplier.buildPreviewIntent(uri: Uri): Intent {
-    val manager = WallpaperManager.getInstance(context)
-    val cropIntent = runCatching { manager.getCropAndSetWallpaperIntent(uri) }.getOrNull()
-    val intent = cropIntent ?: Intent(Intent.ACTION_ATTACH_DATA).apply {
-        addCategory(Intent.CATEGORY_DEFAULT)
-        setDataAndType(uri, "image/*")
-        putExtra("mimeType", "image/*")
-        putExtra("from_wallpaper", true)
+private fun WallpaperApplier.resolvePreviewIntent(uri: Uri): Intent {
+    val handlerIntent = platformHandlers
+        .firstOrNull { it.isEligible(context) }
+        ?.buildPreviewIntent(context, uri)
+
+    val baseIntent = handlerIntent ?: run {
+        val manager = WallpaperManager.getInstance(context)
+        runCatching { manager.getCropAndSetWallpaperIntent(uri) }.getOrNull()
+            ?: Intent(Intent.ACTION_ATTACH_DATA).apply {
+                addCategory(Intent.CATEGORY_DEFAULT)
+                setDataAndType(uri, "image/*")
+                putExtra("mimeType", "image/*")
+                putExtra("from_wallpaper", true)
+            }
     }
-    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    intent.clipData = ClipData.newRawUri("wallpaper", uri)
-    return intent
+
+    return baseIntent.apply {
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        clipData = ClipData.newRawUri("wallpaper", uri)
+    }
 }
 
 @SuppressLint("QueryPermissionsNeeded")
@@ -212,4 +212,42 @@ private suspend fun WallpaperApplier.loadWallpaperBitmap(imageUrl: String): Bitm
         ?: error("Unable to load wallpaper preview")
     val drawable = image.asDrawable(context.resources)
     return drawable.toSoftwareBitmap()
+}
+
+private fun WallpaperApplier.cropForApplication(bitmap: Bitmap): Bitmap {
+    val metrics = context.resources.displayMetrics
+    val targetWidth = max(metrics.widthPixels, 1)
+    val targetHeight = max(metrics.heightPixels, 1)
+
+    return bitmap.centerCropToAspectRatio(targetWidth, targetHeight)
+}
+
+private fun Bitmap.centerCropToAspectRatio(targetWidth: Int, targetHeight: Int): Bitmap {
+    if (targetWidth <= 0 || targetHeight <= 0) return this
+    val sourceWidth = width
+    val sourceHeight = height
+    if (sourceWidth <= 0 || sourceHeight <= 0) return this
+
+    val desiredRatio = targetWidth.toFloat() / targetHeight.toFloat()
+    val currentRatio = sourceWidth.toFloat() / sourceHeight.toFloat()
+    if (abs(currentRatio - desiredRatio) < 0.01f) return this
+
+    val cropWidth: Int
+    val cropHeight: Int
+    if (currentRatio > desiredRatio) {
+        cropHeight = sourceHeight
+        cropWidth = (sourceHeight * desiredRatio).roundToInt().coerceIn(1, sourceWidth)
+    } else {
+        cropWidth = sourceWidth
+        cropHeight = (sourceWidth / desiredRatio).roundToInt().coerceIn(1, sourceHeight)
+    }
+
+    val offsetX = ((sourceWidth - cropWidth) / 2f).roundToInt().coerceIn(0, max(sourceWidth - cropWidth, 0))
+    val offsetY = ((sourceHeight - cropHeight) / 2f).roundToInt().coerceIn(0, max(sourceHeight - cropHeight, 0))
+
+    val safeWidth = min(cropWidth, sourceWidth - offsetX)
+    val safeHeight = min(cropHeight, sourceHeight - offsetY)
+    if (safeWidth <= 0 || safeHeight <= 0) return this
+
+    return Bitmap.createBitmap(this, offsetX, offsetY, safeWidth, safeHeight)
 }

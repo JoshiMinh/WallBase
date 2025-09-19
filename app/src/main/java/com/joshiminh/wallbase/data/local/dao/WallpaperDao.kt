@@ -27,6 +27,12 @@ interface WallpaperDao {
     @Query("SELECT EXISTS(SELECT 1 FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl)")
     suspend fun existsByImageUrl(sourceKey: String, imageUrl: String): Boolean
 
+    @Query("SELECT wallpaper_id FROM wallpapers WHERE source_key = :sourceKey AND remote_id = :remoteId LIMIT 1")
+    suspend fun findIdByRemoteId(sourceKey: String, remoteId: String): Long?
+
+    @Query("SELECT wallpaper_id FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl LIMIT 1")
+    suspend fun findIdByImageUrl(sourceKey: String, imageUrl: String): Long?
+
     @Query("DELETE FROM wallpapers WHERE source_key = :sourceKey AND remote_id = :remoteId")
     suspend fun deleteBySourceKeyAndRemoteId(sourceKey: String, remoteId: String): Int
 

@@ -39,4 +39,26 @@
     <string name="settings_appearance_header">Appearance</string>
     <string name="settings_dark_mode_title">Dark mode</string>
     <string name="settings_dark_mode_description">Use a dark theme throughout the app.</string>
+    <string name="settings_backup_header">Data &amp; backup</string>
+    <string name="settings_backup_export_title">Export library</string>
+    <string name="settings_backup_export_description">Save your sources, library, and albums as a backup file.</string>
+    <string name="settings_backup_export_action">Export</string>
+    <string name="settings_backup_export_in_progress">Exporting…</string>
+    <string name="settings_backup_import_title">Import backup</string>
+    <string name="settings_backup_import_description">Restore your sources, library, and albums from a backup file.</string>
+    <string name="settings_backup_import_action">Import</string>
+    <string name="settings_backup_import_in_progress">Importing…</string>
+    <string name="settings_backup_export_success">Backup saved.</string>
+    <string name="settings_backup_export_failure">Unable to export backup.</string>
+    <string name="settings_backup_export_failure_with_reason">Unable to export backup (%1$s).</string>
+    <string name="settings_backup_import_success">Backup imported.</string>
+    <string name="settings_backup_import_failure">Unable to import backup.</string>
+    <string name="settings_backup_import_failure_with_reason">Unable to import backup (%1$s).</string>
+    <string name="search_in_source">Search this source</string>
+    <string name="no_wallpapers_found">No wallpapers found.</string>
+    <string name="selection_count">%1$d selected</string>
+    <string name="selection_save_to_library">Save to library</string>
+    <string name="selection_add_to_album">Add to album</string>
+    <string name="select_album_title">Choose an album</string>
+    <string name="selection_no_albums">Create an album in your library to start organizing wallpapers.</string>
 </resources>

@@ -56,7 +56,11 @@ import com.joshiminh.wallbase.ui.LibraryScreen
 import com.joshiminh.wallbase.ui.SettingsScreen
 import com.joshiminh.wallbase.ui.SourceBrowseRoute
 import com.joshiminh.wallbase.ui.SourcesViewModel
+import com.joshiminh.wallbase.ui.SettingsViewModel
 import com.joshiminh.wallbase.ui.WallpaperDetailRoute
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,15 +71,40 @@ class MainActivity : ComponentActivity() {
             var darkTheme by remember { mutableStateOf(false) }
             val sourcesViewModel: SourcesViewModel = viewModel(factory = SourcesViewModel.Factory)
             val sourcesUiState by sourcesViewModel.uiState.collectAsStateWithLifecycle()
+            val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)
+            val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
 
             val localImagesPicker = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.OpenMultipleDocuments(),
                 onResult = { uris -> sourcesViewModel.importLocalWallpapers(uris) }
             )
 
+            val backupExporter = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
+                onResult = { uri ->
+                    if (uri != null) {
+                        settingsViewModel.exportBackup(uri)
+                    }
+                }
+            )
+
+            val backupImporter = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument(),
+                onResult = { uri ->
+                    if (uri != null) {
+                        settingsViewModel.importBackup(uri)
+                    }
+                }
+            )
+
+            val backupFileFormatter = remember {
+                SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US)
+            }
+
             WallBaseTheme(darkTheme = darkTheme) {
                 WallBaseApp(
                     sourcesUiState = sourcesUiState,
+                    settingsUiState = settingsUiState,
                     darkTheme = darkTheme,
                     onToggleDarkTheme = { darkTheme = it },
                     onImportLocalImages = { localImagesPicker.launch(arrayOf("image/*")) },
@@ -85,7 +114,21 @@ class MainActivity : ComponentActivity() {
                     onAddRedditCommunity = sourcesViewModel::addRedditCommunity,
                     onClearRedditSearch = sourcesViewModel::clearSearchResults,
                     onRemoveSource = sourcesViewModel::removeSource,
-                    onSourcesMessageShown = sourcesViewModel::consumeMessage
+                    onSourcesMessageShown = sourcesViewModel::consumeMessage,
+                    onExportBackup = {
+                        val timestamp = backupFileFormatter.format(Date())
+                        backupExporter.launch("wallbase-backup-$timestamp.db")
+                    },
+                    onImportBackup = {
+                        backupImporter.launch(
+                            arrayOf(
+                                "application/octet-stream",
+                                "application/x-sqlite3",
+                                "application/vnd.sqlite3"
+                            )
+                        )
+                    },
+                    onSettingsMessageShown = settingsViewModel::consumeMessage
                 )
             }
         }
@@ -107,6 +150,7 @@ private enum class RootRoute(
 @Composable
 fun WallBaseApp(
     sourcesUiState: SourcesViewModel.SourcesUiState,
+    settingsUiState: SettingsViewModel.SettingsUiState,
     darkTheme: Boolean,
     onToggleDarkTheme: (Boolean) -> Unit,
     onImportLocalImages: () -> Unit,
@@ -116,7 +160,10 @@ fun WallBaseApp(
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source) -> Unit,
-    onSourcesMessageShown: () -> Unit
+    onSourcesMessageShown: () -> Unit,
+    onExportBackup: () -> Unit,
+    onImportBackup: () -> Unit,
+    onSettingsMessageShown: () -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -139,12 +186,37 @@ fun WallBaseApp(
                 },
                 navigationIcon = {
                     if (canNavigateBack) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(id = R.string.back),
-                            modifier = Modifier.size(24.dp)
-                        )
+                        IconButton(
+                            onClick = {
+                                val currentRoute = currentDestination?.route
+                                if (currentRoute == "wallpaperDetail") {
+                                    val returnSource = navController.currentBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.get<String>("wallpaper_return_source")
+                                    if (returnSource != null) {
+                                        val targetRoute = "sourceBrowse/${Uri.encode(returnSource)}"
+                                        val returned = navController.popBackStack(targetRoute, inclusive = false)
+                                        if (!returned) {
+                                            val popped = navController.popBackStack()
+                                            if (popped) {
+                                                navController.navigate(targetRoute) {
+                                                    launchSingleTop = true
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        navController.popBackStack()
+                                    }
+                                } else {
+                                    navController.popBackStack()
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(id = R.string.back),
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 },
@@ -250,9 +322,18 @@ fun WallBaseApp(
                 if (wallpaper == null) {
                     LaunchedEffect(Unit) { navController.popBackStack() }
                 } else {
+                    val previousRoute = navController.previousBackStackEntry?.destination?.route
+                    if (previousRoute?.startsWith("sourceBrowse/") == true) {
+                        wallpaper.sourceKey?.let { key ->
+                            navController.currentBackStackEntry?.savedStateHandle
+                                ?.set("wallpaper_return_source", key)
+                        }
+                    }
                     WallpaperDetailRoute(wallpaper = wallpaper)
                     DisposableEffect(Unit) {
                         onDispose {
+                            navController.currentBackStackEntry?.savedStateHandle
+                                ?.remove<String>("wallpaper_return_source")
                             navController.previousBackStackEntry?.savedStateHandle?.remove<WallpaperItem>("wallpaper_detail")
                         }
                     }
@@ -261,7 +342,11 @@ fun WallBaseApp(
             composable(RootRoute.Settings.route) {
                 SettingsScreen(
                     darkTheme = darkTheme,
-                    onToggleDarkTheme = onToggleDarkTheme
+                    uiState = settingsUiState,
+                    onToggleDarkTheme = onToggleDarkTheme,
+                    onExportBackup = onExportBackup,
+                    onImportBackup = onImportBackup,
+                    onMessageShown = onSettingsMessageShown
                 )
             }
         }

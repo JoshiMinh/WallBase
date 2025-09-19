@@ -32,7 +32,9 @@ data class RedditPreviewImage(
 )
 
 data class RedditPreviewSource(
-    val url: String? = null
+    val url: String? = null,
+    val width: Int? = null,
+    val height: Int? = null
 )
 
 data class RedditSubredditListingResponse(
