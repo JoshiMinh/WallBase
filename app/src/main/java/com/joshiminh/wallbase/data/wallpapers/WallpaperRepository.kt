@@ -85,7 +85,7 @@ class WallpaperRepository(
                     displayName = subreddit.displayNamePrefixed.takeIf { it.isNotBlank() }
                         ?: "r/${name.normalizeSubredditName()}",
                     title = subreddit.title.takeIf { it.isNotBlank() } ?: name,
-                    description = subreddit.publicDescription.takeIf { it.isNotBlank() },
+                    description = subreddit.publicDescription.takeIf { it?.isNotBlank() ?:  },
                     iconUrl = subreddit.iconImage ?: subreddit.communityIcon
                 )
             }

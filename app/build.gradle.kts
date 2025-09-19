@@ -67,6 +67,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.text)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.foundation)
 
     // Tooling & Testing for Compose
     debugImplementation(libs.androidx.ui.tooling)

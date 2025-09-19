@@ -43,7 +43,8 @@ work = "2.10.3"                                # Latest stable WorkManager :cont
 junit4 = "4.13.2"
 androidx-test-ext-junit = "1.3.0"              # JUnit extensions (stable line) :contentReference[oaicite:17]{index=17}
 espresso = "3.7.0"
-navigation-compose = "2.9.3"                             # Espresso latest stable :contentReference[oaicite:18]{index=18}
+navigation-compose = "2.9.3"
+foundation = "1.9.1"                             # Espresso latest stable :contentReference[oaicite:18]{index=18}
 
 [libraries]
 # AndroidX core
@@ -110,6 +111,7 @@ retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit
 androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle-ktx" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle-ktx" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle-ktx" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
