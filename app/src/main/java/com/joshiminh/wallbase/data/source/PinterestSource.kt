@@ -6,7 +6,7 @@ val PinterestSource = SourceSeed(
     key = "${SourceKeys.PINTEREST}:wallpaper_board",
     providerKey = SourceKeys.PINTEREST,
     iconRes = R.drawable.pinterest,
-    iconUrl = "https://www.google.com/s2/favicons?sz=128&domain=pinterest.com",
+    iconUrl = null,
     title = "Pinterest Wallpapers",
     description = "Latest pins from our Pinterest board",
     showInExplore = true,

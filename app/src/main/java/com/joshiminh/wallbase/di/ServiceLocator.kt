@@ -87,6 +87,9 @@ object ServiceLocator {
     }
 
     val libraryRepository: LibraryRepository by lazy {
-        LibraryRepository(database.wallpaperDao())
+        LibraryRepository(
+            wallpaperDao = database.wallpaperDao(),
+            albumDao = database.albumDao()
+        )
     }
 }

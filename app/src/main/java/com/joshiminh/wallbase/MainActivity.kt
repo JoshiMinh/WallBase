@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Collections
-import androidx.compose.material.icons.outlined.Navigation
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -98,8 +98,8 @@ private enum class RootRoute(
     val label: String,
     val icon: ImageVector
 ) {
-    Browse("browse", "Browse", Icons.Outlined.Navigation),
     Library("library", "Library", Icons.Outlined.Collections),
+    Browse("browse", "Browse", Icons.Outlined.Explore),
     Settings("settings", "Settings", Icons.Outlined.Settings)
 }
 
@@ -185,9 +185,22 @@ fun WallBaseApp(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = RootRoute.Browse.route,
+            startDestination = RootRoute.Library.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            composable(RootRoute.Library.route) {
+                LibraryScreen(
+                    onWallpaperSelected = { wallpaper ->
+                        navController.currentBackStackEntry?.savedStateHandle?.set(
+                            "wallpaper_detail",
+                            wallpaper
+                        )
+                        navController.navigate("wallpaperDetail") {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
             composable(RootRoute.Browse.route) {
                 BrowseScreen(
                     uiState = sourcesUiState,
@@ -203,19 +216,6 @@ fun WallBaseApp(
                     },
                     onRemoveSource = onRemoveSource,
                     onMessageShown = onSourcesMessageShown
-                )
-            }
-            composable(RootRoute.Library.route) {
-                LibraryScreen(
-                    onWallpaperSelected = { wallpaper ->
-                        navController.currentBackStackEntry?.savedStateHandle?.set(
-                            "wallpaper_detail",
-                            wallpaper
-                        )
-                        navController.navigate("wallpaperDetail") {
-                            launchSingleTop = true
-                        }
-                    }
                 )
             }
             composable("driveFolders") {
@@ -269,8 +269,8 @@ fun WallBaseApp(
 }
 
 private fun currentTitle(dest: NavDestination?): String = when {
-    dest.isTopDestination(RootRoute.Browse) -> "Browse"
     dest.isTopDestination(RootRoute.Library) -> "Library"
+    dest.isTopDestination(RootRoute.Browse) -> "Browse"
     dest.isTopDestination(RootRoute.Settings) -> "Settings"
     dest?.route == "wallpaperDetail" -> "Wallpaper"
     dest?.route == "driveFolders" -> "Drive folders"
