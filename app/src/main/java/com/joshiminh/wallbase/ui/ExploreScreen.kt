@@ -27,9 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -80,15 +77,10 @@ fun ExploreScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                val pullRefreshState = rememberPullRefreshState(
-                    refreshing = uiState.isRefreshing,
-                    onRefresh = { tabs.getOrNull(selectedTab)?.let(exploreViewModel::refresh) }
-                )
 
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .pullRefresh(pullRefreshState)
                 ) {
                     when {
                         uiState.isLoading -> {
@@ -116,11 +108,6 @@ fun ExploreScreen(
                         }
                     }
 
-                    PullRefreshIndicator(
-                        refreshing = uiState.isRefreshing,
-                        state = pullRefreshState,
-                        modifier = Modifier.align(Alignment.TopCenter)
-                    )
                 }
             }
         }
