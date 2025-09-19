@@ -43,6 +43,7 @@ import com.joshiminh.wallbase.ui.ExploreScreen
 import com.joshiminh.wallbase.ui.LibraryScreen
 import com.joshiminh.wallbase.ui.SettingsScreen
 import com.joshiminh.wallbase.ui.SourcesScreen
+import com.joshiminh.wallbase.ui.DriveFolderPickerScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,6 +94,7 @@ fun WallBaseApp(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val driveToken = remember { "" }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -144,7 +146,18 @@ fun WallBaseApp(
         ) {
             composable(RootRoute.Explore.route) { ExploreScreen(sources) }
             composable(RootRoute.Library.route) { LibraryScreen() }
-            composable(RootRoute.Sources.route) { SourcesScreen(sources) }
+            composable(RootRoute.Sources.route) {
+                SourcesScreen(
+                    sources = sources,
+                    onGoogleDriveClick = { navController.navigate("driveFolders") }
+                )
+            }
+            composable("driveFolders") {
+                DriveFolderPickerScreen(
+                    token = driveToken,
+                    onFolderPicked = { navController.popBackStack() }
+                )
+            }
             composable(RootRoute.Settings.route) {
                 SettingsScreen(
                     darkTheme = darkTheme,

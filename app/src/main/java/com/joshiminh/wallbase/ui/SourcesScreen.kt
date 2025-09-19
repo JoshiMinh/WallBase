@@ -1,6 +1,7 @@
 package com.joshiminh.wallbase.ui
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -25,13 +26,21 @@ import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.data.Source
 
 @Composable
-fun SourcesScreen(sources: SnapshotStateList<Source>) {
+fun SourcesScreen(
+    sources: SnapshotStateList<Source>,
+    onGoogleDriveClick: () -> Unit
+) {
     LazyColumn(contentPadding = PaddingValues(16.dp)) {
         itemsIndexed(sources) { index, source ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 8.dp)
+                    .clickable(enabled = source.title == "Google Drive") {
+                        if (source.title == "Google Drive") {
+                            onGoogleDriveClick()
+                        }
+                    },
                 shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
@@ -62,3 +71,4 @@ fun SourcesScreen(sources: SnapshotStateList<Source>) {
         }
     }
 }
+
