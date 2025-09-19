@@ -106,6 +106,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     // ---------- Background Work ----------
+    implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.work.runtime.ktx)
 
     // ---------- Testing ----------

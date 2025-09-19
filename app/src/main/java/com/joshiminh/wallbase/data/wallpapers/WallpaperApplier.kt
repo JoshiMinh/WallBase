@@ -203,6 +203,7 @@ private fun WallpaperApplier.createPreviewFile(bitmap: Bitmap): File {
 private suspend fun WallpaperApplier.loadWallpaperBitmap(imageUrl: String): Bitmap {
     val request = ImageRequest.Builder(context)
         .data(imageUrl)
+        .allowHardware(false)
         .build()
 
     val result = imageLoader.execute(request)

@@ -54,6 +54,11 @@ class SourceRepository(
     }
 
     suspend fun removeSource(source: Source) {
+        if (source.providerKey == SourceKeys.GOOGLE_PHOTOS ||
+            source.providerKey == SourceKeys.GOOGLE_DRIVE
+        ) {
+            throw IllegalStateException("Google sources cannot be removed")
+        }
         sourceDao.deleteSourceById(source.id)
     }
 
@@ -203,15 +208,25 @@ class SourceRepository(
             else -> hostName
         }
 
+        val fallbackIcon = when {
+            type == RemoteSourceType.PINTEREST -> R.drawable.pinterest
+            url.host.contains("reddit", ignoreCase = true) -> R.drawable.reddit
+            url.host.contains("pinterest", ignoreCase = true) || url.host == "pin.it" -> R.drawable.pinterest
+            url.host.contains("alphacoders", ignoreCase = true) -> android.R.drawable.ic_menu_gallery
+            else -> android.R.drawable.ic_menu_search
+        }
+        val iconUrl = when {
+            type == RemoteSourceType.PINTEREST -> null
+            url.host.contains("reddit", ignoreCase = true) -> null
+            url.host.contains("pinterest", ignoreCase = true) || url.host == "pin.it" -> null
+            else -> buildFaviconUrl(url.host)
+        }
+
         return WebsiteMetadata(
             title = title,
             description = url.value,
-            iconUrl = buildFaviconUrl(url.host),
-            fallbackIcon = when {
-                type == RemoteSourceType.PINTEREST -> R.drawable.pinterest
-                url.host.contains("alphacoders", ignoreCase = true) -> android.R.drawable.ic_menu_gallery
-                else -> android.R.drawable.ic_menu_search
-            }
+            iconUrl = iconUrl,
+            fallbackIcon = fallbackIcon
         )
     }
 

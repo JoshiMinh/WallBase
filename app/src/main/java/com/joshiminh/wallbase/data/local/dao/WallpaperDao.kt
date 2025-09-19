@@ -20,4 +20,16 @@ interface WallpaperDao {
     @Transaction
     @Query("SELECT * FROM wallpapers ORDER BY added_at DESC")
     fun observeWallpapersWithAlbums(): Flow<List<WallpaperWithAlbums>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM wallpapers WHERE source_key = :sourceKey AND remote_id = :remoteId)")
+    suspend fun existsByRemoteId(sourceKey: String, remoteId: String): Boolean
+
+    @Query("SELECT EXISTS(SELECT 1 FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl)")
+    suspend fun existsByImageUrl(sourceKey: String, imageUrl: String): Boolean
+
+    @Query("DELETE FROM wallpapers WHERE source_key = :sourceKey AND remote_id = :remoteId")
+    suspend fun deleteBySourceKeyAndRemoteId(sourceKey: String, remoteId: String): Int
+
+    @Query("DELETE FROM wallpapers WHERE wallpaper_id = :id")
+    suspend fun deleteById(id: Long): Int
 }

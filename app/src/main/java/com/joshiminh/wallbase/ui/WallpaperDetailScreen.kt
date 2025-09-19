@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.R
+import com.joshiminh.wallbase.data.source.SourceKeys
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import com.joshiminh.wallbase.data.wallpapers.WallpaperTarget
 
@@ -93,7 +94,10 @@ fun WallpaperDetailRoute(
     WallpaperDetailScreen(
         uiState = uiState,
         onApplyTarget = viewModel::applyWallpaper,
+        onConfirmApplyWithoutPreview = viewModel::confirmApplyWithoutPreview,
+        onDismissPreviewFallback = viewModel::dismissPreviewFallback,
         onAddToLibrary = viewModel::addToLibrary,
+        onRemoveFromLibrary = viewModel::removeFromLibrary,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         snackbarHostState = snackbarHostState
     )
@@ -103,13 +107,17 @@ fun WallpaperDetailRoute(
 private fun WallpaperDetailScreen(
     uiState: WallpaperDetailViewModel.WallpaperDetailUiState,
     onApplyTarget: (WallpaperTarget) -> Unit,
+    onConfirmApplyWithoutPreview: () -> Unit,
+    onDismissPreviewFallback: () -> Unit,
     onAddToLibrary: () -> Unit,
+    onRemoveFromLibrary: () -> Unit,
     onRequestPermission: () -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
     val wallpaper = uiState.wallpaper ?: return
     val uriHandler = LocalUriHandler.current
-    val canAddToLibrary = wallpaper.sourceKey != null
+    val canAddToLibrary = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
+    val canRemoveFromLibrary = uiState.isInLibrary && wallpaper.sourceKey != null
     var showTargetDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -184,6 +192,15 @@ private fun WallpaperDetailScreen(
                 Spacer(Modifier.height(12.dp))
             }
 
+            if (uiState.isRemovingFromLibrary) {
+                AssistChip(
+                    onClick = {},
+                    label = { Text(text = stringResource(R.string.removing_from_library)) },
+                    enabled = false
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+
             if (uiState.isApplying) {
                 AssistChip(
                     onClick = {},
@@ -194,13 +211,31 @@ private fun WallpaperDetailScreen(
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { if (canAddToLibrary) onAddToLibrary() },
-                    enabled = canAddToLibrary && !uiState.isAddingToLibrary
-                ) {
-                    Text(text = stringResource(id = R.string.add_to_library))
+                if (canAddToLibrary) {
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onAddToLibrary,
+                        enabled = !uiState.isAddingToLibrary && !uiState.isInLibrary
+                    ) {
+                        val label = if (uiState.isInLibrary) {
+                            stringResource(id = R.string.in_library)
+                        } else {
+                            stringResource(id = R.string.add_to_library)
+                        }
+                        Text(text = label)
+                    }
                 }
+
+                if (canRemoveFromLibrary) {
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onRemoveFromLibrary,
+                        enabled = !uiState.isRemovingFromLibrary
+                    ) {
+                        Text(text = stringResource(id = R.string.remove_from_library))
+                    }
+                }
+
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { showTargetDialog = true },
@@ -226,6 +261,15 @@ private fun WallpaperDetailScreen(
                 onApplyTarget(target)
             },
             isApplying = uiState.isApplying
+        )
+    }
+
+    uiState.pendingFallback?.let { fallback ->
+        PreviewFallbackDialog(
+            fallback = fallback,
+            isApplying = uiState.isApplying,
+            onConfirm = onConfirmApplyWithoutPreview,
+            onDismiss = onDismissPreviewFallback
         )
     }
 }
@@ -269,6 +313,50 @@ private fun SetWallpaperDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(text = stringResource(id = R.string.back))
+            }
+        }
+    )
+}
+
+@Composable
+private fun PreviewFallbackDialog(
+    fallback: WallpaperDetailViewModel.WallpaperPreviewFallback,
+    isApplying: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(id = R.string.preview_unavailable_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val reason = fallback.reason
+                if (reason.isNullOrBlank()) {
+                    Text(text = stringResource(id = R.string.preview_unavailable_message))
+                } else {
+                    Text(
+                        text = stringResource(
+                            id = R.string.preview_unavailable_message_with_reason,
+                            reason
+                        )
+                    )
+                }
+                Text(
+                    text = stringResource(
+                        id = R.string.preview_apply_question,
+                        fallback.target.label
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = !isApplying) {
+                Text(text = stringResource(id = R.string.apply_without_preview))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isApplying) {
+                Text(text = stringResource(id = R.string.cancel))
             }
         }
     )

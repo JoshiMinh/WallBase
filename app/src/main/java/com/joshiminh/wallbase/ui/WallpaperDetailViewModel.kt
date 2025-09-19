@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.library.LibraryRepository
+import com.joshiminh.wallbase.data.source.SourceKeys
 import com.joshiminh.wallbase.data.wallpapers.PreviewData
 import com.joshiminh.wallbase.data.wallpapers.WallpaperApplier
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
@@ -42,8 +43,27 @@ class WallpaperDetailViewModel(
                 wallpaper = wallpaper,
                 isApplying = false,
                 isAddingToLibrary = false,
+                isRemovingFromLibrary = false,
+                isInLibrary = wallpaper.sourceKey == SourceKeys.LOCAL,
+                pendingPreview = null,
+                pendingFallback = null,
                 message = null
             )
+        }
+
+        val sourceKey = wallpaper.sourceKey
+        if (sourceKey != null && sourceKey != SourceKeys.LOCAL) {
+            viewModelScope.launch {
+                val saved = runCatching { libraryRepository.isWallpaperInLibrary(wallpaper) }
+                    .getOrDefault(false)
+                _uiState.update { current ->
+                    if (current.wallpaper?.id == wallpaper.id) {
+                        current.copy(isInLibrary = saved)
+                    } else {
+                        current
+                    }
+                }
+            }
         }
     }
 
@@ -61,7 +81,13 @@ class WallpaperDetailViewModel(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isApplying = true, message = null) }
+            _uiState.update {
+                it.copy(
+                    isApplying = true,
+                    message = null,
+                    pendingFallback = null
+                )
+            }
             val previewResult = applier.createSystemPreview(wallpaper.imageUrl, target)
             previewResult.fold(
                 onSuccess = { preview ->
@@ -69,8 +95,7 @@ class WallpaperDetailViewModel(
                     val canHandle = preview.intent.resolveActivity(packageManager) != null
                     if (!canHandle) {
                         applier.cleanupPreview(preview)
-                        applyDirectWithFallback(
-                            wallpaper,
+                        showPreviewFallback(
                             target,
                             IllegalStateException("No system activity available to preview wallpapers")
                         )
@@ -78,13 +103,14 @@ class WallpaperDetailViewModel(
                         _uiState.update {
                             it.copy(
                                 isApplying = false,
-                                pendingPreview = WallpaperPreviewLaunch(preview, target)
+                                pendingPreview = WallpaperPreviewLaunch(preview, target),
+                                pendingFallback = null
                             )
                         }
                     }
                 },
                 onFailure = { throwable ->
-                    applyDirectWithFallback(wallpaper, target, throwable)
+                    showPreviewFallback(target, throwable)
                 }
             )
         }
@@ -106,9 +132,59 @@ class WallpaperDetailViewModel(
 
     fun onPreviewLaunchFailed(preview: WallpaperPreviewLaunch, throwable: Throwable) {
         applier.cleanupPreview(preview.preview)
+        showPreviewFallback(preview.target, throwable)
+    }
+
+    fun confirmApplyWithoutPreview() {
         val wallpaper = _uiState.value.wallpaper ?: return
+        val fallback = _uiState.value.pendingFallback ?: return
+        if (_uiState.value.isApplying) return
+
         viewModelScope.launch {
-            applyDirectWithFallback(wallpaper, preview.target, throwable)
+            val target = fallback.target
+            val reason = fallback.reason
+            _uiState.update {
+                it.copy(
+                    isApplying = true,
+                    pendingFallback = null,
+                    message = null
+                )
+            }
+            val result = applier.apply(wallpaper.imageUrl, target)
+            _uiState.update {
+                it.copy(
+                    isApplying = false,
+                    message = result.fold(
+                        onSuccess = {
+                            reason?.let { detail ->
+                                "Preview unavailable ($detail). Applied wallpaper to ${target.label}"
+                            } ?: "Preview unavailable. Applied wallpaper to ${target.label}"
+                        },
+                        onFailure = { throwable ->
+                            val failure = throwable.localizedMessage ?: "Failed to apply wallpaper"
+                            reason?.let { detail ->
+                                "Preview unavailable ($detail). $failure"
+                            } ?: failure
+                        }
+                    )
+                )
+            }
+        }
+    }
+
+    fun dismissPreviewFallback() {
+        val fallback = _uiState.value.pendingFallback ?: return
+        if (_uiState.value.isApplying) return
+
+        val message = fallback.reason?.let { detail ->
+            "Preview unavailable ($detail). Wallpaper not applied."
+        } ?: "Preview unavailable. Wallpaper not applied."
+
+        _uiState.update {
+            it.copy(
+                pendingFallback = null,
+                message = message
+            )
         }
     }
 
@@ -120,8 +196,10 @@ class WallpaperDetailViewModel(
             _uiState.update { it.copy(isAddingToLibrary = true, message = null) }
             val result = runCatching { libraryRepository.addWallpaper(wallpaper) }
             _uiState.update {
+                val isSuccess = result.isSuccess
                 it.copy(
                     isAddingToLibrary = false,
+                    isInLibrary = if (isSuccess) true else it.isInLibrary,
                     message = result.fold(
                         onSuccess = { added ->
                             if (added) "Added wallpaper to your library"
@@ -129,6 +207,31 @@ class WallpaperDetailViewModel(
                         },
                         onFailure = { throwable ->
                             throwable.localizedMessage ?: "Unable to add wallpaper to library"
+                        }
+                    )
+                )
+            }
+        }
+    }
+
+    fun removeFromLibrary() {
+        val wallpaper = _uiState.value.wallpaper ?: return
+        if (!_uiState.value.isInLibrary || _uiState.value.isRemovingFromLibrary) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRemovingFromLibrary = true, message = null) }
+            val result = runCatching { libraryRepository.removeWallpaper(wallpaper) }
+            _uiState.update {
+                it.copy(
+                    isRemovingFromLibrary = false,
+                    isInLibrary = if (result.getOrDefault(false)) false else it.isInLibrary,
+                    message = result.fold(
+                        onSuccess = { removed ->
+                            if (removed) "Removed wallpaper from your library"
+                            else "Wallpaper not found in your library"
+                        },
+                        onFailure = { throwable ->
+                            throwable.localizedMessage ?: "Unable to remove wallpaper from library"
                         }
                     )
                 )
@@ -149,30 +252,15 @@ class WallpaperDetailViewModel(
         }
     }
 
-    private suspend fun applyDirectWithFallback(
-        wallpaper: WallpaperItem,
-        target: WallpaperTarget,
-        previewError: Throwable?
-    ) {
-        val result = applier.apply(wallpaper.imageUrl, target)
+    private fun showPreviewFallback(target: WallpaperTarget, error: Throwable?) {
+        if (_uiState.value.wallpaper == null) return
+        val detail = error?.localizedMessage?.takeIf { it.isNotBlank() }
         _uiState.update {
             it.copy(
                 isApplying = false,
-                message = result.fold(
-                    onSuccess = {
-                        previewError?.let { error ->
-                            val detail = error.localizedMessage?.takeIf { msg -> msg.isNotBlank() }
-                            if (detail != null) {
-                                "Preview unavailable ($detail). Applied wallpaper to ${target.label}"
-                            } else {
-                                "Preview unavailable. Applied wallpaper to ${target.label}"
-                            }
-                        } ?: "Applied wallpaper to ${target.label}"
-                    },
-                    onFailure = { throwable ->
-                        throwable.localizedMessage ?: "Failed to apply wallpaper"
-                    }
-                )
+                pendingPreview = null,
+                pendingFallback = WallpaperPreviewFallback(target, detail),
+                message = null
             )
         }
     }
@@ -181,14 +269,22 @@ class WallpaperDetailViewModel(
         val wallpaper: WallpaperItem? = null,
         val isApplying: Boolean = false,
         val isAddingToLibrary: Boolean = false,
+        val isRemovingFromLibrary: Boolean = false,
+        val isInLibrary: Boolean = false,
         val hasWallpaperPermission: Boolean = false,
         val pendingPreview: WallpaperPreviewLaunch? = null,
+        val pendingFallback: WallpaperPreviewFallback? = null,
         val message: String? = null
     )
 
     data class WallpaperPreviewLaunch(
         val preview: PreviewData,
         val target: WallpaperTarget
+    )
+
+    data class WallpaperPreviewFallback(
+        val target: WallpaperTarget,
+        val reason: String?
     )
 
     companion object {
