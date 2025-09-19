@@ -62,6 +62,7 @@ androidx-material3 = { module = "androidx.compose.material3:material3" }
 androidx-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 androidx-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+androidx-compose-material-pullrefresh = { module = "androidx.compose.material:pull-refresh" }
 
 # DocumentFile (SAF helpers)
 androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
