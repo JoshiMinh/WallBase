@@ -3,12 +3,14 @@ package com.joshiminh.wallbase.data.wallpapers
 import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.os.Build
 import androidx.core.graphics.drawable.toBitmap
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
-import coil3.request.allowHardware
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,12 +22,11 @@ class WallpaperApplier(
         runCatching {
             val request = ImageRequest.Builder(context)
                 .data(imageUrl)
-                .allowHardware(false)
                 .build()
             val result = imageLoader.execute(request)
             val drawable = (result as? SuccessResult)?.drawable
                 ?: throw IllegalStateException("Unable to load wallpaper preview")
-            val bitmap = drawable.toBitmap()
+            val bitmap = drawable.toSoftwareBitmap()
 
             if (!applyWithSamsungManager(bitmap, target)) {
                 applyWithWallpaperManager(bitmap, target)
@@ -68,4 +69,23 @@ class WallpaperApplier(
             true
         }.getOrElse { false }
     }
+}
+
+private fun Drawable.toSoftwareBitmap(): Bitmap {
+    val targetWidth = intrinsicWidth.takeIf { it > 0 } ?: 1
+    val targetHeight = intrinsicHeight.takeIf { it > 0 } ?: 1
+
+    if (this is BitmapDrawable) {
+        val sourceBitmap = bitmap
+        val defaultConfig = sourceBitmap.config ?: Bitmap.Config.ARGB_8888
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && sourceBitmap.config == Bitmap.Config.HARDWARE) {
+            Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888).also { output ->
+                Canvas(output).drawBitmap(sourceBitmap, 0f, 0f, null)
+            }
+        } else {
+            sourceBitmap.copy(defaultConfig, true)
+        }
+    }
+
+    return toBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
 }
