@@ -22,14 +22,14 @@ import coil3.ImageLoader
 import coil3.asDrawable
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
-import java.io.File
-import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 
 class WallpaperApplier(
-    private val context: Context,
-    private val imageLoader: ImageLoader = ImageLoader.Builder(context).build()
+    val context: Context,
+    val imageLoader: ImageLoader = ImageLoader.Builder(context).build()
 ) {
     /**
      * Applies the wallpaper from [imageUrl] to the given [target].
@@ -160,6 +160,7 @@ private fun WallpaperApplier.buildPreviewIntent(uri: Uri): Intent {
     return intent
 }
 
+@SuppressLint("QueryPermissionsNeeded")
 private fun WallpaperApplier.ensurePreviewHandlerAvailable(intent: Intent) {
     val resolveInfos = context.packageManager.queryIntentActivities(
         intent,
@@ -170,6 +171,7 @@ private fun WallpaperApplier.ensurePreviewHandlerAvailable(intent: Intent) {
     }
 }
 
+@SuppressLint("QueryPermissionsNeeded")
 private fun WallpaperApplier.grantPreviewPermissions(intent: Intent, uri: Uri) {
     val resolveInfos = context.packageManager.queryIntentActivities(
         intent,

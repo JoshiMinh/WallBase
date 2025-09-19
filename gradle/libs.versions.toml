@@ -30,6 +30,8 @@ anggrayudi-storage = "2.2.0"                   # SimpleStorage from Maven Centra
 
 # Coil 3
 coil3 = "3.3.0"                                # Coil v3 line (Compose 1.9 compatible) :contentReference[oaicite:14]{index=14}
+material = "1.9.1"
+material3 = "1.3.2"
 okhttp = "4.12.0"
 moshi = "1.15.1"
 jsoup = "1.18.1"
@@ -48,7 +50,9 @@ foundation = "1.9.1"                             # Espresso latest stable :conte
 
 [libraries]
 # AndroidX core
+androidx-compose-material = { module = "androidx.compose.material:material", version.ref = "material" }
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle-ktx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }

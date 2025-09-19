@@ -20,7 +20,7 @@ class LibraryRepository(
 ) {
     fun observeSavedWallpapers(): Flow<List<WallpaperItem>> {
         return wallpaperDao.observeWallpapersWithAlbums()
-            .map { entries -> entries.map(WallpaperWithAlbums::toWallpaperItem) }
+            .map { entries -> entries.map { it.toWallpaperItem() } }
     }
 
     suspend fun importLocalWallpapers(context: Context, uris: List<Uri>) {
@@ -109,12 +109,12 @@ class LibraryRepository(
         }
     }
 
+    // File: LibraryRepository.kt (outside the class)
     private fun WallpaperWithAlbums.toWallpaperItem(): WallpaperItem {
         val entity = wallpaper
         val remoteId = entity.remoteId ?: entity.id.toString()
         val displayImageUrl = entity.localUri ?: entity.imageUrl
         val originalUrl = entity.sourceUrl ?: entity.localUri ?: entity.imageUrl
-
         return WallpaperItem(
             id = "${entity.sourceKey}:$remoteId",
             title = entity.title,

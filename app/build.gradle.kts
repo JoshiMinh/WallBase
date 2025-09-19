@@ -68,7 +68,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.foundation)
-    implementation(libs.androidx.compose.material.pullrefresh)
+    implementation(libs.androidx.compose.material3)
 
     // Tooling & Testing for Compose
     debugImplementation(libs.androidx.ui.tooling)

@@ -11,16 +11,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -34,7 +32,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun SourceBrowseRoute(
     sourceKey: String,
@@ -61,7 +58,7 @@ fun SourceBrowseRoute(
     )
 }
 
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SourceBrowseScreen(
     state: SourceBrowseViewModel.SourceBrowseUiState,
@@ -81,11 +78,6 @@ private fun SourceBrowseScreen(
         }
         return
     }
-
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = state.isRefreshing,
-        onRefresh = onRefresh
-    )
 
     Column(
         modifier = Modifier
@@ -120,26 +112,39 @@ private fun SourceBrowseScreen(
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Box(
+
+        // Pull-to-refresh container (Material3)
+        PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxSize()
-                .pullRefresh(pullRefreshState)
+                .fillMaxWidth()
         ) {
+            // Content inside must be scrollable to enable the gesture.
             when {
                 state.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                 }
 
                 state.wallpapers.isEmpty() -> {
-                    if (state.errorMessage != null) {
-                        ErrorMessage(message = state.errorMessage, onRetry = onRefresh)
-                    } else {
-                        Text(
-                            text = "No wallpapers found.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (state.errorMessage != null) {
+                            ErrorMessage(message = state.errorMessage, onRetry = onRefresh)
+                        } else {
+                            Text(
+                                text = "No wallpapers found.",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
                     }
                 }
 
@@ -151,13 +156,8 @@ private fun SourceBrowseScreen(
                     )
                 }
             }
-
-            PullRefreshIndicator(
-                refreshing = state.isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
         }
+
         state.errorMessage?.takeIf { state.wallpapers.isNotEmpty() }?.let { message ->
             Text(
                 text = message,
