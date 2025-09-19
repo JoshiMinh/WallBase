@@ -81,10 +81,20 @@ dependencies {
     implementation(libs.androidx.documentfile)
     implementation(libs.play.services.auth)
     implementation(libs.retrofit)
+    implementation(libs.retrofit.moshi)
+    implementation(libs.okhttp.logging)
+    implementation(libs.moshi)
+    implementation(libs.moshi.kotlin)
+    implementation(libs.jsoup)
 
     // ---------- Image Loading (Coil v3) ----------
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network.okhttp)
+
+    // ---------- Lifecycle helpers ----------
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
 
     // ---------- Room (with KSP) ----------
 
