@@ -19,7 +19,7 @@ interface AlbumDao {
     suspend fun insertAlbums(albums: List<AlbumEntity>): List<Long>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertCrossRefs(refs: List<AlbumWallpaperCrossRef>)
+    suspend fun insertCrossRefs(refs: List<AlbumWallpaperCrossRef>): List<Long>
 
     @Transaction
     @Query("SELECT * FROM albums ORDER BY sort_order, title")

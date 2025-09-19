@@ -8,6 +8,7 @@ import android.provider.OpenableColumns
 import com.joshiminh.wallbase.data.local.dao.AlbumDao
 import com.joshiminh.wallbase.data.local.dao.WallpaperDao
 import com.joshiminh.wallbase.data.local.entity.AlbumEntity
+import com.joshiminh.wallbase.data.local.entity.AlbumWallpaperCrossRef
 import com.joshiminh.wallbase.data.local.entity.AlbumWithWallpapers
 import com.joshiminh.wallbase.data.local.entity.WallpaperEntity
 import com.joshiminh.wallbase.data.local.entity.WallpaperWithAlbums
@@ -88,46 +89,51 @@ class LibraryRepository(
     }
 
     suspend fun addWallpaper(wallpaper: WallpaperItem): Boolean {
-        val sourceKey = wallpaper.sourceKey
-            ?: throw IllegalArgumentException("Wallpaper is missing a source key")
-
-        if (sourceKey == SourceKeys.LOCAL) {
-            return false
-        }
-
         return withContext(Dispatchers.IO) {
-            val remoteId = wallpaper.normalizeRemoteId(sourceKey)
-            if (remoteId != null) {
-                if (wallpaperDao.existsByRemoteId(sourceKey, remoteId)) {
-                    return@withContext false
+            ensureWallpaperSaved(wallpaper) is EnsureResult.Inserted
+        }
+    }
+
+    suspend fun addWallpapersToLibrary(wallpapers: List<WallpaperItem>): BulkAddResult {
+        if (wallpapers.isEmpty()) return BulkAddResult(added = 0, skipped = 0)
+        return withContext(Dispatchers.IO) {
+            var added = 0
+            var skipped = 0
+            wallpapers.forEach { wallpaper ->
+                when (ensureWallpaperSaved(wallpaper)) {
+                    is EnsureResult.Inserted -> added++
+                    is EnsureResult.Existing -> skipped++
+                    EnsureResult.Skipped, EnsureResult.Failed -> skipped++
                 }
-            } else if (wallpaperDao.existsByImageUrl(sourceKey, wallpaper.imageUrl)) {
-                return@withContext false
+            }
+            BulkAddResult(added = added, skipped = skipped)
+        }
+    }
+
+    suspend fun addWallpapersToAlbum(
+        albumId: Long,
+        wallpapers: List<WallpaperItem>
+    ): AlbumAssociationResult {
+        if (wallpapers.isEmpty()) return AlbumAssociationResult(0, 0, 0)
+        return withContext(Dispatchers.IO) {
+            val refs = mutableListOf<AlbumWallpaperCrossRef>()
+            var skipped = 0
+            wallpapers.forEach { wallpaper ->
+                when (val result = ensureWallpaperSaved(wallpaper)) {
+                    is EnsureResult.Inserted -> refs += AlbumWallpaperCrossRef(albumId, result.id)
+                    is EnsureResult.Existing -> refs += AlbumWallpaperCrossRef(albumId, result.id)
+                    EnsureResult.Skipped, EnsureResult.Failed -> skipped++
+                }
             }
 
-            val now = System.currentTimeMillis()
-            val result = wallpaperDao.insertWallpaper(
-                WallpaperEntity(
-                    sourceKey = sourceKey,
-                    remoteId = remoteId,
-                    source = wallpaper.sourceName ?: sourceKey,
-                    title = wallpaper.title.ifBlank { "Wallpaper" },
-                    description = null,
-                    imageUrl = wallpaper.imageUrl,
-                    sourceUrl = wallpaper.sourceUrl,
-                    localUri = null,
-                    width = null,
-                    height = null,
-                    colorPalette = null,
-                    fileSizeBytes = null,
-                    isFavorite = false,
-                    isDownloaded = false,
-                    appliedAt = null,
-                    addedAt = now,
-                    updatedAt = now
-                )
-            )
-            result != -1L
+            if (refs.isEmpty()) {
+                return@withContext AlbumAssociationResult(addedToAlbum = 0, alreadyPresent = 0, skipped = skipped)
+            }
+
+            val insertResults = albumDao.insertCrossRefs(refs)
+            val added = insertResults.count { it != -1L }
+            val alreadyPresent = insertResults.size - added
+            AlbumAssociationResult(addedToAlbum = added, alreadyPresent = alreadyPresent, skipped = skipped)
         }
     }
 
@@ -198,23 +204,86 @@ class LibraryRepository(
         }
     }
 
-    // File: LibraryRepository.kt (outside the class)
-    private fun WallpaperWithAlbums.toWallpaperItem(): WallpaperItem {
-        val entity = wallpaper
-        val remoteId = entity.remoteId ?: entity.id.toString()
-        val displayImageUrl = entity.localUri ?: entity.imageUrl
-        val originalUrl = entity.sourceUrl ?: entity.localUri ?: entity.imageUrl
-        return WallpaperItem(
-            id = "${entity.sourceKey}:$remoteId",
-            title = entity.title,
-            imageUrl = displayImageUrl,
-            sourceUrl = originalUrl,
-            sourceName = entity.source,
-            sourceKey = entity.sourceKey
+    data class BulkAddResult(val added: Int, val skipped: Int)
+
+    data class AlbumAssociationResult(
+        val addedToAlbum: Int,
+        val alreadyPresent: Int,
+        val skipped: Int
+    )
+
+    private suspend fun ensureWallpaperSaved(wallpaper: WallpaperItem): EnsureResult {
+        val sourceKey = wallpaper.sourceKey ?: return EnsureResult.Skipped
+        if (sourceKey == SourceKeys.LOCAL) return EnsureResult.Skipped
+
+        val remoteId = wallpaper.normalizeRemoteId(sourceKey)
+        val existingId = when {
+            remoteId != null -> wallpaperDao.findIdByRemoteId(sourceKey, remoteId)
+            else -> wallpaperDao.findIdByImageUrl(sourceKey, wallpaper.imageUrl)
+        }
+        if (existingId != null) {
+            return EnsureResult.Existing(existingId)
+        }
+
+        val now = System.currentTimeMillis()
+        val entity = WallpaperEntity(
+            sourceKey = sourceKey,
+            remoteId = remoteId,
+            source = wallpaper.sourceName ?: sourceKey,
+            title = wallpaper.title.ifBlank { "Wallpaper" },
+            description = null,
+            imageUrl = wallpaper.imageUrl,
+            sourceUrl = wallpaper.sourceUrl,
+            localUri = null,
+            width = wallpaper.width,
+            height = wallpaper.height,
+            colorPalette = null,
+            fileSizeBytes = null,
+            isFavorite = false,
+            isDownloaded = false,
+            appliedAt = null,
+            addedAt = now,
+            updatedAt = now
         )
+        val insertedId = wallpaperDao.insertWallpaper(entity)
+        if (insertedId != -1L) {
+            return EnsureResult.Inserted(insertedId)
+        }
+
+        val fallbackId = when {
+            remoteId != null -> wallpaperDao.findIdByRemoteId(sourceKey, remoteId)
+            else -> wallpaperDao.findIdByImageUrl(sourceKey, wallpaper.imageUrl)
+        }
+        return fallbackId?.let { EnsureResult.Existing(it) } ?: EnsureResult.Failed
     }
 
-    private fun ContentResolver.queryMetadata(uri: Uri): Pair<String, Long?>? {
+    private sealed interface EnsureResult {
+        data class Inserted(val id: Long) : EnsureResult
+        data class Existing(val id: Long) : EnsureResult
+        data object Skipped : EnsureResult
+        data object Failed : EnsureResult
+    }
+}
+
+// File: LibraryRepository.kt (outside the class)
+private fun WallpaperWithAlbums.toWallpaperItem(): WallpaperItem {
+    val entity = wallpaper
+    val remoteId = entity.remoteId ?: entity.id.toString()
+    val displayImageUrl = entity.localUri ?: entity.imageUrl
+    val originalUrl = entity.sourceUrl ?: entity.localUri ?: entity.imageUrl
+    return WallpaperItem(
+        id = "${entity.sourceKey}:$remoteId",
+        title = entity.title,
+        imageUrl = displayImageUrl,
+        sourceUrl = originalUrl,
+        sourceName = entity.source,
+        sourceKey = entity.sourceKey,
+        width = entity.width,
+        height = entity.height
+    )
+}
+
+private fun ContentResolver.queryMetadata(uri: Uri): Pair<String, Long?>? {
         val projection = arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
         val cursor = query(uri, projection, null, null, null) ?: return null
         cursor.use {
@@ -227,24 +296,19 @@ class LibraryRepository(
         }
     }
 
-    private fun AlbumWithWallpapers.toAlbumItem(): AlbumItem {
-        val cover = wallpapers.firstOrNull()?.let { wallpaper ->
-            wallpaper.localUri ?: wallpaper.imageUrl
-        }
-        return AlbumItem(
-            id = album.id,
-            title = album.title,
-            wallpaperCount = wallpapers.size,
-            coverImageUrl = cover
-        )
+private fun AlbumWithWallpapers.toAlbumItem(): AlbumItem {
+    val cover = wallpapers.firstOrNull()?.let { wallpaper ->
+        wallpaper.localUri ?: wallpaper.imageUrl
     }
+    return AlbumItem(
+        id = album.id,
+        title = album.title,
+        wallpaperCount = wallpapers.size,
+        coverImageUrl = cover
+    )
+}
 
-    private fun WallpaperItem.normalizeRemoteId(sourceKey: String): String? {
-        val prefix = "$sourceKey:"
-        return if (id.startsWith(prefix)) {
-            id.removePrefix(prefix)
-        } else {
-            id
-        }
-    }
+private fun WallpaperItem.normalizeRemoteId(sourceKey: String): String? {
+    val key = libraryKey() ?: return null
+    return key.substringAfter("$sourceKey:")
 }

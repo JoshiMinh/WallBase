@@ -89,11 +89,14 @@ class WallpaperRepository(
         return data?.children.orEmpty().mapNotNull { child ->
             val post = child.data ?: return@mapNotNull null
             val imageUrl = post.resolveImageUrl() ?: return@mapNotNull null
+            val dimensions = post.preview?.images.orEmpty().firstOrNull()?.source
             WallpaperItem(
                 id = post.id,
                 title = post.title,
                 imageUrl = imageUrl,
-                sourceUrl = post.permalink?.let { "https://www.reddit.com$it" } ?: imageUrl
+                sourceUrl = post.permalink?.let { "https://www.reddit.com$it" } ?: imageUrl,
+                width = dimensions?.width,
+                height = dimensions?.height
             )
         }
     }
