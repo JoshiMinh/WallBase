@@ -34,3 +34,25 @@ data class RedditPreviewImage(
 data class RedditPreviewSource(
     val url: String? = null
 )
+
+data class RedditSubredditListingResponse(
+    val data: RedditSubredditListingData? = null
+)
+
+data class RedditSubredditListingData(
+    val children: List<RedditSubredditChild>? = null
+)
+
+data class RedditSubredditChild(
+    val data: RedditSubreddit? = null
+)
+
+data class RedditSubreddit(
+    val name: String = "",
+    @Json(name = "display_name") val displayName: String = "",
+    @Json(name = "display_name_prefixed") val displayNamePrefixed: String = "",
+    val title: String = "",
+    @Json(name = "public_description") val publicDescription: String? = null,
+    @Json(name = "icon_img") val iconImage: String? = null,
+    @Json(name = "community_icon") val communityIcon: String? = null
+)

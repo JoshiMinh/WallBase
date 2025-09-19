@@ -4,11 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.joshiminh.wallbase.data.Source
+import com.joshiminh.wallbase.data.source.Source
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import com.joshiminh.wallbase.data.wallpapers.WallpaperRepository
 import com.joshiminh.wallbase.di.ServiceLocator
-import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,7 +24,7 @@ class ExploreViewModel(
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 
     fun loadSource(source: Source) {
-        val key = source.normalizedKey()
+        val key = source.key
         currentSourceKey = key
         cache[key]?.let { cached ->
             _uiState.value = ExploreUiState(wallpapers = cached)
@@ -61,7 +60,7 @@ class ExploreViewModel(
     }
 
     fun refresh(source: Source) {
-        cache.remove(source.normalizedKey())
+        cache.remove(source.key)
         loadSource(source)
     }
 
@@ -78,6 +77,4 @@ class ExploreViewModel(
             }
         }
     }
-
-    private fun Source.normalizedKey(): String = title.trim().lowercase(Locale.ROOT)
 }
