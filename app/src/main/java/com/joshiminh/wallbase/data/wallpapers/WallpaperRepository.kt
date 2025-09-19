@@ -34,27 +34,30 @@ class WallpaperRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 redditService.searchSubreddits(query = query, limit = limit)
-            }.mapCatching(RedditSubredditListingResponse::toCommunities)
+            }
+                // ✅ Cannot take callable reference to a member extension; use a lambda
+                .mapCatching { it.toCommunities() }
                 .getOrElse { emptyList() }
         }
 
-    private suspend fun fetchRedditWallpapers(subreddit: String): List<WallpaperItem> = withContext(Dispatchers.IO) {
-        runCatching {
-            val normalized = subreddit.normalizeSubredditName()
-            redditService.fetchSubreddit(subreddit = normalized)
-        }.mapCatching { response ->
-            response.data?.children.orEmpty().mapNotNull { child ->
-                val post = child.data ?: return@mapNotNull null
-                val imageUrl = post.resolveImageUrl() ?: return@mapNotNull null
-                WallpaperItem(
-                    id = post.id,
-                    title = post.title,
-                    imageUrl = imageUrl,
-                    sourceUrl = post.permalink?.let { "https://www.reddit.com$it" } ?: imageUrl
-                )
-            }
-        }.getOrElse { emptyList() }
-    }
+    private suspend fun fetchRedditWallpapers(subreddit: String): List<WallpaperItem> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val normalized = subreddit.normalizeSubredditName()
+                redditService.fetchSubreddit(subreddit = normalized)
+            }.mapCatching { response ->
+                response.data?.children.orEmpty().mapNotNull { child ->
+                    val post = child.data ?: return@mapNotNull null
+                    val imageUrl = post.resolveImageUrl() ?: return@mapNotNull null
+                    WallpaperItem(
+                        id = post.id,
+                        title = post.title,
+                        imageUrl = imageUrl,
+                        sourceUrl = post.permalink?.let { "https://www.reddit.com$it" } ?: imageUrl
+                    )
+                }
+            }.getOrElse { emptyList() }
+        }
 
     private fun RedditPost.resolveImageUrl(): String? {
         val previewUrl = preview?.images.orEmpty().firstOrNull()?.source?.url
@@ -69,11 +72,12 @@ class WallpaperRepository(
             .substringBefore('#')
             .lowercase(Locale.ROOT)
         return normalized.endsWith(".jpg") ||
-            normalized.endsWith(".jpeg") ||
-            normalized.endsWith(".png") ||
-            normalized.endsWith(".webp")
+                normalized.endsWith(".jpeg") ||
+                normalized.endsWith(".png") ||
+                normalized.endsWith(".webp")
     }
 
+    // Member extension is fine; just don't reference it with ::
     private fun RedditSubredditListingResponse.toCommunities(): List<RedditCommunity> {
         return data?.children.orEmpty()
             .mapNotNull(RedditSubredditChild::data)
@@ -85,8 +89,11 @@ class WallpaperRepository(
                     displayName = subreddit.displayNamePrefixed.takeIf { it.isNotBlank() }
                         ?: "r/${name.normalizeSubredditName()}",
                     title = subreddit.title.takeIf { it.isNotBlank() } ?: name,
-                    description = subreddit.publicDescription.takeIf { it?.isNotBlank() ?:  },
-                    iconUrl = subreddit.iconImage ?: subreddit.communityIcon
+                    // ✅ Fix invalid Elvis/nullable call
+                    description = subreddit.publicDescription?.takeIf { it.isNotBlank() },
+                    // Prefer iconImage; fall back to communityIcon
+                    iconUrl = (subreddit.iconImage ?: subreddit.communityIcon)
+                        ?.replace("&amp;", "&")
                 )
             }
     }
@@ -104,6 +111,7 @@ class WallpaperRepository(
     private companion object {
         private const val DEFAULT_REDDIT_SUBREDDIT = "wallpapers"
         private const val DEFAULT_PINTEREST_QUERY = "wallpaper backgrounds"
-        private const val DEFAULT_CUSTOM_WEBSITE = "https://www.pixelstalk.net/category/wallpapers/4k-wallpapers/"
+        private const val DEFAULT_CUSTOM_WEBSITE =
+            "https://www.pixelstalk.net/category/wallpapers/4k-wallpapers/"
     }
 }
