@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.Source
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 
@@ -89,7 +89,7 @@ fun ExploreScreen(
 
                     uiState.errorMessage != null -> {
                         ErrorState(
-                            message = uiState.errorMessage,
+                            message = uiState.errorMessage!!,
                             onRetry = { tabs.getOrNull(selectedTab)?.let(exploreViewModel::refresh) }
                         )
                     }
