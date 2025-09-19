@@ -55,9 +55,9 @@ class MainActivity : ComponentActivity() {
                 listOf(
                     Source(R.drawable.google_photos, "Google Photos", "Login, pick albums", true, true),
                     Source(R.drawable.google_drive, "Google Drive", "Login, pick folder(s)", true, true),
-                    Source(R.drawable.reddit, "Reddit", "Add subs, sort/time, filters", true, true),
-                    Source(R.drawable.pinterest, "Pinterest", "(planned)", true, true),
-                    Source(android.R.drawable.ic_menu_search, "Websites", "Templates or custom rules", false, false),
+                    Source(R.drawable.reddit, "Reddit", "Top posts from r/wallpapers", true, true),
+                    Source(R.drawable.pinterest, "Pinterest", "Trending wallpaper pins", true, true),
+                    Source(android.R.drawable.ic_menu_search, "Websites", "Scrape curated wallpaper galleries", true, true),
                     Source(android.R.drawable.ic_menu_gallery, "Local", "Device Photo Picker / SAF", false, false)
                 ).toMutableStateList()
             }

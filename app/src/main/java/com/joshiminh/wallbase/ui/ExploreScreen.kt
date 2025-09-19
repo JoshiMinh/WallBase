@@ -1,33 +1,70 @@
 package com.joshiminh.wallbase.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.joshiminh.wallbase.data.Source
+import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 
 @Composable
-fun ExploreScreen(sources: List<Source>) {
+fun ExploreScreen(
+    sources: List<Source>,
+    exploreViewModel: ExploreViewModel = viewModel(factory = ExploreViewModel.Factory)
+) {
     val tabs = sources.filter { it.enabled && it.showInExplore }
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val uiState by exploreViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(tabs) {
+        if (tabs.isNotEmpty() && selectedTab >= tabs.size) {
+            selectedTab = 0
+        }
+    }
+
+    LaunchedEffect(tabs, selectedTab) {
+        tabs.getOrNull(selectedTab)?.let { exploreViewModel.loadSource(it) }
+    }
 
     if (tabs.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                text = "No sources enabled",
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
+        EmptyState(message = "No sources enabled")
     } else {
         Column(Modifier.fillMaxSize()) {
             ScrollableTabRow(selectedTabIndex = selectedTab) {
@@ -39,15 +76,130 @@ fun ExploreScreen(sources: List<Source>) {
                     )
                 }
             }
+
             Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Text(
-                    text = "Content for ${tabs[selectedTab].title}",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                when {
+                    uiState.isLoading -> {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    }
+
+                    uiState.errorMessage != null -> {
+                        ErrorState(
+                            message = uiState.errorMessage,
+                            onRetry = { tabs.getOrNull(selectedTab)?.let(exploreViewModel::refresh) }
+                        )
+                    }
+
+                    uiState.wallpapers.isEmpty() -> {
+                        val activeSource = tabs.getOrNull(selectedTab)?.title ?: "this source"
+                        EmptyState(message = "No wallpapers found for $activeSource.")
+                    }
+
+                    else -> {
+                        WallpaperGrid(wallpapers = uiState.wallpapers)
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun WallpaperGrid(wallpapers: List<WallpaperItem>) {
+    LazyVerticalGrid(
+        modifier = Modifier.fillMaxSize(),
+        columns = GridCells.Adaptive(minSize = 160.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 32.dp)
+    ) {
+        items(wallpapers, key = WallpaperItem::id) { wallpaper ->
+            WallpaperCard(wallpaper)
+        }
+    }
+}
+
+@Composable
+private fun WallpaperCard(item: WallpaperItem) {
+    val uriHandler = LocalUriHandler.current
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.7f)
+            .clickable { uriHandler.openUri(item.sourceUrl) },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Box {
+            AsyncImage(
+                model = item.imageUrl,
+                contentDescription = item.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color(0xCC000000))
+                        )
+                    )
+                    .padding(12.dp)
+            ) {
+                Column {
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = item.sourceUrl,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(message: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = message, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun ErrorState(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        Button(onClick = onRetry) {
+            Text("Retry")
         }
     }
 }
