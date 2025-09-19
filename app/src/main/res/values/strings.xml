@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">WallBase</string>
     <string name="back">Back</string>
@@ -9,12 +10,12 @@
     <string name="apply_lock_screen">Set as lock screen</string>
     <string name="apply_both_screens">Set as both screens</string>
     <string name="open_original">Open original post</string>
-    <string name="applying_wallpaper">Applying wallpaper…</string>
+    <string name="applying_wallpaper">Applying wallpaper&#8230;</string>
     <string name="add_to_library">Add to library</string>
-    <string name="adding_to_library">Adding to library…</string>
+    <string name="adding_to_library">Adding to library&#8230;</string>
     <string name="in_library">In your library</string>
     <string name="remove_from_library">Remove from library</string>
-    <string name="removing_from_library">Removing from library…</string>
+    <string name="removing_from_library">Removing from library&#8230;</string>
     <string name="set_wallpaper">Set wallpaper</string>
     <string name="choose_wallpaper_target">Choose where to apply</string>
     <string name="choose_wallpaper_target_message">Select where you want to set this wallpaper.</string>
@@ -29,7 +30,7 @@
     <string name="album_wallpaper_count">%1$d wallpapers</string>
     <string name="create_album_title">New album</string>
     <string name="album_name_label">Album name</string>
-    <string name="creating_album">Creating album…</string>
+    <string name="creating_album">Creating album&#8230;</string>
     <string name="create_album_confirm">Create</string>
     <string name="cancel">Cancel</string>
     <string name="library_empty_state">Your library is empty. Save wallpapers from Browse to see them here.</string>
