@@ -28,26 +28,28 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.source.RedditCommunity
 import com.joshiminh.wallbase.data.source.Source
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import com.joshiminh.wallbase.di.ServiceLocator
+import com.joshiminh.wallbase.drive.DriveFolder
+import com.joshiminh.wallbase.photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.AlbumDetailRoute
 import com.joshiminh.wallbase.ui.BrowseScreen
@@ -55,9 +57,9 @@ import com.joshiminh.wallbase.ui.DriveFolderPickerScreen
 import com.joshiminh.wallbase.ui.GooglePhotosAlbumPickerScreen
 import com.joshiminh.wallbase.ui.LibraryScreen
 import com.joshiminh.wallbase.ui.SettingsScreen
+import com.joshiminh.wallbase.ui.SettingsViewModel
 import com.joshiminh.wallbase.ui.SourceBrowseRoute
 import com.joshiminh.wallbase.ui.SourcesViewModel
-import com.joshiminh.wallbase.ui.SettingsViewModel
 import com.joshiminh.wallbase.ui.WallpaperDetailRoute
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -83,18 +85,14 @@ class MainActivity : ComponentActivity() {
             val backupExporter = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
                 onResult = { uri ->
-                    if (uri != null) {
-                        settingsViewModel.exportBackup(uri)
-                    }
+                    if (uri != null) settingsViewModel.exportBackup(uri)
                 }
             )
 
             val backupImporter = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.OpenDocument(),
                 onResult = { uri ->
-                    if (uri != null) {
-                        settingsViewModel.importBackup(uri)
-                    }
+                    if (uri != null) settingsViewModel.importBackup(uri)
                 }
             )
 
@@ -129,7 +127,10 @@ class MainActivity : ComponentActivity() {
                             )
                         )
                     },
-                    onSettingsMessageShown = settingsViewModel::consumeMessage
+                    onSettingsMessageShown = settingsViewModel::consumeMessage,
+                    // NEW: thread these in instead of touching sourcesViewModel inside WallBaseApp
+                    onAddDriveFolder = sourcesViewModel::addGoogleDriveFolder,
+                    onAddPhotosAlbum = sourcesViewModel::addGooglePhotosAlbum
                 )
             }
         }
@@ -176,8 +177,11 @@ fun WallBaseApp(
     onSourcesMessageShown: () -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
-    onSettingsMessageShown: () -> Unit
-) {
+    onSettingsMessageShown: () -> Unit,
+    // NEW: passed down from Activity
+    onAddDriveFolder: (DriveFolder) -> Unit,
+    onAddPhotosAlbum: (GooglePhotosAlbum) -> Unit,
+    ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -186,7 +190,7 @@ fun WallBaseApp(
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
     var topBarState by remember { mutableStateOf<TopBarState?>(null) }
     val canNavigateBack = navController.previousBackStackEntry != null &&
-        currentDestination?.route !in topLevelRoutes
+            currentDestination?.route !in topLevelRoutes
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -211,15 +215,15 @@ fun WallBaseApp(
                             }
                         }
                         canNavigateBack -> {
-                        IconButton(
-                            onClick = { navController.navigateUp() }
-                        ) {
+                            IconButton(onClick = { navController.navigateUp() }) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Back",
                                     modifier = Modifier.size(24.dp)
                                 )
+                            }
                         }
+                        else -> { /* no nav icon on top-level */ }
                     }
                 },
                 actions = {
@@ -304,7 +308,7 @@ fun WallBaseApp(
                 DriveFolderPickerScreen(
                     token = driveToken,
                     onFolderPicked = { folder ->
-                        sourcesViewModel.addGoogleDriveFolder(folder)
+                        onAddDriveFolder(folder)
                         navController.popBackStack()
                     }
                 )
@@ -313,7 +317,7 @@ fun WallBaseApp(
                 GooglePhotosAlbumPickerScreen(
                     token = photosToken,
                     onAlbumPicked = { album ->
-                        sourcesViewModel.addGooglePhotosAlbum(album)
+                        onAddPhotosAlbum(album)
                         navController.popBackStack()
                     }
                 )
@@ -367,7 +371,9 @@ fun WallBaseApp(
                     WallpaperDetailRoute(wallpaper = wallpaper)
                     DisposableEffect(Unit) {
                         onDispose {
-                            navController.previousBackStackEntry?.savedStateHandle?.remove<WallpaperItem>("wallpaper_detail")
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.remove<WallpaperItem>("wallpaper_detail")
                         }
                     }
                 }

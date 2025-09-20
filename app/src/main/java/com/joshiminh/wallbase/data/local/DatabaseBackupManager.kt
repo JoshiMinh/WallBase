@@ -16,33 +16,36 @@ class DatabaseBackupManager(
     suspend fun exportBackup(destination: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val dbFile = context.getDatabasePath(DATABASE_NAME)
-            if (!dbFile.exists()) {
-                error("Database file not found")
-            }
+            require(dbFile.exists()) { "Database file not found" }
 
             val sqliteDb = database.openHelper.writableDatabase
-            sqliteDb.query("PRAGMA wal_checkpoint(FULL)").use { }
+            // Flush WAL to the main DB file
+            sqliteDb.execSQL("PRAGMA wal_checkpoint(FULL)")
 
             val tempFile = File.createTempFile("wallbase_export_", ".db", context.cacheDir)
-            var usedVacuum = false
+            var usedVacuum: Boolean
 
             try {
+                // Try VACUUM INTO for a compact, safe snapshot (Android 9+/SQLite 3.27+)
                 val quotedPath = tempFile.absolutePath.replace("'", "''")
                 usedVacuum = runCatching {
                     sqliteDb.execSQL("VACUUM INTO '$quotedPath'")
                 }.isSuccess
 
                 val sourceFile = if (usedVacuum) tempFile else dbFile
+
                 context.contentResolver.openOutputStream(destination)?.use { output ->
                     sourceFile.inputStream().use { input ->
+                        // Ignore Long result; we only need the side-effect
                         input.copyTo(output)
                     }
                 } ?: error("Unable to open destination for backup")
             } finally {
-                if (!tempFile.delete()) {
-                    tempFile.deleteOnExit()
-                }
+                if (!tempFile.delete()) tempFile.deleteOnExit()
             }
+
+            // Ensure Result<Unit>
+            return@runCatching
         }
     }
 
@@ -52,6 +55,7 @@ class DatabaseBackupManager(
 
             context.contentResolver.openInputStream(source)?.use { input ->
                 FileOutputStream(tempFile).use { output ->
+                    // Ignore Long result; we only need the side-effect
                     input.copyTo(output)
                 }
             } ?: error("Unable to open backup source")
@@ -63,6 +67,7 @@ class DatabaseBackupManager(
                 val backupPath = tempFile.absolutePath.replace("'", "''")
                 sqliteDb.execSQL("ATTACH DATABASE '$backupPath' AS backup")
                 try {
+                    // Clear and copy table-by-table to avoid schema clashes
                     DATA_TABLES.forEach { table ->
                         sqliteDb.execSQL("DELETE FROM $table")
                         if (sqliteDb.hasTable("backup", table)) {
@@ -70,6 +75,7 @@ class DatabaseBackupManager(
                         }
                     }
 
+                    // Restore sqlite_sequence (autoincrement counters) if present
                     if (sqliteDb.hasTable("main", "sqlite_sequence")) {
                         sqliteDb.execSQL("DELETE FROM sqlite_sequence")
                     }
@@ -86,15 +92,19 @@ class DatabaseBackupManager(
                 sqliteDb.execSQL("PRAGMA foreign_keys=ON")
                 tempFile.delete()
             }
+
+            // Ensure Result<Unit>
+            return@runCatching
         }
     }
 
     private fun SupportSQLiteDatabase.hasTable(databaseName: String, tableName: String): Boolean {
-        val cursor = query(
-            "SELECT name FROM ${databaseName}.sqlite_master WHERE type='table' AND name=?",
+        query(
+            "SELECT name FROM $databaseName.sqlite_master WHERE type='table' AND name=?",
             arrayOf(tableName)
-        )
-        cursor.use { return it.moveToFirst() }
+        ).use { cursor ->
+            return cursor.moveToFirst()
+        }
     }
 
     companion object {
