@@ -3,6 +3,8 @@ package com.joshiminh.wallbase.data.source
 import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.local.dao.SourceDao
 import com.joshiminh.wallbase.data.local.entity.SourceEntity
+import com.joshiminh.wallbase.drive.DriveFolder
+import com.joshiminh.wallbase.photos.GooglePhotosAlbum
 import java.net.MalformedURLException
 import java.net.URL
 import java.net.URLDecoder
@@ -54,8 +56,9 @@ class SourceRepository(
     }
 
     suspend fun removeSource(source: Source) {
-        if (source.providerKey == SourceKeys.GOOGLE_PHOTOS ||
-            source.providerKey == SourceKeys.GOOGLE_DRIVE
+        if ((source.providerKey == SourceKeys.GOOGLE_PHOTOS ||
+                source.providerKey == SourceKeys.GOOGLE_DRIVE) &&
+            source.config.isNullOrBlank()
         ) {
             throw IllegalStateException("Google sources cannot be removed")
         }
@@ -136,6 +139,55 @@ class SourceRepository(
         return entity.copy(id = id).toDomain()
     }
 
+    suspend fun addGoogleDriveFolder(folder: DriveFolder): Source {
+        val folderId = folder.id
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.GOOGLE_DRIVE, folderId)
+        if (existing != null) {
+            throw IllegalStateException("Drive folder already added")
+        }
+
+        val entity = SourceEntity(
+            key = buildGoogleKey(SourceKeys.GOOGLE_DRIVE, folderId),
+            providerKey = SourceKeys.GOOGLE_DRIVE,
+            title = folder.name.ifBlank { "Drive folder" },
+            description = "Google Drive folder",
+            iconRes = R.drawable.google_drive,
+            iconUrl = null,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = folderId
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    suspend fun addGooglePhotosAlbum(album: GooglePhotosAlbum): Source {
+        val albumId = album.id
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.GOOGLE_PHOTOS, albumId)
+        if (existing != null) {
+            throw IllegalStateException("Album already added")
+        }
+
+        val countDescription = album.mediaItemsCount?.takeIf { it > 0 }?.let { count ->
+            "$count photos"
+        }
+        val entity = SourceEntity(
+            key = buildGoogleKey(SourceKeys.GOOGLE_PHOTOS, albumId),
+            providerKey = SourceKeys.GOOGLE_PHOTOS,
+            title = album.title.ifBlank { "Google Photos album" },
+            description = countDescription ?: "Google Photos album",
+            iconRes = R.drawable.google_photos,
+            iconUrl = null,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = albumId
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
     private fun parseRemoteSourceInput(input: String): RemoteSourceInput? {
         val trimmed = input.trim()
         if (trimmed.isBlank()) return null
@@ -176,6 +228,11 @@ class SourceRepository(
             .trim('_')
             .ifBlank { url.host.replace(Regex("[^A-Za-z0-9]+"), "_") }
         return "$provider:$sanitized"
+    }
+
+    private fun buildGoogleKey(provider: String, id: String): String {
+        val sanitized = id.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
+        return if (sanitized.isEmpty()) provider else "$provider:$sanitized"
     }
 
     private fun buildWebsiteMetadata(

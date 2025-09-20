@@ -1,5 +1,6 @@
 package com.joshiminh.wallbase.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -49,6 +50,7 @@ import java.util.Locale
 fun BrowseScreen(
     uiState: SourcesViewModel.SourcesUiState,
     onGoogleDriveClick: () -> Unit,
+    onGooglePhotosClick: () -> Unit,
     onAddLocalWallpapers: () -> Unit,
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
@@ -105,6 +107,7 @@ fun BrowseScreen(
                         source = source,
                         onOpenSource = onOpenSource,
                         onGoogleDriveClick = onGoogleDriveClick,
+                        onGooglePhotosClick = onGooglePhotosClick,
                         onAddLocalWallpapers = onAddLocalWallpapers,
                         onRemoveSource = onRemoveSource
                     )
@@ -151,7 +154,6 @@ private fun AddSourceFromUrlCard(
             Column(modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)) {
                 SupportedSourceBullet("Reddit Subs")
                 SupportedSourceBullet("Pinterest Boards")
-                SupportedSourceBullet("Alpha Coders")
                 SupportedSourceBullet("Wallpaper Websites")
             }
 
@@ -306,19 +308,31 @@ private fun SourceCard(
     source: Source,
     onOpenSource: (Source) -> Unit,
     onGoogleDriveClick: () -> Unit,
+    onGooglePhotosClick: () -> Unit,
     onAddLocalWallpapers: () -> Unit,
     onRemoveSource: (Source) -> Unit
 ) {
     val isGoogleDrive = source.providerKey == SourceKeys.GOOGLE_DRIVE
+    val isGooglePhotos = source.providerKey == SourceKeys.GOOGLE_PHOTOS
+    val isGoogleDrivePicker = isGoogleDrive && source.config.isNullOrBlank()
+    val isGooglePhotosPicker = isGooglePhotos && source.config.isNullOrBlank()
     val isLocal = source.isLocal
-    val isRemovable = source.providerKey == SourceKeys.REDDIT ||
-        source.providerKey == SourceKeys.WEBSITES ||
-        source.providerKey == SourceKeys.PINTEREST
+    val isRemovable = when {
+        isLocal -> false
+        isGoogleDrivePicker || isGooglePhotosPicker -> false
+        isGoogleDrive || isGooglePhotos -> true
+        else -> source.providerKey == SourceKeys.REDDIT ||
+            source.providerKey == SourceKeys.WEBSITES ||
+            source.providerKey == SourceKeys.PINTEREST
+    }
 
     val cardModifier = when {
-        isGoogleDrive -> Modifier
+        isGoogleDrivePicker -> Modifier
             .fillMaxWidth()
             .clickable { onGoogleDriveClick() }
+        isGooglePhotosPicker -> Modifier
+            .fillMaxWidth()
+            .clickable { onGooglePhotosClick() }
         !isLocal -> Modifier
             .fillMaxWidth()
             .clickable { onOpenSource(source) }
@@ -342,7 +356,7 @@ private fun SourceCard(
                     )
                 } else {
                     source.iconRes?.let { iconRes ->
-                        Icon(
+                        Image(
                             painter = painterResource(id = iconRes),
                             contentDescription = source.title,
                             modifier = Modifier.size(28.dp)
@@ -369,6 +383,20 @@ private fun SourceCard(
                 Spacer(Modifier.size(4.dp))
                 TextButton(onClick = onAddLocalWallpapers) {
                     Text("Add from device")
+                }
+            } else if (isGoogleDrivePicker || isGooglePhotosPicker) {
+                Spacer(Modifier.size(12.dp))
+                val instructions = if (isGoogleDrivePicker) {
+                    "Choose Drive folders to browse their wallpapers."
+                } else {
+                    "Pick Google Photos albums to browse their images."
+                }
+                Text(instructions, style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.size(4.dp))
+                val buttonLabel = if (isGoogleDrivePicker) "Select folders" else "Select albums"
+                val onClick = if (isGoogleDrivePicker) onGoogleDriveClick else onGooglePhotosClick
+                TextButton(onClick = onClick) {
+                    Text(buttonLabel)
                 }
             }
         }

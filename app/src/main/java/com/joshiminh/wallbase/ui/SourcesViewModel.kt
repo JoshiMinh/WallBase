@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.joshiminh.wallbase.drive.DriveFolder
 import com.joshiminh.wallbase.data.library.LibraryRepository
 import com.joshiminh.wallbase.data.source.RedditCommunity
 import com.joshiminh.wallbase.data.source.Source
@@ -14,6 +15,7 @@ import com.joshiminh.wallbase.data.source.SourceKeys
 import com.joshiminh.wallbase.data.source.SourceRepository
 import com.joshiminh.wallbase.data.wallpapers.WallpaperRepository
 import com.joshiminh.wallbase.di.ServiceLocator
+import com.joshiminh.wallbase.photos.GooglePhotosAlbum
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -148,6 +150,36 @@ class SourcesViewModel(
                     }
                 }
             )
+        }
+    }
+
+    fun addGoogleDriveFolder(folder: DriveFolder) {
+        viewModelScope.launch {
+            val result = runCatching { sourceRepository.addGoogleDriveFolder(folder) }
+            _uiState.update { state ->
+                val message = result.fold(
+                    onSuccess = { source -> "Added ${source.title}" },
+                    onFailure = { error ->
+                        error.localizedMessage ?: "Unable to add Drive folder."
+                    }
+                )
+                state.copy(snackbarMessage = message)
+            }
+        }
+    }
+
+    fun addGooglePhotosAlbum(album: GooglePhotosAlbum) {
+        viewModelScope.launch {
+            val result = runCatching { sourceRepository.addGooglePhotosAlbum(album) }
+            _uiState.update { state ->
+                val message = result.fold(
+                    onSuccess = { source -> "Added ${source.title}" },
+                    onFailure = { error ->
+                        error.localizedMessage ?: "Unable to add Google Photos album."
+                    }
+                )
+                state.copy(snackbarMessage = message)
+            }
         }
     }
 

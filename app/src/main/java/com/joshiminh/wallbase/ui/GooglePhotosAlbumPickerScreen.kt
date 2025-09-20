@@ -20,20 +20,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.joshiminh.wallbase.drive.DriveFolder
-import com.joshiminh.wallbase.drive.DriveImage
-import com.joshiminh.wallbase.drive.fetchDriveFolders
-import com.joshiminh.wallbase.drive.fetchDriveImages
+import com.joshiminh.wallbase.photos.GooglePhotosAlbum
+import com.joshiminh.wallbase.photos.GooglePhotosMediaItem
+import com.joshiminh.wallbase.photos.fetchGooglePhotosAlbums
+import com.joshiminh.wallbase.photos.fetchGooglePhotosMediaItems
 import com.joshiminh.wallbase.ui.util.userFacingMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-fun DriveFolderPickerScreen(
+fun GooglePhotosAlbumPickerScreen(
     token: String,
-    onFolderPicked: (DriveFolder) -> Unit
+    onAlbumPicked: (GooglePhotosAlbum) -> Unit
 ) {
-    var folders by remember { mutableStateOf<List<DriveFolder>>(emptyList()) }
+    var albums by remember { mutableStateOf<List<GooglePhotosAlbum>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectionInProgress by remember { mutableStateOf(false) }
@@ -43,19 +43,19 @@ fun DriveFolderPickerScreen(
         loading = true
         errorMessage = null
         selectionInProgress = false
-        folders = emptyList()
+        albums = emptyList()
         if (token.isBlank()) {
             loading = false
-            errorMessage = "Missing Google Drive authentication token."
+            errorMessage = "Missing Google Photos authentication token."
             return@LaunchedEffect
         }
 
         try {
-            folders = fetchDriveFolders(token).sortedBy { it.name.lowercase() }
+            albums = fetchGooglePhotosAlbums(token)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
-            errorMessage = error.userFacingMessage("Failed to load Drive folders.")
+            errorMessage = error.userFacingMessage("Failed to load Google Photos albums.")
         } finally {
             loading = false
         }
@@ -69,8 +69,8 @@ fun DriveFolderPickerScreen(
                 }
             }
 
-            folders.isEmpty() -> {
-                val message = errorMessage ?: "No folders found in Google Drive."
+            albums.isEmpty() -> {
+                val message = errorMessage ?: "No albums found in Google Photos."
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = message,
@@ -86,9 +86,9 @@ fun DriveFolderPickerScreen(
 
             else -> {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    items(folders) { folder ->
+                    items(albums) { album ->
                         Text(
-                            text = folder.name,
+                            text = buildAlbumLabel(album),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable(enabled = !selectionInProgress) {
@@ -96,17 +96,20 @@ fun DriveFolderPickerScreen(
                                         selectionInProgress = true
                                         errorMessage = null
                                         try {
-                                            val images: List<DriveImage> = fetchDriveImages(token, folder.id)
-                                            if (images.isEmpty()) {
-                                                errorMessage = "No images were found in \"${folder.name}\"."
+                                            val items: List<GooglePhotosMediaItem> =
+                                                fetchGooglePhotosMediaItems(token, album.id, pageSize = 40)
+                                            if (items.none { it.mimeType?.startsWith("image/") == true }) {
+                                                errorMessage =
+                                                    "No photos were found in \"${album.title}\"."
                                             } else {
-                                                onFolderPicked(folder)
+                                                onAlbumPicked(album)
                                             }
                                         } catch (cancellation: CancellationException) {
                                             selectionInProgress = false
                                             throw cancellation
                                         } catch (error: Exception) {
-                                            errorMessage = error.userFacingMessage("Failed to load folder contents.")
+                                            errorMessage =
+                                                error.userFacingMessage("Failed to load album contents.")
                                         } finally {
                                             selectionInProgress = false
                                         }
@@ -119,7 +122,7 @@ fun DriveFolderPickerScreen(
             }
         }
 
-        if (folders.isNotEmpty() && errorMessage != null && !loading) {
+        if (albums.isNotEmpty() && errorMessage != null && !loading) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -139,5 +142,14 @@ fun DriveFolderPickerScreen(
                 CircularProgressIndicator()
             }
         }
+    }
+}
+
+private fun buildAlbumLabel(album: GooglePhotosAlbum): String {
+    val count = album.mediaItemsCount
+    return if (count == null || count <= 0) {
+        album.title
+    } else {
+        "${album.title} ($count)"
     }
 }

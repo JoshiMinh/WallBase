@@ -140,9 +140,6 @@ class WallpaperRepository(
         .lowercase(Locale.ROOT)
 
     private fun buildWebsiteSearchUrl(baseUrl: String, query: String): String {
-        if (baseUrl.contains("alphacoders", ignoreCase = true)) {
-            return "https://alphacoders.com/search/view?q=${Uri.encode(query)}"
-        }
         return runCatching {
             val uri = Uri.parse(baseUrl)
             val builder = uri.buildUpon()

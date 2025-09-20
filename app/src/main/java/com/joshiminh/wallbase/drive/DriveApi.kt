@@ -1,10 +1,10 @@
 package com.joshiminh.wallbase.drive
 
 import android.net.Uri
+import com.joshiminh.wallbase.network.readResponseOrThrow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -98,17 +98,5 @@ suspend fun fetchDriveImages(token: String, folderId: String): List<DriveImage> 
     } finally {
         connection.disconnect()
     }
-}
-
-@Throws(IOException::class)
-private fun HttpURLConnection.readResponseOrThrow(): String {
-    val code = responseCode
-    val stream = if (code in 200..299) inputStream else errorStream
-    val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-    if (code !in 200..299) {
-        val message = if (body.isBlank()) "HTTP $code" else "HTTP $code: $body"
-        throw IOException("Drive API request failed: $message")
-    }
-    return body
 }
 
