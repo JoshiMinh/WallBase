@@ -20,11 +20,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.joshiminh.wallbase.photos.GooglePhotosAlbum
-import com.joshiminh.wallbase.photos.GooglePhotosMediaItem
-import com.joshiminh.wallbase.photos.fetchGooglePhotosAlbums
-import com.joshiminh.wallbase.photos.fetchGooglePhotosMediaItems
-import com.joshiminh.wallbase.ui.util.userFacingMessage
+import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
+import com.joshiminh.wallbase.sources.google_photos.GooglePhotosMediaItem
+import com.joshiminh.wallbase.sources.google_photos.fetchGooglePhotosAlbums
+import com.joshiminh.wallbase.sources.google_photos.fetchGooglePhotosMediaItems
+import com.joshiminh.wallbase.util.userFacingMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 

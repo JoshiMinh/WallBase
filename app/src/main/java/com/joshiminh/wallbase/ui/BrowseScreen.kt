@@ -40,10 +40,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.data.source.RedditCommunity
-import com.joshiminh.wallbase.data.source.Source
-import com.joshiminh.wallbase.data.source.SourceKeys
-import com.joshiminh.wallbase.data.source.SourceRepository
+import com.joshiminh.wallbase.sources.reddit.RedditCommunity
+import com.joshiminh.wallbase.data.entity.source.Source
+import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.data.repository.SourceRepository
+import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
 import java.util.Locale
 
 @Composable

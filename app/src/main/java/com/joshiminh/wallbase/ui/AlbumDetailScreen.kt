@@ -14,8 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarState
-import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
+import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
 
 @Composable
 fun AlbumDetailRoute(

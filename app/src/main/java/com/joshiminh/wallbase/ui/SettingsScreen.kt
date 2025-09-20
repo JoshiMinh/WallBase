@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 
 @Composable
 fun SettingsScreen(

@@ -20,11 +20,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.joshiminh.wallbase.drive.DriveFolder
-import com.joshiminh.wallbase.drive.DriveImage
-import com.joshiminh.wallbase.drive.fetchDriveFolders
-import com.joshiminh.wallbase.drive.fetchDriveImages
-import com.joshiminh.wallbase.ui.util.userFacingMessage
+import com.joshiminh.wallbase.sources.google_drive.DriveFolder
+import com.joshiminh.wallbase.sources.google_drive.DriveImage
+import com.joshiminh.wallbase.sources.google_drive.fetchDriveFolders
+import com.joshiminh.wallbase.sources.google_drive.fetchDriveImages
+import com.joshiminh.wallbase.util.userFacingMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 

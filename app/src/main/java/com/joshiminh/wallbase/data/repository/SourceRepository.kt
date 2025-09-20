@@ -1,0 +1,432 @@
+package com.joshiminh.wallbase.data.repository
+
+import com.joshiminh.wallbase.R
+import com.joshiminh.wallbase.data.dao.SourceDao
+import com.joshiminh.wallbase.data.entity.source.SourceEntity
+import com.joshiminh.wallbase.data.entity.source.Source
+import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.sources.google_drive.DriveFolder
+import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
+import com.joshiminh.wallbase.sources.reddit.RedditCommunity
+import java.net.MalformedURLException
+import java.net.URL
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.util.Locale
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+class SourceRepository(
+    private val sourceDao: SourceDao
+) {
+
+    enum class RemoteSourceType { REDDIT, PINTEREST, WEBSITE }
+
+    fun observeSources(): Flow<List<Source>> =
+        sourceDao.observeSources().map { entities -> entities.map(SourceEntity::toDomain) }
+
+    fun observeSource(key: String): Flow<Source?> =
+        sourceDao.observeSourceByKey(key).map { it?.toDomain() }
+
+    suspend fun setSourceEnabled(source: Source, enabled: Boolean) {
+        sourceDao.setSourceEnabled(source.key, enabled)
+    }
+
+    fun detectRemoteSourceType(input: String): RemoteSourceType? =
+        parseRemoteSourceInput(input)?.type
+
+    suspend fun addSourceFromInput(input: String): Source {
+        val parsed = parseRemoteSourceInput(input)
+            ?: throw IllegalArgumentException("Enter a supported subreddit or wallpaper URL.")
+        return when (parsed) {
+            is RemoteSourceInput.Reddit -> addRedditSource(
+                slug = parsed.slug,
+                displayName = parsed.displayName,
+                description = null
+            )
+
+            is RemoteSourceInput.Pinterest -> addPinterestSource(parsed.url)
+            is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
+        }
+    }
+
+    suspend fun addRedditCommunity(community: RedditCommunity): Source {
+        return addRedditSource(
+            slug = community.name,
+            displayName = community.displayName,
+            description = community.description
+        )
+    }
+
+    suspend fun removeSource(source: Source) {
+        if ((source.providerKey == SourceKeys.GOOGLE_PHOTOS ||
+                source.providerKey == SourceKeys.GOOGLE_DRIVE) &&
+            source.config.isNullOrBlank()
+        ) {
+            throw IllegalStateException("Google sources cannot be removed")
+        }
+        sourceDao.deleteSourceById(source.id)
+    }
+
+    private suspend fun addRedditSource(
+        slug: String,
+        displayName: String,
+        description: String?
+    ): Source {
+        val normalized = slug.tryNormalizeSubreddit()
+            ?: throw IllegalArgumentException("Enter a subreddit name")
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.REDDIT, normalized)
+        if (existing != null) {
+            throw IllegalStateException("Subreddit already added")
+        }
+
+        val entity = SourceEntity(
+            key = buildRedditKey(normalized),
+            providerKey = SourceKeys.REDDIT,
+            title = displayName.ifBlank { "r/$normalized" },
+            description = description?.takeIf { it.isNotBlank() } ?: "r/$normalized",
+            iconRes = R.drawable.reddit,
+            iconUrl = null,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = normalized
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    private suspend fun addPinterestSource(url: NormalizedUrl): Source {
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.PINTEREST, url.value)
+        if (existing != null) {
+            throw IllegalStateException("Source already added")
+        }
+
+        val metadata = buildWebsiteMetadata(url, RemoteSourceType.PINTEREST)
+        val entity = SourceEntity(
+            key = buildWebsiteKey(SourceKeys.PINTEREST, url),
+            providerKey = SourceKeys.PINTEREST,
+            title = metadata.title,
+            description = metadata.description,
+            iconRes = metadata.fallbackIcon,
+            iconUrl = metadata.iconUrl,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = url.value
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    private suspend fun addWebsiteSource(url: NormalizedUrl): Source {
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.WEBSITES, url.value)
+        if (existing != null) {
+            throw IllegalStateException("Source already added")
+        }
+
+        val metadata = buildWebsiteMetadata(url, RemoteSourceType.WEBSITE)
+        val entity = SourceEntity(
+            key = buildWebsiteKey(SourceKeys.WEBSITES, url),
+            providerKey = SourceKeys.WEBSITES,
+            title = metadata.title,
+            description = metadata.description,
+            iconRes = metadata.fallbackIcon,
+            iconUrl = metadata.iconUrl,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = url.value
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    suspend fun addGoogleDriveFolder(folder: DriveFolder): Source {
+        val folderId = folder.id
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.GOOGLE_DRIVE, folderId)
+        if (existing != null) {
+            throw IllegalStateException("Drive folder already added")
+        }
+
+        val entity = SourceEntity(
+            key = buildGoogleKey(SourceKeys.GOOGLE_DRIVE, folderId),
+            providerKey = SourceKeys.GOOGLE_DRIVE,
+            title = folder.name.ifBlank { "Drive folder" },
+            description = "Google Drive folder",
+            iconRes = R.drawable.google_drive,
+            iconUrl = null,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = folderId
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    suspend fun addGooglePhotosAlbum(album: GooglePhotosAlbum): Source {
+        val albumId = album.id
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.GOOGLE_PHOTOS, albumId)
+        if (existing != null) {
+            throw IllegalStateException("Album already added")
+        }
+
+        val countDescription = album.mediaItemsCount?.takeIf { it > 0 }?.let { count ->
+            "$count photos"
+        }
+        val entity = SourceEntity(
+            key = buildGoogleKey(SourceKeys.GOOGLE_PHOTOS, albumId),
+            providerKey = SourceKeys.GOOGLE_PHOTOS,
+            title = album.title.ifBlank { "Google Photos album" },
+            description = countDescription ?: "Google Photos album",
+            iconRes = R.drawable.google_photos,
+            iconUrl = null,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = albumId
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    private fun parseRemoteSourceInput(input: String): RemoteSourceInput? {
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) return null
+
+        val subreddit = trimmed.tryNormalizeSubreddit()
+        if (!subreddit.isNullOrBlank()) {
+            return RemoteSourceInput.Reddit(slug = subreddit)
+        }
+
+        val normalizedUrl = trimmed.tryNormalizeUrl() ?: return null
+        val host = normalizedUrl.host
+
+        return when {
+            host.contains("reddit", ignoreCase = true) -> {
+                val slugFromUrl = normalizedUrl.value.tryNormalizeSubreddit()
+                if (slugFromUrl != null) {
+                    RemoteSourceInput.Reddit(slugFromUrl)
+                } else {
+                    null
+                }
+            }
+
+            host.contains("pinterest", ignoreCase = true) || host == "pin.it" -> {
+                RemoteSourceInput.Pinterest(normalizedUrl)
+            }
+
+            else -> RemoteSourceInput.Website(normalizedUrl)
+        }
+    }
+
+    private fun buildRedditKey(config: String): String = "${SourceKeys.REDDIT}:$config"
+
+    private fun buildWebsiteKey(provider: String, url: NormalizedUrl): String {
+        val sanitized = url.value
+            .removePrefix("https://")
+            .removePrefix("http://")
+            .replace(Regex("[^A-Za-z0-9]+"), "_")
+            .trim('_')
+            .ifBlank { url.host.replace(Regex("[^A-Za-z0-9]+"), "_") }
+        return "$provider:$sanitized"
+    }
+
+    private fun buildGoogleKey(provider: String, id: String): String {
+        val sanitized = id.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
+        return if (sanitized.isEmpty()) provider else "$provider:$sanitized"
+    }
+
+    private fun buildWebsiteMetadata(
+        url: NormalizedUrl,
+        type: RemoteSourceType
+    ): WebsiteMetadata {
+        val hostName = url.host
+            .removePrefix("www.")
+            .split('.')
+            .filterNot { it.isBlank() || it.equals("www", ignoreCase = true) || it.length == 2 }
+            .joinToString(" ") { it.toDisplayNameSegment() }
+            .ifBlank { url.host.toDisplayNameSegment() }
+
+        val pathSegment = url.path
+            .split('/')
+            .lastOrNull { it.isNotBlank() }
+            ?.toDisplayNameSegment()
+
+        val queryLabel = url.queryParam("q")?.toDisplayNameSegment()
+
+        val title = when (type) {
+            RemoteSourceType.PINTEREST -> listOfNotNull("Pinterest", queryLabel ?: pathSegment)
+                .joinToString(" - ")
+                .ifBlank { "Pinterest" }
+
+            RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
+                .joinToString(" - ")
+                .ifBlank { hostName }
+
+            else -> hostName
+        }
+
+        val fallbackIcon = when {
+            type == RemoteSourceType.PINTEREST -> R.drawable.pinterest
+            url.host.contains("reddit", ignoreCase = true) -> R.drawable.reddit
+            url.host.contains("pinterest", ignoreCase = true) || url.host == "pin.it" -> R.drawable.pinterest
+            url.host.contains("alphacoders", ignoreCase = true) -> android.R.drawable.ic_menu_gallery
+            else -> android.R.drawable.ic_menu_search
+        }
+        val iconUrl = when {
+            type == RemoteSourceType.PINTEREST -> null
+            url.host.contains("reddit", ignoreCase = true) -> null
+            url.host.contains("pinterest", ignoreCase = true) || url.host == "pin.it" -> null
+            else -> buildFaviconUrl(url.host)
+        }
+
+        return WebsiteMetadata(
+            title = title,
+            description = url.value,
+            iconUrl = iconUrl,
+            fallbackIcon = fallbackIcon
+        )
+    }
+
+    private fun buildFaviconUrl(host: String): String {
+        val sanitizedHost = host.removePrefix("www.")
+        return "https://www.google.com/s2/favicons?sz=128&domain=$sanitizedHost"
+    }
+
+    private fun String.tryNormalizeSubreddit(): String? {
+        val trimmed = trim()
+        if (trimmed.isBlank()) return null
+        val withoutScheme = trimmed
+            .removePrefixIgnoreCase("https://")
+            .removePrefixIgnoreCase("http://")
+            .removePrefixIgnoreCase("www.")
+        val afterDomain = withoutScheme.substringAfterDomain("reddit.com/")
+        val normalized = afterDomain
+            .removePrefixIgnoreCase("r/")
+            .substringBefore('/')
+            .trim()
+            .lowercase(Locale.ROOT)
+        return normalized.takeIf { it.isNotBlank() && SUBREDDIT_PATTERN.matches(it) }
+    }
+
+    private fun String.tryNormalizeUrl(): NormalizedUrl? {
+        var candidate = trim()
+        if (candidate.isBlank()) return null
+        if (!candidate.startsWith("http://", ignoreCase = true) &&
+            !candidate.startsWith("https://", ignoreCase = true)
+        ) {
+            candidate = "https://$candidate"
+        }
+
+        return try {
+            val url = URL(candidate)
+            val scheme = url.protocol?.lowercase(Locale.ROOT)?.takeIf { it == "http" || it == "https" }
+                ?: "https"
+            val host = url.host?.lowercase(Locale.ROOT)?.takeIf { it.isNotBlank() } ?: return null
+            val port = if (url.port != -1 && url.port != url.defaultPort) ":${url.port}" else ""
+            val path = url.path?.trim('/') ?: ""
+            val pathComponent = if (path.isBlank()) "" else "/$path"
+            val query = url.query
+            val fragment = url.ref
+            val normalized = buildString {
+                append(scheme)
+                append("://")
+                append(host)
+                append(port)
+                append(pathComponent)
+                if (!query.isNullOrBlank()) {
+                    append('?')
+                    append(query)
+                }
+                if (!fragment.isNullOrBlank()) {
+                    append('#')
+                    append(fragment)
+                }
+            }
+            NormalizedUrl(
+                value = normalized,
+                host = host,
+                path = path,
+                query = query
+            )
+        } catch (_: MalformedURLException) {
+            null
+        }
+    }
+
+    private fun String.substringAfterDomain(domain: String): String {
+        val index = indexOf(domain, ignoreCase = true)
+        return if (index >= 0) substring(index + domain.length) else this
+    }
+
+    private fun String.removePrefixIgnoreCase(prefix: String): String {
+        return if (startsWith(prefix, ignoreCase = true)) {
+            substring(prefix.length)
+        } else {
+            this
+        }
+    }
+
+    private fun String.toDisplayNameSegment(): String {
+        if (isBlank()) return this
+        return split('-', '_', '+')
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { segment ->
+                val lower = segment.lowercase(Locale.ROOT)
+                lower.replaceFirstChar { char ->
+                    if (char.isLowerCase()) char.titlecase(Locale.ROOT) else char.toString()
+                }
+            }
+            .ifBlank { replaceFirstChar { it.uppercaseChar() } }
+    }
+
+    private fun NormalizedUrl.queryParam(name: String): String? {
+        val queryValue = query ?: return null
+        return queryValue.split('&')
+            .mapNotNull { part ->
+                val pieces = part.split('=', limit = 2)
+                if (pieces.size == 2) {
+                    pieces[0] to pieces[1]
+                } else {
+                    null
+                }
+            }
+            .firstOrNull { (key, _) -> key.equals(name, ignoreCase = true) }
+            ?.second
+            ?.let { value ->
+                runCatching {
+                    URLDecoder.decode(value, StandardCharsets.UTF_8.name())
+                }.getOrElse { value }
+            }
+    }
+
+    private data class WebsiteMetadata(
+        val title: String,
+        val description: String,
+        val iconUrl: String?,
+        val fallbackIcon: Int
+    )
+
+    private data class NormalizedUrl(
+        val value: String,
+        val host: String,
+        val path: String,
+        val query: String?
+    )
+
+    private sealed class RemoteSourceInput(val type: RemoteSourceType) {
+        class Reddit(val slug: String) : RemoteSourceInput(RemoteSourceType.REDDIT) {
+            val displayName: String = "r/$slug"
+        }
+
+        class Pinterest(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.PINTEREST)
+
+        class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
+    }
+
+    private companion object {
+        private val SUBREDDIT_PATTERN = Regex("[a-z0-9_]+")
+    }
+}

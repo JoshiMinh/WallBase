@@ -36,7 +36,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
+import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

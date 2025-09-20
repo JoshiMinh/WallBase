@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -43,9 +42,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.data.source.SourceKeys
-import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
-import com.joshiminh.wallbase.data.wallpapers.WallpaperTarget
+import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
+import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 
 @Composable
 fun WallpaperDetailRoute(
