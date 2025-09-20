@@ -5,6 +5,8 @@ import com.joshiminh.wallbase.data.library.LibraryRepository
 import com.joshiminh.wallbase.data.local.WallBaseDatabase
 import com.joshiminh.wallbase.data.source.SourceRepository
 import com.joshiminh.wallbase.data.wallpapers.WallpaperRepository
+import com.joshiminh.wallbase.data.settings.SettingsRepository
+import com.joshiminh.wallbase.data.settings.settingsDataStore
 import com.joshiminh.wallbase.network.JsoupWebScraper
 import com.joshiminh.wallbase.network.RedditService
 import com.joshiminh.wallbase.network.WebScraper
@@ -91,5 +93,9 @@ object ServiceLocator {
             wallpaperDao = database.wallpaperDao(),
             albumDao = database.albumDao()
         )
+    }
+
+    val settingsRepository: SettingsRepository by lazy {
+        SettingsRepository(context.settingsDataStore)
     }
 }

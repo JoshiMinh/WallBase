@@ -19,11 +19,14 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,9 +34,9 @@ import com.joshiminh.wallbase.R
 
 @Composable
 fun SettingsScreen(
-    darkTheme: Boolean,
     uiState: SettingsViewModel.SettingsUiState,
     onToggleDarkTheme: (Boolean) -> Unit,
+    onSourceRepoUrlChanged: (String) -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onMessageShown: () -> Unit
@@ -93,8 +96,50 @@ fun SettingsScreen(
                         }
 
                         Switch(
-                            checked = darkTheme,
+                            checked = uiState.darkTheme,
                             onCheckedChange = onToggleDarkTheme
+                        )
+                    }
+                }
+            }
+
+            SettingsSection(spacing = 12.dp) {
+                Text(
+                    text = stringResource(id = R.string.settings_sources_header),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                SettingsCard {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = stringResource(id = R.string.settings_source_repo_title),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = stringResource(id = R.string.settings_source_repo_description),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = uiState.sourceRepoUrl,
+                            onValueChange = onSourceRepoUrlChanged,
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            placeholder = {
+                                Text(
+                                    text = stringResource(id = R.string.settings_source_repo_placeholder)
+                                )
+                            },
+                            keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done)
                         )
                     }
                 }
@@ -192,15 +237,14 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun SettingsCard(content: @Composable () -> Unit) {
-    @Suppress("UNCHECKED_CAST")
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        content = content as @Composable (ColumnScope.() -> Unit)
+        content = content
     )
 }
 

@@ -24,4 +24,8 @@ interface AlbumDao {
     @Transaction
     @Query("SELECT * FROM albums ORDER BY sort_order, title")
     fun observeAlbumsWithWallpapers(): Flow<List<AlbumWithWallpapers>>
+
+    @Transaction
+    @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
+    fun observeAlbumWithWallpapers(albumId: Long): Flow<AlbumWithWallpapers?>
 }

@@ -33,6 +33,11 @@ class LibraryRepository(
             .map { albums -> albums.map { it.toAlbumItem() } }
     }
 
+    fun observeAlbum(albumId: Long): Flow<AlbumDetail?> {
+        return albumDao.observeAlbumWithWallpapers(albumId)
+            .map { entry -> entry?.toAlbumDetail() }
+    }
+
     suspend fun importLocalWallpapers(context: Context, uris: List<Uri>) {
         if (uris.isEmpty()) return
 
@@ -161,6 +166,36 @@ class LibraryRepository(
         }
     }
 
+    suspend fun removeWallpapers(wallpapers: List<WallpaperItem>): Int {
+        if (wallpapers.isEmpty()) return 0
+        return withContext(Dispatchers.IO) {
+            var removed = 0
+            wallpapers.forEach { wallpaper ->
+                val sourceKey = wallpaper.sourceKey ?: return@forEach
+                when (sourceKey) {
+                    SourceKeys.LOCAL -> {
+                        val localId = wallpaper.normalizeRemoteId(sourceKey)?.toLongOrNull()
+                        if (localId != null && wallpaperDao.deleteById(localId) > 0) {
+                            removed++
+                        }
+                    }
+
+                    else -> {
+                        val remoteId = wallpaper.normalizeRemoteId(sourceKey)
+                        val deleted = when {
+                            remoteId != null -> wallpaperDao.deleteBySourceKeyAndRemoteId(sourceKey, remoteId)
+                            else -> wallpaperDao.deleteByImageUrl(sourceKey, wallpaper.imageUrl)
+                        }
+                        if (deleted > 0) {
+                            removed += deleted
+                        }
+                    }
+                }
+            }
+            removed
+        }
+    }
+
     suspend fun isWallpaperInLibrary(wallpaper: WallpaperItem): Boolean {
         val sourceKey = wallpaper.sourceKey ?: return false
         if (sourceKey == SourceKeys.LOCAL) return true
@@ -266,20 +301,21 @@ class LibraryRepository(
 }
 
 // File: LibraryRepository.kt (outside the class)
-private fun WallpaperWithAlbums.toWallpaperItem(): WallpaperItem {
-    val entity = wallpaper
-    val remoteId = entity.remoteId ?: entity.id.toString()
-    val displayImageUrl = entity.localUri ?: entity.imageUrl
-    val originalUrl = entity.sourceUrl ?: entity.localUri ?: entity.imageUrl
+private fun WallpaperWithAlbums.toWallpaperItem(): WallpaperItem = wallpaper.toLibraryWallpaperItem()
+
+private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
+    val remoteId = remoteId ?: id.toString()
+    val displayImageUrl = localUri ?: imageUrl
+    val originalUrl = sourceUrl ?: localUri ?: imageUrl
     return WallpaperItem(
-        id = "${entity.sourceKey}:$remoteId",
-        title = entity.title,
+        id = "${sourceKey}:$remoteId",
+        title = title,
         imageUrl = displayImageUrl,
         sourceUrl = originalUrl,
-        sourceName = entity.source,
-        sourceKey = entity.sourceKey,
-        width = entity.width,
-        height = entity.height
+        sourceName = source,
+        sourceKey = sourceKey,
+        width = width,
+        height = height
     )
 }
 
@@ -305,6 +341,15 @@ private fun AlbumWithWallpapers.toAlbumItem(): AlbumItem {
         title = album.title,
         wallpaperCount = wallpapers.size,
         coverImageUrl = cover
+    )
+}
+
+private fun AlbumWithWallpapers.toAlbumDetail(): AlbumDetail {
+    return AlbumDetail(
+        id = album.id,
+        title = album.title,
+        wallpaperCount = wallpapers.size,
+        wallpapers = wallpapers.map { it.toLibraryWallpaperItem() }
     )
 }
 

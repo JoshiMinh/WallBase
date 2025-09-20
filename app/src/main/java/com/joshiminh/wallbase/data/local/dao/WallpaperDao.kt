@@ -38,4 +38,7 @@ interface WallpaperDao {
 
     @Query("DELETE FROM wallpapers WHERE wallpaper_id = :id")
     suspend fun deleteById(id: Long): Int
+
+    @Query("DELETE FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl")
+    suspend fun deleteByImageUrl(sourceKey: String, imageUrl: String): Int
 }

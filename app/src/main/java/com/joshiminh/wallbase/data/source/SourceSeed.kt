@@ -22,6 +22,5 @@ val DefaultSources: List<SourceSeed> = listOf(
     GoogleDriveSource,
     RedditSource,
     PinterestSource,
-    AlphaCodersSource,
     LocalSource
 )

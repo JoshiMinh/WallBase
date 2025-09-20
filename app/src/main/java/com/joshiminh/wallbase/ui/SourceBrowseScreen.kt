@@ -53,23 +53,25 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.library.AlbumItem
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
+import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
 
 @Composable
 fun SourceBrowseRoute(
     sourceKey: String,
     onWallpaperSelected: (WallpaperItem) -> Unit,
-    onTitleChange: (String?) -> Unit,
+    onConfigureTopBar: (TopBarState?) -> Unit,
     viewModel: SourceBrowseViewModel = viewModel(factory = SourceBrowseViewModel.provideFactory(sourceKey))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(uiState.source?.title) {
-        onTitleChange(uiState.source?.title)
+    val overrideTitle = uiState.source?.title
+    LaunchedEffect(overrideTitle) {
+        onConfigureTopBar(overrideTitle?.let { TopBarState(title = it) })
     }
     DisposableEffect(Unit) {
-        onDispose { onTitleChange(null) }
+        onDispose { onConfigureTopBar(null) }
     }
 
     LaunchedEffect(uiState.message) {

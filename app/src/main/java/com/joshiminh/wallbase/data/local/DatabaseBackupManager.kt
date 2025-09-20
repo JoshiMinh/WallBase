@@ -20,18 +20,29 @@ class DatabaseBackupManager(
                 error("Database file not found")
             }
 
-            // Flush the write-ahead log
             val sqliteDb = database.openHelper.writableDatabase
             sqliteDb.query("PRAGMA wal_checkpoint(FULL)").use { }
 
-            context.contentResolver.openOutputStream(destination)?.use { output ->
-                dbFile.inputStream().use { input ->
-                    input.copyTo(output)
-                }
-            } ?: error("Unable to open destination for backup")
+            val tempFile = File.createTempFile("wallbase_export_", ".db", context.cacheDir)
+            var usedVacuum = false
 
-            // 👇 Make sure the lambda returns Unit, not something else
-            Unit
+            try {
+                val quotedPath = tempFile.absolutePath.replace("'", "''")
+                usedVacuum = runCatching {
+                    sqliteDb.execSQL("VACUUM INTO '$quotedPath'")
+                }.isSuccess
+
+                val sourceFile = if (usedVacuum) tempFile else dbFile
+                context.contentResolver.openOutputStream(destination)?.use { output ->
+                    sourceFile.inputStream().use { input ->
+                        input.copyTo(output)
+                    }
+                } ?: error("Unable to open destination for backup")
+            } finally {
+                if (!tempFile.delete()) {
+                    tempFile.deleteOnExit()
+                }
+            }
         }
     }
 
@@ -49,8 +60,8 @@ class DatabaseBackupManager(
             sqliteDb.execSQL("PRAGMA foreign_keys=OFF")
             sqliteDb.beginTransaction()
             try {
-                // Attach using string interpolation instead of bindArgs
-                sqliteDb.execSQL("ATTACH DATABASE '${tempFile.absolutePath}' AS backup")
+                val backupPath = tempFile.absolutePath.replace("'", "''")
+                sqliteDb.execSQL("ATTACH DATABASE '$backupPath' AS backup")
                 try {
                     DATA_TABLES.forEach { table ->
                         sqliteDb.execSQL("DELETE FROM $table")
@@ -59,7 +70,9 @@ class DatabaseBackupManager(
                         }
                     }
 
-                    sqliteDb.execSQL("DELETE FROM sqlite_sequence")
+                    if (sqliteDb.hasTable("main", "sqlite_sequence")) {
+                        sqliteDb.execSQL("DELETE FROM sqlite_sequence")
+                    }
                     if (sqliteDb.hasTable("backup", "sqlite_sequence")) {
                         sqliteDb.execSQL("INSERT INTO sqlite_sequence SELECT * FROM backup.sqlite_sequence")
                     }
