@@ -193,13 +193,14 @@ private fun SettingsSection(
 
 @Composable
 private fun SettingsCard(content: @Composable () -> Unit) {
+    @Suppress("UNCHECKED_CAST")
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
-        content = content
+        content = content as @Composable (ColumnScope.() -> Unit)
     )
 }
 

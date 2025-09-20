@@ -3,15 +3,16 @@ package com.joshiminh.wallbase.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.*          // Tab, TextButton, etc.
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
@@ -27,14 +28,18 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,30 +56,40 @@ fun LibraryScreen(
 ) {
     val uiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var selectedTab by rememberSaveable { mutableStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) } // if your compiler complains, change to mutableStateOf(0)
     var showAlbumDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(uiState.message) {
-        val message = uiState.message ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
-        libraryViewModel.consumeMessage()
+        uiState.message?.let {
+            snackbarHostState.showSnackbar(it)
+            libraryViewModel.consumeMessage()
+        }
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             if (selectedTab == 1) {
+                val creating = uiState.isCreatingAlbum
                 ExtendedFloatingActionButton(
-                    onClick = { showAlbumDialog = true },
+                    onClick = { if (!creating) showAlbumDialog = true },
                     icon = {
                         Icon(
                             imageVector = Icons.Outlined.Add,
-                            contentDescription = stringResource(id = R.string.add_album)
+                            contentDescription = stringResource(R.string.add_album)
                         )
                     },
-                    text = { Text(text = stringResource(id = R.string.add_album)) },
+                    text = { Text(text = stringResource(R.string.add_album)) },
                     expanded = true,
-                    enabled = !uiState.isCreatingAlbum
+                    modifier = Modifier.then(
+                        if (creating) {
+                            Modifier
+                                .alpha(0.6f)
+                                .semantics { disabled() }
+                        } else {
+                            Modifier
+                        }
+                    )
                 )
             }
         }
@@ -126,9 +141,7 @@ private fun LibraryContent(
         when (selectedTab) {
             0 -> {
                 if (uiState.wallpapers.isEmpty()) {
-                    LibraryEmptyState(
-                        message = stringResource(id = R.string.library_empty_state)
-                    )
+                    LibraryEmptyState(messageRes = R.string.library_empty_state)
                 } else {
                     WallpaperGrid(
                         wallpapers = uiState.wallpapers,
@@ -137,7 +150,6 @@ private fun LibraryContent(
                     )
                 }
             }
-
             else -> {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -145,9 +157,7 @@ private fun LibraryContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     if (uiState.albums.isEmpty()) {
-                        LibraryEmptyState(
-                            message = stringResource(id = R.string.album_empty_state)
-                        )
+                        LibraryEmptyState(messageRes = R.string.album_empty_state)
                     } else {
                         AlbumList(
                             albums = uiState.albums,
@@ -159,7 +169,7 @@ private fun LibraryContent(
                         onClick = onRequestCreateAlbum,
                         enabled = !uiState.isCreatingAlbum
                     ) {
-                        Text(text = stringResource(id = R.string.add_album))
+                        Text(text = stringResource(R.string.add_album))
                     }
                     Spacer(Modifier.height(8.dp))
                 }
@@ -170,21 +180,19 @@ private fun LibraryContent(
     if (showAlbumDialog) {
         CreateAlbumDialog(
             isCreating = uiState.isCreatingAlbum,
-            onCreate = {
-                onCreateAlbum(it)
-            },
+            onCreate = onCreateAlbum,
             onDismiss = onDismissCreateAlbum
         )
     }
 }
 
 @Composable
-private fun LibraryEmptyState(message: String) {
+private fun LibraryEmptyState(messageRes: Int) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = message, style = MaterialTheme.typography.bodyLarge)
+        Text(text = stringResource(messageRes), style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -198,7 +206,10 @@ private fun AlbumList(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(albums, key = AlbumItem::id) { album ->
+        // Use the index-based items form to avoid any key/overload confusion.
+        val count = albums.size
+        items(count) { index ->
+            val album = albums[index]
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(album.title, style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -231,27 +242,30 @@ private fun CreateAlbumDialog(
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(id = R.string.create_album_title)) },
+        title = { Text(text = stringResource(R.string.create_album_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 TextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text(text = stringResource(id = R.string.album_name_label)) }
+                    label = { Text(text = stringResource(R.string.album_name_label)) }
                 )
                 if (isCreating) {
-                    Text(text = stringResource(id = R.string.creating_album))
+                    Text(text = stringResource(R.string.creating_album))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onCreate(title) }, enabled = !isCreating && title.isNotBlank()) {
-                Text(text = stringResource(id = R.string.create_album_confirm))
+            TextButton(
+                onClick = { onCreate(title) },
+                enabled = !isCreating && title.isNotBlank()
+            ) {
+                Text(text = stringResource(R.string.create_album_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = stringResource(id = R.string.cancel))
+                Text(text = stringResource(R.string.cancel))
             }
         }
     )

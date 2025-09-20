@@ -39,7 +39,7 @@ class WallpaperApplier(
     val imageLoader: ImageLoader = ImageLoader.Builder(context).build()
 ) {
 
-    private val platformHandlers: List<WallpaperPlatformHandler> = listOf(
+    val platformHandlers: List<WallpaperPlatformHandler> = listOf(
         SamsungWallpaperHandler,
         PixelWallpaperHandler
     )

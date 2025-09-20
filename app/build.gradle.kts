@@ -44,11 +44,13 @@ android {
     }
 
     kotlinOptions {
+        @Suppress("DEPRECATION")
         jvmTarget = "21"
     }
 
     // No need to pin kotlinCompilerExtensionVersion when using recent AGP + Compose BOM.
     composeOptions {
+        @Suppress("DEPRECATION")
         useLiveLiterals = false // NOTE: Deprecated and will be removed in AGP 9.0
     }
 
@@ -118,4 +120,8 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    implementation(platform(libs.androidx.compose.bom.vcurrent))
+    implementation(libs.material3)
+    implementation(libs.androidx.lifecycle.runtime.compose) // or newer
 }

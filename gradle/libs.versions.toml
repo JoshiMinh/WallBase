@@ -3,6 +3,7 @@
 [versions]
 # Tooling
 agp = "8.13.0"                                 # Android Gradle Plugin :contentReference[oaicite:0]{index=0}
+compose-bom-version = "<current>"
 kotlin = "2.2.10"                              # Kotlin Gradle plugin :contentReference[oaicite:1]{index=1}
 ksp = "2.2.10-RC2-2.0.2"                       # Latest KSP build available for Kotlin 2.2.10
 
@@ -30,6 +31,7 @@ anggrayudi-storage = "2.2.0"                   # SimpleStorage from Maven Centra
 
 # Coil 3
 coil3 = "3.3.0"                                # Coil v3 line (Compose 1.9 compatible) :contentReference[oaicite:14]{index=14}
+lifecycle-runtime-compose = "2.8.0"
 material = "1.9.1"
 material3 = "1.3.2"
 okhttp = "4.12.0"
@@ -50,12 +52,14 @@ foundation = "1.9.1"                             # Espresso latest stable :conte
 
 [libraries]
 # AndroidX core
+androidx-compose-bom-vcurrent = { module = "androidx.compose:compose-bom", version.ref = "compose-bom-version" }
 androidx-compose-material = { module = "androidx.compose.material:material", version.ref = "material" }
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+androidx-lifecycle-runtime-compose-v280 = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle-runtime-compose" }
 androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle-ktx" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 
@@ -78,6 +82,7 @@ androidx-credentials = { module = "androidx.credentials:credentials", version.re
 androidx-credentials-play-services = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials-play-services" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
 # (Legacy) Google Play Services Auth – only if you still need old GSI APIs; otherwise prefer Credential Manager
+material3 = { module = "androidx.compose.material3:material3" }
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version = "21.4.0" } # deprecated path; FYI :contentReference[oaicite:19]{index=19}
 
 # Google APIs (Drive + Photos)

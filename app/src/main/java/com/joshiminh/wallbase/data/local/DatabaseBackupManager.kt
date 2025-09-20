@@ -20,7 +20,7 @@ class DatabaseBackupManager(
                 error("Database file not found")
             }
 
-            // Flush the write-ahead log so the on-disk file contains the latest data.
+            // Flush the write-ahead log
             val sqliteDb = database.openHelper.writableDatabase
             sqliteDb.query("PRAGMA wal_checkpoint(FULL)").use { }
 
@@ -29,6 +29,9 @@ class DatabaseBackupManager(
                     input.copyTo(output)
                 }
             } ?: error("Unable to open destination for backup")
+
+            // 👇 Make sure the lambda returns Unit, not something else
+            Unit
         }
     }
 
@@ -46,7 +49,8 @@ class DatabaseBackupManager(
             sqliteDb.execSQL("PRAGMA foreign_keys=OFF")
             sqliteDb.beginTransaction()
             try {
-                sqliteDb.execSQL("ATTACH DATABASE ? AS backup", arrayOf(tempFile.absolutePath))
+                // Attach using string interpolation instead of bindArgs
+                sqliteDb.execSQL("ATTACH DATABASE '${tempFile.absolutePath}' AS backup")
                 try {
                     DATA_TABLES.forEach { table ->
                         sqliteDb.execSQL("DELETE FROM $table")

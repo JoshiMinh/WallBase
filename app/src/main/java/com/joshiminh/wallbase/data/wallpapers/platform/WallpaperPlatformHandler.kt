@@ -12,7 +12,7 @@ import com.joshiminh.wallbase.data.wallpapers.WallpaperTarget
  * [applyWallpaper] when the request needs to be forwarded to the default
  * [android.app.WallpaperManager].
  */
-internal interface WallpaperPlatformHandler {
+interface WallpaperPlatformHandler {
 
     /**
      * @return `true` when the handler should be used on the current device.
