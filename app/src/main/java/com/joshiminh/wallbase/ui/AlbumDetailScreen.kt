@@ -11,10 +11,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
@@ -27,7 +25,7 @@ fun AlbumDetailRoute(
     viewModel: AlbumDetailViewModel = viewModel(factory = AlbumDetailViewModel.provideFactory(albumId))
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val title = uiState.albumTitle ?: stringResource(R.string.album_detail_title_fallback)
+    val title = uiState.albumTitle ?: "Album"
 
     LaunchedEffect(title) {
         onConfigureTopBar(TopBarState(title = title))
@@ -57,7 +55,7 @@ private fun AlbumDetailScreen(
         state.notFound -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = stringResource(R.string.album_detail_not_found),
+                    text = "Album not found.",
                     style = MaterialTheme.typography.bodyLarge
                 )
             }
@@ -66,7 +64,7 @@ private fun AlbumDetailScreen(
         state.wallpapers.isEmpty() -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = stringResource(R.string.album_detail_empty),
+                    text = "This album doesn't have any wallpapers yet.",
                     style = MaterialTheme.typography.bodyLarge
                 )
             }

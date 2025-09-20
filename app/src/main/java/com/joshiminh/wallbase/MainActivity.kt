@@ -35,7 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -48,7 +47,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.source.RedditCommunity
 import com.joshiminh.wallbase.data.source.Source
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
-import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.di.ServiceLocator
 import com.joshiminh.wallbase.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.AlbumDetailRoute
@@ -216,11 +214,11 @@ fun WallBaseApp(
                         IconButton(
                             onClick = { navController.navigateUp() }
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(id = R.string.back),
-                                modifier = Modifier.size(24.dp)
-                            )
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    modifier = Modifier.size(24.dp)
+                                )
                         }
                     }
                 },

@@ -46,11 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.library.AlbumItem
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import com.joshiminh.wallbase.TopBarState
@@ -169,7 +167,7 @@ private fun SourceBrowseScreen(
             OutlinedTextField(
                 value = state.query,
                 onValueChange = onQueryChange,
-                label = { Text(stringResource(id = R.string.search_in_source)) },
+                label = { Text("Search this source") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -217,7 +215,7 @@ private fun SourceBrowseScreen(
                                 ErrorMessage(message = state.errorMessage, onRetry = onRefresh)
                             } else {
                                 Text(
-                                    text = stringResource(id = R.string.no_wallpapers_found),
+                                    text = "No wallpapers found.",
                                     style = MaterialTheme.typography.bodyLarge
                                 )
                             }
@@ -305,11 +303,11 @@ private fun SelectionBar(
             IconButton(onClick = onClear) {
                 Icon(
                     imageVector = Icons.Outlined.Close,
-                    contentDescription = stringResource(id = R.string.cancel)
+                    contentDescription = "Cancel"
                 )
             }
             Text(
-                text = stringResource(id = R.string.selection_count, count),
+                text = "$count selected",
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.weight(1f))
@@ -322,7 +320,7 @@ private fun SelectionBar(
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = stringResource(id = R.string.selection_save_to_library))
+                Text(text = "Save to library")
             }
             FilledTonalButton(
                 onClick = onAddToAlbum,
@@ -333,7 +331,7 @@ private fun SelectionBar(
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = stringResource(id = R.string.selection_add_to_album))
+                Text(text = "Add to album")
             }
         }
     }
@@ -347,10 +345,10 @@ private fun AlbumPickerDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(id = R.string.select_album_title)) },
+        title = { Text(text = "Choose an album") },
         text = {
             if (albums.isEmpty()) {
-                Text(text = stringResource(id = R.string.selection_no_albums))
+                Text(text = "Create an album in your library to start organizing wallpapers.")
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     albums.forEach { album ->
@@ -368,10 +366,7 @@ private fun AlbumPickerDialog(
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = stringResource(
-                                        id = R.string.album_wallpaper_count,
-                                        album.wallpaperCount
-                                    ),
+                                    text = "${album.wallpaperCount} wallpapers",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -384,7 +379,7 @@ private fun AlbumPickerDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = stringResource(id = R.string.cancel))
+                Text(text = "Cancel")
             }
         }
     )

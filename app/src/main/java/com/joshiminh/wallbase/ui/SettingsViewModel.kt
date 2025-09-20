@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.local.DatabaseBackupManager
 import com.joshiminh.wallbase.data.settings.SettingsRepository
 import com.joshiminh.wallbase.di.ServiceLocator
@@ -47,15 +46,14 @@ class SettingsViewModel(
             val result = backupManager.exportBackup(destination)
             val message = result.fold(
                 onSuccess = {
-                    getApplication<Application>().getString(R.string.settings_backup_export_success)
+                    "Backup saved."
                 },
                 onFailure = { error ->
                     val detail = error.localizedMessage
-                    val app = getApplication<Application>()
                     if (detail.isNullOrBlank()) {
-                        app.getString(R.string.settings_backup_export_failure)
+                        "Unable to export backup."
                     } else {
-                        app.getString(R.string.settings_backup_export_failure_with_reason, detail)
+                        "Unable to export backup ($detail)."
                     }
                 }
             )
@@ -70,15 +68,14 @@ class SettingsViewModel(
             val result = backupManager.importBackup(source)
             val message = result.fold(
                 onSuccess = {
-                    getApplication<Application>().getString(R.string.settings_backup_import_success)
+                    "Backup imported."
                 },
                 onFailure = { error ->
                     val detail = error.localizedMessage
-                    val app = getApplication<Application>()
                     if (detail.isNullOrBlank()) {
-                        app.getString(R.string.settings_backup_import_failure)
+                        "Unable to import backup."
                     } else {
-                        app.getString(R.string.settings_backup_import_failure_with_reason, detail)
+                        "Unable to import backup ($detail)."
                     }
                 }
             )

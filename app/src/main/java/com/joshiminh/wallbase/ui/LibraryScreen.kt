@@ -54,7 +54,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.disabled
@@ -62,7 +61,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.library.AlbumItem
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
@@ -114,10 +112,10 @@ fun LibraryScreen(
     }
 
     if (selectionMode) {
-        val selectionTitle = stringResource(R.string.selection_count, selectedIds.size)
-        val removeLabel = stringResource(R.string.remove_from_library)
-        val addLabel = stringResource(R.string.selection_add_to_album)
-        val clearLabel = stringResource(R.string.clear_selection)
+        val selectionTitle = "${selectedIds.size} selected"
+        val removeLabel = "Remove from library"
+        val addLabel = "Add to album"
+        val clearLabel = "Clear selection"
         val actions: @Composable RowScope.() -> Unit = {
             IconButton(
                 onClick = {
@@ -188,10 +186,10 @@ fun LibraryScreen(
                     icon = {
                         Icon(
                             imageVector = Icons.Outlined.Add,
-                            contentDescription = stringResource(R.string.add_album)
+                            contentDescription = "Add album"
                         )
                     },
-                    text = { Text(text = stringResource(R.string.add_album)) },
+                    text = { Text(text = "Add album") },
                     expanded = true,
                     modifier = Modifier.then(
                         if (creating) {
@@ -267,7 +265,7 @@ private fun LibraryContent(
     showAlbumDialog: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val tabs = listOf(stringResource(R.string.library_all_tab), stringResource(R.string.library_albums_tab))
+    val tabs = listOf("All Wallpapers", "Albums")
 
     Column(modifier) {
         TabRow(selectedTabIndex = selectedTab) {
@@ -283,7 +281,7 @@ private fun LibraryContent(
         when (selectedTab) {
             0 -> {
                 if (uiState.wallpapers.isEmpty()) {
-                    LibraryEmptyState(messageRes = R.string.library_empty_state)
+                    LibraryEmptyState(message = "Your library is empty. Save wallpapers from Browse to see them here.")
                 } else {
                     WallpaperGrid(
                         wallpapers = uiState.wallpapers,
@@ -303,7 +301,7 @@ private fun LibraryContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     if (uiState.albums.isEmpty()) {
-                        LibraryEmptyState(messageRes = R.string.album_empty_state)
+                        LibraryEmptyState(message = "Organize wallpapers by creating your first album.")
                     } else {
                         AlbumList(
                             albums = uiState.albums,
@@ -316,7 +314,7 @@ private fun LibraryContent(
                         onClick = onRequestCreateAlbum,
                         enabled = !uiState.isCreatingAlbum
                     ) {
-                        Text(text = stringResource(R.string.add_album))
+                        Text(text = "Add album")
                     }
                     Spacer(Modifier.height(8.dp))
                 }
@@ -334,12 +332,12 @@ private fun LibraryContent(
 }
 
 @Composable
-private fun LibraryEmptyState(messageRes: Int) {
+private fun LibraryEmptyState(message: String) {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = stringResource(messageRes), style = MaterialTheme.typography.bodyLarge)
+        Text(text = message, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -383,7 +381,7 @@ private fun AlbumCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = stringResource(R.string.album_wallpaper_count, album.wallpaperCount),
+                text = "${album.wallpaperCount} wallpapers",
                 style = MaterialTheme.typography.bodyMedium
             )
             album.coverImageUrl?.let { cover ->
@@ -411,17 +409,17 @@ private fun CreateAlbumDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.create_album_title)) },
+        title = { Text(text = "New album") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 TextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text(text = stringResource(R.string.album_name_label)) },
+                    label = { Text(text = "Album name") },
                     enabled = !isCreating
                 )
                 if (isCreating) {
-                    Text(text = stringResource(R.string.creating_album))
+                    Text(text = "Creating album…")
                 }
             }
         },
@@ -430,12 +428,12 @@ private fun CreateAlbumDialog(
                 onClick = { onCreate(title) },
                 enabled = !isCreating && title.isNotBlank()
             ) {
-                Text(text = stringResource(R.string.create_album_confirm))
+                Text(text = "Create")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.cancel))
+                Text(text = "Cancel")
             }
         }
     )
@@ -453,10 +451,10 @@ private fun AlbumPickerDialog(
     var selectedAlbumId by rememberSaveable { mutableStateOf<Long?>(albums.firstOrNull()?.id) }
     var newAlbumTitle by rememberSaveable { mutableStateOf("") }
 
-    val existingTab = stringResource(R.string.album_picker_existing_tab)
-    val newTab = stringResource(R.string.album_picker_new_tab)
-    val addLabel = stringResource(R.string.album_picker_add_button)
-    val noAlbumsMessage = stringResource(R.string.selection_no_albums)
+    val existingTab = "Existing"
+    val newTab = "New"
+    val addLabel = "Add"
+    val noAlbumsMessage = "Create an album in your library to start organizing wallpapers."
 
     LaunchedEffect(albums) {
         selectedAlbumId = when {
@@ -468,7 +466,7 @@ private fun AlbumPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.selection_add_to_album)) },
+        title = { Text(text = "Add to album") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 TabRow(selectedTabIndex = selectedTab) {
@@ -502,17 +500,17 @@ private fun AlbumPickerDialog(
 
                     else -> {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            TextField(
-                                value = newAlbumTitle,
-                                onValueChange = { newAlbumTitle = it },
-                                label = { Text(text = stringResource(R.string.album_name_label)) },
-                                enabled = !isBusy
-                            )
-                            if (isBusy) {
-                                Text(text = stringResource(R.string.creating_album))
+                                TextField(
+                                    value = newAlbumTitle,
+                                    onValueChange = { newAlbumTitle = it },
+                                    label = { Text(text = "Album name") },
+                                    enabled = !isBusy
+                                )
+                                if (isBusy) {
+                                    Text(text = "Creating album…")
+                                }
                             }
                         }
-                    }
                 }
             }
         },
@@ -535,7 +533,7 @@ private fun AlbumPickerDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.cancel))
+                Text(text = "Cancel")
             }
         }
     )
@@ -573,7 +571,7 @@ private fun AlbumSelectionRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = stringResource(R.string.album_wallpaper_count, album.wallpaperCount),
+                text = "${album.wallpaperCount} wallpapers",
                 style = MaterialTheme.typography.bodySmall
             )
         }
