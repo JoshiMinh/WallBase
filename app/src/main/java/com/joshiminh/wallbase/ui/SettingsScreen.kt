@@ -28,9 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.joshiminh.wallbase.R
 
 @Composable
 fun SettingsScreen(
@@ -61,13 +59,13 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Text(
-                text = stringResource(id = R.string.settings_title),
+                text = "Settings",
                 style = MaterialTheme.typography.headlineSmall
             )
 
             SettingsSection(spacing = 12.dp) {
                 Text(
-                    text = stringResource(id = R.string.settings_appearance_header),
+                    text = "Appearance",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -85,11 +83,11 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = stringResource(id = R.string.settings_dark_mode_title),
+                                text = "Dark mode",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = stringResource(id = R.string.settings_dark_mode_description),
+                                text = "Use a dark theme throughout the app.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -105,7 +103,7 @@ fun SettingsScreen(
 
             SettingsSection(spacing = 12.dp) {
                 Text(
-                    text = stringResource(id = R.string.settings_sources_header),
+                    text = "Sources",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -119,11 +117,11 @@ fun SettingsScreen(
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
-                                text = stringResource(id = R.string.settings_source_repo_title),
+                                text = "Source repository",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = stringResource(id = R.string.settings_source_repo_description),
+                                text = "Paste a JSON feed that lists wallpaper sources to import.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -136,7 +134,7 @@ fun SettingsScreen(
                             singleLine = true,
                             placeholder = {
                                 Text(
-                                    text = stringResource(id = R.string.settings_source_repo_placeholder)
+                                    text = "https://example.com/wallbase-sources.json"
                                 )
                             },
                             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done)
@@ -147,7 +145,7 @@ fun SettingsScreen(
 
             SettingsSection(spacing = 12.dp) {
                 Text(
-                    text = stringResource(id = R.string.settings_backup_header),
+                    text = "Data & backup",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -165,11 +163,11 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = stringResource(id = R.string.settings_backup_export_title),
+                                text = "Export library",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = stringResource(id = R.string.settings_backup_export_description),
+                                text = "Save your sources, library, and albums as a backup file.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -177,9 +175,9 @@ fun SettingsScreen(
 
                         SettingsActionButton(
                             text = if (uiState.isBackingUp) {
-                                stringResource(id = R.string.settings_backup_export_in_progress)
+                                "Exporting…"
                             } else {
-                                stringResource(id = R.string.settings_backup_export_action)
+                                "Export"
                             },
                             enabled = !uiState.isBackingUp && !uiState.isRestoring,
                             showProgress = uiState.isBackingUp,
@@ -201,11 +199,11 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = stringResource(id = R.string.settings_backup_import_title),
+                                text = "Import backup",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = stringResource(id = R.string.settings_backup_import_description),
+                                text = "Restore your sources, library, and albums from a backup file.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -213,9 +211,9 @@ fun SettingsScreen(
 
                         SettingsActionButton(
                             text = if (uiState.isRestoring) {
-                                stringResource(id = R.string.settings_backup_import_in_progress)
+                                "Importing…"
                             } else {
-                                stringResource(id = R.string.settings_backup_import_action)
+                                "Import"
                             },
                             enabled = !uiState.isRestoring && !uiState.isBackingUp,
                             showProgress = uiState.isRestoring,

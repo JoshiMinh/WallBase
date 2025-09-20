@@ -39,12 +39,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.source.SourceKeys
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 import com.joshiminh.wallbase.data.wallpapers.WallpaperTarget
@@ -172,13 +170,13 @@ private fun WallpaperDetailScreen(
 
             if (!uiState.hasWallpaperPermission) {
                 Text(
-                    text = stringResource(id = R.string.wallpaper_permission_rationale),
+                    text = "Allow WallBase to open the system wallpaper preview so you can confirm the image.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
                 TextButton(onClick = onRequestPermission) {
-                    Text(text = stringResource(id = R.string.request_wallpaper_permission))
+                    Text(text = "Grant wallpaper access")
                 }
                 Spacer(Modifier.height(12.dp))
             }
@@ -186,7 +184,7 @@ private fun WallpaperDetailScreen(
             if (uiState.isAddingToLibrary) {
                 AssistChip(
                     onClick = {},
-                    label = { Text(text = stringResource(R.string.adding_to_library)) },
+                    label = { Text(text = "Adding to library…") },
                     enabled = false
                 )
                 Spacer(Modifier.height(12.dp))
@@ -195,7 +193,7 @@ private fun WallpaperDetailScreen(
             if (uiState.isRemovingFromLibrary) {
                 AssistChip(
                     onClick = {},
-                    label = { Text(text = stringResource(R.string.removing_from_library)) },
+                    label = { Text(text = "Removing from library…") },
                     enabled = false
                 )
                 Spacer(Modifier.height(12.dp))
@@ -204,7 +202,7 @@ private fun WallpaperDetailScreen(
             if (uiState.isApplying) {
                 AssistChip(
                     onClick = {},
-                    label = { Text(text = stringResource(R.string.applying_wallpaper)) },
+                    label = { Text(text = "Applying wallpaper…") },
                     enabled = false
                 )
                 Spacer(Modifier.height(12.dp))
@@ -218,9 +216,9 @@ private fun WallpaperDetailScreen(
                         enabled = !uiState.isAddingToLibrary && !uiState.isInLibrary
                     ) {
                         val label = if (uiState.isInLibrary) {
-                            stringResource(id = R.string.in_library)
+                            "In your library"
                         } else {
-                            stringResource(id = R.string.add_to_library)
+                            "Add to library"
                         }
                         Text(text = label)
                     }
@@ -232,7 +230,7 @@ private fun WallpaperDetailScreen(
                         onClick = onRemoveFromLibrary,
                         enabled = !uiState.isRemovingFromLibrary
                     ) {
-                        Text(text = stringResource(id = R.string.remove_from_library))
+                        Text(text = "Remove from library")
                     }
                 }
 
@@ -241,14 +239,14 @@ private fun WallpaperDetailScreen(
                     onClick = { showTargetDialog = true },
                     enabled = uiState.hasWallpaperPermission && !uiState.isApplying
                 ) {
-                    Text(text = stringResource(id = R.string.set_wallpaper))
+                    Text(text = "Set wallpaper")
                 }
             }
 
             Spacer(Modifier.height(16.dp))
 
             TextButton(onClick = { uriHandler.openUri(wallpaper.sourceUrl) }) {
-                Text(text = stringResource(id = R.string.open_original))
+                Text(text = "Open original post")
             }
         }
     }
@@ -282,37 +280,37 @@ private fun SetWallpaperDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.choose_wallpaper_target)) },
+        title = { Text(text = "Choose where to apply") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(text = stringResource(R.string.choose_wallpaper_target_message))
+                Text(text = "Select where you want to set this wallpaper.")
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onTargetSelected(WallpaperTarget.HOME) },
                     enabled = !isApplying
                 ) {
-                    Text(text = stringResource(id = R.string.apply_home_screen))
+                    Text(text = "Set as home screen")
                 }
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onTargetSelected(WallpaperTarget.LOCK) },
                     enabled = !isApplying
                 ) {
-                    Text(text = stringResource(id = R.string.apply_lock_screen))
+                    Text(text = "Set as lock screen")
                 }
                 Button(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = { onTargetSelected(WallpaperTarget.BOTH) },
                     enabled = !isApplying
                 ) {
-                    Text(text = stringResource(id = R.string.apply_both_screens))
+                    Text(text = "Set as both screens")
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = stringResource(id = R.string.back))
+                Text(text = "Back")
             }
         }
     )
@@ -327,36 +325,30 @@ private fun PreviewFallbackDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(id = R.string.preview_unavailable_title)) },
+        title = { Text(text = "Preview unavailable") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val reason = fallback.reason
                 if (reason.isNullOrBlank()) {
-                    Text(text = stringResource(id = R.string.preview_unavailable_message))
+                    Text(text = "Your device couldn't open the wallpaper preview.")
                 } else {
                     Text(
-                        text = stringResource(
-                            id = R.string.preview_unavailable_message_with_reason,
-                            reason
-                        )
+                        text = "Your device couldn't open the wallpaper preview ($reason)."
                     )
                 }
                 Text(
-                    text = stringResource(
-                        id = R.string.preview_apply_question,
-                        fallback.target.label
-                    )
+                    text = "Apply the wallpaper directly to the ${fallback.target.label}?"
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = onConfirm, enabled = !isApplying) {
-                Text(text = stringResource(id = R.string.apply_without_preview))
+                Text(text = "Apply without preview")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !isApplying) {
-                Text(text = stringResource(id = R.string.cancel))
+                Text(text = "Cancel")
             }
         }
     )

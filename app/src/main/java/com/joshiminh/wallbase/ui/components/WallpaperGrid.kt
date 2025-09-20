@@ -33,11 +33,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.wallpapers.WallpaperItem
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -139,7 +137,7 @@ fun WallpaperCard(
             if (isSaved) {
                 Icon(
                     imageVector = Icons.Outlined.TaskAlt,
-                    contentDescription = stringResource(id = R.string.in_library),
+                    contentDescription = "In your library",
                     tint = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
