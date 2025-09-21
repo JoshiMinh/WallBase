@@ -5,7 +5,6 @@ import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.sources.reddit.RedditListingResponse
 import com.joshiminh.wallbase.sources.reddit.RedditPost
 import com.joshiminh.wallbase.sources.reddit.RedditService
 import com.joshiminh.wallbase.sources.reddit.RedditSubredditChild
@@ -15,6 +14,11 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+data class WallpaperPage(
+    val wallpapers: List<WallpaperItem>,
+    val nextCursor: String?
+)
+
 class WallpaperRepository(
     private val redditService: RedditService,
     private val webScraper: WebScraper,
@@ -22,35 +26,48 @@ class WallpaperRepository(
     private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
 ) {
 
-    suspend fun fetchWallpapersFor(source: Source, query: String? = null): List<WallpaperItem> {
+    suspend fun fetchWallpapersFor(
+        source: Source,
+        query: String? = null,
+        cursor: String? = null
+    ): WallpaperPage {
         val provider = source.providerKey.lowercase(Locale.ROOT)
         val trimmedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
-        val wallpapers = when (provider) {
+        val page = when (provider) {
             SourceKeys.REDDIT ->
-                fetchRedditWallpapers(source.config ?: DEFAULT_REDDIT_SUBREDDIT, trimmedQuery)
+                fetchRedditWallpapers(
+                    subreddit = source.config ?: DEFAULT_REDDIT_SUBREDDIT,
+                    query = trimmedQuery,
+                    cursor = cursor
+                )
             SourceKeys.PINTEREST -> {
                 val config = source.config
-                when {
+                val wallpapers = when {
                     trimmedQuery != null -> webScraper.scrapePinterest(trimmedQuery, limit = 30)
                     config.isNullOrBlank() -> webScraper.scrapePinterest(pinterestQuery, limit = 30)
                     config.startsWith("http", ignoreCase = true) ->
                         webScraper.scrapeImagesFromUrl(config, limit = 30)
                     else -> webScraper.scrapePinterest(config, limit = 30)
                 }
+                WallpaperPage(wallpapers = wallpapers, nextCursor = null)
             }
             SourceKeys.WEBSITES -> {
                 val url = source.config ?: customWebsiteUrl
                 val targetUrl = trimmedQuery?.let { buildWebsiteSearchUrl(url, it) } ?: url
-                webScraper.scrapeImagesFromUrl(targetUrl, limit = 30)
+                WallpaperPage(
+                    wallpapers = webScraper.scrapeImagesFromUrl(targetUrl, limit = 30),
+                    nextCursor = null
+                )
             }
-            else -> emptyList()
+            else -> WallpaperPage(emptyList(), nextCursor = null)
         }
-        return wallpapers.map {
+        val mapped = page.wallpapers.map {
             it.copy(
                 sourceName = source.title,
                 sourceKey = source.key
             )
         }
+        return WallpaperPage(wallpapers = mapped, nextCursor = page.nextCursor)
     }
 
     suspend fun searchRedditCommunities(query: String, limit: Int = 10): List<RedditCommunity> =
@@ -60,22 +77,31 @@ class WallpaperRepository(
                 .getOrElse { emptyList() }
         }
 
-    private suspend fun fetchRedditWallpapers(subreddit: String, query: String?): List<WallpaperItem> =
+    private suspend fun fetchRedditWallpapers(
+        subreddit: String,
+        query: String?,
+        cursor: String?
+    ): WallpaperPage =
         withContext(Dispatchers.IO) {
             runCatching {
                 val normalized = subreddit.normalizeSubredditName()
                 if (query.isNullOrBlank()) {
-                    redditService.fetchSubreddit(subreddit = normalized)
+                    redditService.fetchSubreddit(subreddit = normalized, after = cursor)
                 } else {
                     redditService.searchSubredditPosts(
                         subreddit = normalized,
                         query = query,
                         restrictToSubreddit = 1,
-                        limit = 40
+                        limit = 40,
+                        after = cursor
                     )
                 }
-            }.mapCatching { response -> response.toWallpaperItems() }
-                .getOrElse { emptyList() }
+            }.mapCatching { response ->
+                WallpaperPage(
+                    wallpapers = response.toWallpaperItems(),
+                    nextCursor = response.data?.after
+                )
+            }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
         }
 
     private fun RedditPost.resolveImageUrl(): String? {

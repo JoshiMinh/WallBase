@@ -25,6 +25,7 @@ import com.joshiminh.wallbase.sources.google_drive.DriveImage
 import com.joshiminh.wallbase.sources.google_drive.fetchDriveFolders
 import com.joshiminh.wallbase.sources.google_drive.fetchDriveImages
 import com.joshiminh.wallbase.util.userFacingMessage
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -51,7 +52,7 @@ fun DriveFolderPickerScreen(
         }
 
         try {
-            folders = fetchDriveFolders(token).sortedBy { it.name.lowercase() }
+            folders = fetchDriveFolders(token).sortedBy { it.name.lowercase(Locale.ROOT) }
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {

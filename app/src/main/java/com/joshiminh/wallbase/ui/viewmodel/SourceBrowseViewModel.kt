@@ -5,11 +5,14 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
-import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.entity.source.Source
+import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
+import com.joshiminh.wallbase.ui.sort.AlbumSortOption
+import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
+import com.joshiminh.wallbase.ui.sort.sortedWith
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.LinkedHashMap
 
 class SourceBrowseViewModel(
     private val sourceKey: String,
@@ -33,6 +37,7 @@ class SourceBrowseViewModel(
     private var currentQuery: String? = null
     private var activeSourceKey: String? = null
     private var lastSourceConfig: String? = null
+    private var nextPageCursor: String? = null
 
     init {
         viewModelScope.launch {
@@ -42,6 +47,7 @@ class SourceBrowseViewModel(
                     loadJob?.cancel()
                     activeSourceKey = null
                     lastSourceConfig = null
+                    nextPageCursor = null
                     _uiState.update {
                         it.copy(
                             wallpapers = emptyList(),
@@ -72,7 +78,8 @@ class SourceBrowseViewModel(
         viewModelScope.launch {
             libraryRepository.observeAlbums().collectLatest { albums ->
                 _uiState.update { state ->
-                    if (state.albums == albums) state else state.copy(albums = albums)
+                    val sorted = albums.sortedWith(AlbumSortOption.TITLE_ASCENDING)
+                    if (state.albums == sorted) state else state.copy(albums = sorted)
                 }
             }
         }
@@ -99,46 +106,89 @@ class SourceBrowseViewModel(
 
     fun refresh() {
         val source = _uiState.value.source ?: return
+        nextPageCursor = null
         loadWallpapers(source, query = currentQuery, showLoading = false)
     }
 
-    private fun loadWallpapers(source: Source, query: String?, showLoading: Boolean) {
+    fun loadMore() {
+        val state = _uiState.value
+        if (!state.canLoadMore || state.isLoading || state.isRefreshing || state.isAppending) return
+        val source = state.source ?: return
+        val cursor = nextPageCursor ?: return
+        loadWallpapers(
+            source = source,
+            query = currentQuery,
+            showLoading = false,
+            append = true,
+            cursor = cursor
+        )
+    }
+
+    private fun loadWallpapers(
+        source: Source,
+        query: String?,
+        showLoading: Boolean,
+        append: Boolean = false,
+        cursor: String? = null
+    ) {
         loadJob?.cancel()
         activeSourceKey = source.key
         lastSourceConfig = source.config
+        if (!append) {
+            nextPageCursor = null
+        }
         loadJob = viewModelScope.launch {
             val hasExisting = _uiState.value.wallpapers.isNotEmpty()
             _uiState.update {
                 it.copy(
-                    isLoading = showLoading || !hasExisting,
-                    isRefreshing = !showLoading && hasExisting,
-                    errorMessage = null
+                    isLoading = if (append) it.isLoading else showLoading || !hasExisting,
+                    isRefreshing = if (append) it.isRefreshing else !showLoading && hasExisting,
+                    isAppending = append,
+                    errorMessage = if (append) it.errorMessage else null,
+                    canLoadMore = if (append) it.canLoadMore else false
                 )
             }
-            val result = runCatching { wallpaperRepository.fetchWallpapersFor(source, query) }
+            val result = runCatching {
+                wallpaperRepository.fetchWallpapersFor(source, query, cursor)
+            }
             result.fold(
-                onSuccess = { wallpapers ->
+                onSuccess = { page ->
                     _uiState.update { state ->
-                        val availableIds = wallpapers.mapTo(hashSetOf()) { it.id }
+                        nextPageCursor = page.nextCursor
+                        val combined = if (append) {
+                            val merged = LinkedHashMap<String, WallpaperItem>()
+                            state.wallpapers.forEach { existing -> merged[existing.id] = existing }
+                            page.wallpapers.forEach { item -> merged[item.id] = item }
+                            merged.values.toList()
+                        } else {
+                            page.wallpapers
+                        }
+                        val availableIds = combined.mapTo(hashSetOf()) { it.id }
                         val retainedSelection = state.selectedIds.filterTo(hashSetOf()) { it in availableIds }
+                        val sorted = combined.sortedWith(state.wallpaperSortOption)
                         state.copy(
-                            wallpapers = wallpapers,
+                            wallpapers = sorted,
                             isLoading = false,
                             isRefreshing = false,
+                            isAppending = false,
                             errorMessage = null,
                             selectedIds = retainedSelection,
-                            isSelectionMode = retainedSelection.isNotEmpty()
+                            isSelectionMode = retainedSelection.isNotEmpty(),
+                            canLoadMore = page.nextCursor != null
                         )
                     }
                 },
                 onFailure = { error ->
                     _uiState.update { state ->
+                        val message = error.localizedMessage?.takeIf { it.isNotBlank() }
+                            ?: "Unable to load wallpapers."
                         state.copy(
                             isLoading = false,
                             isRefreshing = false,
-                            errorMessage = error.localizedMessage?.takeIf { it.isNotBlank() }
-                                ?: "Unable to load wallpapers.",
-                            wallpapers = state.wallpapers
+                            isAppending = false,
+                            errorMessage = message,
+                            wallpapers = state.wallpapers,
+                            canLoadMore = state.canLoadMore
                         )
                     }
                 }
@@ -247,7 +297,22 @@ class SourceBrowseViewModel(
     }
 
     fun consumeMessage() {
-        _uiState.update { it.copy(message = null) }
+        _uiState.update { state ->
+            if (state.message == null) state else state.copy(message = null)
+        }
+    }
+
+    fun updateSort(option: WallpaperSortOption) {
+        _uiState.update { state ->
+            if (state.wallpaperSortOption == option) {
+                state
+            } else {
+                state.copy(
+                    wallpaperSortOption = option,
+                    wallpapers = state.wallpapers.sortedWith(option)
+                )
+            }
+        }
     }
 
     private fun selectedWallpapers(): List<WallpaperItem> {
@@ -259,12 +324,19 @@ class SourceBrowseViewModel(
 
     private fun modifySelection(block: (MutableSet<String>) -> Unit) {
         _uiState.update { state ->
-            val updated = state.selectedIds.toMutableSet()
-            block(updated)
-            state.copy(
-                selectedIds = updated,
-                isSelectionMode = updated.isNotEmpty()
-            )
+            val working = state.selectedIds.toMutableSet()
+            block(working)
+            val updated = working.toSet()
+            val selectionChanged = updated != state.selectedIds
+            val modeChanged = state.isSelectionMode != updated.isNotEmpty()
+            if (!selectionChanged && !modeChanged) {
+                state
+            } else {
+                state.copy(
+                    selectedIds = updated,
+                    isSelectionMode = updated.isNotEmpty()
+                )
+            }
         }
     }
 
@@ -284,7 +356,10 @@ class SourceBrowseViewModel(
         val selectedIds: Set<String> = emptySet(),
         val isActionInProgress: Boolean = false,
         val message: String? = null,
-        val albums: List<AlbumItem> = emptyList()
+        val albums: List<AlbumItem> = emptyList(),
+        val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
+        val isAppending: Boolean = false,
+        val canLoadMore: Boolean = false
     )
 
     companion object {

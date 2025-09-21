@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -15,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material3.AlertDialog
@@ -24,7 +24,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -37,6 +36,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,8 +51,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.TopBarState
+import com.joshiminh.wallbase.ui.components.SortMenu
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
 import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
+import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
 
 @Composable
 fun SourceBrowseRoute(
@@ -65,8 +67,26 @@ fun SourceBrowseRoute(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val overrideTitle = uiState.source?.title
-    LaunchedEffect(overrideTitle) {
-        onConfigureTopBar(overrideTitle?.let { TopBarState(title = it) })
+    val selectionCount = uiState.selectedIds.size
+    val topBarState = overrideTitle?.let { title ->
+        TopBarState(
+            title = title,
+            actions = if (uiState.isSelectionMode) {
+                {
+                    Text(
+                        text = "$selectionCount selected",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+            } else {
+                null
+            }
+        )
+    }
+    SideEffect {
+        onConfigureTopBar(topBarState)
     }
     DisposableEffect(Unit) {
         onDispose { onConfigureTopBar(null) }
@@ -101,7 +121,9 @@ fun SourceBrowseRoute(
         onWallpaperLongPress = onCardLongPress,
         onClearSelection = viewModel::clearSelection,
         onAddSelectionToLibrary = viewModel::addSelectedToLibrary,
-        onAddSelectionToAlbum = viewModel::addSelectedToAlbum
+        onAddSelectionToAlbum = viewModel::addSelectedToAlbum,
+        onSortChange = viewModel::updateSort,
+        onLoadMore = viewModel::loadMore
     )
 }
 
@@ -118,7 +140,9 @@ private fun SourceBrowseScreen(
     onWallpaperLongPress: (WallpaperItem) -> Unit,
     onClearSelection: () -> Unit,
     onAddSelectionToLibrary: () -> Unit,
-    onAddSelectionToAlbum: (Long) -> Unit
+    onAddSelectionToAlbum: (Long) -> Unit,
+    onSortChange: (WallpaperSortOption) -> Unit,
+    onLoadMore: () -> Unit
 ) {
     val source = state.source
     if (source == null) {
@@ -134,7 +158,8 @@ private fun SourceBrowseScreen(
     var showAlbumPicker by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -143,8 +168,7 @@ private fun SourceBrowseScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             AnimatedVisibility(visible = state.isSelectionMode) {
-                SelectionBar(
-                    count = state.selectedIds.size,
+                SelectionActions(
                     enabled = !state.isActionInProgress,
                     onClear = onClearSelection,
                     onAddToLibrary = onAddSelectionToLibrary,
@@ -179,6 +203,19 @@ private fun SourceBrowseScreen(
                 onSearch = onSearch,
                 onClearQuery = onClearQuery
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                SortMenu(
+                    selectedOption = state.wallpaperSortOption,
+                    options = WallpaperSortOption.entries.toList(),
+                    optionLabel = { it.label },
+                    onOptionSelected = onSortChange,
+                    label = "Sort wallpapers"
+                )
+            }
             state.errorMessage?.takeIf { state.wallpapers.isEmpty() }?.let { message ->
                 Text(
                     text = message,
@@ -230,6 +267,9 @@ private fun SourceBrowseScreen(
                             selectedIds = state.selectedIds,
                             selectionMode = state.isSelectionMode,
                             savedWallpaperKeys = state.savedWallpaperKeys,
+                            onLoadMore = onLoadMore.takeIf { state.canLoadMore },
+                            isLoadingMore = state.isAppending,
+                            canLoadMore = state.canLoadMore,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -283,37 +323,24 @@ private fun RowActions(
 }
 
 @Composable
-private fun SelectionBar(
-    count: Int,
+private fun SelectionActions(
     enabled: Boolean,
     onClear: () -> Unit,
     onAddToLibrary: () -> Unit,
     onAddToAlbum: () -> Unit
 ) {
-    Surface(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        tonalElevation = 4.dp
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            IconButton(onClick = onClear) {
-                Icon(
-                    imageVector = Icons.Outlined.Close,
-                    contentDescription = "Cancel"
-                )
-            }
-            Text(
-                text = "$count selected",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Spacer(modifier = Modifier.weight(1f))
             FilledTonalButton(
                 onClick = onAddToLibrary,
-                enabled = enabled
+                enabled = enabled,
+                modifier = Modifier.weight(1f)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.LibraryAdd,
@@ -324,7 +351,8 @@ private fun SelectionBar(
             }
             FilledTonalButton(
                 onClick = onAddToAlbum,
-                enabled = enabled
+                enabled = enabled,
+                modifier = Modifier.weight(1f)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.PlaylistAdd,
@@ -333,6 +361,12 @@ private fun SelectionBar(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(text = "Add to album")
             }
+        }
+        TextButton(
+            onClick = onClear,
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text(text = "Cancel selection")
         }
     }
 }

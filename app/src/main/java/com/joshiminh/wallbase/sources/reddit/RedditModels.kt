@@ -7,7 +7,8 @@ data class RedditListingResponse(
 )
 
 data class RedditListingData(
-    val children: List<RedditChild>? = null
+    val children: List<RedditChild>? = null,
+    val after: String? = null
 )
 
 data class RedditChild(

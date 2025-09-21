@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.disabled
@@ -63,7 +65,10 @@ import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.ui.components.SortMenu
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.ui.sort.AlbumSortOption
+import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.LibraryViewModel
 
 @Composable
@@ -202,7 +207,8 @@ fun LibraryScreen(
                     )
                 )
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
     ) { innerPadding ->
         LibraryContent(
             uiState = uiState,
@@ -220,6 +226,10 @@ fun LibraryScreen(
             onRequestCreateAlbum = { showAlbumDialog = true },
             onDismissCreateAlbum = { showAlbumDialog = false },
             showAlbumDialog = showAlbumDialog,
+            wallpaperSortOption = uiState.wallpaperSortOption,
+            onWallpaperSortChange = libraryViewModel::updateWallpaperSort,
+            albumSortOption = uiState.albumSortOption,
+            onAlbumSortChange = libraryViewModel::updateAlbumSort,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -263,6 +273,10 @@ private fun LibraryContent(
     onRequestCreateAlbum: () -> Unit,
     onDismissCreateAlbum: () -> Unit,
     showAlbumDialog: Boolean,
+    wallpaperSortOption: WallpaperSortOption,
+    onWallpaperSortChange: (WallpaperSortOption) -> Unit,
+    albumSortOption: AlbumSortOption,
+    onAlbumSortChange: (AlbumSortOption) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf("All Wallpapers", "Albums")
@@ -280,43 +294,95 @@ private fun LibraryContent(
 
         when (selectedTab) {
             0 -> {
-                if (uiState.wallpapers.isEmpty()) {
-                    LibraryEmptyState(message = "Your library is empty. Save wallpapers from Browse to see them here.")
-                } else {
-                    WallpaperGrid(
-                        wallpapers = uiState.wallpapers,
-                        onWallpaperSelected = onWallpaperClick,
-                        modifier = Modifier.fillMaxSize(),
-                        onLongPress = onWallpaperLongPress,
-                        selectedIds = selectedIds,
-                        selectionMode = selectionMode
-                    )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        SortMenu(
+                            selectedOption = wallpaperSortOption,
+                            options = WallpaperSortOption.entries.toList(),
+                            optionLabel = { it.label },
+                            onOptionSelected = onWallpaperSortChange,
+                            label = "Sort wallpapers"
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (uiState.wallpapers.isEmpty()) {
+                        LibraryEmptyState(
+                            message = "Your library is empty. Save wallpapers from Browse to see them here.",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                        )
+                    } else {
+                        WallpaperGrid(
+                            wallpapers = uiState.wallpapers,
+                            onWallpaperSelected = onWallpaperClick,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            onLongPress = onWallpaperLongPress,
+                            selectedIds = selectedIds,
+                            selectionMode = selectionMode
+                        )
+                    }
                 }
             }
 
             else -> {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        SortMenu(
+                            selectedOption = albumSortOption,
+                            options = AlbumSortOption.entries.toList(),
+                            optionLabel = { it.label },
+                            onOptionSelected = onAlbumSortChange,
+                            label = "Sort albums"
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     if (uiState.albums.isEmpty()) {
-                        LibraryEmptyState(message = "Organize wallpapers by creating your first album.")
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text(
+                                    text = "Organize wallpapers by creating your first album.",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    textAlign = TextAlign.Center
+                                )
+                                TextButton(
+                                    onClick = onRequestCreateAlbum,
+                                    enabled = !uiState.isCreatingAlbum
+                                ) {
+                                    Text(text = "Add album")
+                                }
+                            }
+                        }
                     } else {
                         AlbumList(
                             albums = uiState.albums,
                             onAlbumClick = onAlbumClick,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-
-                    TextButton(
-                        onClick = onRequestCreateAlbum,
-                        enabled = !uiState.isCreatingAlbum
-                    ) {
-                        Text(text = "Add album")
-                    }
-                    Spacer(Modifier.height(8.dp))
                 }
             }
         }
@@ -332,9 +398,9 @@ private fun LibraryContent(
 }
 
 @Composable
-private fun LibraryEmptyState(message: String) {
+private fun LibraryEmptyState(message: String, modifier: Modifier = Modifier) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Text(text = message, style = MaterialTheme.typography.bodyLarge)

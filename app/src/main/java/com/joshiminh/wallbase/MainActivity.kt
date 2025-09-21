@@ -366,16 +366,38 @@ fun WallBaseApp(
                 val wallpaper = navController.previousBackStackEntry?.savedStateHandle
                     ?.get<WallpaperItem>("wallpaper_detail")
                 if (wallpaper == null) {
+                    topBarState = null
                     LaunchedEffect(Unit) { navController.popBackStack() }
                 } else {
-                    WallpaperDetailRoute(wallpaper = wallpaper)
-                    DisposableEffect(Unit) {
+                    val sourceHandle = navController.previousBackStackEntry?.savedStateHandle
+                    val navigateBack: () -> Unit = {
+                        val popped = navController.popBackStack()
+                        if (!popped) {
+                            navController.navigate(RootRoute.Browse.route) {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    }
+
+                    DisposableEffect(wallpaper.id) {
+                        topBarState = TopBarState(
+                            title = wallpaper.title.ifBlank { "Wallpaper" },
+                            navigationIcon = TopBarState.NavigationIcon(
+                                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                onClick = navigateBack
+                            )
+                        )
                         onDispose {
-                            navController.previousBackStackEntry
-                                ?.savedStateHandle
+                            topBarState = null
+                            sourceHandle
                                 ?.remove<WallpaperItem>("wallpaper_detail")
                         }
                     }
+
+                    WallpaperDetailRoute(wallpaper = wallpaper)
                 }
             }
             composable(RootRoute.Settings.route) {

@@ -7,6 +7,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.ui.sort.AlbumSortOption
+import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
+import com.joshiminh.wallbase.ui.sort.sortedWith
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,26 +26,40 @@ class LibraryViewModel(
     private val messageFlow = MutableStateFlow<String?>(null)
     private val isCreatingAlbum = MutableStateFlow(false)
     private val selectionActionInProgress = MutableStateFlow(false)
+    private val wallpaperSort = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
+    private val albumSort = MutableStateFlow(AlbumSortOption.TITLE_ASCENDING)
 
     val uiState: StateFlow<LibraryUiState> = combine(
         repository.observeSavedWallpapers(),
         repository.observeAlbums(),
         isCreatingAlbum,
         selectionActionInProgress,
-        messageFlow
-    ) { wallpapers, albums, creating, selectionBusy, message ->
+        messageFlow,
+        wallpaperSort,
+        albumSort
+    ) { wallpapers, albums, creating, selectionBusy, message, wallpaperSortOption, albumSortOption ->
         LibraryUiState(
-            wallpapers = wallpapers,
-            albums = albums,
+            wallpapers = wallpapers.sortedWith(wallpaperSortOption),
+            albums = albums.sortedWith(albumSortOption),
             isCreatingAlbum = creating,
             isSelectionActionInProgress = selectionBusy,
-            message = message
+            message = message,
+            wallpaperSortOption = wallpaperSortOption,
+            albumSortOption = albumSortOption
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = LibraryUiState()
     )
+
+    fun updateWallpaperSort(option: WallpaperSortOption) {
+        wallpaperSort.value = option
+    }
+
+    fun updateAlbumSort(option: AlbumSortOption) {
+        albumSort.value = option
+    }
 
     fun createAlbum(title: String) {
         val trimmed = title.trim()
@@ -161,7 +178,9 @@ class LibraryViewModel(
         val albums: List<AlbumItem> = emptyList(),
         val isCreatingAlbum: Boolean = false,
         val isSelectionActionInProgress: Boolean = false,
-        val message: String? = null
+        val message: String? = null,
+        val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
+        val albumSortOption: AlbumSortOption = AlbumSortOption.TITLE_ASCENDING
     )
 
     companion object {

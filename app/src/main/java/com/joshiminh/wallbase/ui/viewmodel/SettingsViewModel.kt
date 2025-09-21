@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.ui.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.os.StatFs
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,12 +11,14 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.DatabaseBackupManager
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 
 class SettingsViewModel(
     application: Application,
@@ -35,6 +38,17 @@ class SettingsViewModel(
                         sourceRepoUrl = preferences.sourceRepoUrl
                     )
                 }
+            }
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val usage = calculateStorageUsage()
+            _uiState.update {
+                it.copy(
+                    storageBytes = usage?.usedBytes,
+                    storageTotalBytes = usage?.totalBytes,
+                    isStorageLoading = false
+                )
             }
         }
     }
@@ -108,8 +122,56 @@ class SettingsViewModel(
         val isRestoring: Boolean = false,
         val message: String? = null,
         val darkTheme: Boolean = false,
-        val sourceRepoUrl: String = ""
+        val sourceRepoUrl: String = "",
+        val storageBytes: Long? = null,
+        val storageTotalBytes: Long? = null,
+        val isStorageLoading: Boolean = true
     )
+
+    private data class StorageUsage(
+        val usedBytes: Long,
+        val totalBytes: Long
+    )
+
+    private fun calculateStorageUsage(): StorageUsage? {
+        return try {
+            val context = getApplication<Application>()
+            val dataDir = context.dataDir ?: context.filesDir?.parentFile
+            val totalBytes = dataDir?.let { StatFs(it.absolutePath).totalBytes }
+                ?: StatFs(context.filesDir.absolutePath).totalBytes
+
+            val appInfo = context.applicationInfo
+            val sourceDirs = buildList {
+                add(appInfo.sourceDir)
+                appInfo.publicSourceDir?.let { add(it) }
+                appInfo.splitSourceDirs?.let { addAll(it) }
+            }
+
+            val apkBytes = sourceDirs.distinct().sumOf { path ->
+                if (path.isNullOrBlank()) 0L else File(path).length()
+            }
+
+            val dataBytes = dataDir?.let { directorySize(it) } ?: 0L
+
+            StorageUsage(
+                usedBytes = dataBytes + apkBytes,
+                totalBytes = totalBytes
+            )
+        } catch (error: Throwable) {
+            null
+        }
+    }
+
+    private fun directorySize(root: File): Long {
+        if (!root.exists()) return 0L
+        return try {
+            root.walkBottomUp()
+                .filter { it.isFile }
+                .fold(0L) { acc, file -> acc + file.length() }
+        } catch (error: Throwable) {
+            0L
+        }
+    }
 
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {

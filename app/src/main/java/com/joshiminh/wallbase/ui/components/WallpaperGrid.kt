@@ -16,27 +16,34 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -47,11 +54,32 @@ fun WallpaperGrid(
     onLongPress: ((WallpaperItem) -> Unit)? = null,
     selectedIds: Set<String> = emptySet(),
     selectionMode: Boolean = false,
-    savedWallpaperKeys: Set<String> = emptySet()
+    savedWallpaperKeys: Set<String> = emptySet(),
+    onLoadMore: (() -> Unit)? = null,
+    isLoadingMore: Boolean = false,
+    canLoadMore: Boolean = false
 ) {
+    val gridState = rememberLazyStaggeredGridState()
+    val totalItems = wallpapers.size
+    val loadMoreCallback = onLoadMore
+
+    if (loadMoreCallback != null) {
+        LaunchedEffect(gridState, totalItems, isLoadingMore, canLoadMore) {
+            if (!canLoadMore) return@LaunchedEffect
+            snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
+                .distinctUntilChanged()
+                .collect { lastVisible ->
+                    if (!isLoadingMore && totalItems > 0 && lastVisible >= totalItems - 4) {
+                        loadMoreCallback()
+                    }
+                }
+        }
+    }
+
     LazyVerticalStaggeredGrid(
         modifier = modifier.fillMaxSize(),
         columns = StaggeredGridCells.Fixed(2),
+        state = gridState,
         verticalItemSpacing = 16.dp,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 32.dp)
@@ -67,6 +95,19 @@ fun WallpaperGrid(
                 onClick = { onWallpaperSelected(wallpaper) },
                 onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } }
             )
+        }
+
+        if (isLoadingMore) {
+            item(span = StaggeredGridItemSpan.FullLine) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
         }
     }
 }

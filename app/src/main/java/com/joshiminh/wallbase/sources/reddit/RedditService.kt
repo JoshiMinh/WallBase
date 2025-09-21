@@ -10,7 +10,8 @@ interface RedditService {
         @Path("subreddit") subreddit: String,
         @Path("sort") sort: String = "top",
         @Query("t") timeRange: String = "week",
-        @Query("limit") limit: Int = 40
+        @Query("limit") limit: Int = 40,
+        @Query("after") after: String? = null
     ): RedditListingResponse
 
     @GET("subreddits/search.json")
@@ -26,6 +27,7 @@ interface RedditService {
         @Query("q") query: String,
         @Query("restrict_sr") restrictToSubreddit: Int = 1,
         @Query("limit") limit: Int = 40,
-        @Query("sort") sort: String = "relevance"
+        @Query("sort") sort: String = "relevance",
+        @Query("after") after: String? = null
     ): RedditListingResponse
 }

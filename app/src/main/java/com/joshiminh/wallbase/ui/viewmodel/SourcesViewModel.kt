@@ -52,17 +52,21 @@ class SourcesViewModel(
     }
 
     fun updateSourceInput(input: String) {
-        val detected = sourceRepository.detectRemoteSourceType(input)
-        _uiState.update {
-            val shouldClearResults =
-                it.detectedType == SourceRepository.RemoteSourceType.REDDIT &&
-                        detected != SourceRepository.RemoteSourceType.REDDIT
-            it.copy(
-                urlInput = input,
-                detectedType = detected,
-                redditSearchResults = if (shouldClearResults) emptyList() else it.redditSearchResults,
-                redditSearchError = if (shouldClearResults) null else it.redditSearchError
-            )
+        _uiState.update { state ->
+            if (state.urlInput == input) {
+                state
+            } else {
+                val detected = sourceRepository.detectRemoteSourceType(input)
+                val shouldClearResults =
+                    state.detectedType == SourceRepository.RemoteSourceType.REDDIT &&
+                            detected != SourceRepository.RemoteSourceType.REDDIT
+                state.copy(
+                    urlInput = input,
+                    detectedType = detected,
+                    redditSearchResults = if (shouldClearResults) emptyList() else state.redditSearchResults,
+                    redditSearchError = if (shouldClearResults) null else state.redditSearchError
+                )
+            }
         }
     }
 
@@ -223,7 +227,9 @@ class SourcesViewModel(
     }
 
     fun consumeMessage() {
-        _uiState.update { it.copy(snackbarMessage = null) }
+        _uiState.update { state ->
+            if (state.snackbarMessage == null) state else state.copy(snackbarMessage = null)
+        }
     }
 
     data class SourcesUiState(
