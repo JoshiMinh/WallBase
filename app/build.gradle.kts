@@ -93,6 +93,7 @@ dependencies {
 
     // Optional
     implementation(libs.androidx.documentfile)
+    implementation(libs.androidx.compose.animation) // or newer
 
     // ---------------- Networking / JSON ----------------
     implementation(libs.retrofit)

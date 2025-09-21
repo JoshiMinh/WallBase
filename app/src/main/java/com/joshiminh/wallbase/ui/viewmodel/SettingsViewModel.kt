@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package com.joshiminh.wallbase.ui.viewmodel
 
 import android.app.Application
@@ -214,15 +216,18 @@ class SettingsViewModel(
             root.walkBottomUp()
                 .filter { it.isFile }
                 .fold(0L) { acc, file -> acc + file.length() }
-        } catch (error: Throwable) {
+        } catch (_: Throwable) {
             0L
         }
     }
 
     companion object {
+        const val DEFAULT_STORAGE_NAME = "WallBase"
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
+                val application =
+                    this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
                 SettingsViewModel(
                     application = application,
                     backupManager = DatabaseBackupManager(
@@ -234,9 +239,5 @@ class SettingsViewModel(
                 )
             }
         }
-    }
-
-    private companion object {
-        const val DEFAULT_STORAGE_NAME = "WallBase"
     }
 }

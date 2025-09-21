@@ -3,6 +3,7 @@
 [versions]
 # Tooling
 agp = "8.13.0"                                 # Android Gradle Plugin :contentReference[oaicite:0]{index=0}
+animation = "1.9.1"
 compose-bom-version = "<current>"
 kotlin = "2.2.10"                              # Kotlin Gradle plugin :contentReference[oaicite:1]{index=1}
 ksp = "2.2.10-RC2-2.0.2"                       # Latest KSP build available for Kotlin 2.2.10
@@ -53,6 +54,7 @@ foundation = "1.9.1"                             # Espresso latest stable :conte
 
 [libraries]
 # AndroidX core
+androidx-compose-animation = { module = "androidx.compose.animation:animation", version.ref = "animation" }
 androidx-compose-bom-vcurrent = { module = "androidx.compose:compose-bom", version.ref = "compose-bom-version" }
 androidx-compose-material = { module = "androidx.compose.material:material", version.ref = "material" }
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }

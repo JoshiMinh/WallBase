@@ -1,21 +1,22 @@
 package com.joshiminh.wallbase.ui
 
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -31,11 +32,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -49,12 +51,13 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
-import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
 import com.joshiminh.wallbase.ui.sort.SortField
 import com.joshiminh.wallbase.ui.sort.SortSelection
 import com.joshiminh.wallbase.ui.sort.toSelection
 import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
+import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun AlbumDetailRoute(
     albumId: Long,
@@ -136,7 +139,7 @@ fun AlbumDetailRoute(
             onClick = { showSortSheet = true },
             enabled = canSort
         ) {
-            Icon(imageVector = Icons.Outlined.Sort, contentDescription = "Sort")
+            Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
         }
         if (uiState.isAlbumDownloaded) {
             IconButton(
@@ -223,6 +226,7 @@ fun AlbumDetailRoute(
     )
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun AlbumDetailScreen(
     state: AlbumDetailViewModel.AlbumDetailUiState,

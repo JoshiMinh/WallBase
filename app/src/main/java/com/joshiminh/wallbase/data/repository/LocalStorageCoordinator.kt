@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.Locale
+import androidx.core.net.toUri
 
 class LocalStorageCoordinator(
     private val context: Context,
@@ -41,7 +42,7 @@ class LocalStorageCoordinator(
 
     suspend fun getBaseFolder(): DocumentFile? = withContext(Dispatchers.IO) {
         val stored = settingsRepository.getLocalLibraryUri()?.takeIf { it.isNotBlank() } ?: return@withContext null
-        DocumentFile.fromTreeUri(context, Uri.parse(stored))?.takeIf { it.exists() && it.isDirectory }
+        DocumentFile.fromTreeUri(context, stored.toUri())?.takeIf { it.exists() && it.isDirectory }
     }
 
     suspend fun requireBaseFolder(): DocumentFile =
@@ -112,7 +113,7 @@ class LocalStorageCoordinator(
         return DEFAULT_MIME_TYPE
     }
 
-    private suspend fun copyIntoFolder(
+    private fun copyIntoFolder(
         baseFolder: DocumentFile,
         uri: Uri,
         sourceFolder: String,
@@ -132,7 +133,12 @@ class LocalStorageCoordinator(
         persistReadPermission(uri)
         copyStreams(uri, destination.uri)
 
-        CopyResult(destination.uri, destination.name ?: fileName, destination.length())
+        // ✅ Explicitly return the result
+        return CopyResult(
+            destination.uri,
+            destination.name ?: fileName,
+            destination.length()
+        )
     }
 
     private fun ensureExtension(name: String, mimeType: String): String {
@@ -187,10 +193,12 @@ class LocalStorageCoordinator(
     private fun queryDisplayName(uri: Uri): String? {
         val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
         val cursor = resolver.query(uri, projection, null, null, null) ?: return null
-        cursor.use {
+        return cursor.use {
             if (!it.moveToFirst()) return null
             val index = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-            if (index >= 0) it.getString(index) else null
+            val name = if (index >= 0) it.getString(index) else null
+            // Fallback to lastPathSegment if DISPLAY_NAME isn't available
+            name ?: uri.lastPathSegment
         }
     }
 
@@ -229,7 +237,7 @@ class LocalStorageCoordinator(
         private const val DEFAULT_FILE_NAME = "wallpaper"
         private const val DEFAULT_EXTENSION = "jpg"
         private const val DEFAULT_MIME_TYPE = "image/jpeg"
-        private val INVALID_FOLDER_CHARS = "[\\/:*?\"<>|]".toRegex()
-        private val INVALID_FILE_CHARS = "[\\/:*?\"<>|]".toRegex()
+        private val INVALID_FOLDER_CHARS = "[/:*?\"<>|]".toRegex()
+        private val INVALID_FILE_CHARS = "[/:*?\"<>|]".toRegex()
     }
 }

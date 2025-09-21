@@ -22,11 +22,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -187,14 +189,18 @@ fun SettingsScreen(
 
                             when {
                                 hasUsage -> {
-                                    val used = Formatter.formatFileSize(context, storageBytes!!)
-                                    val total = Formatter.formatFileSize(context, storageTotalBytes!!)
+                                    val used = Formatter.formatFileSize(context, storageBytes)
+                                    val total = Formatter.formatFileSize(context, storageTotalBytes)
                                     val progress = (storageBytes.toDouble() / storageTotalBytes.toDouble())
                                         .toFloat()
                                         .coerceIn(0f, 1f)
+
                                     LinearProgressIndicator(
-                                        progress = progress,
-                                        modifier = Modifier.fillMaxWidth()
+                                    progress = { progress },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = ProgressIndicatorDefaults.linearColor,
+                                    trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                                     )
                                     Text(
                                         text = "$used of $total used",
@@ -212,8 +218,11 @@ fun SettingsScreen(
                                 }
                                 else -> {
                                     LinearProgressIndicator(
-                                        progress = 0f,
-                                        modifier = Modifier.fillMaxWidth()
+                                    progress = { 0f },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = ProgressIndicatorDefaults.linearColor,
+                                    trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                                     )
                                     Text(
                                         text = "Storage usage unavailable",

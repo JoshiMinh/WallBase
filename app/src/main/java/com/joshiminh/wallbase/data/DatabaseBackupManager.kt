@@ -1,3 +1,7 @@
+@file:Suppress("TYPE_INTERSECTION_AS_REIFIED_WARNING",
+    "NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS"
+)
+
 package com.joshiminh.wallbase.data
 
 import android.content.Context
@@ -233,7 +237,7 @@ class DatabaseBackupManager(
         }
     }
 
-    private fun restoreLocalWallpapers(
+    private suspend fun restoreLocalWallpapers(
         sqliteDb: SupportSQLiteDatabase,
         manifestJson: String?,
         extractedMedia: Map<Long, ExtractedMedia>
@@ -291,11 +295,11 @@ class DatabaseBackupManager(
     private fun resolveFolderInfo(entity: WallpaperEntity): FolderInfo {
         val sourceKey = entity.sourceKey
         return if (sourceKey == SourceKeys.LOCAL) {
-            val subFolder = entity.source?.takeIf { it.isNotBlank() }
+            val subFolder = entity.source.takeIf { it.isNotBlank() }
                 ?.let { localStorage.sanitizeFolderName(it) }
             FolderInfo(LOCAL_SOURCE_FOLDER, subFolder)
         } else {
-            val rawFolder = entity.source?.takeIf { it.isNotBlank() }
+            val rawFolder = entity.source.takeIf { it.isNotBlank() }
                 ?: sourceKey.substringBefore(':', sourceKey)
             val sanitizedFolder = localStorage.sanitizeFolderName(rawFolder)
             FolderInfo(sanitizedFolder, null)

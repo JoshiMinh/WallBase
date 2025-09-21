@@ -5,12 +5,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedBoundsResizeMode
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.rememberSharedContentState
-import androidx.compose.animation.sharedBounds
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -59,10 +57,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.data.entity.wallpaper.transitionKey
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun WallpaperDetailRoute(
     wallpaper: WallpaperItem,
@@ -153,18 +151,21 @@ private fun WallpaperDetailScreen(
     val canDownload = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     var showTargetDialog by remember { mutableStateOf(false) }
     val aspectRatio = wallpaper.aspectRatio ?: DEFAULT_DETAIL_ASPECT_RATIO
-    val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-        with(sharedTransitionScope) {
-            Modifier.sharedBounds(
-                sharedContentState = rememberSharedContentState(key = wallpaper.transitionKey()),
-                animatedVisibilityScope = animatedVisibilityScope,
-                resizeMode = SharedBoundsResizeMode.Clip,
-                boundsTransform = { _, _ -> tween(durationMillis = 350) }
-            )
+    val sharedModifier =
+        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            with(sharedTransitionScope) {
+                Modifier.sharedBounds(
+                    sharedContentState = rememberSharedContentState(key = wallpaper.transitionKey()),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    // pick one:
+                    resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
+                    // or: resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                    boundsTransform = BoundsTransform { _, _ -> tween(durationMillis = 350) }
+                )
+            }
+        } else {
+            Modifier
         }
-    } else {
-        Modifier
-    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },

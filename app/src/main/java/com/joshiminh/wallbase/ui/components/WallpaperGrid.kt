@@ -1,12 +1,11 @@
 package com.joshiminh.wallbase.ui.components
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedBoundsResizeMode
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.rememberSharedContentState
-import androidx.compose.animation.sharedBounds
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -49,8 +48,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.data.entity.wallpaper.transitionKey
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val UNKNOWN_PROVIDER_KEY = ""
@@ -121,18 +118,21 @@ fun WallpaperGrid(
                 savedImageUrls.contains(wallpaper.imageUrl)
             }
             val isSaved = directMatch || providerMatch || imageMatch
-            val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                with(sharedTransitionScope) {
-                    Modifier.sharedBounds(
-                        sharedContentState = rememberSharedContentState(key = wallpaper.transitionKey()),
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        resizeMode = SharedBoundsResizeMode.Clip,
-                        boundsTransform = { _, _ -> tween(durationMillis = 350) }
-                    )
+            val sharedModifier =
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedBounds(
+                            sharedContentState = rememberSharedContentState(key = wallpaper.transitionKey()),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            // Pick one of these two:
+                            resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
+                            // or: resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                            boundsTransform = BoundsTransform { _, _ -> tween(durationMillis = 350) }
+                        )
+                    }
+                } else {
+                    Modifier
                 }
-            } else {
-                Modifier
-            }
             WallpaperCard(
                 item = wallpaper,
                 isSelected = isSelected,
@@ -168,7 +168,7 @@ fun WallpaperCard(
     selectionMode: Boolean,
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
     sharedElementModifier: Modifier = Modifier
 ) {
     val aspectRatio = item.aspectRatio ?: DEFAULT_ASPECT_RATIO

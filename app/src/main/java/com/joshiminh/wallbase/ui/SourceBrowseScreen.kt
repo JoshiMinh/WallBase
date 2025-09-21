@@ -18,9 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LibraryAdd
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.AlertDialog
@@ -55,18 +56,19 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
-import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
 import com.joshiminh.wallbase.ui.sort.SortField
 import com.joshiminh.wallbase.ui.sort.SortSelection
 import com.joshiminh.wallbase.ui.sort.toSelection
 import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
+import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun SourceBrowseRoute(
     sourceKey: String,
@@ -116,7 +118,7 @@ fun SourceBrowseRoute(
                     }
                 }
                 IconButton(onClick = { showSortSheet = true }) {
-                    Icon(imageVector = Icons.Outlined.Sort, contentDescription = "Sort")
+                    Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
                 }
             }
         }
@@ -232,7 +234,7 @@ fun SourceBrowseRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 private fun SourceBrowseScreen(
     state: SourceBrowseViewModel.SourceBrowseUiState,
@@ -411,7 +413,7 @@ private fun SelectionActions(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.PlaylistAdd,
+                    imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
                     contentDescription = null
                 )
                 Spacer(modifier = Modifier.width(8.dp))

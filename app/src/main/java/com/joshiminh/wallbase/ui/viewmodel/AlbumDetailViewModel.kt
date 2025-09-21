@@ -29,44 +29,44 @@ class AlbumDetailViewModel(
     private val message = MutableStateFlow<String?>(null)
     private val showRemoveDownloads = MutableStateFlow(false)
 
-    val uiState: StateFlow<AlbumDetailUiState> = combine(
-        repository.observeAlbum(albumId),
-        sortOption,
-        downloading,
-        removingDownloads,
-        message,
-        showRemoveDownloads
-    ) { detail, sort, isDownloading, isRemoving, message, showRemove ->
-        if (detail == null) {
-            AlbumDetailUiState(
-                isLoading = false,
-                notFound = true,
-                wallpaperSortOption = sort,
-                isDownloading = isDownloading,
-                isRemovingDownloads = isRemoving,
-                message = message,
-                showRemoveDownloadsConfirmation = showRemove
-            )
-        } else {
-            val sortedWallpapers = detail.wallpapers.sortedWith(sort)
-            AlbumDetailUiState(
-                isLoading = false,
-                albumTitle = detail.title,
-                wallpapers = sortedWallpapers,
-                notFound = false,
-                wallpaperSortOption = sort,
-                isDownloading = isDownloading,
-                isAlbumDownloaded = sortedWallpapers.isAlbumFullyDownloaded(),
-                isRemovingDownloads = isRemoving,
-                message = message,
-                showRemoveDownloadsConfirmation = showRemove
-            )
-        }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.Eagerly,
-        initialValue = AlbumDetailUiState(isLoading = true)
-    )
+    val uiState: StateFlow<AlbumDetailUiState> =
+        combine(
+            repository.observeAlbum(albumId),  // detail: AlbumDetail?
+            sortOption,                        // sort
+            downloading,                       // isDownloading
+            removingDownloads,                 // isRemoving
+            message                            // message
+        ) { detail, sort, isDownloading, isRemoving, message ->
+            if (detail == null) {
+                AlbumDetailUiState(
+                    isLoading = false,
+                    notFound = true,
+                    wallpaperSortOption = sort,
+                    isDownloading = isDownloading,
+                    isRemovingDownloads = isRemoving,
+                    message = message
+                )
+            } else {
+                val sorted = detail.wallpapers.sortedWith(sort)
+                AlbumDetailUiState(
+                    isLoading = false,
+                    albumTitle = detail.title,
+                    wallpapers = sorted,
+                    notFound = false,
+                    wallpaperSortOption = sort,
+                    isDownloading = isDownloading,
+                    isAlbumDownloaded = sorted.isAlbumFullyDownloaded(),
+                    isRemovingDownloads = isRemoving,
+                    message = message
+                )
+            }
+        }.combine(showRemoveDownloads) { state, showRemove ->
+            state.copy(showRemoveDownloadsConfirmation = showRemove)
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = AlbumDetailUiState(isLoading = true)
+        )
 
     fun updateSort(option: WallpaperSortOption) {
         sortOption.update { option }
@@ -166,11 +166,11 @@ class AlbumDetailViewModel(
 
 private fun List<WallpaperItem>.isAlbumFullyDownloaded(): Boolean {
     if (isEmpty()) return false
-    return all { item ->
+    return all { item: WallpaperItem ->
         val sourceKey = item.sourceKey
-        when {
-            sourceKey == null -> false
-            sourceKey == SourceKeys.LOCAL -> true
+        when (sourceKey) {
+            null -> false
+            SourceKeys.LOCAL -> true
             else -> item.isDownloaded && !item.localUri.isNullOrBlank()
         }
     }

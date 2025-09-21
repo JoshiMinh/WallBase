@@ -1,6 +1,7 @@
 package com.joshiminh.wallbase.ui
 
 import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,26 +9,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Sort
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -59,15 +60,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
@@ -84,6 +85,7 @@ import com.joshiminh.wallbase.ui.sort.toSelection
 import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.LibraryViewModel
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun LibraryScreen(
     onWallpaperSelected: (WallpaperItem) -> Unit,
@@ -241,7 +243,7 @@ fun LibraryScreen(
                 },
                 enabled = !uiState.isSelectionActionInProgress
             ) {
-                Icon(imageVector = Icons.Outlined.PlaylistAdd, contentDescription = addLabel)
+                Icon(imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd, contentDescription = addLabel)
             }
         }
         SideEffect {
@@ -271,7 +273,7 @@ fun LibraryScreen(
                 }
             }
             IconButton(onClick = { showSortSheet = true }) {
-                Icon(imageVector = Icons.Outlined.Sort, contentDescription = "Sort")
+                Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
             }
         }
         val navigationIcon = if (isSearchActive) {
@@ -476,6 +478,7 @@ fun LibraryScreen(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun LibraryContent(
     uiState: LibraryViewModel.LibraryUiState,
@@ -723,7 +726,7 @@ private fun AlbumPickerDialog(
     onDismiss: () -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    var selectedAlbumId by rememberSaveable { mutableStateOf<Long?>(albums.firstOrNull()?.id) }
+    var selectedAlbumId by rememberSaveable { mutableStateOf(albums.firstOrNull()?.id) }
     var newAlbumTitle by rememberSaveable { mutableStateOf("") }
 
     val existingTab = "Existing"
