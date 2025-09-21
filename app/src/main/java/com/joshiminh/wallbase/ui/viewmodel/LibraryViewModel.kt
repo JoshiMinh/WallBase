@@ -1,3 +1,5 @@
+@file:Suppress("UNCHECKED_CAST")
+
 package com.joshiminh.wallbase.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -5,8 +7,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
-import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.ui.sort.AlbumSortOption
 import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
 import com.joshiminh.wallbase.ui.sort.sortedWith
@@ -29,29 +31,38 @@ class LibraryViewModel(
     private val wallpaperSort = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
     private val albumSort = MutableStateFlow(AlbumSortOption.TITLE_ASCENDING)
 
-    val uiState: StateFlow<LibraryUiState> = combine(
-        repository.observeSavedWallpapers(),
-        repository.observeAlbums(),
-        isCreatingAlbum,
-        selectionActionInProgress,
-        messageFlow,
-        wallpaperSort,
-        albumSort
-    ) { wallpapers, albums, creating, selectionBusy, message, wallpaperSortOption, albumSortOption ->
-        LibraryUiState(
-            wallpapers = wallpapers.sortedWith(wallpaperSortOption),
-            albums = albums.sortedWith(albumSortOption),
-            isCreatingAlbum = creating,
-            isSelectionActionInProgress = selectionBusy,
-            message = message,
-            wallpaperSortOption = wallpaperSortOption,
-            albumSortOption = albumSortOption
+    val uiState: StateFlow<LibraryUiState> =
+        combine(
+            repository.observeSavedWallpapers(),
+            repository.observeAlbums(),
+            isCreatingAlbum,
+            selectionActionInProgress,
+            messageFlow,
+            wallpaperSort,
+            albumSort
+        ) { arr: Array<Any?> ->
+            val wallpapers = arr[0] as List<WallpaperItem>
+            val albums = arr[1] as List<AlbumItem>
+            val creating = arr[2] as Boolean
+            val selectionBusy = arr[3] as Boolean
+            val message = arr[4] as String?
+            val wallpaperSortOption = arr[5] as WallpaperSortOption
+            val albumSortOption = arr[6] as AlbumSortOption
+
+            LibraryUiState(
+                wallpapers = wallpapers.sortedWith(wallpaperSortOption),
+                albums = albums.sortedWith(albumSortOption),
+                isCreatingAlbum = creating,
+                isSelectionActionInProgress = selectionBusy,
+                message = message,
+                wallpaperSortOption = wallpaperSortOption,
+                albumSortOption = albumSortOption
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = LibraryUiState()
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.Eagerly,
-        initialValue = LibraryUiState()
-    )
 
     fun updateWallpaperSort(option: WallpaperSortOption) {
         wallpaperSort.value = option
@@ -76,9 +87,7 @@ class LibraryViewModel(
             messageFlow.update {
                 result.fold(
                     onSuccess = { album -> "Created \"${album.title}\"" },
-                    onFailure = { throwable ->
-                        throwable.localizedMessage ?: "Unable to create album"
-                    }
+                    onFailure = { t -> t.localizedMessage ?: "Unable to create album" }
                 )
             }
         }
@@ -99,9 +108,7 @@ class LibraryViewModel(
                             else -> "No wallpapers were removed"
                         }
                     },
-                    onFailure = { throwable ->
-                        throwable.localizedMessage ?: "Unable to remove wallpapers"
-                    }
+                    onFailure = { t -> t.localizedMessage ?: "Unable to remove wallpapers" }
                 )
             }
         }
@@ -128,9 +135,7 @@ class LibraryViewModel(
                             else -> "All selected wallpapers are already in this album"
                         }
                     },
-                    onFailure = { throwable ->
-                        throwable.localizedMessage ?: "Unable to update album"
-                    }
+                    onFailure = { t -> t.localizedMessage ?: "Unable to update album" }
                 )
             }
         }
@@ -161,9 +166,7 @@ class LibraryViewModel(
                             else -> "Updated \"${album.title}\""
                         }
                     },
-                    onFailure = { throwable ->
-                        throwable.localizedMessage ?: "Unable to create album"
-                    }
+                    onFailure = { t -> t.localizedMessage ?: "Unable to create album" }
                 )
             }
         }

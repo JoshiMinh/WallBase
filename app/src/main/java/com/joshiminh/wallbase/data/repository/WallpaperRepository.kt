@@ -5,6 +5,7 @@ import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.sources.reddit.RedditListingResponse
 import com.joshiminh.wallbase.sources.reddit.RedditPost
 import com.joshiminh.wallbase.sources.reddit.RedditService
 import com.joshiminh.wallbase.sources.reddit.RedditSubredditChild

@@ -11,6 +11,7 @@ plugins {
 android {
     namespace = "com.joshiminh.wallbase"
     compileSdk = 36
+    buildFeatures { buildConfig = true }
 
     defaultConfig {
         applicationId = "com.joshiminh.wallbase"
