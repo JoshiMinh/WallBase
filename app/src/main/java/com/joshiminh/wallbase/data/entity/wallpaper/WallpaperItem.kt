@@ -15,7 +15,8 @@ data class WallpaperItem(
     val sourceName: String? = null,
     val sourceKey: String? = null,
     val width: Int? = null,
-    val height: Int? = null
+    val height: Int? = null,
+    val addedAt: Long? = null
 ) : Parcelable {
 
     val aspectRatio: Float?

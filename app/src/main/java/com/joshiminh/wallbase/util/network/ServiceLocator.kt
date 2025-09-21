@@ -1,6 +1,7 @@
 package com.joshiminh.wallbase.util.network
 
 import android.content.Context
+import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.WallBaseDatabase
 import com.joshiminh.wallbase.data.repository.SettingsRepository
@@ -14,18 +15,24 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import kotlin.jvm.Volatile
 
 object ServiceLocator {
 
     private const val USER_AGENT = "WallBase/1.0 (Android)"
 
+    @Volatile
     private var appContext: Context? = null
 
     fun initialize(context: Context) {
         if (appContext == null) {
-            val applicationContext = context.applicationContext
-            appContext = applicationContext
-            WallBaseDatabase.Companion.getInstance(applicationContext)
+            synchronized(this) {
+                if (appContext == null) {
+                    val applicationContext = context.applicationContext
+                    appContext = applicationContext
+                    WallBaseDatabase.getInstance(applicationContext)
+                }
+            }
         }
     }
 
@@ -41,7 +48,7 @@ object ServiceLocator {
     }
 
     private val okHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        val builder = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request()
                 val updatedRequest = request.newBuilder()
@@ -49,12 +56,16 @@ object ServiceLocator {
                     .build()
                 chain.proceed(updatedRequest)
             }
-            .addInterceptor(
+
+        if (BuildConfig.DEBUG) {
+            builder.addInterceptor(
                 HttpLoggingInterceptor().apply {
                     level = HttpLoggingInterceptor.Level.BASIC
                 }
             )
-            .build()
+        }
+
+        builder.build()
     }
 
     private val redditRetrofit: Retrofit by lazy {

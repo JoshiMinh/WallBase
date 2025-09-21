@@ -25,6 +25,7 @@ import com.joshiminh.wallbase.sources.google_photos.GooglePhotosMediaItem
 import com.joshiminh.wallbase.sources.google_photos.fetchGooglePhotosAlbums
 import com.joshiminh.wallbase.sources.google_photos.fetchGooglePhotosMediaItems
 import com.joshiminh.wallbase.util.userFacingMessage
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -52,6 +53,7 @@ fun GooglePhotosAlbumPickerScreen(
 
         try {
             albums = fetchGooglePhotosAlbums(token)
+                .sortedBy { it.title.lowercase(Locale.ROOT) }
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {

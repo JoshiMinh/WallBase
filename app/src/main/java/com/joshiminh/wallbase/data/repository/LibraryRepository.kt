@@ -317,7 +317,8 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
         sourceName = source,
         sourceKey = sourceKey,
         width = width,
-        height = height
+        height = height,
+        addedAt = addedAt
     )
 }
 
