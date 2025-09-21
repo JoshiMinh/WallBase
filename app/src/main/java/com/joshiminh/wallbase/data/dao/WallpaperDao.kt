@@ -33,6 +33,18 @@ interface WallpaperDao {
     @Query("SELECT wallpaper_id FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl LIMIT 1")
     suspend fun findIdByImageUrl(sourceKey: String, imageUrl: String): Long?
 
+    @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey AND remote_id = :remoteId LIMIT 1")
+    suspend fun getBySourceKeyAndRemoteId(sourceKey: String, remoteId: String): WallpaperEntity?
+
+    @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl LIMIT 1")
+    suspend fun getBySourceKeyAndImageUrl(sourceKey: String, imageUrl: String): WallpaperEntity?
+
+    @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey")
+    suspend fun getWallpapersBySource(sourceKey: String): List<WallpaperEntity>
+
+    @Query("SELECT * FROM wallpapers WHERE local_uri IS NOT NULL AND TRIM(local_uri) != ''")
+    suspend fun getWallpapersWithLocalMedia(): List<WallpaperEntity>
+
     @Query("DELETE FROM wallpapers WHERE source_key = :sourceKey AND remote_id = :remoteId")
     suspend fun deleteBySourceKeyAndRemoteId(sourceKey: String, remoteId: String): Int
 
@@ -41,4 +53,22 @@ interface WallpaperDao {
 
     @Query("DELETE FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl")
     suspend fun deleteByImageUrl(sourceKey: String, imageUrl: String): Int
+
+    @Query("DELETE FROM wallpapers WHERE source_key = :sourceKey")
+    suspend fun deleteBySourceKey(sourceKey: String): Int
+
+    @Query("SELECT * FROM wallpapers WHERE wallpaper_id = :id LIMIT 1")
+    suspend fun getById(id: Long): WallpaperEntity?
+
+    @Query(
+        "UPDATE wallpapers SET local_uri = :localUri, is_downloaded = :isDownloaded, " +
+            "file_size_bytes = :fileSize, updated_at = :updatedAt WHERE wallpaper_id = :id"
+    )
+    suspend fun updateDownloadState(
+        id: Long,
+        localUri: String?,
+        isDownloaded: Boolean,
+        fileSize: Long?,
+        updatedAt: Long
+    )
 }

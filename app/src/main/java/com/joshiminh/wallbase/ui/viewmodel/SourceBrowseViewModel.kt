@@ -69,8 +69,31 @@ class SourceBrowseViewModel(
         viewModelScope.launch {
             libraryRepository.observeSavedWallpapers().collectLatest { saved ->
                 val keys = saved.mapNotNull { it.libraryKey() }.toSet()
+                val remoteIdsByProvider = mutableMapOf<String, MutableSet<String>>()
+                val imageUrls = mutableSetOf<String>()
+                saved.forEach { wallpaper ->
+                    val remoteId = wallpaper.remoteIdentifierWithinSource()
+                    if (remoteId != null) {
+                        val provider = wallpaper.providerKey() ?: UNKNOWN_PROVIDER_KEY
+                        remoteIdsByProvider.getOrPut(provider) { mutableSetOf() }.add(remoteId)
+                    }
+                    imageUrls += wallpaper.imageUrl
+                }
+                val remoteSnapshot = remoteIdsByProvider.mapValues { entry -> entry.value.toSet() }
+                val imagesSnapshot = imageUrls.toSet()
                 _uiState.update { state ->
-                    if (state.savedWallpaperKeys == keys) state else state.copy(savedWallpaperKeys = keys)
+                    if (state.savedWallpaperKeys == keys &&
+                        state.savedRemoteIdsByProvider == remoteSnapshot &&
+                        state.savedImageUrls == imagesSnapshot
+                    ) {
+                        state
+                    } else {
+                        state.copy(
+                            savedWallpaperKeys = keys,
+                            savedRemoteIdsByProvider = remoteSnapshot,
+                            savedImageUrls = imagesSnapshot
+                        )
+                    }
                 }
             }
         }
@@ -352,6 +375,8 @@ class SourceBrowseViewModel(
         val isRefreshing: Boolean = false,
         val errorMessage: String? = null,
         val savedWallpaperKeys: Set<String> = emptySet(),
+        val savedRemoteIdsByProvider: Map<String, Set<String>> = emptyMap(),
+        val savedImageUrls: Set<String> = emptySet(),
         val isSelectionMode: Boolean = false,
         val selectedIds: Set<String> = emptySet(),
         val isActionInProgress: Boolean = false,
@@ -363,6 +388,8 @@ class SourceBrowseViewModel(
     )
 
     companion object {
+        private const val UNKNOWN_PROVIDER_KEY = ""
+
         fun provideFactory(sourceKey: String) = viewModelFactory {
             initializer {
                 SourceBrowseViewModel(

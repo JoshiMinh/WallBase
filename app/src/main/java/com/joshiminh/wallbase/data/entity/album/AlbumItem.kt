@@ -4,5 +4,6 @@ data class AlbumItem(
     val id: Long,
     val title: String,
     val wallpaperCount: Int,
-    val coverImageUrl: String?
+    val coverImageUrl: String?,
+    val createdAt: Long
 )

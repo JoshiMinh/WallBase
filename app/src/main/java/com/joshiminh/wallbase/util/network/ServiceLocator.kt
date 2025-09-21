@@ -2,8 +2,9 @@ package com.joshiminh.wallbase.util.network
 
 import android.content.Context
 import com.joshiminh.wallbase.BuildConfig
-import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.WallBaseDatabase
+import com.joshiminh.wallbase.data.repository.LibraryRepository
+import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.settingsDataStore
 import com.joshiminh.wallbase.data.repository.SourceRepository
@@ -94,17 +95,26 @@ object ServiceLocator {
     }
 
     val sourceRepository: SourceRepository by lazy {
-        SourceRepository(database.sourceDao())
-    }
-
-    val libraryRepository: LibraryRepository by lazy {
-        LibraryRepository(
+        SourceRepository(
+            sourceDao = database.sourceDao(),
             wallpaperDao = database.wallpaperDao(),
-            albumDao = database.albumDao()
+            localStorage = localStorageCoordinator
         )
     }
 
     val settingsRepository: SettingsRepository by lazy {
         SettingsRepository(context.settingsDataStore)
+    }
+
+    val localStorageCoordinator: LocalStorageCoordinator by lazy {
+        LocalStorageCoordinator(context, settingsRepository)
+    }
+
+    val libraryRepository: LibraryRepository by lazy {
+        LibraryRepository(
+            wallpaperDao = database.wallpaperDao(),
+            albumDao = database.albumDao(),
+            localStorage = localStorageCoordinator
+        )
     }
 }

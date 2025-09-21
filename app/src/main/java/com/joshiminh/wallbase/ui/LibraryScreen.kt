@@ -1,20 +1,22 @@
 package com.joshiminh.wallbase.ui
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,7 +24,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,6 +60,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,10 +74,14 @@ import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.ui.components.SortMenu
+import com.joshiminh.wallbase.ui.components.SortBottomSheet
+import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
-import com.joshiminh.wallbase.ui.sort.AlbumSortOption
-import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
+import com.joshiminh.wallbase.ui.sort.SortField
+import com.joshiminh.wallbase.ui.sort.SortSelection
+import com.joshiminh.wallbase.ui.sort.toAlbumSortOption
+import com.joshiminh.wallbase.ui.sort.toSelection
+import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.LibraryViewModel
 
 @Composable
@@ -76,7 +89,9 @@ fun LibraryScreen(
     onWallpaperSelected: (WallpaperItem) -> Unit,
     onAlbumSelected: (AlbumItem) -> Unit,
     onConfigureTopBar: (TopBarState?) -> Unit,
-    libraryViewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory)
+    libraryViewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val uiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -84,6 +99,14 @@ fun LibraryScreen(
     var showAlbumDialog by rememberSaveable { mutableStateOf(false) }
     var showSelectionAlbumDialog by rememberSaveable { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showRemoveDownloadsDialog by rememberSaveable { mutableStateOf(false) }
+    var showSortSheet by rememberSaveable { mutableStateOf(false) }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val searchFocusRequester = remember { FocusRequester() }
 
     val selectionMode = selectedIds.isNotEmpty()
     val selectedWallpapers = remember(selectedIds, uiState.wallpapers) {
@@ -94,12 +117,43 @@ fun LibraryScreen(
         }
     }
 
+    val trimmedQuery = remember(searchQuery) { searchQuery.trim() }
+    val displayedWallpapers = remember(uiState.wallpapers, trimmedQuery, isSearchActive) {
+        if (!isSearchActive || trimmedQuery.isEmpty()) {
+            uiState.wallpapers
+        } else {
+            uiState.wallpapers.filter { wallpaper ->
+                wallpaper.title.contains(trimmedQuery, ignoreCase = true) ||
+                    (wallpaper.sourceName?.contains(trimmedQuery, ignoreCase = true) == true)
+            }
+        }
+    }
+    val displayedAlbums = remember(uiState.albums, trimmedQuery, isSearchActive) {
+        if (!isSearchActive || trimmedQuery.isEmpty()) {
+            uiState.albums
+        } else {
+            uiState.albums.filter { album ->
+                album.title.contains(trimmedQuery, ignoreCase = true)
+            }
+        }
+    }
+
     LaunchedEffect(uiState.wallpapers) {
         if (selectedIds.isEmpty()) return@LaunchedEffect
         val available = uiState.wallpapers.mapTo(hashSetOf()) { it.id }
         val filtered = selectedIds.filterTo(mutableSetOf()) { it in available }
         if (filtered.size != selectedIds.size) {
             selectedIds = filtered
+        }
+    }
+
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            searchFocusRequester.requestFocus()
+            keyboardController?.show()
+        } else {
+            focusManager.clearFocus()
+            keyboardController?.hide()
         }
     }
 
@@ -116,10 +170,33 @@ fun LibraryScreen(
         }
     }
 
+    LaunchedEffect(selectionMode) {
+        if (selectionMode) {
+            showSortSheet = false
+            if (isSearchActive) {
+                isSearchActive = false
+                searchQuery = ""
+            }
+        } else {
+            showRemoveDownloadsDialog = false
+        }
+    }
+
+    LaunchedEffect(selectedTab) {
+        showSortSheet = false
+    }
+
     if (selectionMode) {
         val selectionTitle = "${selectedIds.size} selected"
         val removeLabel = "Remove from library"
         val addLabel = "Add to album"
+        val allSelectedDownloaded = selectedWallpapers.isNotEmpty() &&
+            selectedWallpapers.all { it.isDownloaded && !it.localUri.isNullOrBlank() }
+        val downloadLabel = if (allSelectedDownloaded) {
+            "Remove downloads"
+        } else {
+            "Download"
+        }
         val clearLabel = "Clear selection"
         val actions: @Composable RowScope.() -> Unit = {
             IconButton(
@@ -132,6 +209,29 @@ fun LibraryScreen(
                 enabled = !uiState.isSelectionActionInProgress
             ) {
                 Icon(imageVector = Icons.Outlined.Delete, contentDescription = removeLabel)
+            }
+            if (allSelectedDownloaded) {
+                IconButton(
+                    onClick = {
+                        if (!uiState.isSelectionActionInProgress) {
+                            showRemoveDownloadsDialog = true
+                        }
+                    },
+                    enabled = !uiState.isSelectionActionInProgress
+                ) {
+                    Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = downloadLabel)
+                }
+            } else {
+                IconButton(
+                    onClick = {
+                        if (selectedWallpapers.isNotEmpty()) {
+                            libraryViewModel.downloadWallpapers(selectedWallpapers)
+                        }
+                    },
+                    enabled = !uiState.isSelectionActionInProgress
+                ) {
+                    Icon(imageVector = Icons.Outlined.Download, contentDescription = downloadLabel)
+                }
             }
             IconButton(
                 onClick = {
@@ -158,7 +258,57 @@ fun LibraryScreen(
             )
         }
     } else {
-        SideEffect { onConfigureTopBar(null) }
+        val baseTitle = if (selectedTab == 0) "Library" else "Albums"
+        val searchPlaceholder = if (selectedTab == 0) {
+            "Search wallpapers"
+        } else {
+            "Search albums"
+        }
+        val actions: @Composable RowScope.() -> Unit = {
+            if (!isSearchActive) {
+                IconButton(onClick = { isSearchActive = true }) {
+                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
+                }
+            }
+            IconButton(onClick = { showSortSheet = true }) {
+                Icon(imageVector = Icons.Outlined.Sort, contentDescription = "Sort")
+            }
+        }
+        val navigationIcon = if (isSearchActive) {
+            TopBarState.NavigationIcon(
+                icon = Icons.Outlined.Close,
+                contentDescription = "Close search",
+                onClick = {
+                    isSearchActive = false
+                    searchQuery = ""
+                }
+            )
+        } else {
+            null
+        }
+        val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
+            {
+                TopBarSearchField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    onClear = { searchQuery = "" },
+                    placeholder = searchPlaceholder,
+                    focusRequester = searchFocusRequester
+                )
+            }
+        } else {
+            null
+        }
+        SideEffect {
+            onConfigureTopBar(
+                TopBarState(
+                    title = if (isSearchActive) null else baseTitle,
+                    navigationIcon = navigationIcon,
+                    actions = actions,
+                    titleContent = titleContent
+                )
+            )
+        }
     }
 
     DisposableEffect(Unit) {
@@ -178,6 +328,19 @@ fun LibraryScreen(
             selectedIds.toggle(wallpaper.id, forceAdd = true)
         } else {
             setOf(wallpaper.id)
+        }
+    }
+
+    val wallpaperSelection = uiState.wallpaperSortOption.toSelection()
+    val albumSelection = uiState.albumSortOption.toSelection()
+    val availableSortFields = remember { listOf(SortField.Alphabet, SortField.DateAdded) }
+    val activeSortSelection = if (selectedTab == 0) wallpaperSelection else albumSelection
+    val sortSheetTitle = if (selectedTab == 0) "Sort wallpapers" else "Sort albums"
+    val applySortSelection: (SortSelection) -> Unit = { selection ->
+        if (selectedTab == 0) {
+            libraryViewModel.updateWallpaperSort(selection.toWallpaperSortOption())
+        } else {
+            libraryViewModel.updateAlbumSort(selection.toAlbumSortOption())
         }
     }
 
@@ -212,6 +375,8 @@ fun LibraryScreen(
     ) { innerPadding ->
         LibraryContent(
             uiState = uiState,
+            wallpapers = displayedWallpapers,
+            albums = displayedAlbums,
             selectedTab = selectedTab,
             onTabSelected = { selectedTab = it },
             onWallpaperClick = onWallpaperClick,
@@ -226,15 +391,29 @@ fun LibraryScreen(
             onRequestCreateAlbum = { showAlbumDialog = true },
             onDismissCreateAlbum = { showAlbumDialog = false },
             showAlbumDialog = showAlbumDialog,
-            wallpaperSortOption = uiState.wallpaperSortOption,
-            onWallpaperSortChange = libraryViewModel::updateWallpaperSort,
-            albumSortOption = uiState.albumSortOption,
-            onAlbumSortChange = libraryViewModel::updateAlbumSort,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope,
+            isSearching = isSearchActive,
+            searchQuery = trimmedQuery,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         )
     }
+
+    SortBottomSheet(
+        visible = showSortSheet,
+        title = sortSheetTitle,
+        selection = activeSortSelection,
+        availableFields = availableSortFields,
+        onFieldSelected = { field ->
+            applySortSelection(SortSelection(field, activeSortSelection.direction))
+        },
+        onDirectionSelected = { direction ->
+            applySortSelection(SortSelection(activeSortSelection.field, direction))
+        },
+        onDismissRequest = { showSortSheet = false }
+    )
 
     if (showSelectionAlbumDialog) {
         AlbumPickerDialog(
@@ -257,11 +436,51 @@ fun LibraryScreen(
             onDismiss = { showSelectionAlbumDialog = false }
         )
     }
+
+    if (showRemoveDownloadsDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isSelectionActionInProgress) {
+                    showRemoveDownloadsDialog = false
+                }
+            },
+            title = { Text(text = "Remove downloaded files?") },
+            text = {
+                Text(
+                    text = "Delete the downloaded copies for the selected wallpapers?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (!uiState.isSelectionActionInProgress && selectedWallpapers.isNotEmpty()) {
+                            libraryViewModel.removeDownloads(selectedWallpapers)
+                            showRemoveDownloadsDialog = false
+                        }
+                    },
+                    enabled = !uiState.isSelectionActionInProgress
+                ) {
+                    Text(text = "Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showRemoveDownloadsDialog = false },
+                    enabled = !uiState.isSelectionActionInProgress
+                ) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun LibraryContent(
     uiState: LibraryViewModel.LibraryUiState,
+    wallpapers: List<WallpaperItem>,
+    albums: List<AlbumItem>,
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
     onWallpaperClick: (WallpaperItem) -> Unit,
@@ -273,13 +492,14 @@ private fun LibraryContent(
     onRequestCreateAlbum: () -> Unit,
     onDismissCreateAlbum: () -> Unit,
     showAlbumDialog: Boolean,
-    wallpaperSortOption: WallpaperSortOption,
-    onWallpaperSortChange: (WallpaperSortOption) -> Unit,
-    albumSortOption: AlbumSortOption,
-    onAlbumSortChange: (AlbumSortOption) -> Unit,
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+    isSearching: Boolean,
+    searchQuery: String,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf("All Wallpapers", "Albums")
+    val hasQuery = isSearching && searchQuery.isNotBlank()
 
     Column(modifier) {
         TabRow(selectedTabIndex = selectedTab) {
@@ -295,38 +515,31 @@ private fun LibraryContent(
         when (selectedTab) {
             0 -> {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        SortMenu(
-                            selectedOption = wallpaperSortOption,
-                            options = WallpaperSortOption.entries.toList(),
-                            optionLabel = { it.label },
-                            onOptionSelected = onWallpaperSortChange,
-                            label = "Sort wallpapers"
-                        )
-                    }
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (uiState.wallpapers.isEmpty()) {
+                    if (wallpapers.isEmpty()) {
+                        val message = when {
+                            uiState.wallpapers.isEmpty() -> "Your library is empty. Save wallpapers from Browse to see them here."
+                            hasQuery -> "No wallpapers match your search."
+                            else -> "No wallpapers available."
+                        }
                         LibraryEmptyState(
-                            message = "Your library is empty. Save wallpapers from Browse to see them here.",
+                            message = message,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .weight(1f)
                         )
                     } else {
                         WallpaperGrid(
-                            wallpapers = uiState.wallpapers,
+                            wallpapers = wallpapers,
                             onWallpaperSelected = onWallpaperClick,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
                             onLongPress = onWallpaperLongPress,
                             selectedIds = selectedIds,
-                            selectionMode = selectionMode
+                            selectionMode = selectionMode,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                 }
@@ -334,48 +547,44 @@ private fun LibraryContent(
 
             else -> {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        SortMenu(
-                            selectedOption = albumSortOption,
-                            options = AlbumSortOption.entries.toList(),
-                            optionLabel = { it.label },
-                            onOptionSelected = onAlbumSortChange,
-                            label = "Sort albums"
-                        )
-                    }
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (uiState.albums.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    if (albums.isEmpty()) {
+                        val hasAlbums = uiState.albums.isNotEmpty()
+                        if (hasAlbums && hasQuery) {
+                            LibraryEmptyState(
+                                message = "No albums match your search.",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = "Organize wallpapers by creating your first album.",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    textAlign = TextAlign.Center
-                                )
-                                TextButton(
-                                    onClick = onRequestCreateAlbum,
-                                    enabled = !uiState.isCreatingAlbum
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    Text(text = "Add album")
+                                    Text(
+                                        text = "Organize wallpapers by creating your first album.",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    TextButton(
+                                        onClick = onRequestCreateAlbum,
+                                        enabled = !uiState.isCreatingAlbum
+                                    ) {
+                                        Text(text = "Add album")
+                                    }
                                 }
                             }
                         }
                     } else {
                         AlbumList(
-                            albums = uiState.albums,
+                            albums = albums,
                             onAlbumClick = onAlbumClick,
                             modifier = Modifier
                                 .weight(1f)

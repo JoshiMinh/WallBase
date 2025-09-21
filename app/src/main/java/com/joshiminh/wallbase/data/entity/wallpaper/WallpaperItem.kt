@@ -16,7 +16,9 @@ data class WallpaperItem(
     val sourceKey: String? = null,
     val width: Int? = null,
     val height: Int? = null,
-    val addedAt: Long? = null
+    val addedAt: Long? = null,
+    val localUri: String? = null,
+    val isDownloaded: Boolean = false
 ) : Parcelable {
 
     val aspectRatio: Float?
@@ -36,4 +38,27 @@ data class WallpaperItem(
         }
         return "$key:$normalizedId"
     }
+
+    fun providerKey(): String? = sourceKey?.substringBefore(':', missingDelimiterValue = sourceKey)
+
+    fun remoteIdentifierWithinSource(): String? {
+        val key = libraryKey() ?: return null
+        val prefix = sourceKey?.let { "$it:" }
+        return when {
+            prefix != null && key.startsWith(prefix) -> key.removePrefix(prefix)
+            else -> {
+                val delimiterIndex = key.indexOf(':')
+                if (delimiterIndex in 0 until key.lastIndex) {
+                    key.substring(delimiterIndex + 1)
+                } else {
+                    null
+                }
+            }
+        }
+    }
+
+    fun previewModel(): Any =
+        localUri?.takeIf { isDownloaded && it.isNotBlank() } ?: imageUrl
+
+    fun transitionKey(): String = "wallpaper-$id"
 }

@@ -193,12 +193,19 @@ class SourcesViewModel(
         }
     }
 
-    fun removeSource(source: Source) {
+    fun removeSource(source: Source, deleteWallpapers: Boolean) {
         viewModelScope.launch {
-            runCatching { sourceRepository.removeSource(source) }
-                .onSuccess {
+            runCatching { sourceRepository.removeSource(source, deleteWallpapers) }
+                .onSuccess { removedWallpapers ->
+                    val message = when {
+                        deleteWallpapers && removedWallpapers == 1 ->
+                            "Removed ${source.title} and 1 wallpaper"
+                        deleteWallpapers && removedWallpapers > 1 ->
+                            "Removed ${source.title} and $removedWallpapers wallpapers"
+                        else -> "Removed ${source.title}"
+                    }
                     _uiState.update {
-                        it.copy(snackbarMessage = "Removed ${source.title}")
+                        it.copy(snackbarMessage = message)
                     }
                 }
                 .onFailure { error ->
@@ -212,13 +219,41 @@ class SourcesViewModel(
     fun importLocalWallpapers(uris: List<Uri>) {
         if (uris.isEmpty()) return
         viewModelScope.launch {
-            val result = runCatching { libraryRepository.importLocalWallpapers(getApplication(), uris) }
+            val result = runCatching { libraryRepository.importLocalWallpapers(uris) }
             _uiState.update {
                 it.copy(
                     snackbarMessage = result.fold(
-                        onSuccess = { "Imported ${uris.size} wallpapers" },
+                        onSuccess = { summary ->
+                            when {
+                                summary.imported > 0 -> "Imported ${summary.imported} wallpapers"
+                                summary.skipped > 0 -> "No new wallpapers imported"
+                                else -> "No wallpapers were imported"
+                            }
+                        },
                         onFailure = { throwable ->
                             throwable.localizedMessage ?: "Unable to import images"
+                        }
+                    )
+                )
+            }
+        }
+    }
+
+    fun importLocalFolder(folderUri: Uri) {
+        viewModelScope.launch {
+            val result = runCatching { libraryRepository.importLocalFolder(folderUri) }
+            _uiState.update {
+                it.copy(
+                    snackbarMessage = result.fold(
+                        onSuccess = { summary ->
+                            when {
+                                summary.imported > 0 ->
+                                    "Imported ${summary.imported} wallpapers to \"${summary.albumTitle}\""
+                                else -> "No images found in \"${summary.albumTitle}\""
+                            }
+                        },
+                        onFailure = { throwable ->
+                            throwable.localizedMessage ?: "Unable to import folder"
                         }
                     )
                 )

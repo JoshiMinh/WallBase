@@ -45,6 +45,10 @@ class WallpaperDetailViewModel(
                 isAddingToLibrary = false,
                 isRemovingFromLibrary = false,
                 isInLibrary = wallpaper.sourceKey == SourceKeys.LOCAL,
+                isDownloading = false,
+                isRemovingDownload = false,
+                isDownloaded = wallpaper.isDownloaded && !wallpaper.localUri.isNullOrBlank(),
+                showRemoveDownloadConfirmation = false,
                 pendingPreview = null,
                 pendingFallback = null,
                 message = null
@@ -52,15 +56,25 @@ class WallpaperDetailViewModel(
         }
 
         val sourceKey = wallpaper.sourceKey
-        if (sourceKey != null && sourceKey != SourceKeys.LOCAL) {
+        if (sourceKey != null) {
             viewModelScope.launch {
-                val saved = runCatching { libraryRepository.isWallpaperInLibrary(wallpaper) }
-                    .getOrDefault(false)
-                _uiState.update { current ->
-                    if (current.wallpaper?.id == wallpaper.id) {
-                        current.copy(isInLibrary = saved)
-                    } else {
-                        current
+                val libraryState = runCatching { libraryRepository.getWallpaperLibraryState(wallpaper) }
+                    .getOrNull()
+                if (libraryState != null) {
+                    _uiState.update { current ->
+                        if (current.wallpaper?.id == wallpaper.id) {
+                            val updatedWallpaper = current.wallpaper.copy(
+                                localUri = libraryState.localUri,
+                                isDownloaded = libraryState.isDownloaded
+                            )
+                            current.copy(
+                                wallpaper = updatedWallpaper,
+                                isInLibrary = libraryState.isInLibrary,
+                                isDownloaded = libraryState.isDownloaded
+                            )
+                        } else {
+                            current
+                        }
                     }
                 }
             }
@@ -214,6 +228,98 @@ class WallpaperDetailViewModel(
         }
     }
 
+    fun downloadWallpaper() {
+        val wallpaper = _uiState.value.wallpaper ?: return
+        if (_uiState.value.isDownloading) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDownloading = true, message = null) }
+            val result = runCatching { libraryRepository.downloadWallpapers(listOf(wallpaper)) }
+            val libraryState = runCatching { libraryRepository.getWallpaperLibraryState(wallpaper) }
+                .getOrNull()
+            _uiState.update {
+                val updatedWallpaper = if (libraryState != null && it.wallpaper?.id == wallpaper.id) {
+                    it.wallpaper.copy(
+                        localUri = libraryState.localUri,
+                        isDownloaded = libraryState.isDownloaded
+                    )
+                } else {
+                    it.wallpaper
+                }
+                it.copy(
+                    isDownloading = false,
+                    isDownloaded = libraryState?.isDownloaded ?: it.isDownloaded,
+                    wallpaper = updatedWallpaper,
+                    message = result.fold(
+                        onSuccess = { summary ->
+                            when {
+                                summary.downloaded > 0 -> "Downloaded wallpaper"
+                                summary.skipped > 0 -> "Wallpaper already saved locally"
+                                else -> "Unable to download wallpaper"
+                            }
+                        },
+                        onFailure = { throwable ->
+                            throwable.localizedMessage ?: "Unable to download wallpaper"
+                        }
+                    )
+                )
+            }
+        }
+    }
+
+    fun promptRemoveDownload() {
+        val current = _uiState.value
+        if (!current.isDownloaded || current.isRemovingDownload) return
+        _uiState.update { it.copy(showRemoveDownloadConfirmation = true, message = null) }
+    }
+
+    fun dismissRemoveDownloadPrompt() {
+        _uiState.update { it.copy(showRemoveDownloadConfirmation = false) }
+    }
+
+    fun removeDownload() {
+        val wallpaper = _uiState.value.wallpaper ?: return
+        val currentState = _uiState.value
+        if (!currentState.isDownloaded || currentState.isRemovingDownload) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRemovingDownload = true, message = null) }
+            val result = runCatching { libraryRepository.removeDownloads(listOf(wallpaper)) }
+            val libraryState = runCatching { libraryRepository.getWallpaperLibraryState(wallpaper) }
+                .getOrNull()
+            _uiState.update {
+                val updatedWallpaper = if (libraryState != null && it.wallpaper?.id == wallpaper.id) {
+                    it.wallpaper.copy(
+                        localUri = libraryState.localUri,
+                        isDownloaded = libraryState.isDownloaded
+                    )
+                } else {
+                    it.wallpaper
+                }
+                it.copy(
+                    isRemovingDownload = false,
+                    showRemoveDownloadConfirmation = false,
+                    isDownloaded = libraryState?.isDownloaded ?: false,
+                    wallpaper = updatedWallpaper,
+                    message = result.fold(
+                        onSuccess = { summary ->
+                            when {
+                                summary.removed > 0 && summary.failed > 0 ->
+                                    "Removed downloaded copy (failed ${summary.failed})"
+                                summary.removed > 0 -> "Removed downloaded copy"
+                                summary.skipped > 0 -> "Wallpaper wasn't downloaded"
+                                else -> "No downloads were removed"
+                            }
+                        },
+                        onFailure = { throwable ->
+                            throwable.localizedMessage ?: "Unable to remove download"
+                        }
+                    )
+                )
+            }
+        }
+    }
+
     fun removeFromLibrary() {
         val wallpaper = _uiState.value.wallpaper ?: return
         if (!_uiState.value.isInLibrary || _uiState.value.isRemovingFromLibrary) return
@@ -271,7 +377,11 @@ class WallpaperDetailViewModel(
         val isAddingToLibrary: Boolean = false,
         val isRemovingFromLibrary: Boolean = false,
         val isInLibrary: Boolean = false,
+        val isDownloading: Boolean = false,
+        val isDownloaded: Boolean = false,
+        val isRemovingDownload: Boolean = false,
         val hasWallpaperPermission: Boolean = false,
+        val showRemoveDownloadConfirmation: Boolean = false,
         val pendingPreview: WallpaperPreviewLaunch? = null,
         val pendingFallback: WallpaperPreviewFallback? = null,
         val message: String? = null
