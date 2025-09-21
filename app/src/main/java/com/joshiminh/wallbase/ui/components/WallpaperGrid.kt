@@ -1,5 +1,12 @@
 package com.joshiminh.wallbase.ui.components
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedBoundsResizeMode
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSharedContentState
+import androidx.compose.animation.sharedBounds
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -42,10 +49,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.wallpaper.transitionKey
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 
-@OptIn(ExperimentalFoundationApi::class)
+private const val UNKNOWN_PROVIDER_KEY = ""
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun WallpaperGrid(
     wallpapers: List<WallpaperItem>,
@@ -55,9 +65,13 @@ fun WallpaperGrid(
     selectedIds: Set<String> = emptySet(),
     selectionMode: Boolean = false,
     savedWallpaperKeys: Set<String> = emptySet(),
+    savedRemoteIdsByProvider: Map<String, Set<String>> = emptyMap(),
+    savedImageUrls: Set<String> = emptySet(),
     onLoadMore: (() -> Unit)? = null,
     isLoadingMore: Boolean = false,
-    canLoadMore: Boolean = false
+    canLoadMore: Boolean = false,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val gridState = rememberLazyStaggeredGridState()
     val totalItems = wallpapers.size
@@ -80,20 +94,53 @@ fun WallpaperGrid(
         modifier = modifier.fillMaxSize(),
         columns = StaggeredGridCells.Fixed(2),
         state = gridState,
-        verticalItemSpacing = 16.dp,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 32.dp)
+        verticalItemSpacing = 8.dp,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
     ) {
         items(wallpapers, key = WallpaperItem::id) { wallpaper ->
             val isSelected = wallpaper.id in selectedIds
-            val isSaved = wallpaper.libraryKey()?.let { it in savedWallpaperKeys } ?: false
+            val libraryKey = wallpaper.libraryKey()
+            val providerKey = wallpaper.providerKey() ?: UNKNOWN_PROVIDER_KEY
+            val remoteId = wallpaper.remoteIdentifierWithinSource()
+            val directMatch = libraryKey != null && libraryKey in savedWallpaperKeys
+            val providerMatch = if (remoteId != null) {
+                val providerSet = savedRemoteIdsByProvider[providerKey]
+                val fallbackSet = if (providerKey != UNKNOWN_PROVIDER_KEY) {
+                    savedRemoteIdsByProvider[UNKNOWN_PROVIDER_KEY]
+                } else {
+                    null
+                }
+                (providerSet?.contains(remoteId) == true) || (fallbackSet?.contains(remoteId) == true)
+            } else {
+                false
+            }
+            val imageMatch = if (directMatch || providerMatch) {
+                false
+            } else {
+                savedImageUrls.contains(wallpaper.imageUrl)
+            }
+            val isSaved = directMatch || providerMatch || imageMatch
+            val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                with(sharedTransitionScope) {
+                    Modifier.sharedBounds(
+                        sharedContentState = rememberSharedContentState(key = wallpaper.transitionKey()),
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        resizeMode = SharedBoundsResizeMode.Clip,
+                        boundsTransform = { _, _ -> tween(durationMillis = 350) }
+                    )
+                }
+            } else {
+                Modifier
+            }
             WallpaperCard(
                 item = wallpaper,
                 isSelected = isSelected,
                 isSaved = isSaved,
                 selectionMode = selectionMode,
                 onClick = { onWallpaperSelected(wallpaper) },
-                onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } }
+                onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
+                sharedElementModifier = sharedModifier
             )
         }
 
@@ -112,7 +159,7 @@ fun WallpaperGrid(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun WallpaperCard(
     item: WallpaperItem,
@@ -121,7 +168,8 @@ fun WallpaperCard(
     selectionMode: Boolean,
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sharedElementModifier: Modifier = Modifier
 ) {
     val aspectRatio = item.aspectRatio ?: DEFAULT_ASPECT_RATIO
     Card(
@@ -145,9 +193,9 @@ fun WallpaperCard(
     ) {
         Box {
             AsyncImage(
-                model = item.imageUrl,
+                model = item.previewModel(),
                 contentDescription = item.title,
-                modifier = Modifier.fillMaxSize(),
+                modifier = sharedElementModifier.then(Modifier.fillMaxSize()),
                 contentScale = ContentScale.Crop
             )
 

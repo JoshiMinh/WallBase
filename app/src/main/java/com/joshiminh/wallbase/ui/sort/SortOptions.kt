@@ -15,6 +15,12 @@ interface SortDescriptor<T> {
     }
 }
 
+enum class SortField { Alphabet, DateAdded }
+
+enum class SortDirection { Ascending, Descending }
+
+data class SortSelection(val field: SortField, val direction: SortDirection)
+
 enum class WallpaperSortOption(
     override val label: String,
     override val comparator: Comparator<WallpaperItem>
@@ -41,6 +47,16 @@ enum class AlbumSortOption(
     override val label: String,
     override val comparator: Comparator<AlbumItem>
 ) : SortDescriptor<AlbumItem> {
+    RECENTLY_CREATED(
+        label = "Recently added",
+        comparator = compareByDescending<AlbumItem> { it.createdAt }
+            .thenBy { it.title.lowercase(Locale.ROOT) }
+    ),
+    EARLIEST_CREATED(
+        label = "Oldest added",
+        comparator = compareBy<AlbumItem> { it.createdAt }
+            .thenBy { it.title.lowercase(Locale.ROOT) }
+    ),
     TITLE_ASCENDING(
         label = "Title (A-Z)",
         comparator = compareBy { it.title.lowercase(Locale.ROOT) }
@@ -48,17 +64,55 @@ enum class AlbumSortOption(
     TITLE_DESCENDING(
         label = "Title (Z-A)",
         comparator = compareByDescending<AlbumItem> { it.title.lowercase(Locale.ROOT) }
-    ),
-    MOST_WALLPAPERS(
-        label = "Most wallpapers",
-        comparator = compareByDescending<AlbumItem> { it.wallpaperCount }
-            .thenBy { it.title.lowercase(Locale.ROOT) }
-    ),
-    FEWEST_WALLPAPERS(
-        label = "Fewest wallpapers",
-        comparator = compareBy<AlbumItem> { it.wallpaperCount }
-            .thenBy { it.title.lowercase(Locale.ROOT) }
     )
 }
 
 fun <T> List<T>.sortedWith(option: SortDescriptor<T>): List<T> = option.sort(this)
+
+fun WallpaperSortOption.toSelection(): SortSelection = when (this) {
+    WallpaperSortOption.RECENTLY_ADDED -> SortSelection(SortField.DateAdded, SortDirection.Descending)
+    WallpaperSortOption.OLDEST_ADDED -> SortSelection(SortField.DateAdded, SortDirection.Ascending)
+    WallpaperSortOption.TITLE_ASCENDING -> SortSelection(SortField.Alphabet, SortDirection.Ascending)
+    WallpaperSortOption.TITLE_DESCENDING -> SortSelection(SortField.Alphabet, SortDirection.Descending)
+}
+
+fun SortSelection.toWallpaperSortOption(): WallpaperSortOption = when (field) {
+    SortField.Alphabet -> if (direction == SortDirection.Ascending) {
+        WallpaperSortOption.TITLE_ASCENDING
+    } else {
+        WallpaperSortOption.TITLE_DESCENDING
+    }
+
+    SortField.DateAdded -> if (direction == SortDirection.Ascending) {
+        WallpaperSortOption.OLDEST_ADDED
+    } else {
+        WallpaperSortOption.RECENTLY_ADDED
+    }
+}
+
+fun AlbumSortOption.toSelection(): SortSelection = when (this) {
+    AlbumSortOption.RECENTLY_CREATED -> SortSelection(SortField.DateAdded, SortDirection.Descending)
+    AlbumSortOption.EARLIEST_CREATED -> SortSelection(SortField.DateAdded, SortDirection.Ascending)
+    AlbumSortOption.TITLE_ASCENDING -> SortSelection(SortField.Alphabet, SortDirection.Ascending)
+    AlbumSortOption.TITLE_DESCENDING -> SortSelection(SortField.Alphabet, SortDirection.Descending)
+}
+
+fun SortSelection.toAlbumSortOption(): AlbumSortOption = when (field) {
+    SortField.Alphabet -> if (direction == SortDirection.Ascending) {
+        AlbumSortOption.TITLE_ASCENDING
+    } else {
+        AlbumSortOption.TITLE_DESCENDING
+    }
+
+    SortField.DateAdded -> if (direction == SortDirection.Ascending) {
+        AlbumSortOption.EARLIEST_CREATED
+    } else {
+        AlbumSortOption.RECENTLY_CREATED
+    }
+}
+
+val SortField.displayName: String
+    get() = when (this) {
+        SortField.Alphabet -> "Alphabet"
+        SortField.DateAdded -> "Date added"
+    }

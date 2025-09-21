@@ -21,6 +21,9 @@ interface AlbumDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCrossRefs(refs: List<AlbumWallpaperCrossRef>): List<Long>
 
+    @Query("SELECT * FROM albums WHERE title = :title LIMIT 1")
+    suspend fun findAlbumByTitle(title: String): AlbumEntity?
+
     @Transaction
     @Query("SELECT * FROM albums ORDER BY sort_order, title")
     fun observeAlbumsWithWallpapers(): Flow<List<AlbumWithWallpapers>>

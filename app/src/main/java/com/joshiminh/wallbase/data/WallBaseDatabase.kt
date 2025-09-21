@@ -22,7 +22,7 @@ import com.joshiminh.wallbase.data.entity.source.SourceSeed
         AlbumWallpaperCrossRef::class,
         SourceEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {

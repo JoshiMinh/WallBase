@@ -4,28 +4,41 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedBoundsResizeMode
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSharedContentState
+import androidx.compose.animation.sharedBounds
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.surfaceColorAtElevation
@@ -35,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -45,13 +59,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
+import com.joshiminh.wallbase.data.entity.wallpaper.transitionKey
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
+import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
 
 @Composable
 fun WallpaperDetailRoute(
     wallpaper: WallpaperItem,
-    viewModel: WallpaperDetailViewModel = viewModel(factory = WallpaperDetailViewModel.Factory)
+    onNavigateBack: () -> Unit,
+    viewModel: WallpaperDetailViewModel = viewModel(factory = WallpaperDetailViewModel.Factory),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -97,12 +115,20 @@ fun WallpaperDetailRoute(
         onDismissPreviewFallback = viewModel::dismissPreviewFallback,
         onAddToLibrary = viewModel::addToLibrary,
         onRemoveFromLibrary = viewModel::removeFromLibrary,
+        onDownload = viewModel::downloadWallpaper,
+        onRequestRemoveDownload = viewModel::promptRemoveDownload,
+        onConfirmRemoveDownload = viewModel::removeDownload,
+        onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
-        snackbarHostState = snackbarHostState
+        onNavigateBack = onNavigateBack,
+        snackbarHostState = snackbarHostState,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope
     )
 }
 
 @Composable
+@OptIn(ExperimentalSharedTransitionApi::class)
 private fun WallpaperDetailScreen(
     uiState: WallpaperDetailViewModel.WallpaperDetailUiState,
     onApplyTarget: (WallpaperTarget) -> Unit,
@@ -110,14 +136,35 @@ private fun WallpaperDetailScreen(
     onDismissPreviewFallback: () -> Unit,
     onAddToLibrary: () -> Unit,
     onRemoveFromLibrary: () -> Unit,
+    onDownload: () -> Unit,
+    onRequestRemoveDownload: () -> Unit,
+    onConfirmRemoveDownload: () -> Unit,
+    onDismissRemoveDownload: () -> Unit,
     onRequestPermission: () -> Unit,
-    snackbarHostState: SnackbarHostState
+    onNavigateBack: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
     val wallpaper = uiState.wallpaper ?: return
     val uriHandler = LocalUriHandler.current
     val canAddToLibrary = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     val canRemoveFromLibrary = uiState.isInLibrary && wallpaper.sourceKey != null
+    val canDownload = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     var showTargetDialog by remember { mutableStateOf(false) }
+    val aspectRatio = wallpaper.aspectRatio ?: DEFAULT_DETAIL_ASPECT_RATIO
+    val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedBounds(
+                sharedContentState = rememberSharedContentState(key = wallpaper.transitionKey()),
+                animatedVisibilityScope = animatedVisibilityScope,
+                resizeMode = SharedBoundsResizeMode.Clip,
+                boundsTransform = { _, _ -> tween(durationMillis = 350) }
+            )
+        }
+    } else {
+        Modifier
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -127,130 +174,229 @@ private fun WallpaperDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = wallpaper.title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-            Card(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
                 ) {
-                    wallpaper.sourceName?.let { sourceName ->
-                        Text(
-                            text = sourceName,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(9f / 19.5f)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
-                    ) {
-                        AsyncImage(
-                            model = wallpaper.imageUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                    AsyncImage(
+                        model = wallpaper.previewModel(),
+                        contentDescription = null,
+                        modifier = sharedModifier.then(
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(aspectRatio)
+                        ),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                ) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
                         )
                     }
                 }
             }
 
-            if (!uiState.hasWallpaperPermission) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
                 Text(
-                    text = "Allow WallBase to open the system wallpaper preview so you can confirm the image.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    text = wallpaper.title,
+                    style = MaterialTheme.typography.titleLarge
                 )
-                TextButton(onClick = onRequestPermission) {
-                    Text(text = "Grant wallpaper access")
+
+                wallpaper.sourceName?.let { sourceName ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = sourceName,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
-            }
 
-            if (uiState.isAddingToLibrary) {
-                AssistChip(
-                    onClick = {},
-                    label = { Text(text = "Adding to library…") },
-                    enabled = false
-                )
                 Spacer(Modifier.height(12.dp))
-            }
 
-            if (uiState.isRemovingFromLibrary) {
-                AssistChip(
-                    onClick = {},
-                    label = { Text(text = "Removing from library…") },
-                    enabled = false
-                )
-                Spacer(Modifier.height(12.dp))
-            }
+                if (!uiState.hasWallpaperPermission) {
+                    Text(
+                        text = "Allow WallBase to open the system wallpaper preview so you can confirm the image.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = onRequestPermission) {
+                        Text(text = "Grant wallpaper access")
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
 
-            if (uiState.isApplying) {
-                AssistChip(
-                    onClick = {},
-                    label = { Text(text = "Applying wallpaper…") },
-                    enabled = false
-                )
-                Spacer(Modifier.height(12.dp))
-            }
+                if (uiState.isDownloading) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(text = "Downloading wallpaper…") },
+                        enabled = false
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (canAddToLibrary) {
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onAddToLibrary,
-                        enabled = !uiState.isAddingToLibrary && !uiState.isInLibrary
-                    ) {
-                        val label = if (uiState.isInLibrary) {
-                            "In your library"
+                if (uiState.isRemovingDownload) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(text = "Removing download…") },
+                        enabled = false
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                if (uiState.isAddingToLibrary) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(text = "Adding to library…") },
+                        enabled = false
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                if (uiState.isRemovingFromLibrary) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(text = "Removing from library…") },
+                        enabled = false
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                if (uiState.isApplying) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(text = "Applying wallpaper…") },
+                        enabled = false
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (canDownload) {
+                        if (uiState.isDownloaded) {
+                            Button(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = onRequestRemoveDownload,
+                                enabled = !uiState.isRemovingDownload
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.TaskAlt,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "Downloaded")
+                            }
                         } else {
-                            "Add to library"
+                            Button(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = onDownload,
+                                enabled = !uiState.isDownloading
+                            ) {
+                                Text(text = "Download")
+                            }
                         }
-                        Text(text = label)
                     }
-                }
 
-                if (canRemoveFromLibrary) {
+                    val showLibraryToggle = canAddToLibrary || canRemoveFromLibrary
+                    if (showLibraryToggle) {
+                        val enabled = if (uiState.isInLibrary) {
+                            canRemoveFromLibrary && !uiState.isRemovingFromLibrary
+                        } else {
+                            canAddToLibrary && !uiState.isAddingToLibrary
+                        }
+                        Button(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                if (uiState.isInLibrary) {
+                                    onRemoveFromLibrary()
+                                } else {
+                                    onAddToLibrary()
+                                }
+                            },
+                            enabled = enabled
+                        ) {
+                            if (uiState.isInLibrary && canRemoveFromLibrary) {
+                                Icon(
+                                    imageVector = Icons.Outlined.TaskAlt,
+                                    contentDescription = null
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "In your library")
+                            } else {
+                                Text(text = "Add to library")
+                            }
+                        }
+                    }
+
                     Button(
                         modifier = Modifier.fillMaxWidth(),
-                        onClick = onRemoveFromLibrary,
-                        enabled = !uiState.isRemovingFromLibrary
+                        onClick = { showTargetDialog = true },
+                        enabled = uiState.hasWallpaperPermission && !uiState.isApplying
                     ) {
-                        Text(text = "Remove from library")
+                        Text(text = "Set wallpaper")
                     }
                 }
 
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { showTargetDialog = true },
-                    enabled = uiState.hasWallpaperPermission && !uiState.isApplying
-                ) {
-                    Text(text = "Set wallpaper")
+                Spacer(Modifier.height(16.dp))
+
+                TextButton(onClick = { uriHandler.openUri(wallpaper.sourceUrl) }) {
+                    Text(text = "Open original post")
                 }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            TextButton(onClick = { uriHandler.openUri(wallpaper.sourceUrl) }) {
-                Text(text = "Open original post")
             }
         }
+    }
+
+    if (uiState.showRemoveDownloadConfirmation) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isRemovingDownload) {
+                    onDismissRemoveDownload()
+                }
+            },
+            title = { Text(text = "Remove downloaded file?") },
+            text = {
+                Text(
+                    text = "Delete the downloaded copy saved locally for this wallpaper?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = onConfirmRemoveDownload,
+                    enabled = !uiState.isRemovingDownload
+                ) {
+                    Text(text = "Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDismissRemoveDownload,
+                    enabled = !uiState.isRemovingDownload
+                ) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
     }
 
     if (showTargetDialog) {
@@ -273,6 +419,8 @@ private fun WallpaperDetailScreen(
         )
     }
 }
+
+private const val DEFAULT_DETAIL_ASPECT_RATIO = 9f / 16f
 
 @Composable
 private fun SetWallpaperDialog(

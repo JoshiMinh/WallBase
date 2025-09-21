@@ -45,7 +45,9 @@ fun SettingsScreen(
     onSourceRepoUrlChanged: (String) -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
-    onMessageShown: () -> Unit
+    onMessageShown: () -> Unit,
+    onConfigureLocalLibrary: () -> Unit,
+    onClearLocalLibrary: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -218,6 +220,71 @@ fun SettingsScreen(
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                }
+                            }
+                        }
+                    }
+
+                    SettingsCard {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Local storage",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Choose where downloaded and imported wallpapers are saved.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            val storageStatus = uiState.localLibraryFolderName?.let { name ->
+                                "Currently using \"$name\"."
+                            } ?: "Not configured."
+
+                            Text(
+                                text = storageStatus,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(
+                                    onClick = onConfigureLocalLibrary,
+                                    enabled = !uiState.isConfiguringLocalStorage,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = if (uiState.localLibraryUri == null) {
+                                            "Choose location"
+                                        } else {
+                                            "Change location"
+                                        }
+                                    )
+                                }
+                                if (uiState.localLibraryUri != null) {
+                                    TextButton(onClick = onClearLocalLibrary) {
+                                        Text("Clear")
+                                    }
+                                }
+                            }
+
+                            if (uiState.isConfiguringLocalStorage) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
                                 }
                             }
                         }

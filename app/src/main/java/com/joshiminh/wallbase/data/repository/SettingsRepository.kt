@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
+import kotlinx.coroutines.flow.first
 
 /**
  * Persists simple user settings such as dark theme and custom source repository URLs.
@@ -31,7 +32,8 @@ class SettingsRepository(
         .map { prefs ->
             SettingsPreferences(
                 darkTheme = prefs[Keys.DARK_THEME] ?: false,
-                sourceRepoUrl = prefs[Keys.SOURCE_REPO_URL].orEmpty()
+                sourceRepoUrl = prefs[Keys.SOURCE_REPO_URL].orEmpty(),
+                localLibraryUri = prefs[Keys.LOCAL_LIBRARY_URI]
             )
         }
 
@@ -52,15 +54,32 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setLocalLibraryUri(uri: String?) {
+        dataStore.edit { prefs ->
+            if (uri.isNullOrBlank()) {
+                prefs.remove(Keys.LOCAL_LIBRARY_URI)
+            } else {
+                prefs[Keys.LOCAL_LIBRARY_URI] = uri
+            }
+        }
+    }
+
+    suspend fun getLocalLibraryUri(): String? {
+        val prefs = dataStore.data.first()
+        return prefs[Keys.LOCAL_LIBRARY_URI]
+    }
+
     private object Keys {
         val DARK_THEME = booleanPreferencesKey("dark_theme")
         val SOURCE_REPO_URL = stringPreferencesKey("source_repo_url")
+        val LOCAL_LIBRARY_URI = stringPreferencesKey("local_library_uri")
     }
 }
 
 data class SettingsPreferences(
     val darkTheme: Boolean,
-    val sourceRepoUrl: String
+    val sourceRepoUrl: String,
+    val localLibraryUri: String?
 )
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")

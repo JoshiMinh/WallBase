@@ -2,22 +2,11 @@ package com.joshiminh.wallbase.data.entity.wallpaper
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import com.joshiminh.wallbase.data.entity.source.SourceEntity
 
 @Entity(
     tableName = "wallpapers",
-    foreignKeys = [
-        ForeignKey(
-            entity = SourceEntity::class,
-            parentColumns = ["key"],
-            childColumns = ["source_key"],
-            onDelete = ForeignKey.CASCADE,
-            onUpdate = ForeignKey.CASCADE
-        )
-    ],
     indices = [
         Index(value = ["source_key"]),
         Index(value = ["added_at"]),

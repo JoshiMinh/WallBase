@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,9 +33,13 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -54,16 +59,21 @@ fun BrowseScreen(
     onGoogleDriveClick: () -> Unit,
     onGooglePhotosClick: () -> Unit,
     onAddLocalWallpapers: () -> Unit,
+    onAddLocalFolder: () -> Unit,
+    onConfigureLocalStorage: () -> Unit,
+    localStorageFolderName: String?,
+    isLocalStorageConfigured: Boolean,
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearSearchResults: () -> Unit,
     onOpenSource: (Source) -> Unit,
-    onRemoveSource: (Source) -> Unit,
+    onRemoveSource: (Source, Boolean) -> Unit,
     onMessageShown: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    var pendingRemoval by remember { mutableStateOf<Source?>(null) }
 
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage ?: return@LaunchedEffect
@@ -112,11 +122,26 @@ fun BrowseScreen(
                         onGoogleDriveClick = onGoogleDriveClick,
                         onGooglePhotosClick = onGooglePhotosClick,
                         onAddLocalWallpapers = onAddLocalWallpapers,
-                        onRemoveSource = onRemoveSource
+                        onAddLocalFolder = onAddLocalFolder,
+                        onConfigureLocalStorage = onConfigureLocalStorage,
+                        localStorageFolderName = localStorageFolderName,
+                        isLocalStorageConfigured = isLocalStorageConfigured,
+                        onRequestRemove = { pendingRemoval = it }
                     )
                 }
             }
         }
+    }
+
+    pendingRemoval?.let { source ->
+        RemoveSourceDialog(
+            source = source,
+            onDismiss = { pendingRemoval = null },
+            onConfirm = { removeWallpapers ->
+                onRemoveSource(source, removeWallpapers)
+                pendingRemoval = null
+            }
+        )
     }
 }
 
@@ -313,7 +338,11 @@ private fun SourceCard(
     onGoogleDriveClick: () -> Unit,
     onGooglePhotosClick: () -> Unit,
     onAddLocalWallpapers: () -> Unit,
-    onRemoveSource: (Source) -> Unit
+    onAddLocalFolder: () -> Unit,
+    onConfigureLocalStorage: () -> Unit,
+    localStorageFolderName: String?,
+    isLocalStorageConfigured: Boolean,
+    onRequestRemove: (Source) -> Unit
 ) {
     val isGoogleDrive = source.providerKey == SourceKeys.GOOGLE_DRIVE
     val isGooglePhotos = source.providerKey == SourceKeys.GOOGLE_PHOTOS
@@ -372,20 +401,49 @@ private fun SourceCard(
                     Text(source.description, style = MaterialTheme.typography.bodyMedium)
                 }
                 if (isRemovable) {
-                    IconButton(onClick = { onRemoveSource(source) }) {
+                    IconButton(onClick = { onRequestRemove(source) }) {
                         Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Remove ${source.title}")
                     }
                 }
             }
             if (isLocal) {
                 Spacer(Modifier.size(12.dp))
+                val storageLabel = if (isLocalStorageConfigured) {
+                    val folderName = localStorageFolderName ?: "WallBase"
+                    "Local wallpapers are stored in \"$folderName\"."
+                } else {
+                    "Choose where to store local wallpapers before importing."
+                }
                 Text(
-                    text = "Import local images into your library.",
+                    text = storageLabel,
                     style = MaterialTheme.typography.bodySmall
                 )
+                Spacer(Modifier.size(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = onAddLocalWallpapers,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Add images")
+                    }
+                    Button(
+                        onClick = onAddLocalFolder,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Add folder as album")
+                    }
+                }
                 Spacer(Modifier.size(4.dp))
-                TextButton(onClick = onAddLocalWallpapers) {
-                    Text("Add from device")
+                TextButton(onClick = onConfigureLocalStorage) {
+                    val label = if (isLocalStorageConfigured) {
+                        "Change storage location"
+                    } else {
+                        "Choose storage location"
+                    }
+                    Text(label)
                 }
             } else if (isGoogleDrivePicker || isGooglePhotosPicker) {
                 Spacer(Modifier.size(12.dp))
@@ -404,4 +462,42 @@ private fun SourceCard(
             }
         }
     }
+}
+
+@Composable
+private fun RemoveSourceDialog(
+    source: Source,
+    onDismiss: () -> Unit,
+    onConfirm: (Boolean) -> Unit
+) {
+    var removeWallpapers by remember(source.id) { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Remove ${source.title}?") },
+        text = {
+            Column {
+                Text("Do you also want to remove wallpapers saved from this source?")
+                Spacer(modifier = Modifier.size(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = removeWallpapers,
+                        onCheckedChange = { removeWallpapers = it }
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text("Also remove wallpapers")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(removeWallpapers) }) {
+                Text("Remove")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

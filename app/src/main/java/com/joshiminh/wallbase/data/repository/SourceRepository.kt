@@ -1,10 +1,12 @@
 package com.joshiminh.wallbase.data.repository
 
+import android.net.Uri
 import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.dao.SourceDao
-import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.data.dao.WallpaperDao
+import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.sources.google_drive.DriveFolder
 import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
@@ -17,7 +19,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class SourceRepository(
-    private val sourceDao: SourceDao
+    private val sourceDao: SourceDao,
+    private val wallpaperDao: WallpaperDao,
+    private val localStorage: LocalStorageCoordinator
 ) {
 
     enum class RemoteSourceType { REDDIT, PINTEREST, WEBSITE }
@@ -58,14 +62,32 @@ class SourceRepository(
         )
     }
 
-    suspend fun removeSource(source: Source) {
+    suspend fun removeSource(source: Source, deleteWallpapers: Boolean): Int {
         if ((source.providerKey == SourceKeys.GOOGLE_PHOTOS ||
                 source.providerKey == SourceKeys.GOOGLE_DRIVE) &&
             source.config.isNullOrBlank()
         ) {
             throw IllegalStateException("Google sources cannot be removed")
         }
+        val wallpapers = if (deleteWallpapers) {
+            wallpaperDao.getWallpapersBySource(source.key)
+        } else {
+            emptyList()
+        }
         sourceDao.deleteSourceById(source.id)
+        if (!deleteWallpapers) return 0
+
+        wallpapers.forEach { entity ->
+            val localUri = entity.localUri
+            if (!localUri.isNullOrBlank() && (entity.isDownloaded || entity.sourceKey == SourceKeys.LOCAL)) {
+                runCatching { localStorage.deleteDocument(Uri.parse(localUri)) }
+                    .onFailure { error ->
+                        if (error is IllegalStateException) throw error
+                    }
+            }
+        }
+
+        return wallpaperDao.deleteBySourceKey(source.key)
     }
 
     private suspend fun addRedditSource(
