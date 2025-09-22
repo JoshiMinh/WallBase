@@ -168,7 +168,6 @@ fun LibraryScreen(
             libraryViewModel.updateAlbumLayout(layout)
         }
     }
-    }
 
     LaunchedEffect(uiState.wallpapers) {
         if (selectedIds.isEmpty()) return@LaunchedEffect
