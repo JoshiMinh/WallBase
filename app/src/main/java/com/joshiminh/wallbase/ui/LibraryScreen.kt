@@ -154,6 +154,7 @@ fun LibraryScreen(
             uiState.albums.filter { album ->
                 album.title.contains(trimmedQuery, ignoreCase = true)
             }
+        }
     }
 
     val onGridColumnsSelected: (Int) -> Unit = { columns ->
