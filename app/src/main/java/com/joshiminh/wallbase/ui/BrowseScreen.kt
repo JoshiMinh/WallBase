@@ -58,11 +58,6 @@ fun BrowseScreen(
     uiState: SourcesViewModel.SourcesUiState,
     onGoogleDriveClick: () -> Unit,
     onGooglePhotosClick: () -> Unit,
-    onAddLocalWallpapers: () -> Unit,
-    onAddLocalFolder: () -> Unit,
-    onConfigureLocalStorage: () -> Unit,
-    localStorageFolderName: String?,
-    isLocalStorageConfigured: Boolean,
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
@@ -77,8 +72,11 @@ fun BrowseScreen(
 
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
-        onMessageShown()
+        try {
+            snackbarHostState.showSnackbar(message)
+        } finally {
+            onMessageShown()
+        }
     }
 
     Scaffold(
@@ -115,17 +113,13 @@ fun BrowseScreen(
                     )
                 }
             } else {
-                items(uiState.sources, key = Source::id) { source ->
+                val visibleSources = uiState.sources.filterNot(Source::isLocal)
+                items(visibleSources, key = Source::id) { source ->
                     SourceCard(
                         source = source,
                         onOpenSource = onOpenSource,
                         onGoogleDriveClick = onGoogleDriveClick,
                         onGooglePhotosClick = onGooglePhotosClick,
-                        onAddLocalWallpapers = onAddLocalWallpapers,
-                        onAddLocalFolder = onAddLocalFolder,
-                        onConfigureLocalStorage = onConfigureLocalStorage,
-                        localStorageFolderName = localStorageFolderName,
-                        isLocalStorageConfigured = isLocalStorageConfigured,
                         onRequestRemove = { pendingRemoval = it }
                     )
                 }
@@ -337,20 +331,13 @@ private fun SourceCard(
     onOpenSource: (Source) -> Unit,
     onGoogleDriveClick: () -> Unit,
     onGooglePhotosClick: () -> Unit,
-    onAddLocalWallpapers: () -> Unit,
-    onAddLocalFolder: () -> Unit,
-    onConfigureLocalStorage: () -> Unit,
-    localStorageFolderName: String?,
-    isLocalStorageConfigured: Boolean,
     onRequestRemove: (Source) -> Unit
 ) {
     val isGoogleDrive = source.providerKey == SourceKeys.GOOGLE_DRIVE
     val isGooglePhotos = source.providerKey == SourceKeys.GOOGLE_PHOTOS
     val isGoogleDrivePicker = isGoogleDrive && source.config.isNullOrBlank()
     val isGooglePhotosPicker = isGooglePhotos && source.config.isNullOrBlank()
-    val isLocal = source.isLocal
     val isRemovable = when {
-        isLocal -> false
         isGoogleDrivePicker || isGooglePhotosPicker -> false
         isGoogleDrive || isGooglePhotos -> true
         else -> source.providerKey == SourceKeys.REDDIT ||
@@ -365,10 +352,9 @@ private fun SourceCard(
         isGooglePhotosPicker -> Modifier
             .fillMaxWidth()
             .clickable { onGooglePhotosClick() }
-        !isLocal -> Modifier
+        else -> Modifier
             .fillMaxWidth()
             .clickable { onOpenSource(source) }
-        else -> Modifier.fillMaxWidth()
     }
 
     Card(
@@ -406,46 +392,8 @@ private fun SourceCard(
                     }
                 }
             }
-            if (isLocal) {
-                Spacer(Modifier.size(12.dp))
-                val storageLabel = if (isLocalStorageConfigured) {
-                    val folderName = localStorageFolderName ?: "WallBase"
-                    "Local wallpapers are stored in \"$folderName\"."
-                } else {
-                    "Choose where to store local wallpapers before importing."
-                }
-                Text(
-                    text = storageLabel,
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Spacer(Modifier.size(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = onAddLocalWallpapers,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Add images")
-                    }
-                    Button(
-                        onClick = onAddLocalFolder,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Add folder as album")
-                    }
-                }
-                Spacer(Modifier.size(4.dp))
-                TextButton(onClick = onConfigureLocalStorage) {
-                    val label = if (isLocalStorageConfigured) {
-                        "Change storage location"
-                    } else {
-                        "Choose storage location"
-                    }
-                    Text(label)
-                }
-            } else if (isGoogleDrivePicker || isGooglePhotosPicker) {
+
+            if (isGoogleDrivePicker || isGooglePhotosPicker) {
                 Spacer(Modifier.size(12.dp))
                 val instructions = if (isGoogleDrivePicker) {
                     "Choose Drive folders to browse their wallpapers."

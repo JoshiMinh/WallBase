@@ -47,9 +47,7 @@ fun SettingsScreen(
     onSourceRepoUrlChanged: (String) -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
-    onMessageShown: () -> Unit,
-    onConfigureLocalLibrary: () -> Unit,
-    onClearLocalLibrary: () -> Unit
+    onMessageShown: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -231,70 +229,19 @@ fun SettingsScreen(
                                     )
                                 }
                             }
-                        }
-                    }
 
-                    SettingsCard {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            uiState.wallpapersBytes?.let { wallpapersBytes ->
+                                val wallpapersSize = Formatter.formatFileSize(context, wallpapersBytes)
                                 Text(
-                                    text = "Local storage",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "Choose where downloaded and imported wallpapers are saved.",
+                                    text = "WallBase wallpapers: $wallpapersSize",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            }
-
-                            val storageStatus = uiState.localLibraryFolderName?.let { name ->
-                                "Currently using \"$name\"."
-                            } ?: "Not configured."
-
-                            Text(
-                                text = storageStatus,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Button(
-                                    onClick = onConfigureLocalLibrary,
-                                    enabled = !uiState.isConfiguringLocalStorage,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(
-                                        text = if (uiState.localLibraryUri == null) {
-                                            "Choose location"
-                                        } else {
-                                            "Change location"
-                                        }
-                                    )
-                                }
-                                if (uiState.localLibraryUri != null) {
-                                    TextButton(onClick = onClearLocalLibrary) {
-                                        Text("Clear")
-                                    }
-                                }
-                            }
-
-                            if (uiState.isConfiguringLocalStorage) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                }
+                                Text(
+                                    text = "Wallpapers are stored privately inside WallBase's app data.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }

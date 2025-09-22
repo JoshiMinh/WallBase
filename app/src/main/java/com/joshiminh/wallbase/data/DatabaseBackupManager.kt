@@ -4,8 +4,11 @@
 
 package com.joshiminh.wallbase.data
 
+import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import androidx.core.net.toFile
+import androidx.documentfile.provider.DocumentFile
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
@@ -23,6 +26,7 @@ import java.io.FileOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import java.io.InputStream
 
 class DatabaseBackupManager(
     private val context: Context,
@@ -69,10 +73,9 @@ class DatabaseBackupManager(
                                 )
                                 val folderInfo = resolveFolderInfo(entity)
                                 val entryName = "$LOCAL_MEDIA_DIR/${entity.id}/$sanitizedName"
+                                val input = openDocumentInput(document) ?: return@forEach
                                 zip.putNextEntry(ZipEntry(entryName))
-                                context.contentResolver.openInputStream(document.uri)?.use { input ->
-                                    input.copyTo(zip)
-                                }
+                                input.use { stream -> stream.copyTo(zip) }
                                 zip.closeEntry()
 
                                 val item = JSONObject().apply {
@@ -247,7 +250,7 @@ class DatabaseBackupManager(
         val entries = parseManifest(manifestJson)
         if (entries.isEmpty()) return
 
-        localStorage.requireBaseFolder()
+        localStorage.ensureStorageDirectory()
         val now = System.currentTimeMillis()
 
         entries.forEach { entry ->
@@ -290,6 +293,15 @@ class DatabaseBackupManager(
             )
         }
         return entries
+    }
+
+    private fun openDocumentInput(document: DocumentFile): InputStream? {
+        val uri = document.uri
+        return when (uri.scheme) {
+            ContentResolver.SCHEME_CONTENT -> context.contentResolver.openInputStream(uri)
+            ContentResolver.SCHEME_FILE, null -> runCatching { uri.toFile().inputStream() }.getOrNull()
+            else -> context.contentResolver.openInputStream(uri)
+        }
     }
 
     private fun resolveFolderInfo(entity: WallpaperEntity): FolderInfo {

@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,7 +43,8 @@ fun SortBottomSheet(
     availableFields: List<SortField>,
     onFieldSelected: (SortField) -> Unit,
     onDirectionSelected: (SortDirection) -> Unit,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    additionalContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     if (!visible) return
 
@@ -72,6 +74,11 @@ fun SortBottomSheet(
                 direction = selection.direction,
                 onDirectionSelected = onDirectionSelected
             )
+            additionalContent?.let { content ->
+                Divider()
+                Spacer(modifier = Modifier.height(4.dp))
+                content()
+            }
             Spacer(modifier = Modifier.height(8.dp))
         }
     }

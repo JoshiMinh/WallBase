@@ -8,7 +8,10 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.LibraryRepository
+import com.joshiminh.wallbase.data.repository.SettingsPreferences
+import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.ui.sort.AlbumSortOption
 import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
 import com.joshiminh.wallbase.ui.sort.sortedWith
@@ -22,7 +25,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class LibraryViewModel(
-    private val repository: LibraryRepository
+    private val repository: LibraryRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val messageFlow = MutableStateFlow<String?>(null)
@@ -39,7 +43,8 @@ class LibraryViewModel(
             selectionActionInProgress,
             messageFlow,
             wallpaperSort,
-            albumSort
+            albumSort,
+            settingsRepository.preferences
         ) { arr: Array<Any?> ->
             val wallpapers = arr[0] as List<WallpaperItem>
             val albums = arr[1] as List<AlbumItem>
@@ -48,6 +53,7 @@ class LibraryViewModel(
             val message = arr[4] as String?
             val wallpaperSortOption = arr[5] as WallpaperSortOption
             val albumSortOption = arr[6] as AlbumSortOption
+            val preferences = arr[7] as SettingsPreferences
 
             LibraryUiState(
                 wallpapers = wallpapers.sortedWith(wallpaperSortOption),
@@ -56,7 +62,9 @@ class LibraryViewModel(
                 isSelectionActionInProgress = selectionBusy,
                 message = message,
                 wallpaperSortOption = wallpaperSortOption,
-                albumSortOption = albumSortOption
+                albumSortOption = albumSortOption,
+                wallpaperGridColumns = preferences.wallpaperGridColumns,
+                albumLayout = preferences.albumLayout
             )
         }.stateIn(
             scope = viewModelScope,
@@ -70,6 +78,18 @@ class LibraryViewModel(
 
     fun updateAlbumSort(option: AlbumSortOption) {
         albumSort.value = option
+    }
+
+    fun updateWallpaperGridColumns(columns: Int) {
+        viewModelScope.launch {
+            settingsRepository.setWallpaperGridColumns(columns)
+        }
+    }
+
+    fun updateAlbumLayout(layout: AlbumLayout) {
+        viewModelScope.launch {
+            settingsRepository.setAlbumLayout(layout)
+        }
     }
 
     fun createAlbum(title: String) {
@@ -237,14 +257,17 @@ class LibraryViewModel(
         val isSelectionActionInProgress: Boolean = false,
         val message: String? = null,
         val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
-        val albumSortOption: AlbumSortOption = AlbumSortOption.TITLE_ASCENDING
+        val albumSortOption: AlbumSortOption = AlbumSortOption.TITLE_ASCENDING,
+        val wallpaperGridColumns: Int = 2,
+        val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST
     )
 
     companion object {
         val Factory = viewModelFactory {
             initializer {
                 LibraryViewModel(
-                    repository = ServiceLocator.libraryRepository
+                    repository = ServiceLocator.libraryRepository,
+                    settingsRepository = ServiceLocator.settingsRepository
                 )
             }
         }

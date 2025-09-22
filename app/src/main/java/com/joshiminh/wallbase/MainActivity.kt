@@ -1,5 +1,6 @@
 package com.joshiminh.wallbase
 
+import android.app.Activity
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -79,31 +81,6 @@ class MainActivity : ComponentActivity() {
             val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
             val darkTheme = settingsUiState.darkTheme
 
-            var pendingLocalAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-
-            val localImagesPicker = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenMultipleDocuments(),
-                onResult = { uris -> sourcesViewModel.importLocalWallpapers(uris) }
-            )
-
-            val localFolderPicker = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocumentTree(),
-                onResult = { uri ->
-                    if (uri != null) sourcesViewModel.importLocalFolder(uri)
-                }
-            )
-
-            val storageFolderPicker = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocumentTree(),
-                onResult = { uri ->
-                    if (uri != null) {
-                        settingsViewModel.configureLocalLibraryFolder(uri)
-                    } else {
-                        pendingLocalAction = null
-                    }
-                }
-            )
-
             val backupExporter = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
                 onResult = { uri ->
@@ -122,35 +99,12 @@ class MainActivity : ComponentActivity() {
                 SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US)
             }
 
-            val ensureLocalStorage: ((() -> Unit)) -> Unit = { action ->
-                if (settingsUiState.localLibraryUri.isNullOrBlank()) {
-                    pendingLocalAction = action
-                    storageFolderPicker.launch(null)
-                } else {
-                    action()
-                }
-            }
-
-            LaunchedEffect(settingsUiState.localLibraryUri, pendingLocalAction) {
-                val action = pendingLocalAction
-                if (action != null && !settingsUiState.localLibraryUri.isNullOrBlank()) {
-                    action()
-                    pendingLocalAction = null
-                }
-            }
-
             WallBaseTheme(darkTheme = darkTheme) {
                 WallBaseApp(
                     sourcesUiState = sourcesUiState,
                     settingsUiState = settingsUiState,
                     onToggleDarkTheme = settingsViewModel::setDarkTheme,
                     onSourceRepoUrlChanged = settingsViewModel::updateSourceRepoUrl,
-                    onImportLocalImages = { ensureLocalStorage { localImagesPicker.launch(arrayOf("image/*")) } },
-                    onImportLocalFolder = { ensureLocalStorage { localFolderPicker.launch(null) } },
-                    onConfigureLocalStorage = {
-                        pendingLocalAction = null
-                        storageFolderPicker.launch(null)
-                    },
                     onUpdateSourceInput = sourcesViewModel::updateSourceInput,
                     onSearchReddit = sourcesViewModel::searchRedditCommunities,
                     onAddSourceFromInput = sourcesViewModel::addSourceFromInput,
@@ -175,10 +129,7 @@ class MainActivity : ComponentActivity() {
                     onSettingsMessageShown = settingsViewModel::consumeMessage,
                     // NEW: thread these in instead of touching sourcesViewModel inside WallBaseApp
                     onAddDriveFolder = sourcesViewModel::addGoogleDriveFolder,
-                    onAddPhotosAlbum = sourcesViewModel::addGooglePhotosAlbum,
-                    localStorageFolderName = settingsUiState.localLibraryFolderName,
-                    isLocalStorageConfigured = !settingsUiState.localLibraryUri.isNullOrBlank(),
-                    onClearLocalStorage = settingsViewModel::clearLocalLibraryFolder
+                    onAddPhotosAlbum = sourcesViewModel::addGooglePhotosAlbum
                 )
             }
         }
@@ -216,9 +167,6 @@ fun WallBaseApp(
     settingsUiState: SettingsViewModel.SettingsUiState,
     onToggleDarkTheme: (Boolean) -> Unit,
     onSourceRepoUrlChanged: (String) -> Unit,
-    onImportLocalImages: () -> Unit,
-    onImportLocalFolder: () -> Unit,
-    onConfigureLocalStorage: () -> Unit,
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
@@ -231,11 +179,8 @@ fun WallBaseApp(
     onSettingsMessageShown: () -> Unit,
     // NEW: passed down from Activity
     onAddDriveFolder: (DriveFolder) -> Unit,
-    onAddPhotosAlbum: (GooglePhotosAlbum) -> Unit,
-    localStorageFolderName: String?,
-    isLocalStorageConfigured: Boolean,
-    onClearLocalStorage: () -> Unit
-    ) {
+    onAddPhotosAlbum: (GooglePhotosAlbum) -> Unit
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -362,11 +307,6 @@ fun WallBaseApp(
                         uiState = sourcesUiState,
                         onGoogleDriveClick = { navController.navigate("driveFolders") },
                         onGooglePhotosClick = { navController.navigate("photosAlbums") },
-                        onAddLocalWallpapers = onImportLocalImages,
-                        onAddLocalFolder = onImportLocalFolder,
-                        onConfigureLocalStorage = onConfigureLocalStorage,
-                        localStorageFolderName = localStorageFolderName,
-                        isLocalStorageConfigured = isLocalStorageConfigured,
                         onUpdateSourceInput = onUpdateSourceInput,
                         onSearchReddit = onSearchReddit,
                         onAddSourceFromInput = onAddSourceFromInput,
@@ -449,14 +389,11 @@ fun WallBaseApp(
                     LaunchedEffect(Unit) { navController.popBackStack() }
                 } else {
                     val sourceHandle = navController.previousBackStackEntry?.savedStateHandle
+                    val activity = LocalContext.current as? Activity
                     val navigateBack: () -> Unit = {
                         val popped = navController.popBackStack()
                         if (!popped) {
-                            navController.navigate(RootRoute.Browse.route) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            activity?.finish()
                         }
                     }
 
@@ -482,9 +419,7 @@ fun WallBaseApp(
                     onSourceRepoUrlChanged = onSourceRepoUrlChanged,
                     onExportBackup = onExportBackup,
                     onImportBackup = onImportBackup,
-                    onMessageShown = onSettingsMessageShown,
-                    onConfigureLocalLibrary = onConfigureLocalStorage,
-                    onClearLocalLibrary = onClearLocalStorage
+                    onMessageShown = onSettingsMessageShown
                 )
             }
         }

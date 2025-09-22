@@ -107,7 +107,7 @@ object ServiceLocator {
     }
 
     val localStorageCoordinator: LocalStorageCoordinator by lazy {
-        LocalStorageCoordinator(context, settingsRepository)
+        LocalStorageCoordinator(context)
     }
 
     val libraryRepository: LibraryRepository by lazy {
