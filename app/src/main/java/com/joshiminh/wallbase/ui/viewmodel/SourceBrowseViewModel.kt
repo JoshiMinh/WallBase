@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.repository.LibraryRepository
+import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
@@ -27,7 +28,8 @@ class SourceBrowseViewModel(
     private val sourceKey: String,
     private val sourceRepository: SourceRepository,
     private val wallpaperRepository: WallpaperRepository,
-    private val libraryRepository: LibraryRepository
+    private val libraryRepository: LibraryRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SourceBrowseUiState())
@@ -103,6 +105,16 @@ class SourceBrowseViewModel(
                 _uiState.update { state ->
                     val sorted = albums.sortedWith(AlbumSortOption.TITLE_ASCENDING)
                     if (state.albums == sorted) state else state.copy(albums = sorted)
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.preferences.collectLatest { preferences ->
+                _uiState.update { state ->
+                    val columns = preferences.wallpaperGridColumns
+                    if (state.wallpaperGridColumns == columns) state
+                    else state.copy(wallpaperGridColumns = columns)
                 }
             }
         }
@@ -338,6 +350,15 @@ class SourceBrowseViewModel(
         }
     }
 
+    fun updateGridColumns(columns: Int) {
+        val clamped = columns.coerceIn(1, 4)
+        if (_uiState.value.wallpaperGridColumns == clamped) return
+        _uiState.update { it.copy(wallpaperGridColumns = clamped) }
+        viewModelScope.launch {
+            settingsRepository.setWallpaperGridColumns(clamped)
+        }
+    }
+
     private fun selectedWallpapers(): List<WallpaperItem> {
         val current = _uiState.value
         if (current.selectedIds.isEmpty()) return emptyList()
@@ -384,7 +405,8 @@ class SourceBrowseViewModel(
         val albums: List<AlbumItem> = emptyList(),
         val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
         val isAppending: Boolean = false,
-        val canLoadMore: Boolean = false
+        val canLoadMore: Boolean = false,
+        val wallpaperGridColumns: Int = 2
     )
 
     companion object {
@@ -396,7 +418,8 @@ class SourceBrowseViewModel(
                     sourceKey = sourceKey,
                     sourceRepository = ServiceLocator.sourceRepository,
                     wallpaperRepository = ServiceLocator.wallpaperRepository,
-                    libraryRepository = ServiceLocator.libraryRepository
+                    libraryRepository = ServiceLocator.libraryRepository,
+                    settingsRepository = ServiceLocator.settingsRepository
                 )
             }
         }

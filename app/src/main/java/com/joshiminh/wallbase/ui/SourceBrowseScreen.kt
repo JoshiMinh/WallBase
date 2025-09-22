@@ -1,13 +1,11 @@
 package com.joshiminh.wallbase.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
@@ -23,12 +20,10 @@ import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +54,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.ui.components.GridColumnPicker
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
@@ -82,6 +78,7 @@ fun SourceBrowseRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var showAlbumPicker by rememberSaveable { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -91,20 +88,40 @@ fun SourceBrowseRoute(
     val selectionCount = uiState.selectedIds.size
     val availableSortFields = remember { listOf(SortField.Alphabet, SortField.DateAdded) }
     val sortSelection = uiState.wallpaperSortOption.toSelection()
-    val topBarActions: (@Composable RowScope.() -> Unit)? = when {
+    val topBarState = when {
         uiState.isSelectionMode -> {
-            {
-                Text(
-                    text = "$selectionCount selected",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-            }
+            TopBarState(
+                title = "$selectionCount selected",
+                navigationIcon = TopBarState.NavigationIcon(
+                    icon = Icons.Outlined.Close,
+                    contentDescription = "Cancel selection",
+                    onClick = {
+                        showAlbumPicker = false
+                        viewModel.clearSelection()
+                    }
+                ),
+                actions = {
+                    IconButton(
+                        onClick = viewModel::addSelectedToLibrary,
+                        enabled = !uiState.isActionInProgress
+                    ) {
+                        Icon(imageVector = Icons.Outlined.LibraryAdd, contentDescription = "Save to library")
+                    }
+                    IconButton(
+                        onClick = { showAlbumPicker = true },
+                        enabled = !uiState.isActionInProgress
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
+                            contentDescription = "Add to album"
+                        )
+                    }
+                }
+            )
         }
 
-        else -> {
-            {
+        overrideTitle != null -> {
+            val actions: @Composable RowScope.() -> Unit = {
                 if (!isSearchActive) {
                     IconButton(onClick = { isSearchActive = true }) {
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
@@ -121,43 +138,44 @@ fun SourceBrowseRoute(
                     Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
                 }
             }
-        }
-    }
-    val navigationIcon = when {
-        uiState.isSelectionMode -> null
-        isSearchActive -> TopBarState.NavigationIcon(
-            icon = Icons.Outlined.Close,
-            contentDescription = "Close search",
-            onClick = {
-                isSearchActive = false
-                viewModel.clearQuery()
-            }
-        )
-        else -> null
-    }
-    val titleContent: (@Composable () -> Unit)? = when {
-        uiState.isSelectionMode -> null
-        !isSearchActive -> null
-        else -> {
-            {
-                TopBarSearchField(
-                    value = uiState.query,
-                    onValueChange = viewModel::updateQuery,
-                    onClear = viewModel::clearQuery,
-                    placeholder = "Search…",
-                    focusRequester = searchFocusRequester,
-                    onSearch = viewModel::search
+            val navigationIcon = if (isSearchActive) {
+                TopBarState.NavigationIcon(
+                    icon = Icons.Outlined.Close,
+                    contentDescription = "Close search",
+                    onClick = {
+                        isSearchActive = false
+                        viewModel.clearQuery()
+                    }
                 )
+            } else {
+                null
             }
+            val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
+                {
+                    TopBarSearchField(
+                        value = uiState.query,
+                        onValueChange = viewModel::updateQuery,
+                        onClear = {
+                            viewModel.clearQuery()
+                            isSearchActive = false
+                        },
+                        placeholder = "Search…",
+                        focusRequester = searchFocusRequester,
+                        onSearch = viewModel::search
+                    )
+                }
+            } else {
+                null
+            }
+            TopBarState(
+                title = if (isSearchActive) null else overrideTitle,
+                navigationIcon = navigationIcon,
+                actions = actions,
+                titleContent = titleContent
+            )
         }
-    }
-    val topBarState = overrideTitle?.let { title ->
-        TopBarState(
-            title = if (!uiState.isSelectionMode && isSearchActive) null else title,
-            navigationIcon = navigationIcon,
-            actions = topBarActions,
-            titleContent = titleContent
-        )
+
+        else -> null
     }
     SideEffect {
         onConfigureTopBar(topBarState)
@@ -182,13 +200,18 @@ fun SourceBrowseRoute(
             if (isSearchActive) {
                 isSearchActive = false
             }
+        } else {
+            showAlbumPicker = false
         }
     }
 
     LaunchedEffect(uiState.message) {
         val message = uiState.message ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(message)
-        viewModel.consumeMessage()
+        try {
+            snackbarHostState.showSnackbar(message)
+        } finally {
+            viewModel.consumeMessage()
+        }
     }
 
     val onCardClick: (WallpaperItem) -> Unit = { wallpaper ->
@@ -209,9 +232,9 @@ fun SourceBrowseRoute(
         onRefresh = viewModel::refresh,
         onWallpaperClick = onCardClick,
         onWallpaperLongPress = onCardLongPress,
-        onClearSelection = viewModel::clearSelection,
-        onAddSelectionToLibrary = viewModel::addSelectedToLibrary,
         onAddSelectionToAlbum = viewModel::addSelectedToAlbum,
+        onDismissAlbumPicker = { showAlbumPicker = false },
+        showAlbumPicker = showAlbumPicker,
         onLoadMore = viewModel::loadMore,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope
@@ -230,7 +253,14 @@ fun SourceBrowseRoute(
             val updated = SortSelection(sortSelection.field, direction)
             viewModel.updateSort(updated.toWallpaperSortOption())
         },
-        onDismissRequest = { showSortSheet = false }
+        onDismissRequest = { showSortSheet = false },
+        additionalContent = {
+            GridColumnPicker(
+                label = "Grid columns",
+                selectedColumns = uiState.wallpaperGridColumns,
+                onColumnsSelected = viewModel::updateGridColumns
+            )
+        }
     )
 }
 
@@ -242,9 +272,9 @@ private fun SourceBrowseScreen(
     onRefresh: () -> Unit,
     onWallpaperClick: (WallpaperItem) -> Unit,
     onWallpaperLongPress: (WallpaperItem) -> Unit,
-    onClearSelection: () -> Unit,
-    onAddSelectionToLibrary: () -> Unit,
     onAddSelectionToAlbum: (Long) -> Unit,
+    onDismissAlbumPicker: () -> Unit,
+    showAlbumPicker: Boolean,
     onLoadMore: () -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?
@@ -260,8 +290,6 @@ private fun SourceBrowseScreen(
         return
     }
 
-    var showAlbumPicker by rememberSaveable { mutableStateOf(false) }
-
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
@@ -272,27 +300,6 @@ private fun SourceBrowseScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            AnimatedVisibility(visible = state.isSelectionMode) {
-                SelectionActions(
-                    enabled = !state.isActionInProgress,
-                    onClear = onClearSelection,
-                    onAddToLibrary = onAddSelectionToLibrary,
-                    onAddToAlbum = {
-                        if (!state.isActionInProgress) {
-                            showAlbumPicker = true
-                        }
-                    }
-                )
-            }
-
-            if (state.isSelectionMode) {
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            if (source.description.isNotBlank()) {
-                Text(source.description, style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(12.dp))
-            }
             state.errorMessage?.takeIf { state.wallpapers.isEmpty() }?.let { message ->
                 Text(
                     text = message,
@@ -350,6 +357,7 @@ private fun SourceBrowseScreen(
                             isLoadingMore = state.isAppending,
                             canLoadMore = state.canLoadMore,
                             modifier = Modifier.fillMaxSize(),
+                            columns = state.wallpaperGridColumns,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -373,59 +381,10 @@ private fun SourceBrowseScreen(
             albums = state.albums,
             onAlbumSelected = { album ->
                 onAddSelectionToAlbum(album.id)
-                showAlbumPicker = false
+                onDismissAlbumPicker()
             },
-            onDismiss = { showAlbumPicker = false }
+            onDismiss = onDismissAlbumPicker
         )
-    }
-}
-
-@Composable
-private fun SelectionActions(
-    enabled: Boolean,
-    onClear: () -> Unit,
-    onAddToLibrary: () -> Unit,
-    onAddToAlbum: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            FilledTonalButton(
-                onClick = onAddToLibrary,
-                enabled = enabled,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.LibraryAdd,
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Save to library")
-            }
-            FilledTonalButton(
-                onClick = onAddToAlbum,
-                enabled = enabled,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd,
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Add to album")
-            }
-        }
-        TextButton(
-            onClick = onClear,
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Text(text = "Cancel selection")
-        }
     }
 }
 

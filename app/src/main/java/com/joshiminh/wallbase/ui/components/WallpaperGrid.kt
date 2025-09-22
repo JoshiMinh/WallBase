@@ -67,6 +67,7 @@ fun WallpaperGrid(
     onLoadMore: (() -> Unit)? = null,
     isLoadingMore: Boolean = false,
     canLoadMore: Boolean = false,
+    columns: Int = 2,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -87,9 +88,11 @@ fun WallpaperGrid(
         }
     }
 
+    val columnCount = columns.coerceIn(1, 4)
+
     LazyVerticalStaggeredGrid(
         modifier = modifier.fillMaxSize(),
-        columns = StaggeredGridCells.Fixed(2),
+        columns = StaggeredGridCells.Fixed(columnCount),
         state = gridState,
         verticalItemSpacing = 8.dp,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

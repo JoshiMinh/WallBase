@@ -3,8 +3,7 @@ package com.joshiminh.wallbase.ui
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,11 +19,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Album
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
@@ -33,19 +36,26 @@ import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -69,13 +79,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
+import com.joshiminh.wallbase.ui.components.AlbumLayoutPicker
+import com.joshiminh.wallbase.ui.components.GridColumnPicker
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
 import com.joshiminh.wallbase.ui.sort.SortField
@@ -120,6 +134,8 @@ fun LibraryScreen(
     }
 
     val trimmedQuery = remember(searchQuery) { searchQuery.trim() }
+    val wallpaperGridColumns = uiState.wallpaperGridColumns
+    val albumLayout = uiState.albumLayout
     val displayedWallpapers = remember(uiState.wallpapers, trimmedQuery, isSearchActive) {
         if (!isSearchActive || trimmedQuery.isEmpty()) {
             uiState.wallpapers
@@ -137,7 +153,19 @@ fun LibraryScreen(
             uiState.albums.filter { album ->
                 album.title.contains(trimmedQuery, ignoreCase = true)
             }
+    }
+
+    val onGridColumnsSelected: (Int) -> Unit = { columns ->
+        if (wallpaperGridColumns != columns) {
+            libraryViewModel.updateWallpaperGridColumns(columns)
         }
+    }
+
+    val onAlbumLayoutSelected: (AlbumLayout) -> Unit = { layout ->
+        if (albumLayout != layout) {
+            libraryViewModel.updateAlbumLayout(layout)
+        }
+    }
     }
 
     LaunchedEffect(uiState.wallpapers) {
@@ -397,6 +425,8 @@ fun LibraryScreen(
             animatedVisibilityScope = animatedVisibilityScope,
             isSearching = isSearchActive,
             searchQuery = trimmedQuery,
+            wallpaperGridColumns = wallpaperGridColumns,
+            albumLayout = albumLayout,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -414,7 +444,22 @@ fun LibraryScreen(
         onDirectionSelected = { direction ->
             applySortSelection(SortSelection(activeSortSelection.field, direction))
         },
-        onDismissRequest = { showSortSheet = false }
+        onDismissRequest = { showSortSheet = false },
+        additionalContent = {
+            if (selectedTab == 0) {
+                GridColumnPicker(
+                    label = "Grid columns",
+                    selectedColumns = wallpaperGridColumns,
+                    onColumnsSelected = onGridColumnsSelected
+                )
+            } else {
+                AlbumLayoutPicker(
+                    label = "Album layout",
+                    selectedLayout = albumLayout,
+                    onLayoutSelected = onAlbumLayoutSelected
+                )
+            }
+        }
     )
 
     if (showSelectionAlbumDialog) {
@@ -499,6 +544,8 @@ private fun LibraryContent(
     animatedVisibilityScope: AnimatedVisibilityScope?,
     isSearching: Boolean,
     searchQuery: String,
+    wallpaperGridColumns: Int,
+    albumLayout: AlbumLayout,
     modifier: Modifier = Modifier
 ) {
     val tabs = listOf("All Wallpapers", "Albums")
@@ -541,6 +588,7 @@ private fun LibraryContent(
                             onLongPress = onWallpaperLongPress,
                             selectedIds = selectedIds,
                             selectionMode = selectionMode,
+                            columns = wallpaperGridColumns,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -588,6 +636,7 @@ private fun LibraryContent(
                     } else {
                         AlbumList(
                             albums = albums,
+                            layout = albumLayout,
                             onAlbumClick = onAlbumClick,
                             modifier = Modifier
                                 .weight(1f)
@@ -622,16 +671,47 @@ private fun LibraryEmptyState(message: String, modifier: Modifier = Modifier) {
 @Composable
 private fun AlbumList(
     albums: List<AlbumItem>,
+    layout: AlbumLayout,
     onAlbumClick: (AlbumItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        items(albums, key = AlbumItem::id) { album ->
-            AlbumCard(album = album, onClick = { onAlbumClick(album) })
+    when (layout) {
+        AlbumLayout.GRID -> {
+            LazyVerticalGrid(
+                modifier = modifier.fillMaxSize(),
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                gridItems(albums, key = AlbumItem::id) { album ->
+                    AlbumCard(album = album, onClick = { onAlbumClick(album) })
+                }
+            }
+        }
+
+        AlbumLayout.CARD_LIST -> {
+            LazyColumn(
+                modifier = modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(albums, key = AlbumItem::id) { album ->
+                    AlbumCard(album = album, onClick = { onAlbumClick(album) })
+                }
+            }
+        }
+
+        AlbumLayout.LIST -> {
+            LazyColumn(
+                modifier = modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(albums, key = AlbumItem::id) { album ->
+                    AlbumListRow(album = album, onClick = { onAlbumClick(album) })
+                }
+            }
         }
     }
 }
@@ -678,6 +758,39 @@ private fun AlbumCard(
 }
 
 @Composable
+private fun AlbumListRow(
+    album: AlbumItem,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        tonalElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        ListItem(
+            headlineContent = {
+                Text(
+                    text = album.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            supportingContent = {
+                Text(
+                    text = "${album.wallpaperCount} wallpapers",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        )
+    }
+}
+
+@Composable
 private fun CreateAlbumDialog(
     isCreating: Boolean,
     onCreate: (String) -> Unit,
@@ -717,6 +830,7 @@ private fun CreateAlbumDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AlbumPickerDialog(
     albums: List<AlbumItem>,
@@ -734,6 +848,8 @@ private fun AlbumPickerDialog(
     val addLabel = "Add"
     val noAlbumsMessage = "Create an album in your library to start organizing wallpapers."
 
+    val tabs = listOf(existingTab, newTab)
+
     LaunchedEffect(albums) {
         selectedAlbumId = when {
             albums.isEmpty() -> null
@@ -746,24 +862,55 @@ private fun AlbumPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(text = "Add to album") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TabRow(selectedTabIndex = selectedTab) {
-                    listOf(existingTab, newTab).forEachIndexed { index, title ->
-                        Tab(
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    tabs.forEachIndexed { index, title ->
+                        SegmentedButton(
                             selected = selectedTab == index,
                             onClick = { selectedTab = index },
-                            text = { Text(title) }
+                            shape = SegmentedButtonDefaults.itemShape(index, tabs.size),
+                            icon = {
+                                val icon = if (index == 0) Icons.Outlined.Album else Icons.Outlined.Add
+                                Icon(imageVector = icon, contentDescription = null)
+                            },
+                            label = { Text(title) }
                         )
                     }
                 }
                 when (selectedTab) {
                     0 -> {
                         if (albums.isEmpty()) {
-                            Text(text = noAlbumsMessage, style = MaterialTheme.typography.bodyMedium)
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Album,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = noAlbumsMessage,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
                         } else {
                             LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.heightIn(max = 240.dp)
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                modifier = Modifier.heightIn(max = 280.dp),
+                                contentPadding = PaddingValues(vertical = 4.dp)
                             ) {
                                 items(albums, key = AlbumItem::id) { album ->
                                     AlbumSelectionRow(
@@ -777,18 +924,26 @@ private fun AlbumPickerDialog(
                     }
 
                     else -> {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                TextField(
-                                    value = newAlbumTitle,
-                                    onValueChange = { newAlbumTitle = it },
-                                    label = { Text(text = "Album name") },
-                                    enabled = !isBusy
-                                )
-                                if (isBusy) {
-                                    Text(text = "Creating album…")
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = newAlbumTitle,
+                                onValueChange = { newAlbumTitle = it },
+                                label = { Text(text = "Album name") },
+                                placeholder = { Text(text = "Enter a name") },
+                                singleLine = true,
+                                enabled = !isBusy,
+                                shape = RoundedCornerShape(16.dp),
+                                supportingText = if (isBusy) {
+                                    { Text(text = "Creating album…") }
+                                } else {
+                                    null
                                 }
-                            }
+                            )
                         }
+                    }
                 }
             }
         },
@@ -817,45 +972,56 @@ private fun AlbumPickerDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AlbumSelectionRow(
     album: AlbumItem,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val background = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.secondaryContainer
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MaterialTheme.colorScheme.surfaceContainerLow
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(background)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val borderColor = if (isSelected) {
+        MaterialTheme.colorScheme.secondary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = containerColor,
+        tonalElevation = if (isSelected) 6.dp else 1.dp,
+        shadowElevation = if (isSelected) 2.dp else 0.dp,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 12.dp)
-        ) {
-            Text(
-                text = album.title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "${album.wallpaperCount} wallpapers",
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        RadioButton(
-            selected = isSelected,
-            onClick = onClick
+        ListItem(
+            headlineContent = {
+                Text(
+                    text = album.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            supportingContent = {
+                Text(
+                    text = "${album.wallpaperCount} wallpapers",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            trailingContent = {
+                RadioButton(
+                    selected = isSelected,
+                    onClick = onClick
+                )
+            },
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }
 }

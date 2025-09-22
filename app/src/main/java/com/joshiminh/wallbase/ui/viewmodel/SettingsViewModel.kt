@@ -12,6 +12,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.DatabaseBackupManager
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
+import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.Dispatchers
@@ -36,13 +37,12 @@ class SettingsViewModel(
     init {
         viewModelScope.launch {
             settingsRepository.preferences.collectLatest { preferences ->
-                val folder = runCatching { localStorage.getBaseFolder() }.getOrNull()
                 _uiState.update {
                     it.copy(
                         darkTheme = preferences.darkTheme,
                         sourceRepoUrl = preferences.sourceRepoUrl,
-                        localLibraryUri = preferences.localLibraryUri,
-                        localLibraryFolderName = folder?.name
+                        wallpaperGridColumns = preferences.wallpaperGridColumns,
+                        albumLayout = preferences.albumLayout
                     )
                 }
             }
@@ -50,10 +50,13 @@ class SettingsViewModel(
 
         viewModelScope.launch(Dispatchers.IO) {
             val usage = calculateStorageUsage()
+            val wallpapersDir = runCatching { localStorage.currentBaseDirectory() }.getOrNull()
+            val wallpapersBytes = wallpapersDir?.let { directorySize(it) }
             _uiState.update {
                 it.copy(
                     storageBytes = usage?.usedBytes,
                     storageTotalBytes = usage?.totalBytes,
+                    wallpapersBytes = wallpapersBytes,
                     isStorageLoading = false
                 )
             }
@@ -104,44 +107,6 @@ class SettingsViewModel(
         }
     }
 
-    fun configureLocalLibraryFolder(treeUri: Uri) {
-        if (_uiState.value.isConfiguringLocalStorage) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isConfiguringLocalStorage = true, message = null) }
-            val result = runCatching { localStorage.configureBaseFolder(treeUri) }
-            val folder = result.getOrNull()
-            _uiState.update {
-                it.copy(
-                    isConfiguringLocalStorage = false,
-                    localLibraryUri = folder?.uri?.toString() ?: it.localLibraryUri,
-                    localLibraryFolderName = folder?.name ?: it.localLibraryFolderName,
-                    message = result.fold(
-                        onSuccess = { created ->
-                            val name = created.name ?: DEFAULT_STORAGE_NAME
-                            "Wallpapers will be stored in \"$name\""
-                        },
-                        onFailure = { error ->
-                            error.localizedMessage ?: "Unable to set local storage"
-                        }
-                    )
-                )
-            }
-        }
-    }
-
-    fun clearLocalLibraryFolder() {
-        viewModelScope.launch {
-            localStorage.clearBaseFolder()
-            _uiState.update {
-                it.copy(
-                    localLibraryUri = null,
-                    localLibraryFolderName = null,
-                    message = "Local storage location cleared"
-                )
-            }
-        }
-    }
-
     fun consumeMessage() {
         _uiState.update { it.copy(message = null) }
     }
@@ -168,11 +133,11 @@ class SettingsViewModel(
         val message: String? = null,
         val darkTheme: Boolean = false,
         val sourceRepoUrl: String = "",
-        val localLibraryUri: String? = null,
-        val localLibraryFolderName: String? = null,
-        val isConfiguringLocalStorage: Boolean = false,
+        val wallpaperGridColumns: Int = 2,
+        val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
         val storageBytes: Long? = null,
         val storageTotalBytes: Long? = null,
+        val wallpapersBytes: Long? = null,
         val isStorageLoading: Boolean = true
     )
 
@@ -222,8 +187,6 @@ class SettingsViewModel(
     }
 
     companion object {
-        const val DEFAULT_STORAGE_NAME = "WallBase"
-
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application =

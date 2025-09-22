@@ -1,52 +1,47 @@
 package com.joshiminh.wallbase.data.repository
 
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.webkit.MimeTypeMap
+import androidx.core.net.toFile
+import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.util.Locale
-import androidx.core.net.toUri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class LocalStorageCoordinator(
-    private val context: Context,
-    private val settingsRepository: SettingsRepository
+    private val context: Context
 ) {
 
     private val resolver = context.contentResolver
 
-    suspend fun configureBaseFolder(treeUri: Uri): DocumentFile = withContext(Dispatchers.IO) {
-        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        try {
-            resolver.takePersistableUriPermission(treeUri, flags)
-        } catch (_: SecurityException) {
-            // Ignore if we cannot persist; best effort access is still attempted.
+    private fun baseDirectory(): File = File(context.filesDir, BASE_DIRECTORY_NAME)
+
+    private fun ensureBaseDirectory(): File {
+        val base = baseDirectory()
+        if (base.exists()) {
+            if (!base.isDirectory) {
+                throw IOException("WallBase storage path is not a directory")
+            }
+            return base
         }
-
-        val tree = DocumentFile.fromTreeUri(context, treeUri)
-            ?: throw IllegalArgumentException("Invalid folder selection")
-        val base = tree.findFile(DEFAULT_FOLDER_NAME)?.takeIf { it.isDirectory }
-            ?: tree.createDirectory(DEFAULT_FOLDER_NAME)
-            ?: throw IOException("Unable to create WallBase folder")
-
-        settingsRepository.setLocalLibraryUri(base.uri.toString())
-        base
+        if (!base.mkdirs() && !base.exists()) {
+            throw IOException("Unable to create WallBase storage directory")
+        }
+        return base
     }
 
-    suspend fun clearBaseFolder() {
-        settingsRepository.setLocalLibraryUri(null)
+    fun currentBaseDirectory(): File? {
+        return baseDirectory().takeIf { it.exists() && it.isDirectory }
     }
 
-    suspend fun getBaseFolder(): DocumentFile? = withContext(Dispatchers.IO) {
-        val stored = settingsRepository.getLocalLibraryUri()?.takeIf { it.isNotBlank() } ?: return@withContext null
-        DocumentFile.fromTreeUri(context, stored.toUri())?.takeIf { it.exists() && it.isDirectory }
-    }
-
-    suspend fun requireBaseFolder(): DocumentFile =
-        getBaseFolder() ?: throw IllegalStateException("Local library folder is not configured")
+    fun ensureStorageDirectory(): File = ensureBaseDirectory()
 
     suspend fun copyFromUri(
         uri: Uri,
@@ -55,7 +50,7 @@ class LocalStorageCoordinator(
         displayName: String? = null,
         mimeTypeHint: String? = null
     ): CopyResult = withContext(Dispatchers.IO) {
-        val base = requireBaseFolder()
+        val base = ensureBaseDirectory()
         copyIntoFolder(base, uri, sourceFolder, subFolder, displayName, mimeTypeHint)
     }
 
@@ -66,18 +61,17 @@ class LocalStorageCoordinator(
         displayName: String,
         mimeTypeHint: String? = null
     ): CopyResult = withContext(Dispatchers.IO) {
-        val base = requireBaseFolder()
+        val base = ensureBaseDirectory()
         val targetFolder = ensureTargetFolder(base, sourceFolder, subFolder)
         val mimeType = mimeTypeHint ?: guessMimeType(displayName)
         val sanitized = sanitizeFileName(displayName, DEFAULT_FILE_NAME)
         val named = ensureExtension(sanitized, mimeType)
         val fileName = ensureUniqueFileName(targetFolder, named)
-        val destination = targetFolder.createFile(mimeType, fileName)
-            ?: throw IOException("Unable to create destination file")
-        resolver.openOutputStream(destination.uri, "w")?.use { output ->
+        val destination = File(targetFolder, fileName)
+        FileOutputStream(destination).use { output ->
             output.write(data)
-        } ?: throw IOException("Unable to write destination file")
-        CopyResult(destination.uri, destination.name ?: fileName, destination.length())
+        }
+        CopyResult(destination.toUri(), destination.name ?: fileName, destination.length())
     }
 
     fun documentFromTree(uri: Uri): DocumentFile? {
@@ -86,13 +80,46 @@ class LocalStorageCoordinator(
     }
 
     fun documentFromUri(uri: Uri): DocumentFile? {
-        persistReadPermission(uri)
-        return DocumentFile.fromSingleUri(context, uri)
+        return when (uri.scheme) {
+            ContentResolver.SCHEME_CONTENT -> {
+                persistReadPermission(uri)
+                DocumentFile.fromSingleUri(context, uri)
+            }
+            ContentResolver.SCHEME_FILE, null -> {
+                val file = runCatching { uri.toFile() }.getOrNull()
+                file?.let { DocumentFile.fromFile(it) }
+            }
+            else -> {
+                if (uri.authority == "${context.packageName}.fileprovider") {
+                    persistReadPermission(uri)
+                    DocumentFile.fromSingleUri(context, uri)
+                } else {
+                    null
+                }
+            }
+        }
     }
 
     suspend fun deleteDocument(uri: Uri): Boolean = withContext(Dispatchers.IO) {
-        val document = documentFromUri(uri) ?: return@withContext false
-        document.delete()
+        when (uri.scheme) {
+            ContentResolver.SCHEME_CONTENT -> {
+                val document = documentFromUri(uri) ?: return@withContext false
+                document.delete()
+            }
+            ContentResolver.SCHEME_FILE, null -> {
+                val file = runCatching { uri.toFile() }.getOrNull() ?: return@withContext false
+                if (!file.exists()) return@withContext false
+                file.delete()
+            }
+            else -> {
+                if (uri.authority == "${context.packageName}.fileprovider") {
+                    val document = DocumentFile.fromSingleUri(context, uri) ?: return@withContext false
+                    document.delete()
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     fun sanitizeFolderName(name: String, fallback: String = DEFAULT_FOLDER_NAME): String {
@@ -114,7 +141,7 @@ class LocalStorageCoordinator(
     }
 
     private fun copyIntoFolder(
-        baseFolder: DocumentFile,
+        baseFolder: File,
         uri: Uri,
         sourceFolder: String,
         subFolder: String?,
@@ -127,15 +154,17 @@ class LocalStorageCoordinator(
         val sanitized = sanitizeFileName(display, DEFAULT_FILE_NAME)
         val withExtension = ensureExtension(sanitized, mimeType)
         val fileName = ensureUniqueFileName(targetFolder, withExtension)
-        val destination = targetFolder.createFile(mimeType, fileName)
-            ?: throw IOException("Unable to create destination file")
+        val destination = File(targetFolder, fileName)
 
         persistReadPermission(uri)
-        copyStreams(uri, destination.uri)
+        resolver.openInputStream(uri)?.use { input ->
+            FileOutputStream(destination).use { output ->
+                input.copyTo(output)
+            }
+        } ?: throw IOException("Unable to open source stream")
 
-        // ✅ Explicitly return the result
         return CopyResult(
-            destination.uri,
+            destination.toUri(),
             destination.name ?: fileName,
             destination.length()
         )
@@ -148,10 +177,10 @@ class LocalStorageCoordinator(
     }
 
     private fun ensureTargetFolder(
-        baseFolder: DocumentFile,
+        baseFolder: File,
         sourceFolder: String,
         subFolder: String?
-    ): DocumentFile {
+    ): File {
         val source = ensureFolder(baseFolder, sanitizeFolderName(sourceFolder))
         return if (subFolder.isNullOrBlank()) {
             source
@@ -160,17 +189,25 @@ class LocalStorageCoordinator(
         }
     }
 
-    private fun ensureFolder(parent: DocumentFile, name: String): DocumentFile {
-        parent.findFile(name)?.takeIf { it.isDirectory }?.let { return it }
-        return parent.createDirectory(name)
-            ?: throw IOException("Unable to create folder $name")
+    private fun ensureFolder(parent: File, name: String): File {
+        val directory = File(parent, name)
+        if (directory.exists()) {
+            if (!directory.isDirectory) {
+                throw IOException("Unable to create folder $name")
+            }
+            return directory
+        }
+        if (!directory.mkdirs() && !directory.exists()) {
+            throw IOException("Unable to create folder $name")
+        }
+        return directory
     }
 
-    private fun ensureUniqueFileName(folder: DocumentFile, name: String): String {
+    private fun ensureUniqueFileName(folder: File, name: String): String {
         var candidate = name
         var counter = 1
         val (base, extension) = splitName(name)
-        while (folder.findFile(candidate) != null) {
+        while (File(folder, candidate).exists()) {
             candidate = if (extension.isBlank()) {
                 "$base ($counter)"
             } else {
@@ -202,25 +239,10 @@ class LocalStorageCoordinator(
         }
     }
 
-    private fun copyStreams(source: Uri, destination: Uri) {
-        val input = resolver.openInputStream(source)
-            ?: throw IOException("Unable to open source stream")
-        val output = resolver.openOutputStream(destination, "w")
-            ?: run {
-                input.close()
-                throw IOException("Unable to open destination stream")
-            }
-        input.use { inStream ->
-            output.use { outStream ->
-                inStream.copyTo(outStream)
-            }
-        }
-    }
-
     private fun persistReadPermission(uri: Uri) {
-        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return
         try {
-            resolver.takePersistableUriPermission(uri, flags)
+            resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: SecurityException) {
             // Ignore if we cannot persist; temporary access is sufficient for copying.
         }
@@ -233,6 +255,7 @@ class LocalStorageCoordinator(
     )
 
     private companion object {
+        private const val BASE_DIRECTORY_NAME = "wallpapers"
         private const val DEFAULT_FOLDER_NAME = "WallBase"
         private const val DEFAULT_FILE_NAME = "wallpaper"
         private const val DEFAULT_EXTENSION = "jpg"
