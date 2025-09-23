@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.joshiminh.wallbase.data.entity.album.AlbumDetail
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
@@ -32,49 +33,61 @@ class AlbumDetailViewModel(
     private val message = MutableStateFlow<String?>(null)
     private val showRemoveDownloads = MutableStateFlow(false)
 
+    private data class Base(
+        val detail: AlbumDetail?, // whatever type repository.observeAlbum(albumId) emits
+        val sort: WallpaperSortOption,
+        val isDownloading: Boolean,
+        val isRemoving: Boolean,
+        val message: String?
+    )
+
     val uiState: StateFlow<AlbumDetailUiState> =
         combine(
-            repository.observeAlbum(albumId),  // detail: AlbumDetail?
-            sortOption,                        // sort
-            downloading,                       // isDownloading
-            removingDownloads,                 // isRemoving
-            message,                           // message
-            settingsRepository.preferences     // layout preferences
-        ) { detail, sort, isDownloading, isRemoving, message, preferences ->
-            if (detail == null) {
-                AlbumDetailUiState(
-                    isLoading = false,
-                    notFound = true,
-                    wallpaperSortOption = sort,
-                    isDownloading = isDownloading,
-                    isRemovingDownloads = isRemoving,
-                    message = message,
-                    wallpaperGridColumns = preferences.wallpaperGridColumns,
-                    wallpaperLayout = preferences.wallpaperLayout
-                )
-            } else {
-                val sorted = detail.wallpapers.sortedWith(sort)
-                AlbumDetailUiState(
-                    isLoading = false,
-                    albumTitle = detail.title,
-                    wallpapers = sorted,
-                    notFound = false,
-                    wallpaperSortOption = sort,
-                    isDownloading = isDownloading,
-                    isAlbumDownloaded = sorted.isAlbumFullyDownloaded(),
-                    isRemovingDownloads = isRemoving,
-                    message = message,
-                    wallpaperGridColumns = preferences.wallpaperGridColumns,
-                    wallpaperLayout = preferences.wallpaperLayout
-                )
+            repository.observeAlbum(albumId),
+            sortOption,
+            downloading,
+            removingDownloads,
+            message
+        ) { detail, sort, isDownloading, isRemoving, message ->
+            Base(detail, sort, isDownloading, isRemoving, message)
+        }
+            .combine(settingsRepository.preferences) { base, preferences ->
+                if (base.detail == null) {
+                    AlbumDetailUiState(
+                        isLoading = false,
+                        notFound = true,
+                        wallpaperSortOption = base.sort,
+                        isDownloading = base.isDownloading,
+                        isRemovingDownloads = base.isRemoving,
+                        message = base.message,
+                        wallpaperGridColumns = preferences.wallpaperGridColumns,
+                        wallpaperLayout = preferences.wallpaperLayout
+                    )
+                } else {
+                    val sorted = base.detail.wallpapers.sortedWith(base.sort)
+                    AlbumDetailUiState(
+                        isLoading = false,
+                        albumTitle = base.detail.title,
+                        wallpapers = sorted,
+                        notFound = false,
+                        wallpaperSortOption = base.sort,
+                        isDownloading = base.isDownloading,
+                        isAlbumDownloaded = sorted.isAlbumFullyDownloaded(),
+                        isRemovingDownloads = base.isRemoving,
+                        message = base.message,
+                        wallpaperGridColumns = preferences.wallpaperGridColumns,
+                        wallpaperLayout = preferences.wallpaperLayout
+                    )
+                }
             }
-        }.combine(showRemoveDownloads) { state, showRemove ->
-            state.copy(showRemoveDownloadsConfirmation = showRemove)
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = AlbumDetailUiState(isLoading = true)
-        )
+            .combine(showRemoveDownloads) { state, showRemove ->
+                state.copy(showRemoveDownloadsConfirmation = showRemove)
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = AlbumDetailUiState(isLoading = true)
+            )
 
     fun updateSort(option: WallpaperSortOption) {
         sortOption.update { option }

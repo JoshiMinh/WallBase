@@ -5,8 +5,6 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.rememberSharedContentState
-import androidx.compose.animation.sharedBounds
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -208,6 +206,7 @@ fun WallpaperGrid(
     }
 }
 
+@SuppressLint("ModifierFactoryExtensionFunction")
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun sharedModifierFor(
