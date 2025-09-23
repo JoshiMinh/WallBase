@@ -55,10 +55,12 @@ import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.components.GridColumnPicker
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.ui.components.WallpaperLayoutPicker
 import com.joshiminh.wallbase.ui.sort.SortField
 import com.joshiminh.wallbase.ui.sort.SortSelection
 import com.joshiminh.wallbase.ui.sort.toSelection
@@ -89,6 +91,7 @@ fun SourceBrowseRoute(
     val selectionCount = uiState.selectedIds.size
     val availableSortFields = remember { listOf(SortField.Alphabet, SortField.DateAdded) }
     val sortSelection = uiState.wallpaperSortOption.toSelection()
+    val wallpaperLayout = uiState.wallpaperLayout
     val topBarState = when {
         uiState.isSelectionMode -> {
             TopBarState(
@@ -123,15 +126,24 @@ fun SourceBrowseRoute(
 
         overrideTitle != null -> {
             val actions: @Composable RowScope.() -> Unit = {
-                if (!isSearchActive) {
-                    IconButton(onClick = { isSearchActive = true }) {
+                if (isSearchActive) {
+                    IconButton(onClick = {
+                        isSearchActive = false
+                        viewModel.clearQuery()
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }) {
+                        Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
+                    }
+                    IconButton(onClick = {
+                        viewModel.search()
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }) {
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                     }
                 } else {
-                    IconButton(onClick = {
-                        viewModel.search()
-                        keyboardController?.hide()
-                    }) {
+                    IconButton(onClick = { isSearchActive = true }) {
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                     }
                 }
@@ -139,18 +151,7 @@ fun SourceBrowseRoute(
                     Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
                 }
             }
-            val navigationIcon = if (isSearchActive) {
-                TopBarState.NavigationIcon(
-                    icon = Icons.Outlined.Close,
-                    contentDescription = "Close search",
-                    onClick = {
-                        isSearchActive = false
-                        viewModel.clearQuery()
-                    }
-                )
-            } else {
-                null
-            }
+            val navigationIcon: TopBarState.NavigationIcon? = null
             val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
                 {
                     TopBarSearchField(
@@ -162,7 +163,8 @@ fun SourceBrowseRoute(
                         },
                         placeholder = "Search…",
                         focusRequester = searchFocusRequester,
-                        onSearch = viewModel::search
+                        onSearch = viewModel::search,
+                        showClearButton = false
                     )
                 }
             } else {
@@ -260,21 +262,23 @@ fun SourceBrowseRoute(
         title = "Sort wallpapers",
         selection = sortSelection,
         availableFields = availableSortFields,
-        onFieldSelected = { field ->
-            val updated = SortSelection(field, sortSelection.direction)
-            viewModel.updateSort(updated.toWallpaperSortOption())
-        },
-        onDirectionSelected = { direction ->
-            val updated = SortSelection(sortSelection.field, direction)
-            viewModel.updateSort(updated.toWallpaperSortOption())
+        onSelectionChanged = { selection ->
+            viewModel.updateSort(selection.toWallpaperSortOption())
         },
         onDismissRequest = { showSortSheet = false },
         additionalContent = {
-            GridColumnPicker(
-                label = "Grid columns",
-                selectedColumns = uiState.wallpaperGridColumns,
-                onColumnsSelected = viewModel::updateGridColumns
+            WallpaperLayoutPicker(
+                label = "Wallpaper layout",
+                selectedLayout = wallpaperLayout,
+                onLayoutSelected = viewModel::updateWallpaperLayout
             )
+            if (wallpaperLayout == WallpaperLayout.GRID) {
+                GridColumnPicker(
+                    label = "Grid columns",
+                    selectedColumns = uiState.wallpaperGridColumns,
+                    onColumnsSelected = viewModel::updateGridColumns
+                )
+            }
         }
     )
 }
@@ -373,6 +377,7 @@ private fun SourceBrowseScreen(
                             canLoadMore = state.canLoadMore,
                             modifier = Modifier.fillMaxSize(),
                             columns = state.wallpaperGridColumns,
+                            layout = state.wallpaperLayout,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )

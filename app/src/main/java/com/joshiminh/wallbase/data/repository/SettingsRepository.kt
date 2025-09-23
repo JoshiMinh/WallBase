@@ -33,12 +33,14 @@ class SettingsRepository(
             val wallpaperColumns = (prefs[Keys.WALLPAPER_GRID_COLUMNS] ?: DEFAULT_WALLPAPER_COLUMNS)
                 .coerceIn(MIN_WALLPAPER_COLUMNS, MAX_WALLPAPER_COLUMNS)
             val albumLayout = AlbumLayout.fromStorage(prefs[Keys.ALBUM_LAYOUT])
+            val wallpaperLayout = WallpaperLayout.fromStorage(prefs[Keys.WALLPAPER_LAYOUT])
 
             SettingsPreferences(
                 darkTheme = prefs[Keys.DARK_THEME] ?: false,
                 sourceRepoUrl = prefs[Keys.SOURCE_REPO_URL].orEmpty(),
                 wallpaperGridColumns = wallpaperColumns,
-                albumLayout = albumLayout
+                albumLayout = albumLayout,
+                wallpaperLayout = wallpaperLayout
             )
         }
 
@@ -66,6 +68,12 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setWallpaperLayout(layout: WallpaperLayout) {
+        dataStore.edit { prefs ->
+            prefs[Keys.WALLPAPER_LAYOUT] = layout.storageValue
+        }
+    }
+
     suspend fun setAlbumLayout(layout: AlbumLayout) {
         dataStore.edit { prefs ->
             prefs[Keys.ALBUM_LAYOUT] = layout.storageValue
@@ -77,6 +85,7 @@ class SettingsRepository(
         val SOURCE_REPO_URL = stringPreferencesKey("source_repo_url")
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
         val ALBUM_LAYOUT = stringPreferencesKey("album_layout")
+        val WALLPAPER_LAYOUT = stringPreferencesKey("wallpaper_layout")
     }
 
     companion object {
@@ -90,7 +99,8 @@ data class SettingsPreferences(
     val darkTheme: Boolean,
     val sourceRepoUrl: String,
     val wallpaperGridColumns: Int,
-    val albumLayout: AlbumLayout
+    val albumLayout: AlbumLayout,
+    val wallpaperLayout: WallpaperLayout
 )
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -112,6 +122,24 @@ enum class AlbumLayout {
             "grid" -> GRID
             "list" -> LIST
             else -> CARD_LIST
+        }
+    }
+}
+
+enum class WallpaperLayout {
+    GRID,
+    LIST;
+
+    val storageValue: String
+        get() = when (this) {
+            GRID -> "grid"
+            LIST -> "list"
+        }
+
+    companion object {
+        fun fromStorage(value: String?): WallpaperLayout = when (value) {
+            "list" -> LIST
+            else -> GRID
         }
     }
 }
