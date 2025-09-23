@@ -16,6 +16,9 @@ interface SourceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSources(sources: List<SourceEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSourcesIfMissing(sources: List<SourceEntity>)
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertSource(source: SourceEntity): Long
 
@@ -30,6 +33,9 @@ interface SourceDao {
 
     @Query("SELECT * FROM sources WHERE key = :key LIMIT 1")
     fun observeSourceByKey(key: String): Flow<SourceEntity?>
+
+    @Query("SELECT key FROM sources")
+    suspend fun getSourceKeys(): List<String>
 
     @Query("SELECT * FROM sources WHERE provider_key = :provider AND config = :config LIMIT 1")
     suspend fun findSourceByProviderAndConfig(provider: String, config: String): SourceEntity?

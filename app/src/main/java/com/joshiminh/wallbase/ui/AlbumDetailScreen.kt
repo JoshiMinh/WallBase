@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
@@ -62,7 +63,7 @@ import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
 fun AlbumDetailRoute(
     albumId: Long,
     onWallpaperSelected: (WallpaperItem) -> Unit,
-    onConfigureTopBar: (TopBarState?) -> Unit,
+    onConfigureTopBar: (TopBarState) -> TopBarHandle,
     viewModel: AlbumDetailViewModel = viewModel(factory = AlbumDetailViewModel.provideFactory(albumId)),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -176,18 +177,26 @@ fun AlbumDetailRoute(
     } else {
         null
     }
+    val topBarState = TopBarState(
+        title = if (isSearchActive) null else title,
+        navigationIcon = navigationIcon,
+        actions = topBarActions,
+        titleContent = titleContent
+    )
+    val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
     SideEffect {
-        onConfigureTopBar(
-            TopBarState(
-                title = if (isSearchActive) null else title,
-                navigationIcon = navigationIcon,
-                actions = topBarActions,
-                titleContent = titleContent
-            )
-        )
+        val handle = topBarHandleState.value
+        if (handle == null) {
+            topBarHandleState.value = onConfigureTopBar(topBarState)
+        } else {
+            handle.update(topBarState)
+        }
     }
     DisposableEffect(Unit) {
-        onDispose { onConfigureTopBar(null) }
+        onDispose {
+            topBarHandleState.value?.clear()
+            topBarHandleState.value = null
+        }
     }
 
     LaunchedEffect(uiState.message) {

@@ -40,7 +40,13 @@ class DatabaseBackupManager(
             require(dbFile.exists()) { "Database file not found" }
 
             val sqliteDb = database.openHelper.writableDatabase
-            sqliteDb.execSQL("PRAGMA wal_checkpoint(FULL)")
+            runCatching {
+                sqliteDb.query("PRAGMA wal_checkpoint(FULL)").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        // exhaust the result set to ensure the checkpoint runs
+                    }
+                }
+            }
 
             val tempFile = File.createTempFile("wallbase_export_", ".db", context.cacheDir)
             var usedVacuum: Boolean

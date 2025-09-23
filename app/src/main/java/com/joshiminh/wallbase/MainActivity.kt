@@ -4,6 +4,7 @@ import android.app.Activity
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,8 +31,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -160,6 +161,20 @@ data class TopBarState(
     )
 }
 
+class TopBarHandle internal constructor(
+    private val ownerId: Long,
+    private val setState: (Long, TopBarState) -> Unit,
+    private val clearState: (Long) -> Unit
+) {
+    fun update(state: TopBarState) {
+        setState(ownerId, state)
+    }
+
+    fun clear() {
+        clearState(ownerId)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun WallBaseApp(
@@ -188,6 +203,30 @@ fun WallBaseApp(
     val photosToken = remember { "" }
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
     var topBarState by remember { mutableStateOf<TopBarState?>(null) }
+    var topBarOwnerId by remember { mutableStateOf<Long?>(null) }
+    var nextTopBarOwnerId by remember { mutableLongStateOf(0L) }
+    val acquireTopBar: (TopBarState) -> TopBarHandle = remember {
+        { state ->
+            val ownerId = nextTopBarOwnerId
+            nextTopBarOwnerId += 1
+            topBarOwnerId = ownerId
+            topBarState = state
+            TopBarHandle(
+                ownerId = ownerId,
+                setState = { id, updated ->
+                    if (topBarOwnerId == id) {
+                        topBarState = updated
+                    }
+                },
+                clearState = { id ->
+                    if (topBarOwnerId == id) {
+                        topBarOwnerId = null
+                        topBarState = null
+                    }
+                }
+            )
+        }
+    }
     val canNavigateBack = navController.previousBackStackEntry != null &&
             currentDestination?.route !in topLevelRoutes
     val showTopBar = currentDestination?.route != "wallpaperDetail"
@@ -297,7 +336,7 @@ fun WallBaseApp(
                         onAlbumSelected = { album ->
                             navController.navigate("album/${album.id}")
                         },
-                        onConfigureTopBar = { topBarState = it },
+                        onConfigureTopBar = acquireTopBar,
                         sharedTransitionScope = sharedScope,
                         animatedVisibilityScope = this
                     )
@@ -353,7 +392,7 @@ fun WallBaseApp(
                                 launchSingleTop = true
                             }
                         },
-                        onConfigureTopBar = { topBarState = it },
+                        onConfigureTopBar = acquireTopBar,
                         sharedTransitionScope = sharedScope,
                         animatedVisibilityScope = this
                     )
@@ -375,27 +414,36 @@ fun WallBaseApp(
                                 launchSingleTop = true
                             }
                         },
-                        onConfigureTopBar = { topBarState = it },
+                        onConfigureTopBar = acquireTopBar,
                         sharedTransitionScope = sharedScope,
                         animatedVisibilityScope = this
                     )
                 }
             }
             composable("wallpaperDetail") {
-                val wallpaper = navController.previousBackStackEntry?.savedStateHandle
-                    ?.get<WallpaperItem>("wallpaper_detail")
+                val previousEntry = navController.previousBackStackEntry
+                val sourceHandle = previousEntry?.savedStateHandle
+                val wallpaper = sourceHandle?.get<WallpaperItem>("wallpaper_detail")
                 if (wallpaper == null) {
                     topBarState = null
-                    LaunchedEffect(Unit) { navController.popBackStack() }
+                    LaunchedEffect(Unit) {
+                        sourceHandle?.remove<WallpaperItem>("wallpaper_detail")
+                        navController.popBackStack()
+                    }
                 } else {
-                    val sourceHandle = navController.previousBackStackEntry?.savedStateHandle
                     val activity = LocalContext.current as? Activity
+                    val removeWallpaper: () -> Unit = {
+                        sourceHandle?.remove<WallpaperItem>("wallpaper_detail")
+                    }
                     val navigateBack: () -> Unit = {
+                        removeWallpaper()
                         val popped = navController.popBackStack()
                         if (!popped) {
                             activity?.finish()
                         }
                     }
+
+                    BackHandler(onBack = navigateBack)
 
                     WallpaperDetailRoute(
                         wallpaper = wallpaper,
@@ -404,11 +452,8 @@ fun WallBaseApp(
                         animatedVisibilityScope = this
                     )
 
-                    DisposableEffect(wallpaper.id) {
+                    LaunchedEffect(wallpaper.id) {
                         topBarState = null
-                        onDispose {
-                            sourceHandle?.remove<WallpaperItem>("wallpaper_detail")
-                        }
                     }
                 }
             }

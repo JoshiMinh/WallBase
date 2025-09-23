@@ -10,10 +10,15 @@ import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.album.AlbumEntity
 import com.joshiminh.wallbase.data.entity.album.AlbumWallpaperCrossRef
-import com.joshiminh.wallbase.data.entity.source.SourceEntity
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.entity.source.DefaultSources
+import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.SourceSeed
+import com.joshiminh.wallbase.data.entity.source.SourceEntity.Companion.fromSeed
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -37,20 +42,22 @@ abstract class WallBaseDatabase : RoomDatabase() {
 
         fun getInstance(context: Context): WallBaseDatabase {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: buildDatabase(context.applicationContext).also { INSTANCE = it }
+                INSTANCE ?: buildDatabase(context.applicationContext)
             }
         }
 
+        private val databaseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
         private fun buildDatabase(context: Context): WallBaseDatabase {
+            val callback = DefaultSourcesCallback(DefaultSources, databaseScope)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
-                .addCallback(object : Callback() {
-                    override fun onCreate(db: SupportSQLiteDatabase) {
-                        super.onCreate(db)
-                        preloadSources(db, DefaultSources)
-                    }
-                })
+                .addCallback(callback)
                 .fallbackToDestructiveMigration()
                 .build()
+                .also { database ->
+                    INSTANCE = database
+                    callback.attach(database)
+                }
         }
 
         private fun preloadSources(db: SupportSQLiteDatabase, seeds: List<SourceSeed>) {
@@ -76,6 +83,56 @@ abstract class WallBaseDatabase : RoomDatabase() {
                 db.setTransactionSuccessful()
             } finally {
                 db.endTransaction()
+            }
+        }
+    }
+
+    private class DefaultSourcesCallback(
+        private val seeds: List<SourceSeed>,
+        private val scope: CoroutineScope,
+    ) : Callback() {
+
+        @Volatile
+        private var database: WallBaseDatabase? = null
+
+        fun attach(database: WallBaseDatabase) {
+            this.database = database
+        }
+
+        override fun onCreate(db: SupportSQLiteDatabase) {
+            super.onCreate(db)
+            preloadSources(db, seeds)
+        }
+
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            super.onOpen(db)
+            scope.launch {
+                ensureDefaultSources()
+            }
+        }
+
+        private suspend fun ensureDefaultSources() {
+            val database = awaitDatabase()
+            val sourceDao = database.sourceDao()
+            val existingKeys = sourceDao.getSourceKeys().toSet()
+            val missingSources = seeds
+                .asSequence()
+                .filter { it.key !in existingKeys }
+                .map(::fromSeed)
+                .toList()
+
+            if (missingSources.isNotEmpty()) {
+                sourceDao.insertSourcesIfMissing(missingSources)
+            }
+        }
+
+        private suspend fun awaitDatabase(): WallBaseDatabase {
+            while (true) {
+                val current = database
+                if (current != null) {
+                    return current
+                }
+                delay(10)
             }
         }
     }
