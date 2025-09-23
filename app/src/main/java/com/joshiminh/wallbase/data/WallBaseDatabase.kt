@@ -1,3 +1,5 @@
+@file:Suppress("TYPE_INTERSECTION_AS_REIFIED_WARNING")
+
 package com.joshiminh.wallbase.data
 
 import android.content.Context
@@ -14,6 +16,7 @@ import com.joshiminh.wallbase.data.entity.source.DefaultSources
 import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.SourceSeed
 import com.joshiminh.wallbase.data.entity.source.SourceEntity.Companion.fromSeed
+import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,7 +55,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
             val callback = DefaultSourcesCallback(DefaultSources, databaseScope)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
                 .addCallback(callback)
-                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration(false)
                 .build()
                 .also { database ->
                     INSTANCE = database
