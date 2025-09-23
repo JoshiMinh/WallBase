@@ -25,7 +25,8 @@ fun TopBarSearchField(
     onClear: () -> Unit,
     placeholder: String,
     focusRequester: FocusRequester,
-    onSearch: (() -> Unit)? = null
+    onSearch: (() -> Unit)? = null,
+    showClearButton: Boolean = true
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -38,7 +39,7 @@ fun TopBarSearchField(
         singleLine = true,
         placeholder = { Text(text = placeholder) },
         trailingIcon = {
-            if (value.isNotEmpty()) {
+            if (showClearButton && value.isNotEmpty()) {
                 IconButton(onClick = onClear) {
                     Icon(
                         imageVector = Icons.Outlined.Close,

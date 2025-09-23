@@ -89,11 +89,13 @@ import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.AlbumLayout
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.AlbumLayoutPicker
 import com.joshiminh.wallbase.ui.components.GridColumnPicker
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.ui.components.WallpaperLayoutPicker
 import com.joshiminh.wallbase.ui.sort.SortField
 import com.joshiminh.wallbase.ui.sort.SortSelection
 import com.joshiminh.wallbase.ui.sort.toAlbumSortOption
@@ -137,6 +139,7 @@ fun LibraryScreen(
 
     val trimmedQuery = remember(searchQuery) { searchQuery.trim() }
     val wallpaperGridColumns = uiState.wallpaperGridColumns
+    val wallpaperLayout = uiState.wallpaperLayout
     val albumLayout = uiState.albumLayout
     val displayedWallpapers = remember(uiState.wallpapers, trimmedQuery, isSearchActive) {
         if (!isSearchActive || trimmedQuery.isEmpty()) {
@@ -161,6 +164,12 @@ fun LibraryScreen(
     val onGridColumnsSelected: (Int) -> Unit = { columns ->
         if (wallpaperGridColumns != columns) {
             libraryViewModel.updateWallpaperGridColumns(columns)
+        }
+    }
+
+    val onWallpaperLayoutSelected: (WallpaperLayout) -> Unit = { layout ->
+        if (wallpaperLayout != layout) {
+            libraryViewModel.updateWallpaperLayout(layout)
         }
     }
 
@@ -294,7 +303,22 @@ fun LibraryScreen(
             "Search albums"
         }
         val actions: @Composable RowScope.() -> Unit = {
-            if (!isSearchActive) {
+            if (isSearchActive) {
+                IconButton(onClick = {
+                    isSearchActive = false
+                    searchQuery = ""
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }) {
+                    Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
+                }
+                IconButton(onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }) {
+                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
+                }
+            } else {
                 IconButton(onClick = { isSearchActive = true }) {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                 }
@@ -303,18 +327,7 @@ fun LibraryScreen(
                 Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
             }
         }
-        val navigationIcon = if (isSearchActive) {
-            TopBarState.NavigationIcon(
-                icon = Icons.Outlined.Close,
-                contentDescription = "Close search",
-                onClick = {
-                    isSearchActive = false
-                    searchQuery = ""
-                }
-            )
-        } else {
-            null
-        }
+        val navigationIcon: TopBarState.NavigationIcon? = null
         val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
             {
                 TopBarSearchField(
@@ -322,7 +335,8 @@ fun LibraryScreen(
                     onValueChange = { searchQuery = it },
                     onClear = { searchQuery = "" },
                     placeholder = searchPlaceholder,
-                    focusRequester = searchFocusRequester
+                    focusRequester = searchFocusRequester,
+                    showClearButton = false
                 )
             }
         } else {
@@ -433,6 +447,7 @@ fun LibraryScreen(
             isSearching = isSearchActive,
             searchQuery = trimmedQuery,
             wallpaperGridColumns = wallpaperGridColumns,
+            wallpaperLayout = wallpaperLayout,
             albumLayout = albumLayout,
             modifier = Modifier
                 .fillMaxSize()
@@ -445,20 +460,22 @@ fun LibraryScreen(
         title = sortSheetTitle,
         selection = activeSortSelection,
         availableFields = availableSortFields,
-        onFieldSelected = { field ->
-            applySortSelection(SortSelection(field, activeSortSelection.direction))
-        },
-        onDirectionSelected = { direction ->
-            applySortSelection(SortSelection(activeSortSelection.field, direction))
-        },
+        onSelectionChanged = applySortSelection,
         onDismissRequest = { showSortSheet = false },
         additionalContent = {
             if (selectedTab == 0) {
-                GridColumnPicker(
-                    label = "Grid columns",
-                    selectedColumns = wallpaperGridColumns,
-                    onColumnsSelected = onGridColumnsSelected
+                WallpaperLayoutPicker(
+                    label = "Wallpaper layout",
+                    selectedLayout = wallpaperLayout,
+                    onLayoutSelected = onWallpaperLayoutSelected
                 )
+                if (wallpaperLayout == WallpaperLayout.GRID) {
+                    GridColumnPicker(
+                        label = "Grid columns",
+                        selectedColumns = wallpaperGridColumns,
+                        onColumnsSelected = onGridColumnsSelected
+                    )
+                }
             } else {
                 AlbumLayoutPicker(
                     label = "Album layout",
@@ -552,6 +569,7 @@ private fun LibraryContent(
     isSearching: Boolean,
     searchQuery: String,
     wallpaperGridColumns: Int,
+    wallpaperLayout: WallpaperLayout,
     albumLayout: AlbumLayout,
     modifier: Modifier = Modifier
 ) {
@@ -596,6 +614,7 @@ private fun LibraryContent(
                             selectedIds = selectedIds,
                             selectionMode = selectionMode,
                             columns = wallpaperGridColumns,
+                            layout = wallpaperLayout,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )

@@ -8,6 +8,7 @@ import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
@@ -113,8 +114,15 @@ class SourceBrowseViewModel(
             settingsRepository.preferences.collectLatest { preferences ->
                 _uiState.update { state ->
                     val columns = preferences.wallpaperGridColumns
-                    if (state.wallpaperGridColumns == columns) state
-                    else state.copy(wallpaperGridColumns = columns)
+                    val layout = preferences.wallpaperLayout
+                    if (state.wallpaperGridColumns == columns && state.wallpaperLayout == layout) {
+                        state
+                    } else {
+                        state.copy(
+                            wallpaperGridColumns = columns,
+                            wallpaperLayout = layout
+                        )
+                    }
                 }
             }
         }
@@ -359,6 +367,14 @@ class SourceBrowseViewModel(
         }
     }
 
+    fun updateWallpaperLayout(layout: WallpaperLayout) {
+        if (_uiState.value.wallpaperLayout == layout) return
+        _uiState.update { it.copy(wallpaperLayout = layout) }
+        viewModelScope.launch {
+            settingsRepository.setWallpaperLayout(layout)
+        }
+    }
+
     private fun selectedWallpapers(): List<WallpaperItem> {
         val current = _uiState.value
         if (current.selectedIds.isEmpty()) return emptyList()
@@ -406,7 +422,8 @@ class SourceBrowseViewModel(
         val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
         val isAppending: Boolean = false,
         val canLoadMore: Boolean = false,
-        val wallpaperGridColumns: Int = 2
+        val wallpaperGridColumns: Int = 2,
+        val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID
     )
 
     companion object {

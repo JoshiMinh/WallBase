@@ -116,3 +116,13 @@ val SortField.displayName: String
         SortField.Alphabet -> "Alphabet"
         SortField.DateAdded -> "Date added"
     }
+
+fun SortField.defaultDirection(): SortDirection = when (this) {
+    SortField.Alphabet -> SortDirection.Ascending
+    SortField.DateAdded -> SortDirection.Descending
+}
+
+fun SortDirection.toggle(): SortDirection = when (this) {
+    SortDirection.Ascending -> SortDirection.Descending
+    SortDirection.Descending -> SortDirection.Ascending
+}

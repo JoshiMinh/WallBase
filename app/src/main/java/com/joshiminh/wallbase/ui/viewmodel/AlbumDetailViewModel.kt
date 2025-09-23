@@ -7,6 +7,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
+import com.joshiminh.wallbase.data.repository.SettingsRepository
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
 import com.joshiminh.wallbase.ui.sort.sortedWith
 import com.joshiminh.wallbase.util.network.ServiceLocator
@@ -20,7 +22,8 @@ import kotlinx.coroutines.launch
 
 class AlbumDetailViewModel(
     private val albumId: Long,
-    private val repository: LibraryRepository
+    private val repository: LibraryRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val sortOption = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
@@ -35,8 +38,9 @@ class AlbumDetailViewModel(
             sortOption,                        // sort
             downloading,                       // isDownloading
             removingDownloads,                 // isRemoving
-            message                            // message
-        ) { detail, sort, isDownloading, isRemoving, message ->
+            message,                           // message
+            settingsRepository.preferences     // layout preferences
+        ) { detail, sort, isDownloading, isRemoving, message, preferences ->
             if (detail == null) {
                 AlbumDetailUiState(
                     isLoading = false,
@@ -44,7 +48,9 @@ class AlbumDetailViewModel(
                     wallpaperSortOption = sort,
                     isDownloading = isDownloading,
                     isRemovingDownloads = isRemoving,
-                    message = message
+                    message = message,
+                    wallpaperGridColumns = preferences.wallpaperGridColumns,
+                    wallpaperLayout = preferences.wallpaperLayout
                 )
             } else {
                 val sorted = detail.wallpapers.sortedWith(sort)
@@ -57,7 +63,9 @@ class AlbumDetailViewModel(
                     isDownloading = isDownloading,
                     isAlbumDownloaded = sorted.isAlbumFullyDownloaded(),
                     isRemovingDownloads = isRemoving,
-                    message = message
+                    message = message,
+                    wallpaperGridColumns = preferences.wallpaperGridColumns,
+                    wallpaperLayout = preferences.wallpaperLayout
                 )
             }
         }.combine(showRemoveDownloads) { state, showRemove ->
@@ -149,7 +157,9 @@ class AlbumDetailViewModel(
         val isAlbumDownloaded: Boolean = false,
         val isRemovingDownloads: Boolean = false,
         val message: String? = null,
-        val showRemoveDownloadsConfirmation: Boolean = false
+        val showRemoveDownloadsConfirmation: Boolean = false,
+        val wallpaperGridColumns: Int = 2,
+        val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID
     )
 
     companion object {
@@ -157,7 +167,8 @@ class AlbumDetailViewModel(
             initializer {
                 AlbumDetailViewModel(
                     albumId = albumId,
-                    repository = ServiceLocator.libraryRepository
+                    repository = ServiceLocator.libraryRepository,
+                    settingsRepository = ServiceLocator.settingsRepository
                 )
             }
         }

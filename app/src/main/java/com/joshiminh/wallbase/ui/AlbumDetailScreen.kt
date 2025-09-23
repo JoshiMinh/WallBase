@@ -115,20 +115,26 @@ fun AlbumDetailRoute(
         }
     }
 
-    val navigationIcon = if (isSearchActive) {
-        TopBarState.NavigationIcon(
-            icon = Icons.Outlined.Close,
-            contentDescription = "Close search",
-            onClick = {
+    val topBarActions: @Composable RowScope.() -> Unit = {
+        if (isSearchActive) {
+            IconButton(onClick = {
                 isSearchActive = false
                 searchQuery = ""
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }) {
+                Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
             }
-        )
-    } else {
-        null
-    }
-    val topBarActions: @Composable RowScope.() -> Unit = {
-        if (!isSearchActive) {
+            IconButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                },
+                enabled = canSort
+            ) {
+                Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
+            }
+        } else {
             IconButton(
                 onClick = { isSearchActive = true },
                 enabled = canSort
@@ -171,7 +177,8 @@ fun AlbumDetailRoute(
                 onValueChange = { searchQuery = it },
                 onClear = { searchQuery = "" },
                 placeholder = "Search album",
-                focusRequester = searchFocusRequester
+                focusRequester = searchFocusRequester,
+                showClearButton = false
             )
         }
     } else {
@@ -179,7 +186,7 @@ fun AlbumDetailRoute(
     }
     val topBarState = TopBarState(
         title = if (isSearchActive) null else title,
-        navigationIcon = navigationIcon,
+        navigationIcon = null,
         actions = topBarActions,
         titleContent = titleContent
     )
@@ -223,13 +230,8 @@ fun AlbumDetailRoute(
         title = "Sort wallpapers",
         selection = sortSelection,
         availableFields = availableSortFields,
-        onFieldSelected = { field ->
-            val updated = SortSelection(field, sortSelection.direction)
-            viewModel.updateSort(updated.toWallpaperSortOption())
-        },
-        onDirectionSelected = { direction ->
-            val updated = SortSelection(sortSelection.field, direction)
-            viewModel.updateSort(updated.toWallpaperSortOption())
+        onSelectionChanged = { selection ->
+            viewModel.updateSort(selection.toWallpaperSortOption())
         },
         onDismissRequest = { showSortSheet = false }
     )
@@ -328,6 +330,8 @@ private fun AlbumDetailScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth(),
+                            columns = state.wallpaperGridColumns,
+                            layout = state.wallpaperLayout,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )

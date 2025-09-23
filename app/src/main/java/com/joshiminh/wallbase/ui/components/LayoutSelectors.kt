@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.data.repository.AlbumLayout
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 
 @Composable
 fun GridColumnPicker(
@@ -19,7 +20,8 @@ fun GridColumnPicker(
     selectedColumns: Int,
     onColumnsSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    range: IntRange = 1..4
+    range: IntRange = 1..4,
+    enabled: Boolean = true
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = label, style = MaterialTheme.typography.labelLarge)
@@ -30,7 +32,37 @@ fun GridColumnPicker(
                     selected = selectedColumns == count,
                     onClick = { onColumnsSelected(count) },
                     shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                    enabled = enabled,
                     label = { Text(text = count.toString()) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun WallpaperLayoutPicker(
+    label: String,
+    selectedLayout: WallpaperLayout,
+    onLayoutSelected: (WallpaperLayout) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(text = label, style = MaterialTheme.typography.labelLarge)
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            val options = WallpaperLayout.values()
+            options.forEachIndexed { index, layout ->
+                SegmentedButton(
+                    selected = selectedLayout == layout,
+                    onClick = { onLayoutSelected(layout) },
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                    label = {
+                        val text = when (layout) {
+                            WallpaperLayout.GRID -> "Grid"
+                            WallpaperLayout.LIST -> "List"
+                        }
+                        Text(text = text)
+                    }
                 )
             }
         }

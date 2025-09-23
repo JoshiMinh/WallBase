@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.getValue
@@ -423,7 +424,17 @@ fun WallBaseApp(
             composable("wallpaperDetail") {
                 val previousEntry = navController.previousBackStackEntry
                 val sourceHandle = previousEntry?.savedStateHandle
-                val wallpaper = sourceHandle?.get<WallpaperItem>("wallpaper_detail")
+                val wallpaper = remember(previousEntry) {
+                    sourceHandle?.get<WallpaperItem>("wallpaper_detail")
+                }
+
+                DisposableEffect(previousEntry?.id) {
+                    val handle = sourceHandle
+                    onDispose {
+                        handle?.remove<WallpaperItem>("wallpaper_detail")
+                    }
+                }
+
                 if (wallpaper == null) {
                     topBarState = null
                     LaunchedEffect(Unit) {
@@ -432,11 +443,7 @@ fun WallBaseApp(
                     }
                 } else {
                     val activity = LocalContext.current as? Activity
-                    val removeWallpaper: () -> Unit = {
-                        sourceHandle?.remove<WallpaperItem>("wallpaper_detail")
-                    }
                     val navigateBack: () -> Unit = {
-                        removeWallpaper()
                         val popped = navController.popBackStack()
                         if (!popped) {
                             activity?.finish()

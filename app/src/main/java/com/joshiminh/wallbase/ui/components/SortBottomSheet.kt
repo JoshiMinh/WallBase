@@ -8,19 +8,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,7 +29,9 @@ import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.sort.SortDirection
 import com.joshiminh.wallbase.ui.sort.SortField
 import com.joshiminh.wallbase.ui.sort.SortSelection
+import com.joshiminh.wallbase.ui.sort.defaultDirection
 import com.joshiminh.wallbase.ui.sort.displayName
+import com.joshiminh.wallbase.ui.sort.toggle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,8 +40,7 @@ fun SortBottomSheet(
     title: String,
     selection: SortSelection,
     availableFields: List<SortField>,
-    onFieldSelected: (SortField) -> Unit,
-    onDirectionSelected: (SortDirection) -> Unit,
+    onSelectionChanged: (SortSelection) -> Unit,
     onDismissRequest: () -> Unit,
     additionalContent: (@Composable ColumnScope.() -> Unit)? = null
 ) {
@@ -66,14 +64,20 @@ fun SortBottomSheet(
                     field = field,
                     selected = selection.field == field,
                     direction = selection.direction.takeIf { selection.field == field },
-                    onClick = { onFieldSelected(field) }
+                    onClick = {
+                        val isCurrent = selection.field == field
+                        val direction = if (isCurrent) {
+                            selection.direction.toggle()
+                        } else {
+                            field.defaultDirection()
+                        }
+                        val updated = SortSelection(field, direction)
+                        if (selection != updated) {
+                            onSelectionChanged(updated)
+                        }
+                    }
                 )
             }
-            Divider()
-            SortDirectionRow(
-                direction = selection.direction,
-                onDirectionSelected = onDirectionSelected
-            )
             additionalContent?.let { content ->
                 Divider()
                 Spacer(modifier = Modifier.height(4.dp))
@@ -96,82 +100,32 @@ private fun SortFieldRow(
         shape = RoundedCornerShape(14.dp),
         tonalElevation = if (selected) 4.dp else 0.dp
     ) {
-        ListItem(
-            headlineContent = { Text(text = field.displayName) },
-            leadingContent = {
-                RadioButton(selected = selected, onClick = null)
-            },
-            trailingContent = {
-                direction?.let { dir ->
-                    val icon = if (dir == SortDirection.Ascending) {
-                        Icons.Outlined.ArrowUpward
-                    } else {
-                        Icons.Outlined.ArrowDownward
-                    }
-                    val description = if (dir == SortDirection.Ascending) {
-                        "Ascending"
-                    } else {
-                        "Descending"
-                    }
-                    Icon(imageVector = icon, contentDescription = description)
-                }
-            },
-            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun SortDirectionRow(
-    direction: SortDirection,
-    onDirectionSelected: (SortDirection) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(text = "Order", style = MaterialTheme.typography.labelLarge)
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            DirectionButton(
-                direction = SortDirection.Ascending,
-                selected = direction == SortDirection.Ascending,
-                onClick = { onDirectionSelected(SortDirection.Ascending) }
+            RadioButton(selected = selected, onClick = null)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = field.displayName,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
             )
-            DirectionButton(
-                direction = SortDirection.Descending,
-                selected = direction == SortDirection.Descending,
-                onClick = { onDirectionSelected(SortDirection.Descending) }
-            )
-        }
-    }
-}
-
-@Composable
-private fun DirectionButton(
-    direction: SortDirection,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val icon = if (direction == SortDirection.Ascending) {
-        Icons.Outlined.ArrowUpward
-    } else {
-        Icons.Outlined.ArrowDownward
-    }
-    val description = if (direction == SortDirection.Ascending) {
-        "Sort ascending"
-    } else {
-        "Sort descending"
-    }
-
-    if (selected) {
-        FilledIconButton(onClick = onClick) {
-            Icon(imageVector = icon, contentDescription = description)
-        }
-    } else {
-        OutlinedIconButton(onClick = onClick) {
-            Icon(imageVector = icon, contentDescription = description)
+            direction?.let { dir ->
+                val icon = if (dir == SortDirection.Ascending) {
+                    Icons.Outlined.ArrowUpward
+                } else {
+                    Icons.Outlined.ArrowDownward
+                }
+                val description = if (dir == SortDirection.Ascending) {
+                    "Ascending"
+                } else {
+                    "Descending"
+                }
+                Icon(imageVector = icon, contentDescription = description)
+            }
         }
     }
 }

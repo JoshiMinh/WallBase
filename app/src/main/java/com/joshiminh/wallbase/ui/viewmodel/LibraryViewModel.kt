@@ -10,8 +10,9 @@ import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.LibraryRepository
-import com.joshiminh.wallbase.data.repository.SettingsPreferences
 import com.joshiminh.wallbase.data.repository.SettingsRepository
+import com.joshiminh.wallbase.data.repository.SettingsPreferences
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.sort.AlbumSortOption
 import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
 import com.joshiminh.wallbase.ui.sort.sortedWith
@@ -64,7 +65,8 @@ class LibraryViewModel(
                 wallpaperSortOption = wallpaperSortOption,
                 albumSortOption = albumSortOption,
                 wallpaperGridColumns = preferences.wallpaperGridColumns,
-                albumLayout = preferences.albumLayout
+                albumLayout = preferences.albumLayout,
+                wallpaperLayout = preferences.wallpaperLayout
             )
         }.stateIn(
             scope = viewModelScope,
@@ -83,6 +85,12 @@ class LibraryViewModel(
     fun updateWallpaperGridColumns(columns: Int) {
         viewModelScope.launch {
             settingsRepository.setWallpaperGridColumns(columns)
+        }
+    }
+
+    fun updateWallpaperLayout(layout: WallpaperLayout) {
+        viewModelScope.launch {
+            settingsRepository.setWallpaperLayout(layout)
         }
     }
 
@@ -259,7 +267,8 @@ class LibraryViewModel(
         val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
         val albumSortOption: AlbumSortOption = AlbumSortOption.TITLE_ASCENDING,
         val wallpaperGridColumns: Int = 2,
-        val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST
+        val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
+        val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID
     )
 
     companion object {
