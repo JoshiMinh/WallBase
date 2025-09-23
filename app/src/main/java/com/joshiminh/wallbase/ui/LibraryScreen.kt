@@ -84,6 +84,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
@@ -105,7 +106,7 @@ import com.joshiminh.wallbase.ui.viewmodel.LibraryViewModel
 fun LibraryScreen(
     onWallpaperSelected: (WallpaperItem) -> Unit,
     onAlbumSelected: (AlbumItem) -> Unit,
-    onConfigureTopBar: (TopBarState?) -> Unit,
+    onConfigureTopBar: (TopBarState) -> TopBarHandle,
     libraryViewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -217,7 +218,8 @@ fun LibraryScreen(
         showSortSheet = false
     }
 
-    if (selectionMode) {
+    val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
+    val topBarState = if (selectionMode) {
         val selectionTitle = "${selectedIds.size} selected"
         val removeLabel = "Remove from library"
         val addLabel = "Add to album"
@@ -275,19 +277,15 @@ fun LibraryScreen(
                 Icon(imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd, contentDescription = addLabel)
             }
         }
-        SideEffect {
-            onConfigureTopBar(
-                TopBarState(
-                    title = selectionTitle,
-                    navigationIcon = TopBarState.NavigationIcon(
-                        icon = Icons.Outlined.Close,
-                        contentDescription = clearLabel,
-                        onClick = { selectedIds = emptySet() }
-                    ),
-                    actions = actions
-                )
-            )
-        }
+        TopBarState(
+            title = selectionTitle,
+            navigationIcon = TopBarState.NavigationIcon(
+                icon = Icons.Outlined.Close,
+                contentDescription = clearLabel,
+                onClick = { selectedIds = emptySet() }
+            ),
+            actions = actions
+        )
     } else {
         val baseTitle = if (selectedTab == 0) "Library" else "Albums"
         val searchPlaceholder = if (selectedTab == 0) {
@@ -330,20 +328,28 @@ fun LibraryScreen(
         } else {
             null
         }
-        SideEffect {
-            onConfigureTopBar(
-                TopBarState(
-                    title = if (isSearchActive) null else baseTitle,
-                    navigationIcon = navigationIcon,
-                    actions = actions,
-                    titleContent = titleContent
-                )
-            )
+        TopBarState(
+            title = if (isSearchActive) null else baseTitle,
+            navigationIcon = navigationIcon,
+            actions = actions,
+            titleContent = titleContent
+        )
+    }
+
+    SideEffect {
+        val handle = topBarHandleState.value
+        if (handle == null) {
+            topBarHandleState.value = onConfigureTopBar(topBarState)
+        } else {
+            handle.update(topBarState)
         }
     }
 
     DisposableEffect(Unit) {
-        onDispose { onConfigureTopBar(null) }
+        onDispose {
+            topBarHandleState.value?.clear()
+            topBarHandleState.value = null
+        }
     }
 
     val onWallpaperClick: (WallpaperItem) -> Unit = { wallpaper ->

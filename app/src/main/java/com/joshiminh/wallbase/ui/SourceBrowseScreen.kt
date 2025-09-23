@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
@@ -69,7 +70,7 @@ import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
 fun SourceBrowseRoute(
     sourceKey: String,
     onWallpaperSelected: (WallpaperItem) -> Unit,
-    onConfigureTopBar: (TopBarState?) -> Unit,
+    onConfigureTopBar: (TopBarState) -> TopBarHandle,
     viewModel: SourceBrowseViewModel = viewModel(factory = SourceBrowseViewModel.provideFactory(sourceKey)),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -177,11 +178,25 @@ fun SourceBrowseRoute(
 
         else -> null
     }
+    val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
     SideEffect {
-        onConfigureTopBar(topBarState)
+        val handle = topBarHandleState.value
+        when {
+            topBarState == null -> {
+                handle?.clear()
+                topBarHandleState.value = null
+            }
+            handle == null -> {
+                topBarHandleState.value = onConfigureTopBar(topBarState)
+            }
+            else -> handle.update(topBarState)
+        }
     }
     DisposableEffect(Unit) {
-        onDispose { onConfigureTopBar(null) }
+        onDispose {
+            topBarHandleState.value?.clear()
+            topBarHandleState.value = null
+        }
     }
 
     LaunchedEffect(isSearchActive) {
