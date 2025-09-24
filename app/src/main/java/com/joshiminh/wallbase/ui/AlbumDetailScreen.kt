@@ -3,8 +3,11 @@ package com.joshiminh.wallbase.ui
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -12,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
@@ -20,13 +25,18 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,6 +67,10 @@ import com.joshiminh.wallbase.ui.sort.SortSelection
 import com.joshiminh.wallbase.ui.sort.toSelection
 import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
+import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
+import com.joshiminh.wallbase.util.wallpapers.rotation.WallpaperRotationDefaults
+import java.text.DateFormat
+import java.util.Date
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -221,6 +235,10 @@ fun AlbumDetailRoute(
         snackbarHostState = snackbarHostState,
         onConfirmRemoveDownloads = viewModel::removeAlbumDownloads,
         onDismissRemoveDownloads = viewModel::dismissRemoveDownloadsPrompt,
+        onToggleRotation = viewModel::toggleRotation,
+        onSelectRotationInterval = viewModel::updateRotationInterval,
+        onSelectRotationTarget = viewModel::updateRotationTarget,
+        onStartRotationNow = viewModel::triggerRotationNow,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope
     )
@@ -248,6 +266,10 @@ private fun AlbumDetailScreen(
     snackbarHostState: SnackbarHostState,
     onConfirmRemoveDownloads: () -> Unit,
     onDismissRemoveDownloads: () -> Unit,
+    onToggleRotation: (Boolean) -> Unit,
+    onSelectRotationInterval: (Long) -> Unit,
+    onSelectRotationTarget: (WallpaperTarget) -> Unit,
+    onStartRotationNow: () -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
@@ -306,6 +328,118 @@ private fun AlbumDetailScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        tonalElevation = 2.dp
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Scheduled rotation",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = if (state.rotation.isEnabled) {
+                                            "Wallpapers rotate automatically from this album."
+                                        } else {
+                                            "Choose how often WallBase should rotate wallpapers."
+                                        },
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = state.rotation.isEnabled,
+                                    onCheckedChange = onToggleRotation,
+                                    enabled = state.wallpapers.isNotEmpty() && !state.rotation.isUpdating,
+                                    colors = SwitchDefaults.colors()
+                                )
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Interval",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                val intervalScroll = rememberScrollState()
+                                Row(
+                                    modifier = Modifier.horizontalScroll(intervalScroll),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    WallpaperRotationDefaults.AVAILABLE_INTERVALS.forEach { interval ->
+                                        FilterChip(
+                                            selected = state.rotation.intervalMinutes == interval,
+                                            onClick = { onSelectRotationInterval(interval) },
+                                            enabled = !state.rotation.isUpdating,
+                                            label = {
+                                                val label = when (interval) {
+                                                    15L -> "15 min"
+                                                    30L -> "30 min"
+                                                    60L -> "1 hr"
+                                                    240L -> "4 hr"
+                                                    1440L -> "1 day"
+                                                    else -> "${interval} min"
+                                                }
+                                                Text(label)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Apply to",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                val targetScroll = rememberScrollState()
+                                Row(
+                                    modifier = Modifier.horizontalScroll(targetScroll),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    listOf(
+                                        WallpaperTarget.HOME,
+                                        WallpaperTarget.LOCK,
+                                        WallpaperTarget.BOTH
+                                    ).forEach { target ->
+                                        FilterChip(
+                                            selected = state.rotation.target == target,
+                                            onClick = { onSelectRotationTarget(target) },
+                                            enabled = !state.rotation.isUpdating,
+                                            label = { Text(target.label) }
+                                        )
+                                    }
+                                }
+                            }
+
+                            val lastApplied = state.rotation.lastAppliedAt?.let { timestamp ->
+                                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                                    .format(Date(timestamp))
+                            }
+                            if (lastApplied != null) {
+                                Text(
+                                    text = "Last applied: $lastApplied",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Button(
+                                onClick = onStartRotationNow,
+                                enabled = state.rotation.isEnabled && !state.rotation.isUpdating
+                            ) {
+                                Text(text = "Rotate now")
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     if (wallpapers.isEmpty()) {
                         val message = when {
                             state.wallpapers.isEmpty() -> "This album doesn't have any wallpapers yet."

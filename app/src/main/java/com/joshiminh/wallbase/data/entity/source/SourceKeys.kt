@@ -5,6 +5,10 @@ object SourceKeys {
     const val GOOGLE_DRIVE = "google_drive"
     const val REDDIT = "reddit"
     const val PINTEREST = "pinterest"
+    const val WALLHAVEN = "wallhaven"
+    const val DANBOORU = "danbooru"
+    const val UNSPLASH = "unsplash"
+    const val ALPHA_CODERS = "alpha_coders"
     const val WEBSITES = "websites"
     const val LOCAL = "local"
 }

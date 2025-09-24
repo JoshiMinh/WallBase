@@ -47,7 +47,7 @@ fun GooglePhotosAlbumPickerScreen(
         albums = emptyList()
         if (token.isBlank()) {
             loading = false
-            errorMessage = "Missing Google Photos authentication token."
+            errorMessage = "Missing google drive/photos authentication token"
             return@LaunchedEffect
         }
 

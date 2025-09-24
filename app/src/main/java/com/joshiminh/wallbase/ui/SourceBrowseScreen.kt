@@ -317,17 +317,16 @@ private fun SourceBrowseScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             state.errorMessage?.takeIf { state.wallpapers.isEmpty() }?.let { message ->
                 Text(
                     text = message,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             PullToRefreshBox(
                 isRefreshing = state.isRefreshing,
@@ -390,7 +389,7 @@ private fun SourceBrowseScreen(
                     text = message,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
@@ -421,7 +420,7 @@ private fun AlbumPickerDialog(
             if (albums.isEmpty()) {
                 Text(text = "Create an album in your library to start organizing wallpapers.")
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     albums.forEach { album ->
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
@@ -430,7 +429,7 @@ private fun AlbumPickerDialog(
                             onClick = { onAlbumSelected(album) }
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                             ) {
                                 Text(
                                     text = album.title,
@@ -461,7 +460,7 @@ private fun ErrorMessage(message: String, onRetry: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -469,7 +468,7 @@ private fun ErrorMessage(message: String, onRetry: () -> Unit) {
             text = message,
             color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 4.dp)
         )
         Button(onClick = onRetry) {
             Text("Retry")

@@ -59,6 +59,7 @@ fun WallpaperLayoutPicker(
                     label = {
                         val text = when (layout) {
                             WallpaperLayout.GRID -> "Grid"
+                            WallpaperLayout.JUSTIFIED -> "Justified"
                             WallpaperLayout.LIST -> "List"
                         }
                         Text(text = text)

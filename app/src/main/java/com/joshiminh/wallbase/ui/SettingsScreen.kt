@@ -14,14 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -35,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
@@ -44,7 +42,6 @@ import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 fun SettingsScreen(
     uiState: SettingsViewModel.SettingsUiState,
     onToggleDarkTheme: (Boolean) -> Unit,
-    onSourceRepoUrlChanged: (String) -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onMessageShown: () -> Unit
@@ -105,50 +102,6 @@ fun SettingsScreen(
                             Switch(
                                 checked = uiState.darkTheme,
                                 onCheckedChange = onToggleDarkTheme
-                            )
-                        }
-                    }
-                }
-            }
-
-            item {
-                SettingsSection(spacing = 12.dp) {
-                    Text(
-                        text = "Sources",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    SettingsCard {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Source repository",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "Paste a JSON feed that lists wallpaper sources to import.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            OutlinedTextField(
-                                value = uiState.sourceRepoUrl,
-                                onValueChange = onSourceRepoUrlChanged,
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                placeholder = {
-                                    Text("https://example.com/wallbase-sources.json")
-                                },
-                                keyboardOptions = KeyboardOptions.Default.copy(
-                                    imeAction = ImeAction.Done
-                                )
                             )
                         }
                     }
@@ -247,66 +200,73 @@ fun SettingsScreen(
                     }
 
                     SettingsCard {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Export library",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "Save your sources, library, and albums as a backup file.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Export library",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = "Save your sources, library, and albums as a backup file.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                SettingsActionButton(
+                                    text = if (uiState.isBackingUp) "Exporting…" else "Export",
+                                    enabled = !uiState.isBackingUp && !uiState.isRestoring,
+                                    showProgress = uiState.isBackingUp,
+                                    onClick = onExportBackup
                                 )
                             }
 
-                            SettingsActionButton(
-                                text = if (uiState.isBackingUp) "Exporting…" else "Export",
-                                enabled = !uiState.isBackingUp && !uiState.isRestoring,
-                                showProgress = uiState.isBackingUp,
-                                onClick = onExportBackup
+                            Divider(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp),
+                                color = MaterialTheme.colorScheme.outlineVariant
                             )
-                        }
-                    }
 
-                    SettingsCard {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Import backup",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "Restore your sources, library, and albums from a backup file.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Import backup",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = "Restore your sources, library, and albums from a backup file.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                SettingsActionButton(
+                                    text = if (uiState.isRestoring) "Importing…" else "Import",
+                                    enabled = !uiState.isRestoring && !uiState.isBackingUp,
+                                    showProgress = uiState.isRestoring,
+                                    onClick = onImportBackup
                                 )
                             }
-
-                            SettingsActionButton(
-                                text = if (uiState.isRestoring) "Importing…" else "Import",
-                                enabled = !uiState.isRestoring && !uiState.isBackingUp,
-                                showProgress = uiState.isRestoring,
-                                onClick = onImportBackup
-                            )
                         }
                     }
                 }

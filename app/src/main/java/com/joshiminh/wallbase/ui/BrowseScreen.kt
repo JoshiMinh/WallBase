@@ -18,6 +18,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -156,6 +157,7 @@ private fun AddSourceFromUrlCard(
     val isReddit = detectedType == SourceRepository.RemoteSourceType.REDDIT
     val canSearch = isReddit && input.trim().length >= 2 && !isSearching
     val canAdd = detectedType != null && input.isNotBlank() && !isSearching
+    var showSupportedSources by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -163,21 +165,31 @@ private fun AddSourceFromUrlCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            if (showSupportedSources) {
+                SupportedSourcesDialog(onDismiss = { showSupportedSources = false })
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Add from URL",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { showSupportedSources = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Info,
+                        contentDescription = "Supported sources"
+                    )
+                }
+            }
             Text(
-                text = "Add from URL",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                text = "Paste a subreddit or wallpaper link to create a new source.",
+                text = "Paste a subreddit or supported wallpaper link to create a new source.",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp)
             )
-
-            Column(modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)) {
-                SupportedSourceBullet("Reddit Subs")
-                SupportedSourceBullet("Pinterest Boards")
-                SupportedSourceBullet("Wallpaper Websites")
-            }
 
             OutlinedTextField(
                 value = input,
@@ -271,15 +283,6 @@ private fun AddSourceFromUrlCard(
 }
 
 @Composable
-private fun SupportedSourceBullet(text: String) {
-    Text(
-        text = "• $text",
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.padding(vertical = 2.dp)
-    )
-}
-
-@Composable
 private fun RedditSearchResult(
     community: RedditCommunity,
     alreadyAdded: Boolean,
@@ -324,6 +327,49 @@ private fun RedditSearchResult(
     }
 }
 
+@Composable
+private fun SupportedSourcesDialog(onDismiss: () -> Unit) {
+    val sources = listOf(
+        SupportedSourceInfo("Reddit", "reddit.com"),
+        SupportedSourceInfo("Wallhaven", "wallhaven.cc"),
+        SupportedSourceInfo("Danbooru", "danbooru.donmai.us"),
+        SupportedSourceInfo("Unsplash", "unsplash.com"),
+        SupportedSourceInfo("AlphaCoders (Wallpaper Abyss)", "wall.alphacoders.com"),
+        SupportedSourceInfo("Pinterest", "pinterest.com")
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Supported URL sources") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                sources.forEach { source ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = source.faviconUrl,
+                            contentDescription = source.label,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = source.label,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Got it")
+            }
+        }
+    )
+}
+
+private data class SupportedSourceInfo(val label: String, val domain: String) {
+    val faviconUrl: String = "https://www.google.com/s2/favicons?sz=128&domain=$domain"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SourceCard(
@@ -340,9 +386,15 @@ private fun SourceCard(
     val isRemovable = when {
         isGoogleDrivePicker || isGooglePhotosPicker -> false
         isGoogleDrive || isGooglePhotos -> true
-        else -> source.providerKey == SourceKeys.REDDIT ||
-            source.providerKey == SourceKeys.WEBSITES ||
-            source.providerKey == SourceKeys.PINTEREST
+        else -> source.providerKey in setOf(
+            SourceKeys.REDDIT,
+            SourceKeys.PINTEREST,
+            SourceKeys.WEBSITES,
+            SourceKeys.WALLHAVEN,
+            SourceKeys.DANBOORU,
+            SourceKeys.UNSPLASH,
+            SourceKeys.ALPHA_CODERS
+        )
     }
 
     val cardModifier = when {

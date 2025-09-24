@@ -144,31 +144,33 @@ class DatabaseBackupManager(
 
             val sqliteDb = database.openHelper.writableDatabase
             sqliteDb.execSQL("PRAGMA foreign_keys=OFF")
-            sqliteDb.beginTransaction()
+            var transactionStarted = false
             try {
                 val backupPath = databaseFile.absolutePath.replace("'", "''")
                 sqliteDb.execSQL("ATTACH DATABASE '$backupPath' AS backup")
-                try {
-                    DATA_TABLES.forEach { table ->
-                        sqliteDb.execSQL("DELETE FROM $table")
-                        if (sqliteDb.hasTable("backup", table)) {
-                            sqliteDb.execSQL("INSERT INTO $table SELECT * FROM backup.$table")
-                        }
-                    }
+                sqliteDb.beginTransaction()
+                transactionStarted = true
 
-                    if (sqliteDb.hasTable("main", "sqlite_sequence")) {
-                        sqliteDb.execSQL("DELETE FROM sqlite_sequence")
+                DATA_TABLES.forEach { table ->
+                    sqliteDb.execSQL("DELETE FROM $table")
+                    if (sqliteDb.hasTable("backup", table)) {
+                        sqliteDb.execSQL("INSERT INTO $table SELECT * FROM backup.$table")
                     }
-                    if (sqliteDb.hasTable("backup", "sqlite_sequence")) {
-                        sqliteDb.execSQL("INSERT INTO sqlite_sequence SELECT * FROM backup.sqlite_sequence")
-                    }
-
-                    sqliteDb.setTransactionSuccessful()
-                } finally {
-                    runCatching { sqliteDb.execSQL("DETACH DATABASE backup") }
                 }
+
+                if (sqliteDb.hasTable("main", "sqlite_sequence")) {
+                    sqliteDb.execSQL("DELETE FROM sqlite_sequence")
+                }
+                if (sqliteDb.hasTable("backup", "sqlite_sequence")) {
+                    sqliteDb.execSQL("INSERT INTO sqlite_sequence SELECT * FROM backup.sqlite_sequence")
+                }
+
+                sqliteDb.setTransactionSuccessful()
             } finally {
-                sqliteDb.endTransaction()
+                if (transactionStarted) {
+                    sqliteDb.endTransaction()
+                }
+                runCatching { sqliteDb.execSQL("DETACH DATABASE backup") }
                 sqliteDb.execSQL("PRAGMA foreign_keys=ON")
                 if (databaseFile != tempFile) {
                     databaseFile.delete()

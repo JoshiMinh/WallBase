@@ -106,7 +106,6 @@ class MainActivity : ComponentActivity() {
                     sourcesUiState = sourcesUiState,
                     settingsUiState = settingsUiState,
                     onToggleDarkTheme = settingsViewModel::setDarkTheme,
-                    onSourceRepoUrlChanged = settingsViewModel::updateSourceRepoUrl,
                     onUpdateSourceInput = sourcesViewModel::updateSourceInput,
                     onSearchReddit = sourcesViewModel::searchRedditCommunities,
                     onAddSourceFromInput = sourcesViewModel::addSourceFromInput,
@@ -182,7 +181,6 @@ fun WallBaseApp(
     sourcesUiState: SourcesViewModel.SourcesUiState,
     settingsUiState: SettingsViewModel.SettingsUiState,
     onToggleDarkTheme: (Boolean) -> Unit,
-    onSourceRepoUrlChanged: (String) -> Unit,
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
@@ -468,7 +466,6 @@ fun WallBaseApp(
                 SettingsScreen(
                     uiState = settingsUiState,
                     onToggleDarkTheme = onToggleDarkTheme,
-                    onSourceRepoUrlChanged = onSourceRepoUrlChanged,
                     onExportBackup = onExportBackup,
                     onImportBackup = onImportBackup,
                     onMessageShown = onSettingsMessageShown

@@ -1,5 +1,6 @@
 package com.joshiminh.wallbase.data.repository
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import com.joshiminh.wallbase.data.dao.AlbumDao
@@ -14,11 +15,13 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperWithAlbums
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator.CopyResult
+import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.LinkedHashSet
 import java.util.Locale
+import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -204,6 +207,50 @@ class LibraryRepository(
                 downloaded++
             }
             DownloadResult(downloaded = downloaded, skipped = skipped, failed = failed)
+        }
+    }
+
+    suspend fun saveEditedWallpaper(
+        wallpaper: WallpaperItem,
+        edited: EditedWallpaper
+    ): DownloadResult {
+        val sourceKey = wallpaper.sourceKey ?: return DownloadResult(0, 1, 0)
+        return withContext(Dispatchers.IO) {
+            val ensure = ensureWallpaperSaved(wallpaper)
+            val wallpaperId = when (ensure) {
+                is EnsureResult.Inserted -> ensure.id
+                is EnsureResult.Existing -> ensure.id
+                EnsureResult.Skipped, EnsureResult.Failed -> null
+            }
+            if (wallpaperId == null) {
+                return@withContext DownloadResult(downloaded = 0, skipped = 1, failed = 0)
+            }
+
+            val bytes = ByteArrayOutputStream().use { stream ->
+                if (!edited.bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)) {
+                    return@withContext DownloadResult(downloaded = 0, skipped = 0, failed = 1)
+                }
+                stream.toByteArray()
+            }
+            val folderName = wallpaperFolderName(wallpaper)
+            val displayName = wallpaper.title.ifBlank {
+                wallpaper.remoteIdentifierWithinSource().orEmpty().ifBlank { "Wallpaper" }
+            }
+            val copy = localStorage.writeBytes(
+                data = bytes,
+                sourceFolder = folderName,
+                displayName = displayName,
+                mimeTypeHint = "image/jpeg"
+            )
+            val now = System.currentTimeMillis()
+            wallpaperDao.updateDownloadState(
+                id = wallpaperId,
+                localUri = copy.uri.toString(),
+                isDownloaded = true,
+                fileSize = copy.sizeBytes,
+                updatedAt = now
+            )
+            DownloadResult(downloaded = 1, skipped = 0, failed = 0)
         }
     }
 

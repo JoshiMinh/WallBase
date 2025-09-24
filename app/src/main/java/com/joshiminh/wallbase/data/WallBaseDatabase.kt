@@ -9,6 +9,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.joshiminh.wallbase.data.dao.AlbumDao
 import com.joshiminh.wallbase.data.dao.SourceDao
+import com.joshiminh.wallbase.data.dao.RotationScheduleDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.album.AlbumEntity
 import com.joshiminh.wallbase.data.entity.album.AlbumWallpaperCrossRef
@@ -17,6 +18,7 @@ import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.SourceSeed
 import com.joshiminh.wallbase.data.entity.source.SourceEntity.Companion.fromSeed
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
+import com.joshiminh.wallbase.data.entity.rotation.RotationScheduleEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,9 +30,10 @@ import kotlinx.coroutines.launch
         AlbumEntity::class,
         WallpaperEntity::class,
         AlbumWallpaperCrossRef::class,
-        SourceEntity::class
+        SourceEntity::class,
+        RotationScheduleEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -38,6 +41,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
     abstract fun sourceDao(): SourceDao
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun albumDao(): AlbumDao
+    abstract fun rotationScheduleDao(): RotationScheduleDao
 
     companion object {
         @Volatile
@@ -54,6 +58,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): WallBaseDatabase {
             val callback = DefaultSourcesCallback(DefaultSources, databaseScope)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
+                .addMigrations(MIGRATION_4_5)
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
                 .build()
@@ -61,6 +66,27 @@ abstract class WallBaseDatabase : RoomDatabase() {
                     INSTANCE = database
                     callback.attach(database)
                 }
+        }
+
+        val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rotation_schedules (
+                        schedule_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        album_id INTEGER NOT NULL,
+                        interval_minutes INTEGER NOT NULL,
+                        target TEXT NOT NULL,
+                        is_enabled INTEGER NOT NULL,
+                        last_applied_at INTEGER,
+                        last_wallpaper_id INTEGER,
+                        FOREIGN KEY(album_id) REFERENCES albums(album_id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_rotation_schedules_album_id ON rotation_schedules(album_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_rotation_schedules_is_enabled ON rotation_schedules(is_enabled)")
+            }
         }
 
         private fun preloadSources(db: SupportSQLiteDatabase, seeds: List<SourceSeed>) {

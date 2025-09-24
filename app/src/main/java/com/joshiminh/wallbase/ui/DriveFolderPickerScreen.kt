@@ -47,7 +47,7 @@ fun DriveFolderPickerScreen(
         folders = emptyList()
         if (token.isBlank()) {
             loading = false
-            errorMessage = "Missing Google Drive authentication token."
+            errorMessage = "Missing google drive/photos authentication token"
             return@LaunchedEffect
         }
 

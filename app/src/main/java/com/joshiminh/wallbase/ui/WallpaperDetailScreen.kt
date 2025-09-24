@@ -9,9 +9,11 @@ import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +43,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +57,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -58,7 +65,11 @@ import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
+import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
+import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -117,6 +128,10 @@ fun WallpaperDetailRoute(
         onRequestRemoveDownload = viewModel::promptRemoveDownload,
         onConfirmRemoveDownload = viewModel::removeDownload,
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
+        onAdjustBrightness = viewModel::updateBrightness,
+        onSelectFilter = viewModel::updateFilter,
+        onSelectCrop = viewModel::updateCrop,
+        onResetAdjustments = viewModel::resetAdjustments,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
@@ -138,6 +153,10 @@ private fun WallpaperDetailScreen(
     onRequestRemoveDownload: () -> Unit,
     onConfirmRemoveDownload: () -> Unit,
     onDismissRemoveDownload: () -> Unit,
+    onAdjustBrightness: (Float) -> Unit,
+    onSelectFilter: (WallpaperFilter) -> Unit,
+    onSelectCrop: (WallpaperCrop) -> Unit,
+    onResetAdjustments: () -> Unit,
     onRequestPermission: () -> Unit,
     onNavigateBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -187,16 +206,30 @@ private fun WallpaperDetailScreen(
                         .clip(RoundedCornerShape(24.dp))
                         .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
                 ) {
-                    AsyncImage(
-                        model = wallpaper.previewModel(),
-                        contentDescription = null,
-                        modifier = sharedModifier.then(
-                            Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(aspectRatio)
-                        ),
-                        contentScale = ContentScale.Crop
-                    )
+                    val previewBitmap = uiState.editedPreview
+                    if (previewBitmap != null) {
+                        Image(
+                            bitmap = previewBitmap.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = sharedModifier.then(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(aspectRatio)
+                            ),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        AsyncImage(
+                            model = wallpaper.previewModel(),
+                            contentDescription = null,
+                            modifier = sharedModifier.then(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(aspectRatio)
+                            ),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
 
                 Surface(
@@ -291,6 +324,78 @@ private fun WallpaperDetailScreen(
                     )
                     Spacer(Modifier.height(12.dp))
                 }
+
+                if (uiState.isProcessingEdits) {
+                    AssistChip(
+                        onClick = {},
+                        label = { Text(text = "Updating preview…") },
+                        enabled = false
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                Text(
+                    text = "Adjust wallpaper",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                if (!uiState.isEditorReady) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "Loading editable preview…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Slider(
+                    value = uiState.adjustments.brightness,
+                    onValueChange = onAdjustBrightness,
+                    valueRange = -0.5f..0.5f,
+                    enabled = uiState.isEditorReady,
+                    colors = SliderDefaults.colors()
+                )
+                val brightnessPercent = (uiState.adjustments.brightness * 100).roundToInt()
+                Text(
+                    text = "Brightness ${if (brightnessPercent >= 0) "+" else ""}$brightnessPercent%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    WallpaperFilter.values().forEach { filter ->
+                        FilterChip(
+                            selected = uiState.adjustments.filter == filter,
+                            onClick = { onSelectFilter(filter) },
+                            enabled = uiState.isEditorReady,
+                            label = { Text(text = filter.displayName()) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    WallpaperCrop.values().forEach { crop ->
+                        FilterChip(
+                            selected = uiState.adjustments.crop == crop,
+                            onClick = { onSelectCrop(crop) },
+                            enabled = uiState.isEditorReady,
+                            label = { Text(text = crop.displayName()) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    onClick = onResetAdjustments,
+                    enabled = !uiState.adjustments.isIdentity
+                ) {
+                    Text(text = "Reset adjustments")
+                }
+                Spacer(Modifier.height(12.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     if (canDownload) {
@@ -419,6 +524,18 @@ private fun WallpaperDetailScreen(
             onDismiss = onDismissPreviewFallback
         )
     }
+}
+
+private fun WallpaperFilter.displayName(): String = when (this) {
+    WallpaperFilter.NONE -> "Original"
+    WallpaperFilter.GRAYSCALE -> "Grayscale"
+    WallpaperFilter.SEPIA -> "Sepia"
+}
+
+private fun WallpaperCrop.displayName(): String = when (this) {
+    WallpaperCrop.AUTO -> "Screen"
+    WallpaperCrop.ORIGINAL -> "Original"
+    WallpaperCrop.SQUARE -> "Square"
 }
 
 private const val DEFAULT_DETAIL_ASPECT_RATIO = 9f / 16f
