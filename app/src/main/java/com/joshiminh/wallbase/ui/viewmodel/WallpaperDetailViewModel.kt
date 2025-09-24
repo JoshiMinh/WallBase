@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.app.Application
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -12,22 +14,38 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
 import com.joshiminh.wallbase.util.wallpapers.PreviewData
 import com.joshiminh.wallbase.util.wallpapers.WallpaperApplier
+import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.util.wallpapers.WallpaperEditor
+import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
 import com.joshiminh.wallbase.util.network.ServiceLocator
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class WallpaperDetailViewModel(
     application: Application,
     private val applier: WallpaperApplier = WallpaperApplier(application.applicationContext),
-    private val libraryRepository: LibraryRepository = ServiceLocator.libraryRepository
+    private val libraryRepository: LibraryRepository = ServiceLocator.libraryRepository,
+    private val editor: WallpaperEditor = WallpaperEditor(application.applicationContext)
 ) : AndroidViewModel(application) {
+
+    private var originalBitmap: Bitmap? = null
+    private var processedWallpaper: EditedWallpaper? = null
+    private var cachedAdjustments: WallpaperAdjustments? = null
+    private var loadJob: Job? = null
+    private var previewJob: Job? = null
 
     private val _uiState = MutableStateFlow(
         WallpaperDetailUiState(
@@ -51,9 +69,15 @@ class WallpaperDetailViewModel(
                 showRemoveDownloadConfirmation = false,
                 pendingPreview = null,
                 pendingFallback = null,
-                message = null
+                message = null,
+                adjustments = WallpaperAdjustments(),
+                editedPreview = null,
+                isEditorReady = false,
+                isProcessingEdits = true
             )
         }
+
+        loadWallpaperForEditing(wallpaper)
 
         val sourceKey = wallpaper.sourceKey
         if (sourceKey != null) {
@@ -81,6 +105,105 @@ class WallpaperDetailViewModel(
         }
     }
 
+    private fun loadWallpaperForEditing(wallpaper: WallpaperItem) {
+        previewJob?.cancel()
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            processedWallpaper?.bitmap?.takeIf { !it.isRecycled }?.recycle()
+            processedWallpaper = null
+            cachedAdjustments = null
+            originalBitmap?.takeIf { !it.isRecycled }?.recycle()
+            originalBitmap = null
+
+            val model: Any = wallpaper.localUri?.takeIf { it.isNotBlank() }
+                ?.let { Uri.parse(it) }
+                ?: wallpaper.imageUrl
+
+            val loaded = runCatching { editor.loadOriginalBitmap(model) }
+            loaded.onSuccess { bitmap ->
+                originalBitmap = bitmap
+                generatePreviewForAdjustments(_uiState.value.adjustments)
+            }.onFailure { throwable ->
+                _uiState.update {
+                    it.copy(
+                        isProcessingEdits = false,
+                        isEditorReady = false,
+                        message = throwable.localizedMessage ?: "Unable to load wallpaper for editing"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun generatePreviewForAdjustments(adjustments: WallpaperAdjustments) {
+        val source = originalBitmap ?: run {
+            _uiState.update { it.copy(isProcessingEdits = false, isEditorReady = false) }
+            return
+        }
+        previewJob?.cancel()
+        previewJob = viewModelScope.launch {
+            _uiState.update { it.copy(isProcessingEdits = true) }
+            val result = runCatching {
+                withContext(Dispatchers.Default) {
+                    editor.applyAdjustments(source, adjustments)
+                }
+            }
+            result.onSuccess { edited ->
+                updateProcessedWallpaper(edited, adjustments)
+                _uiState.update {
+                    it.copy(
+                        editedPreview = edited.bitmap,
+                        isProcessingEdits = false,
+                        isEditorReady = true
+                    )
+                }
+            }.onFailure { throwable ->
+                if (throwable is CancellationException) return@launch
+                _uiState.update {
+                    it.copy(
+                        isProcessingEdits = false,
+                        isEditorReady = false,
+                        message = throwable.localizedMessage ?: "Unable to process wallpaper adjustments"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun updateProcessedWallpaper(result: EditedWallpaper, adjustments: WallpaperAdjustments) {
+        processedWallpaper?.bitmap?.takeIf { it !== result.bitmap && !it.isRecycled }?.recycle()
+        processedWallpaper = result
+        cachedAdjustments = adjustments
+    }
+
+    private suspend fun prepareEditedWallpaper(): EditedWallpaper? {
+        previewJob?.join()
+        val adjustments = _uiState.value.adjustments
+        processedWallpaper?.let { existing ->
+            if (cachedAdjustments == adjustments) {
+                return existing
+            }
+        }
+        val source = originalBitmap ?: return null
+        val result = runCatching {
+            withContext(Dispatchers.Default) {
+                editor.applyAdjustments(source, adjustments)
+            }
+        }
+        return result.onSuccess { edited ->
+            updateProcessedWallpaper(edited, adjustments)
+        }.getOrElse { throwable ->
+            if (throwable !is CancellationException) {
+                _uiState.update {
+                    it.copy(
+                        message = throwable.localizedMessage ?: "Unable to process wallpaper adjustments"
+                    )
+                }
+            }
+            null
+        }
+    }
+
     fun applyWallpaper(target: WallpaperTarget) {
         val wallpaper = _uiState.value.wallpaper ?: return
         if (_uiState.value.isApplying) return
@@ -102,7 +225,17 @@ class WallpaperDetailViewModel(
                     pendingFallback = null
                 )
             }
-            val previewResult = applier.createSystemPreview(wallpaper.imageUrl, target)
+            val prepared = prepareEditedWallpaper()
+            if (prepared == null) {
+                _uiState.update {
+                    it.copy(
+                        isApplying = false,
+                        message = "Unable to prepare wallpaper for preview"
+                    )
+                }
+                return@launch
+            }
+            val previewResult = applier.createSystemPreview(prepared, target)
             previewResult.fold(
                 onSuccess = { preview ->
                     val packageManager = getApplication<Application>().packageManager
@@ -149,6 +282,37 @@ class WallpaperDetailViewModel(
         showPreviewFallback(preview.target, throwable)
     }
 
+    fun updateBrightness(value: Float) {
+        val clipped = value.coerceIn(-0.5f, 0.5f)
+        val current = _uiState.value.adjustments
+        if (current.brightness == clipped) return
+        _uiState.update { it.copy(adjustments = current.copy(brightness = clipped)) }
+        cachedAdjustments = null
+        generatePreviewForAdjustments(_uiState.value.adjustments)
+    }
+
+    fun updateFilter(filter: WallpaperFilter) {
+        val current = _uiState.value.adjustments
+        if (current.filter == filter) return
+        _uiState.update { it.copy(adjustments = current.copy(filter = filter)) }
+        cachedAdjustments = null
+        generatePreviewForAdjustments(_uiState.value.adjustments)
+    }
+
+    fun updateCrop(crop: WallpaperCrop) {
+        val current = _uiState.value.adjustments
+        if (current.crop == crop) return
+        _uiState.update { it.copy(adjustments = current.copy(crop = crop)) }
+        cachedAdjustments = null
+        generatePreviewForAdjustments(_uiState.value.adjustments)
+    }
+
+    fun resetAdjustments() {
+        _uiState.update { it.copy(adjustments = WallpaperAdjustments()) }
+        cachedAdjustments = null
+        generatePreviewForAdjustments(_uiState.value.adjustments)
+    }
+
     fun confirmApplyWithoutPreview() {
         val wallpaper = _uiState.value.wallpaper ?: return
         val fallback = _uiState.value.pendingFallback ?: return
@@ -164,7 +328,19 @@ class WallpaperDetailViewModel(
                     message = null
                 )
             }
-            val result = applier.apply(wallpaper.imageUrl, target)
+            val prepared = prepareEditedWallpaper()
+            if (prepared == null) {
+                _uiState.update {
+                    it.copy(
+                        isApplying = false,
+                        message = reason?.let { detail ->
+                            "Preview unavailable ($detail). Unable to prepare wallpaper"
+                        } ?: "Unable to prepare wallpaper"
+                    )
+                }
+                return@launch
+            }
+            val result = applier.apply(prepared, target)
             _uiState.update {
                 it.copy(
                     isApplying = false,
@@ -234,7 +410,12 @@ class WallpaperDetailViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isDownloading = true, message = null) }
-            val result = runCatching { libraryRepository.downloadWallpapers(listOf(wallpaper)) }
+            val prepared = prepareEditedWallpaper()
+            val result = if (prepared != null) {
+                runCatching { libraryRepository.saveEditedWallpaper(wallpaper, prepared) }
+            } else {
+                runCatching { libraryRepository.downloadWallpapers(listOf(wallpaper)) }
+            }
             val libraryState = runCatching { libraryRepository.getWallpaperLibraryState(wallpaper) }
                 .getOrNull()
             _uiState.update {
@@ -384,6 +565,10 @@ class WallpaperDetailViewModel(
         val showRemoveDownloadConfirmation: Boolean = false,
         val pendingPreview: WallpaperPreviewLaunch? = null,
         val pendingFallback: WallpaperPreviewFallback? = null,
+        val adjustments: WallpaperAdjustments = WallpaperAdjustments(),
+        val editedPreview: Bitmap? = null,
+        val isEditorReady: Boolean = false,
+        val isProcessingEdits: Boolean = false,
         val message: String? = null
     )
 
@@ -417,5 +602,15 @@ class WallpaperDetailViewModel(
             ) == PackageManager.PERMISSION_GRANTED
             return granted
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        loadJob?.cancel()
+        previewJob?.cancel()
+        processedWallpaper?.bitmap?.takeIf { !it.isRecycled }?.recycle()
+        processedWallpaper = null
+        originalBitmap?.takeIf { !it.isRecycled }?.recycle()
+        originalBitmap = null
     }
 }

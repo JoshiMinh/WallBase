@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.map
 import java.io.IOException
 
 /**
- * Persists simple user settings such as dark theme and custom source repository URLs.
+ * Persists simple user settings such as dark theme and layout preferences.
  */
 class SettingsRepository(
     private val dataStore: DataStore<Preferences>
@@ -37,7 +37,6 @@ class SettingsRepository(
 
             SettingsPreferences(
                 darkTheme = prefs[Keys.DARK_THEME] ?: false,
-                sourceRepoUrl = prefs[Keys.SOURCE_REPO_URL].orEmpty(),
                 wallpaperGridColumns = wallpaperColumns,
                 albumLayout = albumLayout,
                 wallpaperLayout = wallpaperLayout
@@ -47,17 +46,6 @@ class SettingsRepository(
     suspend fun setDarkTheme(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.DARK_THEME] = enabled
-        }
-    }
-
-    suspend fun setSourceRepoUrl(url: String) {
-        val sanitized = url.trim()
-        dataStore.edit { prefs ->
-            if (sanitized.isBlank()) {
-                prefs.remove(Keys.SOURCE_REPO_URL)
-            } else {
-                prefs[Keys.SOURCE_REPO_URL] = sanitized
-            }
         }
     }
 
@@ -82,7 +70,6 @@ class SettingsRepository(
 
     private object Keys {
         val DARK_THEME = booleanPreferencesKey("dark_theme")
-        val SOURCE_REPO_URL = stringPreferencesKey("source_repo_url")
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
         val ALBUM_LAYOUT = stringPreferencesKey("album_layout")
         val WALLPAPER_LAYOUT = stringPreferencesKey("wallpaper_layout")
@@ -97,7 +84,6 @@ class SettingsRepository(
 
 data class SettingsPreferences(
     val darkTheme: Boolean,
-    val sourceRepoUrl: String,
     val wallpaperGridColumns: Int,
     val albumLayout: AlbumLayout,
     val wallpaperLayout: WallpaperLayout
@@ -128,16 +114,19 @@ enum class AlbumLayout {
 
 enum class WallpaperLayout {
     GRID,
+    JUSTIFIED,
     LIST;
 
     val storageValue: String
         get() = when (this) {
             GRID -> "grid"
+            JUSTIFIED -> "justified"
             LIST -> "list"
         }
 
     companion object {
         fun fromStorage(value: String?): WallpaperLayout = when (value) {
+            "justified" -> JUSTIFIED
             "list" -> LIST
             else -> GRID
         }

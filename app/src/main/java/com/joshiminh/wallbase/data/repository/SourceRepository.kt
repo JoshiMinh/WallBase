@@ -24,7 +24,15 @@ class SourceRepository(
     private val localStorage: LocalStorageCoordinator
 ) {
 
-    enum class RemoteSourceType { REDDIT, PINTEREST, WEBSITE }
+    enum class RemoteSourceType {
+        REDDIT,
+        PINTEREST,
+        WALLHAVEN,
+        DANBOORU,
+        UNSPLASH,
+        ALPHA_CODERS,
+        WEBSITE
+    }
 
     fun observeSources(): Flow<List<Source>> =
         sourceDao.observeSources().map { entities -> entities.map(SourceEntity::toDomain) }
@@ -50,6 +58,10 @@ class SourceRepository(
             )
 
             is RemoteSourceInput.Pinterest -> addPinterestSource(parsed.url)
+            is RemoteSourceInput.Wallhaven -> addWallhavenSource(parsed.url)
+            is RemoteSourceInput.Danbooru -> addDanbooruSource(parsed.url)
+            is RemoteSourceInput.Unsplash -> addUnsplashSource(parsed.url)
+            is RemoteSourceInput.AlphaCoders -> addAlphaCodersSource(parsed.url)
             is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
         }
     }
@@ -128,6 +140,98 @@ class SourceRepository(
         val entity = SourceEntity(
             key = buildWebsiteKey(SourceKeys.PINTEREST, url),
             providerKey = SourceKeys.PINTEREST,
+            title = metadata.title,
+            description = metadata.description,
+            iconRes = metadata.fallbackIcon,
+            iconUrl = metadata.iconUrl,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = url.value
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    private suspend fun addWallhavenSource(url: NormalizedUrl): Source {
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.WALLHAVEN, url.value)
+        if (existing != null) {
+            throw IllegalStateException("Source already added")
+        }
+
+        val metadata = buildWebsiteMetadata(url, RemoteSourceType.WALLHAVEN)
+        val entity = SourceEntity(
+            key = buildWebsiteKey(SourceKeys.WALLHAVEN, url),
+            providerKey = SourceKeys.WALLHAVEN,
+            title = metadata.title,
+            description = metadata.description,
+            iconRes = metadata.fallbackIcon,
+            iconUrl = metadata.iconUrl,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = url.value
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    private suspend fun addDanbooruSource(url: NormalizedUrl): Source {
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.DANBOORU, url.value)
+        if (existing != null) {
+            throw IllegalStateException("Source already added")
+        }
+
+        val metadata = buildWebsiteMetadata(url, RemoteSourceType.DANBOORU)
+        val entity = SourceEntity(
+            key = buildWebsiteKey(SourceKeys.DANBOORU, url),
+            providerKey = SourceKeys.DANBOORU,
+            title = metadata.title,
+            description = metadata.description,
+            iconRes = metadata.fallbackIcon,
+            iconUrl = metadata.iconUrl,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = url.value
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    private suspend fun addUnsplashSource(url: NormalizedUrl): Source {
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.UNSPLASH, url.value)
+        if (existing != null) {
+            throw IllegalStateException("Source already added")
+        }
+
+        val metadata = buildWebsiteMetadata(url, RemoteSourceType.UNSPLASH)
+        val entity = SourceEntity(
+            key = buildWebsiteKey(SourceKeys.UNSPLASH, url),
+            providerKey = SourceKeys.UNSPLASH,
+            title = metadata.title,
+            description = metadata.description,
+            iconRes = metadata.fallbackIcon,
+            iconUrl = metadata.iconUrl,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = url.value
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).toDomain()
+    }
+
+    private suspend fun addAlphaCodersSource(url: NormalizedUrl): Source {
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.ALPHA_CODERS, url.value)
+        if (existing != null) {
+            throw IllegalStateException("Source already added")
+        }
+
+        val metadata = buildWebsiteMetadata(url, RemoteSourceType.ALPHA_CODERS)
+        val entity = SourceEntity(
+            key = buildWebsiteKey(SourceKeys.ALPHA_CODERS, url),
+            providerKey = SourceKeys.ALPHA_CODERS,
             title = metadata.title,
             description = metadata.description,
             iconRes = metadata.fallbackIcon,
@@ -239,6 +343,22 @@ class SourceRepository(
                 RemoteSourceInput.Pinterest(normalizedUrl)
             }
 
+            host.contains("wallhaven", ignoreCase = true) || host == "whvn.cc" -> {
+                RemoteSourceInput.Wallhaven(normalizedUrl)
+            }
+
+            host.contains("danbooru", ignoreCase = true) -> {
+                RemoteSourceInput.Danbooru(normalizedUrl)
+            }
+
+            host.contains("unsplash", ignoreCase = true) -> {
+                RemoteSourceInput.Unsplash(normalizedUrl)
+            }
+
+            host.contains("alphacoders", ignoreCase = true) -> {
+                RemoteSourceInput.AlphaCoders(normalizedUrl)
+            }
+
             else -> RemoteSourceInput.Website(normalizedUrl)
         }
     }
@@ -283,6 +403,22 @@ class SourceRepository(
                 .joinToString(" - ")
                 .ifBlank { "Pinterest" }
 
+            RemoteSourceType.WALLHAVEN -> listOfNotNull("Wallhaven", queryLabel ?: pathSegment)
+                .joinToString(" - ")
+                .ifBlank { "Wallhaven" }
+
+            RemoteSourceType.DANBOORU -> listOfNotNull("Danbooru", queryLabel ?: pathSegment)
+                .joinToString(" - ")
+                .ifBlank { "Danbooru" }
+
+            RemoteSourceType.UNSPLASH -> listOfNotNull("Unsplash", queryLabel ?: pathSegment)
+                .joinToString(" - ")
+                .ifBlank { "Unsplash" }
+
+            RemoteSourceType.ALPHA_CODERS -> listOfNotNull("AlphaCoders", queryLabel ?: pathSegment)
+                .joinToString(" - ")
+                .ifBlank { "AlphaCoders" }
+
             RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
                 .joinToString(" - ")
                 .ifBlank { hostName }
@@ -290,17 +426,17 @@ class SourceRepository(
             else -> hostName
         }
 
-        val fallbackIcon = when {
-            type == RemoteSourceType.PINTEREST -> R.drawable.pinterest
-            url.host.contains("reddit", ignoreCase = true) -> R.drawable.reddit
-            url.host.contains("pinterest", ignoreCase = true) || url.host == "pin.it" -> R.drawable.pinterest
-            url.host.contains("alphacoders", ignoreCase = true) -> android.R.drawable.ic_menu_gallery
-            else -> android.R.drawable.ic_menu_search
+        val fallbackIcon = when (type) {
+            RemoteSourceType.PINTEREST -> R.drawable.pinterest
+            RemoteSourceType.WALLHAVEN -> android.R.drawable.ic_menu_gallery
+            RemoteSourceType.DANBOORU -> android.R.drawable.ic_menu_gallery
+            RemoteSourceType.UNSPLASH -> android.R.drawable.ic_menu_gallery
+            RemoteSourceType.ALPHA_CODERS -> android.R.drawable.ic_menu_gallery
+            RemoteSourceType.REDDIT -> R.drawable.reddit
+            RemoteSourceType.WEBSITE -> android.R.drawable.ic_menu_search
         }
-        val iconUrl = when {
-            type == RemoteSourceType.PINTEREST -> null
-            url.host.contains("reddit", ignoreCase = true) -> null
-            url.host.contains("pinterest", ignoreCase = true) || url.host == "pin.it" -> null
+        val iconUrl = when (type) {
+            RemoteSourceType.PINTEREST, RemoteSourceType.REDDIT -> null
             else -> buildFaviconUrl(url.host)
         }
 
@@ -444,6 +580,14 @@ class SourceRepository(
         }
 
         class Pinterest(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.PINTEREST)
+
+        class Wallhaven(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WALLHAVEN)
+
+        class Danbooru(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.DANBOORU)
+
+        class Unsplash(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.UNSPLASH)
+
+        class AlphaCoders(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.ALPHA_CODERS)
 
         class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
     }

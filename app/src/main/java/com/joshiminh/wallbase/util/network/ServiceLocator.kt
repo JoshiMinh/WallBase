@@ -1,22 +1,27 @@
 package com.joshiminh.wallbase.util.network
 
 import android.content.Context
+import androidx.work.WorkManager
 import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.data.WallBaseDatabase
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
 import com.joshiminh.wallbase.data.repository.SettingsRepository
-import com.joshiminh.wallbase.data.repository.settingsDataStore
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
+import com.joshiminh.wallbase.data.repository.WallpaperRotationRepository
+import com.joshiminh.wallbase.data.repository.settingsDataStore
+import com.joshiminh.wallbase.sources.danbooru.DanbooruService
 import com.joshiminh.wallbase.sources.reddit.RedditService
+import com.joshiminh.wallbase.sources.unsplash.UnsplashService
+import com.joshiminh.wallbase.sources.wallhaven.WallhavenService
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import kotlin.jvm.Volatile
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import kotlin.jvm.Volatile
 
 object ServiceLocator {
 
@@ -81,6 +86,42 @@ object ServiceLocator {
         redditRetrofit.create(RedditService::class.java)
     }
 
+    private val wallhavenRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://wallhaven.cc/api/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+    }
+
+    private val wallhavenService: WallhavenService by lazy {
+        wallhavenRetrofit.create(WallhavenService::class.java)
+    }
+
+    private val danbooruRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://danbooru.donmai.us/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+    }
+
+    private val danbooruService: DanbooruService by lazy {
+        danbooruRetrofit.create(DanbooruService::class.java)
+    }
+
+    private val unsplashRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://unsplash.com/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+    }
+
+    private val unsplashService: UnsplashService by lazy {
+        unsplashRetrofit.create(UnsplashService::class.java)
+    }
+
     private val scraper: WebScraper by lazy { JsoupWebScraper() }
 
     private val database: WallBaseDatabase by lazy {
@@ -90,7 +131,10 @@ object ServiceLocator {
     val wallpaperRepository: WallpaperRepository by lazy {
         WallpaperRepository(
             redditService = redditService,
-            webScraper = scraper
+            webScraper = scraper,
+            wallhavenService = wallhavenService,
+            danbooruService = danbooruService,
+            unsplashService = unsplashService
         )
     }
 
@@ -115,6 +159,13 @@ object ServiceLocator {
             wallpaperDao = database.wallpaperDao(),
             albumDao = database.albumDao(),
             localStorage = localStorageCoordinator
+        )
+    }
+
+    val rotationRepository: WallpaperRotationRepository by lazy {
+        WallpaperRotationRepository(
+            database = database,
+            workManager = WorkManager.getInstance(context)
         )
     }
 }

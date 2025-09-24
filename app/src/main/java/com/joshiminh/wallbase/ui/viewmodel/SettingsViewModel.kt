@@ -40,7 +40,6 @@ class SettingsViewModel(
                 _uiState.update {
                     it.copy(
                         darkTheme = preferences.darkTheme,
-                        sourceRepoUrl = preferences.sourceRepoUrl,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
                         albumLayout = preferences.albumLayout
                     )
@@ -119,20 +118,11 @@ class SettingsViewModel(
         }
     }
 
-    fun updateSourceRepoUrl(url: String) {
-        if (_uiState.value.sourceRepoUrl == url) return
-        _uiState.update { it.copy(sourceRepoUrl = url) }
-        viewModelScope.launch {
-            settingsRepository.setSourceRepoUrl(url)
-        }
-    }
-
     data class SettingsUiState(
         val isBackingUp: Boolean = false,
         val isRestoring: Boolean = false,
         val message: String? = null,
         val darkTheme: Boolean = false,
-        val sourceRepoUrl: String = "",
         val wallpaperGridColumns: Int = 2,
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
         val storageBytes: Long? = null,

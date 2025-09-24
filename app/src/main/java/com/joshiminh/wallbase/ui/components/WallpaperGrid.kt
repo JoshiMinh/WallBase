@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,14 +23,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as lazyItems
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items as lazyItems
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
@@ -42,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
@@ -58,6 +62,72 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val UNKNOWN_PROVIDER_KEY = ""
+
+private data class JustifiedRow(
+    val items: List<WallpaperItem>,
+    val startIndex: Int
+) {
+    val endIndex: Int = if (items.isEmpty()) startIndex else startIndex + items.size - 1
+}
+
+@Composable
+private fun rememberJustifiedRows(
+    wallpapers: List<WallpaperItem>,
+    containerWidth: Dp,
+    rowSpacing: Dp,
+    targetRowHeight: Dp
+): List<JustifiedRow> = remember(wallpapers, containerWidth, rowSpacing, targetRowHeight) {
+    buildJustifiedRows(
+        wallpapers = wallpapers,
+        containerWidth = containerWidth,
+        rowSpacing = rowSpacing,
+        targetRowHeight = targetRowHeight
+    )
+}
+
+private fun buildJustifiedRows(
+    wallpapers: List<WallpaperItem>,
+    containerWidth: Dp,
+    rowSpacing: Dp,
+    targetRowHeight: Dp
+): List<JustifiedRow> {
+    if (wallpapers.isEmpty()) return emptyList()
+    if (containerWidth <= 0.dp) {
+        return wallpapers.mapIndexed { index, item ->
+            JustifiedRow(items = listOf(item), startIndex = index)
+        }
+    }
+    val effectiveTargetHeight = if (targetRowHeight > 0.dp) targetRowHeight else 1.dp
+    val rows = mutableListOf<JustifiedRow>()
+    var currentItems = mutableListOf<WallpaperItem>()
+    var ratioSum = 0f
+    var rowStartIndex = 0
+
+    wallpapers.forEachIndexed { index, item ->
+        val ratio = item.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO
+        currentItems.add(item)
+        ratioSum += ratio
+
+        val spacingCount = (currentItems.size - 1).coerceAtLeast(0)
+        val spacingTotal = rowSpacing * spacingCount
+        val availableWidth = (containerWidth - spacingTotal).coerceAtLeast(0.dp)
+        val threshold = (availableWidth / effectiveTargetHeight).coerceAtLeast(1f)
+
+        val isLastItem = index == wallpapers.lastIndex
+        if (ratioSum >= threshold || isLastItem) {
+            rows += JustifiedRow(items = currentItems.toList(), startIndex = rowStartIndex)
+            currentItems = mutableListOf()
+            ratioSum = 0f
+            rowStartIndex = index + 1
+        }
+    }
+
+    if (currentItems.isNotEmpty()) {
+        rows += JustifiedRow(items = currentItems.toList(), startIndex = rowStartIndex)
+    }
+
+    return rows
+}
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -126,6 +196,7 @@ fun WallpaperGrid(
                         selectionMode = selectionMode,
                         onClick = { onWallpaperSelected(wallpaper) },
                         onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
+                        modifier = Modifier.fillMaxWidth(),
                         sharedElementModifier = sharedModifier
                     )
                 }
@@ -139,6 +210,117 @@ fun WallpaperGrid(
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator()
+                        }
+                    }
+                }
+            }
+        }
+
+        WallpaperLayout.JUSTIFIED -> {
+            BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+                val containerWidth = maxWidth
+                val rowSpacing = 8.dp
+                val targetRowHeight = 180.dp
+                val rows = rememberJustifiedRows(
+                    wallpapers = wallpapers,
+                    containerWidth = containerWidth,
+                    rowSpacing = rowSpacing,
+                    targetRowHeight = targetRowHeight
+                )
+                val listState = rememberLazyListState()
+
+                if (loadMoreCallback != null) {
+                    LaunchedEffect(
+                        listState,
+                        totalItems,
+                        isLoadingMore,
+                        canLoadMore,
+                        rows.size,
+                        rows.lastOrNull()?.endIndex
+                    ) {
+                        if (!canLoadMore) return@LaunchedEffect
+                        val rowEndIndices = rows.map { it.endIndex }
+                        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
+                            .distinctUntilChanged()
+                            .collect { lastVisibleRow ->
+                                val lastIndex = rowEndIndices.getOrNull(lastVisibleRow) ?: return@collect
+                                if (!isLoadingMore && totalItems > 0 && lastIndex >= totalItems - 4) {
+                                    loadMoreCallback()
+                                }
+                            }
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(rowSpacing),
+                    contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
+                ) {
+                    itemsIndexed(rows, key = { _, row -> row.startIndex }) { _, row ->
+                        val rowItems = row.items
+                        val ratios = rowItems.map { item ->
+                            val ratio = item.aspectRatio
+                            when {
+                                ratio == null || ratio <= 0f -> DEFAULT_ASPECT_RATIO
+                                else -> ratio
+                            }
+                        }
+                        val availableWidth = (containerWidth - rowSpacing * (rowItems.size - 1)).coerceAtLeast(0.dp)
+                        val totalRatio = ratios.sum().takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO
+                        val rowHeight = if (availableWidth > 0.dp) {
+                            (availableWidth.value / totalRatio).dp
+                        } else {
+                            targetRowHeight
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(rowHeight),
+                            horizontalArrangement = Arrangement.spacedBy(rowSpacing)
+                        ) {
+                            rowItems.forEachIndexed { index, wallpaper ->
+                                val ratio = ratios.getOrNull(index) ?: DEFAULT_ASPECT_RATIO
+                                val itemWidth = (rowHeight.value * ratio).dp
+                                val isSelected = wallpaper.id in selectedIds
+                                val isSaved = wallpaper.isSaved(
+                                    savedWallpaperKeys = savedWallpaperKeys,
+                                    savedRemoteIdsByProvider = savedRemoteIdsByProvider,
+                                    savedImageUrls = savedImageUrls
+                                )
+                                val sharedModifier = sharedModifierFor(
+                                    wallpaper = wallpaper,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                                WallpaperCard(
+                                    item = wallpaper,
+                                    isSelected = isSelected,
+                                    isSaved = isSaved,
+                                    selectionMode = selectionMode,
+                                    onClick = { onWallpaperSelected(wallpaper) },
+                                    onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
+                                    modifier = Modifier
+                                        .height(rowHeight)
+                                        .width(itemWidth),
+                                    aspectRatio = null,
+                                    sharedElementModifier = sharedModifier
+                                )
+                            }
+                        }
+                    }
+
+                    if (isLoadingMore) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
                         }
                     }
                 }
@@ -268,13 +450,12 @@ fun WallpaperCard(
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
+    aspectRatio: Float? = item.aspectRatio ?: DEFAULT_ASPECT_RATIO,
     sharedElementModifier: Modifier = Modifier
 ) {
-    val aspectRatio = item.aspectRatio ?: DEFAULT_ASPECT_RATIO
     Card(
         modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(aspectRatio)
+            .then(if (aspectRatio != null) Modifier.aspectRatio(aspectRatio) else Modifier)
             .graphicsLayer {
                 if (isSelected) {
                     scaleX = 0.97f

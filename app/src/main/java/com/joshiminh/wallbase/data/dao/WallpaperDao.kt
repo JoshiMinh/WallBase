@@ -45,6 +45,13 @@ interface WallpaperDao {
     @Query("SELECT * FROM wallpapers WHERE local_uri IS NOT NULL AND TRIM(local_uri) != ''")
     suspend fun getWallpapersWithLocalMedia(): List<WallpaperEntity>
 
+    @Query(
+        "SELECT w.* FROM wallpapers w " +
+            "INNER JOIN album_wallpaper_cross_ref aw ON aw.wallpaper_id = w.wallpaper_id " +
+            "WHERE aw.album_id = :albumId ORDER BY w.added_at"
+    )
+    suspend fun getWallpapersForAlbum(albumId: Long): List<WallpaperEntity>
+
     @Query("DELETE FROM wallpapers WHERE source_key = :sourceKey AND remote_id = :remoteId")
     suspend fun deleteBySourceKeyAndRemoteId(sourceKey: String, remoteId: String): Int
 
