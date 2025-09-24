@@ -15,6 +15,12 @@ import org.jsoup.nodes.Element
 import org.json.JSONArray
 import org.json.JSONObject
 
+// Top-level so it can be called from companion objects too.
+private fun ensurePinterestPath(path: String): String {
+    val trimmed = if (path.startsWith("/")) path else "/$path"
+    return if (trimmed.endsWith("/")) trimmed else "$trimmed/"
+}
+
 class JsoupWebScraper : WebScraper {
 
     override suspend fun scrapePinterest(
@@ -266,7 +272,7 @@ class JsoupWebScraper : WebScraper {
             val options = resource.optJSONObject("resource")?.optJSONObject("options")
             val boardId = options?.optString("board_id").takeIf { !it.isNullOrBlank() }
             val slug = options?.optString("slug").takeIf { !it.isNullOrBlank() } ?: info.boardSlug
-            val pageSize = options?.optInt("page_size").takeIf { it > 0 } ?: limit
+            val pageSize = options?.optInt("page_size")?.takeIf { it > 0 } ?: limit
             val nextCursor = bookmark?.let {
                 PinterestCursor(
                     type = resourceName,
@@ -339,16 +345,20 @@ class JsoupWebScraper : WebScraper {
                 ?.replace("\\u0026", "&")
                 ?.replace("\\u003d", "=")
                 ?: continue
+
             val title = pin.optString("title")
                 .ifBlank { pin.optString("grid_title") }
-                .ifBlank { pin.optJSONObject("grid_description")?.optString("text") }
+                .ifBlank { pin.optJSONObject("grid_description")?.optString("text") ?: "" }
                 .ifBlank { "Pinterest Pin" }
+
             val sourceUrl = pin.optString("link")
                 .ifBlank { pin.optString("seo_link") }
                 .ifBlank { "https://www.pinterest.com/pin/$id/" }
+
             val orig = images.optJSONObject("orig")
             val width = orig?.optInt("width")?.takeIf { it > 0 }
             val height = orig?.optInt("height")?.takeIf { it > 0 }
+
             items += WallpaperItem(
                 id = id,
                 title = title,
@@ -419,11 +429,6 @@ class JsoupWebScraper : WebScraper {
         }
     }
 
-    private fun ensurePinterestPath(path: String): String {
-        val trimmed = if (path.startsWith("/")) path else "/$path"
-        return if (trimmed.endsWith("/")) trimmed else "$trimmed/"
-    }
-
     private data class PinterestUrlInfo(
         val type: PinterestResourceType,
         val username: String,
@@ -479,13 +484,21 @@ class JsoupWebScraper : WebScraper {
         private const val TIMEOUT_MS = 15_000
         private const val USER_AGENT =
             "Mozilla/5.0 (Linux; Android 14; WallBase) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
-        private const val IMAGE_SELECTOR = "img[src], img[data-src], img[data-lazy-src], img[data-original], img[data-actualsrc]"
-        private val IMAGE_ATTRIBUTES = listOf("src", "data-src", "data-lazy-src", "data-original", "data-actualsrc")
+        private const val IMAGE_SELECTOR =
+            "img[src], img[data-src], img[data-lazy-src], img[data-original], img[data-actualsrc]"
+        private val IMAGE_ATTRIBUTES =
+            listOf("src", "data-src", "data-lazy-src", "data-original", "data-actualsrc")
         private val PINTEREST_IMAGE_ORDER = listOf("orig", "736x", "600x", "564x", "474x", "236x")
-        private val GOOGLE_PHOTOS_REGEX = Regex("https://lh[0-9]\\.googleusercontent\\.com/[^\\"\\s<>]+", RegexOption.IGNORE_CASE)
+
+        // Fixed regex: removed stray ')', used raw string for clarity.
+        private val GOOGLE_PHOTOS_REGEX =
+            Regex("""https://lh[0-9]\.googleusercontent\.com/[^"\s<>]+""", RegexOption.IGNORE_CASE)
+
         private val DRIVE_FILE_REGEX = Regex("/file/d/([a-zA-Z0-9_-]+)")
-        private const val PINTEREST_BOARD_ENDPOINT = "https://www.pinterest.com/resource/BoardFeedResource/get/"
-        private const val PINTEREST_USER_PINS_ENDPOINT = "https://www.pinterest.com/resource/UserPinsResource/get/"
+        private const val PINTEREST_BOARD_ENDPOINT =
+            "https://www.pinterest.com/resource/BoardFeedResource/get/"
+        private const val PINTEREST_USER_PINS_ENDPOINT =
+            "https://www.pinterest.com/resource/UserPinsResource/get/"
     }
 
     private fun Element.extractImageUrl(): String? {
@@ -499,8 +512,8 @@ class JsoupWebScraper : WebScraper {
             .substringBefore('#')
             .lowercase(Locale.ROOT)
         return normalized.endsWith(".jpg") ||
-            normalized.endsWith(".jpeg") ||
-            normalized.endsWith(".png") ||
-            normalized.endsWith(".webp")
+                normalized.endsWith(".jpeg") ||
+                normalized.endsWith(".png") ||
+                normalized.endsWith(".webp")
     }
 }

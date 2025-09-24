@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import androidx.core.net.toUri
 
 class LibraryRepository(
     private val wallpaperDao: WallpaperDao,
@@ -157,38 +158,51 @@ class LibraryRepository(
 
     suspend fun downloadWallpapers(wallpapers: List<WallpaperItem>): DownloadResult {
         if (wallpapers.isEmpty()) return DownloadResult(0, 0, 0)
+
         return withContext(Dispatchers.IO) {
             var downloaded = 0
             var skipped = 0
             var failed = 0
+
             wallpapers.forEach { item ->
                 val sourceKey = item.sourceKey
                 if (sourceKey.isNullOrBlank() || sourceKey == SourceKeys.LOCAL) {
                     skipped++
                     return@forEach
                 }
+
                 val wallpaperId = resolveWallpaperId(item)
                 if (wallpaperId == null) {
                     skipped++
                     return@forEach
                 }
+
                 val entity = wallpaperDao.getById(wallpaperId)
                 if (entity != null && entity.isDownloaded && !entity.localUri.isNullOrBlank()) {
                     skipped++
                     return@forEach
                 }
+
                 val targetUrl = entity?.imageUrl ?: item.imageUrl
                 val remote = downloadRemoteImage(targetUrl)
                 if (remote == null) {
                     failed++
                     return@forEach
                 }
+
                 val folderName = wallpaperFolderName(item)
+
+                // Build a safe display name: prefer non-blank title, then a source-specific id, else a default.
+                val displayName =
+                    item.title.takeIf { it.isNotBlank() }
+                        ?: item.remoteIdentifierWithinSource()?.takeIf { it.isNotBlank() }
+                        ?: "Wallpaper"
+
                 val copy = runCatching {
                     localStorage.writeBytes(
                         data = remote.bytes,
                         sourceFolder = folderName,
-                        displayName = item.title.ifBlank { item.remoteIdentifierWithinSource().orEmpty() },
+                        displayName = displayName,
                         mimeTypeHint = remote.mimeType
                     )
                 }.getOrElse { error ->
@@ -196,6 +210,7 @@ class LibraryRepository(
                     if (error is IllegalStateException) throw error
                     return@forEach
                 }
+
                 val now = System.currentTimeMillis()
                 wallpaperDao.updateDownloadState(
                     id = wallpaperId,
@@ -204,8 +219,10 @@ class LibraryRepository(
                     fileSize = copy.sizeBytes,
                     updatedAt = now
                 )
+
                 downloaded++
             }
+
             DownloadResult(downloaded = downloaded, skipped = skipped, failed = failed)
         }
     }
@@ -277,7 +294,7 @@ class LibraryRepository(
                     return@forEach
                 }
                 val deleteResult = runCatching {
-                    localStorage.deleteDocument(Uri.parse(entity.localUri))
+                    localStorage.deleteDocument(entity.localUri.toUri())
                 }.getOrElse { error ->
                     failed++
                     if (error is IllegalStateException) throw error
@@ -394,7 +411,7 @@ class LibraryRepository(
             entities.forEach { entity ->
                 val localUri = entity.localUri
                 if (!localUri.isNullOrBlank() && (entity.isDownloaded || entity.sourceKey == SourceKeys.LOCAL)) {
-                    runCatching { localStorage.deleteDocument(Uri.parse(localUri)) }
+                    runCatching { localStorage.deleteDocument(localUri.toUri()) }
                         .onFailure { error ->
                             if (error is IllegalStateException) throw error
                         }
@@ -671,7 +688,25 @@ class LibraryRepository(
             name.endsWith(".webp")
     }
 
-    private data class RemoteImage(val bytes: ByteArray, val mimeType: String?)
+    private data class RemoteImage(val bytes: ByteArray, val mimeType: String?) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as RemoteImage
+
+            if (!bytes.contentEquals(other.bytes)) return false
+            if (mimeType != other.mimeType) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = bytes.contentHashCode()
+            result = 31 * result + (mimeType?.hashCode() ?: 0)
+            return result
+        }
+    }
 
     private sealed interface EnsureResult {
         data class Inserted(val id: Long) : EnsureResult

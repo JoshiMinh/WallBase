@@ -508,4 +508,3 @@ private fun AlbumDetailScreen(
         )
     }
 }
-
