@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -22,6 +24,7 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProgressIndicatorDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -30,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -44,10 +49,22 @@ fun SettingsScreen(
     onToggleDarkTheme: (Boolean) -> Unit,
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
-    onMessageShown: () -> Unit
+    onMessageShown: () -> Unit,
+    onToggleAutoDownload: (Boolean) -> Unit,
+    onUpdateStorageLimit: (Long) -> Unit,
+    onClearPreviewCache: () -> Unit,
+    onClearOriginals: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val oneGbBytes = 1024L * 1024L * 1024L
+    var storageSliderValue by remember {
+        mutableStateOf(uiState.storageLimitBytes.toFloat() / oneGbBytes.toFloat())
+    }
+
+    LaunchedEffect(uiState.storageLimitBytes) {
+        storageSliderValue = uiState.storageLimitBytes.toFloat() / oneGbBytes.toFloat()
+    }
 
     LaunchedEffect(uiState.message) {
         val message = uiState.message ?: return@LaunchedEffect
@@ -195,6 +212,124 @@ fun SettingsScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                            }
+                            uiState.previewCacheBytes?.let { previewBytes ->
+                                val previewSize = Formatter.formatFileSize(context, previewBytes)
+                                Text(
+                                    text = "Preview cache: $previewSize",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    SettingsCard {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = "Auto-download",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = "Automatically download wallpapers when adding them to your library.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = uiState.autoDownload,
+                                    onCheckedChange = onToggleAutoDownload
+                                )
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Storage limit",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                val limitLabel = if (uiState.storageLimitBytes > 0) {
+                                    Formatter.formatFileSize(context, uiState.storageLimitBytes)
+                                } else {
+                                    "No limit"
+                                }
+                                Text(
+                                    text = "Original downloads cap: $limitLabel",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Slider(
+                                    value = storageSliderValue.coerceIn(0f, 10f),
+                                    onValueChange = { storageSliderValue = it },
+                                    valueRange = 0f..10f,
+                                    steps = 20,
+                                    onValueChangeFinished = {
+                                        val clamped = (storageSliderValue * 2f).roundToInt() / 2f
+                                        val bytes = (clamped.toDouble() * oneGbBytes.toDouble()).toLong()
+                                        onUpdateStorageLimit(bytes)
+                                    }
+                                )
+                                Text(
+                                    text = if (storageSliderValue <= 0f) {
+                                        "Downloads will keep using storage until you clear them."
+                                    } else {
+                                        "Limit downloads to approximately ${(storageSliderValue * 2f).roundToInt() / 2f} GB."
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Quick actions",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Button(
+                                        onClick = onClearPreviewCache,
+                                        enabled = !uiState.isClearingPreviews
+                                    ) {
+                                        if (uiState.isClearingPreviews) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier
+                                                    .size(18.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                        }
+                                        Text(text = "Delete previews")
+                                    }
+                                    Button(
+                                        onClick = onClearOriginals,
+                                        enabled = !uiState.isClearingOriginals
+                                    ) {
+                                        if (uiState.isClearingOriginals) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier
+                                                    .size(18.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                        }
+                                        Text(text = "Delete originals")
+                                    }
+                                }
                             }
                         }
                     }

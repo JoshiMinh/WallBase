@@ -125,6 +125,7 @@ fun WallpaperDetailRoute(
         onAddToLibrary = viewModel::addToLibrary,
         onRemoveFromLibrary = viewModel::removeFromLibrary,
         onDownload = viewModel::downloadWallpaper,
+        onPrepareEditor = viewModel::prepareEditor,
         onRequestRemoveDownload = viewModel::promptRemoveDownload,
         onConfirmRemoveDownload = viewModel::removeDownload,
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
@@ -150,6 +151,7 @@ private fun WallpaperDetailScreen(
     onAddToLibrary: () -> Unit,
     onRemoveFromLibrary: () -> Unit,
     onDownload: () -> Unit,
+    onPrepareEditor: () -> Unit,
     onRequestRemoveDownload: () -> Unit,
     onConfirmRemoveDownload: () -> Unit,
     onDismissRemoveDownload: () -> Unit,
@@ -340,11 +342,23 @@ private fun WallpaperDetailScreen(
                 )
                 if (!uiState.isEditorReady) {
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Loading editable preview…",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    if (uiState.isProcessingEdits) {
+                        Text(
+                            text = "Preparing editor…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text(
+                            text = "Load the full-quality image before editing.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = onPrepareEditor) {
+                            Text(text = "Prepare editor")
+                        }
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
                 Slider(

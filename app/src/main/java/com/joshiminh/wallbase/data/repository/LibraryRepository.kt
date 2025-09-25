@@ -156,13 +156,20 @@ class LibraryRepository(
         }
     }
 
-    suspend fun downloadWallpapers(wallpapers: List<WallpaperItem>): DownloadResult {
-        if (wallpapers.isEmpty()) return DownloadResult(0, 0, 0)
+    suspend fun downloadWallpapers(
+        wallpapers: List<WallpaperItem>,
+        storageLimitBytes: Long? = null
+    ): DownloadResult {
+        if (wallpapers.isEmpty()) return DownloadResult(0, 0, 0, 0, 0)
 
         return withContext(Dispatchers.IO) {
             var downloaded = 0
             var skipped = 0
             var failed = 0
+            var blocked = 0
+            var totalBytes = 0L
+            val limit = storageLimitBytes?.takeIf { it > 0 }
+            var usage = limit?.let { wallpaperDao.totalDownloadedBytes() } ?: 0L
 
             wallpapers.forEach { item ->
                 val sourceKey = item.sourceKey
@@ -183,11 +190,24 @@ class LibraryRepository(
                     return@forEach
                 }
 
+                if (limit != null && usage >= limit) {
+                    blocked++
+                    return@forEach
+                }
+
                 val targetUrl = entity?.imageUrl ?: item.imageUrl
                 val remote = downloadRemoteImage(targetUrl)
                 if (remote == null) {
                     failed++
                     return@forEach
+                }
+
+                if (limit != null) {
+                    val prospective = usage + remote.bytes.size.toLong()
+                    if (prospective > limit) {
+                        blocked++
+                        return@forEach
+                    }
                 }
 
                 val folderName = wallpaperFolderName(item)
@@ -220,18 +240,27 @@ class LibraryRepository(
                     updatedAt = now
                 )
 
+                usage += copy.sizeBytes
+                totalBytes += copy.sizeBytes
                 downloaded++
             }
 
-            DownloadResult(downloaded = downloaded, skipped = skipped, failed = failed)
+            DownloadResult(
+                downloaded = downloaded,
+                skipped = skipped,
+                failed = failed,
+                blocked = blocked,
+                totalBytes = totalBytes
+            )
         }
     }
 
     suspend fun saveEditedWallpaper(
         wallpaper: WallpaperItem,
-        edited: EditedWallpaper
+        edited: EditedWallpaper,
+        storageLimitBytes: Long? = null
     ): DownloadResult {
-        val sourceKey = wallpaper.sourceKey ?: return DownloadResult(0, 1, 0)
+        val sourceKey = wallpaper.sourceKey ?: return DownloadResult(0, 1, 0, 0, 0)
         return withContext(Dispatchers.IO) {
             val ensure = ensureWallpaperSaved(wallpaper)
             val wallpaperId = when (ensure) {
@@ -240,14 +269,27 @@ class LibraryRepository(
                 EnsureResult.Skipped, EnsureResult.Failed -> null
             }
             if (wallpaperId == null) {
-                return@withContext DownloadResult(downloaded = 0, skipped = 1, failed = 0)
+                return@withContext DownloadResult(downloaded = 0, skipped = 1, failed = 0, blocked = 0, totalBytes = 0)
+            }
+
+            val limit = storageLimitBytes?.takeIf { it > 0 }
+            var usage = limit?.let { wallpaperDao.totalDownloadedBytes() } ?: 0L
+            if (limit != null && usage >= limit) {
+                return@withContext DownloadResult(downloaded = 0, skipped = 0, failed = 0, blocked = 1, totalBytes = 0)
             }
 
             val bytes = ByteArrayOutputStream().use { stream ->
                 if (!edited.bitmap.compress(Bitmap.CompressFormat.JPEG, 95, stream)) {
-                    return@withContext DownloadResult(downloaded = 0, skipped = 0, failed = 1)
+                    return@withContext DownloadResult(downloaded = 0, skipped = 0, failed = 1, blocked = 0, totalBytes = 0)
                 }
                 stream.toByteArray()
+            }
+
+            if (limit != null) {
+                val prospective = usage + bytes.size.toLong()
+                if (prospective > limit) {
+                    return@withContext DownloadResult(downloaded = 0, skipped = 0, failed = 0, blocked = 1, totalBytes = 0)
+                }
             }
             val folderName = wallpaperFolderName(wallpaper)
             val displayName = wallpaper.title.ifBlank {
@@ -267,7 +309,14 @@ class LibraryRepository(
                 fileSize = copy.sizeBytes,
                 updatedAt = now
             )
-            DownloadResult(downloaded = 1, skipped = 0, failed = 0)
+            usage += copy.sizeBytes
+            DownloadResult(
+                downloaded = 1,
+                skipped = 0,
+                failed = 0,
+                blocked = 0,
+                totalBytes = copy.sizeBytes
+            )
         }
     }
 
@@ -318,6 +367,18 @@ class LibraryRepository(
         }
     }
 
+    suspend fun removeAllDownloads(): DownloadRemovalResult {
+        return withContext(Dispatchers.IO) {
+            val downloaded = wallpaperDao.getWallpapersWithLocalMedia()
+            if (downloaded.isEmpty()) {
+                DownloadRemovalResult(removed = 0, skipped = 0, failed = 0)
+            } else {
+                val items = downloaded.map { it.toLibraryWallpaperItem() }
+                removeDownloads(items)
+            }
+        }
+    }
+
     suspend fun addWallpaper(wallpaper: WallpaperItem): Boolean {
         return withContext(Dispatchers.IO) {
             ensureWallpaperSaved(wallpaper) is EnsureResult.Inserted
@@ -325,18 +386,22 @@ class LibraryRepository(
     }
 
     suspend fun addWallpapersToLibrary(wallpapers: List<WallpaperItem>): BulkAddResult {
-        if (wallpapers.isEmpty()) return BulkAddResult(added = 0, skipped = 0)
+        if (wallpapers.isEmpty()) return BulkAddResult(added = 0, skipped = 0, addedWallpapers = emptyList())
         return withContext(Dispatchers.IO) {
             var added = 0
             var skipped = 0
+            val inserted = mutableListOf<WallpaperItem>()
             wallpapers.forEach { wallpaper ->
                 when (ensureWallpaperSaved(wallpaper)) {
-                    is EnsureResult.Inserted -> added++
+                    is EnsureResult.Inserted -> {
+                        added++
+                        inserted += wallpaper
+                    }
                     is EnsureResult.Existing -> skipped++
                     EnsureResult.Skipped, EnsureResult.Failed -> skipped++
                 }
             }
-            BulkAddResult(added = added, skipped = skipped)
+            BulkAddResult(added = added, skipped = skipped, addedWallpapers = inserted)
         }
     }
 
@@ -518,7 +583,9 @@ class LibraryRepository(
     data class DownloadResult(
         val downloaded: Int,
         val skipped: Int,
-        val failed: Int
+        val failed: Int,
+        val blocked: Int,
+        val totalBytes: Long
     )
 
     data class DownloadRemovalResult(
@@ -527,7 +594,7 @@ class LibraryRepository(
         val failed: Int
     )
 
-    data class BulkAddResult(val added: Int, val skipped: Int)
+    data class BulkAddResult(val added: Int, val skipped: Int, val addedWallpapers: List<WallpaperItem>)
 
     data class AlbumAssociationResult(
         val addedToAlbum: Int,

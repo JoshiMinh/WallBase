@@ -44,8 +44,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -333,7 +335,7 @@ fun WallBaseApp(
                             }
                         },
                         onAlbumSelected = { album ->
-                            navController.navigate("album/${album.id}")
+                            navController.navigateSingleTop("album/${album.id}")
                         },
                         onConfigureTopBar = acquireTopBar,
                         sharedTransitionScope = sharedScope,
@@ -343,15 +345,15 @@ fun WallBaseApp(
                 composable(RootRoute.Browse.route) {
                     BrowseScreen(
                         uiState = sourcesUiState,
-                        onGoogleDriveClick = { navController.navigate("driveFolders") },
-                        onGooglePhotosClick = { navController.navigate("photosAlbums") },
+                        onGoogleDriveClick = { navController.navigateSingleTop("driveFolders") },
+                        onGooglePhotosClick = { navController.navigateSingleTop("photosAlbums") },
                         onUpdateSourceInput = onUpdateSourceInput,
                         onSearchReddit = onSearchReddit,
                         onAddSourceFromInput = onAddSourceFromInput,
                         onAddRedditCommunity = onAddRedditCommunity,
                         onClearSearchResults = onClearRedditSearch,
                         onOpenSource = { source ->
-                            navController.navigate("sourceBrowse/${Uri.encode(source.key)}")
+                            navController.navigateSingleTop("sourceBrowse/${Uri.encode(source.key)}")
                         },
                         onRemoveSource = onRemoveSource,
                         onMessageShown = onSourcesMessageShown
@@ -422,9 +424,10 @@ fun WallBaseApp(
             composable("wallpaperDetail") {
                 val previousEntry = navController.previousBackStackEntry
                 val sourceHandle = previousEntry?.savedStateHandle
-                val wallpaper = remember(previousEntry) {
-                    sourceHandle?.get<WallpaperItem>("wallpaper_detail")
-                }
+                val wallpaperState = remember(sourceHandle) {
+                    sourceHandle?.getStateFlow<WallpaperItem?>("wallpaper_detail", null)
+                }?.collectAsStateWithLifecycle()
+                val wallpaper = wallpaperState?.value
 
                 DisposableEffect(previousEntry?.id) {
                     val handle = sourceHandle
@@ -468,7 +471,11 @@ fun WallBaseApp(
                     onToggleDarkTheme = onToggleDarkTheme,
                     onExportBackup = onExportBackup,
                     onImportBackup = onImportBackup,
-                    onMessageShown = onSettingsMessageShown
+                    onMessageShown = onSettingsMessageShown,
+                    onToggleAutoDownload = settingsViewModel::setAutoDownload,
+                    onUpdateStorageLimit = settingsViewModel::setStorageLimit,
+                    onClearPreviewCache = settingsViewModel::clearPreviewCache,
+                    onClearOriginals = settingsViewModel::clearOriginalDownloads
                 )
             }
         }
@@ -489,4 +496,14 @@ private fun currentTitle(dest: NavDestination?): String = when {
 
 private fun NavDestination?.isTopDestination(item: RootRoute): Boolean {
     return this?.hierarchy?.any { it.route == item.route } == true
+}
+
+private fun NavController.navigateSingleTop(
+    route: String,
+    builder: NavOptionsBuilder.() -> Unit = {}
+) {
+    this.navigate(route) {
+        launchSingleTop = true
+        builder()
+    }
 }

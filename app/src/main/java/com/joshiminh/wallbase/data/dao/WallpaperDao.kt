@@ -78,4 +78,7 @@ interface WallpaperDao {
         fileSize: Long?,
         updatedAt: Long
     )
+
+    @Query("SELECT COALESCE(SUM(file_size_bytes), 0) FROM wallpapers WHERE is_downloaded = 1")
+    suspend fun totalDownloadedBytes(): Long
 }

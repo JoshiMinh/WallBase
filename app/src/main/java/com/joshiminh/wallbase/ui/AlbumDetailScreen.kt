@@ -1,5 +1,6 @@
 package com.joshiminh.wallbase.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -20,6 +21,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -31,6 +34,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -51,9 +55,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.layout.widthIn
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarHandle
@@ -274,6 +284,19 @@ private fun AlbumDetailScreen(
     animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
     val hasQuery = isSearching && searchQuery.isNotBlank()
+    var rotationExpanded by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(state.rotation.isConfigured) {
+        if (!state.rotation.isConfigured) {
+            rotationExpanded = true
+        }
+    }
+
+    LaunchedEffect(state.rotation.isEnabled) {
+        if (state.rotation.isEnabled) {
+            rotationExpanded = true
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -355,6 +378,15 @@ private fun AlbumDetailScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
+                                IconButton(onClick = { rotationExpanded = !rotationExpanded }) {
+                                    val (icon, description) = if (rotationExpanded) {
+                                        Icons.Outlined.ExpandLess to "Collapse rotation settings"
+                                    } else {
+                                        Icons.Outlined.ExpandMore to "Expand rotation settings"
+                                    }
+                                    Icon(imageVector = icon, contentDescription = description)
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Switch(
                                     checked = state.rotation.isEnabled,
                                     onCheckedChange = onToggleRotation,
@@ -363,79 +395,179 @@ private fun AlbumDetailScreen(
                                 )
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "Interval",
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                                val intervalScroll = rememberScrollState()
-                                Row(
-                                    modifier = Modifier.horizontalScroll(intervalScroll),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    WallpaperRotationDefaults.AVAILABLE_INTERVALS.forEach { interval ->
-                                        FilterChip(
-                                            selected = state.rotation.intervalMinutes == interval,
-                                            onClick = { onSelectRotationInterval(interval) },
-                                            enabled = !state.rotation.isUpdating,
-                                            label = {
-                                                val label = when (interval) {
-                                                    15L -> "15 min"
-                                                    30L -> "30 min"
-                                                    60L -> "1 hr"
-                                                    240L -> "4 hr"
-                                                    1440L -> "1 day"
-                                                    else -> "${interval} min"
+                            val intervalUnits = remember { RotationIntervalUnit.values().toList() }
+                            var selectedIntervalUnit by rememberSaveable {
+                                mutableStateOf(RotationIntervalUnit.fromMinutes(state.rotation.intervalMinutes))
+                            }
+                            var intervalValue by rememberSaveable {
+                                mutableStateOf(selectedIntervalUnit.displayValue(state.rotation.intervalMinutes))
+                            }
+                            var intervalError by rememberSaveable { mutableStateOf<String?>(null) }
+                            var intervalFieldFocused by remember { mutableStateOf(false) }
+
+                            LaunchedEffect(state.rotation.intervalMinutes) {
+                                val unit = RotationIntervalUnit.fromMinutes(state.rotation.intervalMinutes)
+                                selectedIntervalUnit = unit
+                                intervalValue = unit.displayValue(state.rotation.intervalMinutes)
+                                intervalError = null
+                            }
+
+                            val commitInterval: () -> Boolean = {
+                                val minutes = parseIntervalMinutes(intervalValue, selectedIntervalUnit)
+                                when {
+                                    minutes == null -> {
+                                        intervalError = "Enter a valid duration."
+                                        false
+                                    }
+
+                                    minutes < WallpaperRotationDefaults.MIN_INTERVAL_MINUTES -> {
+                                        intervalError = "Minimum rotation is ${WallpaperRotationDefaults.MIN_INTERVAL_MINUTES} minutes."
+                                        false
+                                    }
+
+                                    else -> {
+                                        intervalError = null
+                                        if (minutes != state.rotation.intervalMinutes) {
+                                            onSelectRotationInterval(minutes)
+                                        }
+                                        intervalValue = selectedIntervalUnit.displayValue(minutes)
+                                        true
+                                    }
+                                }
+                            }
+
+                            AnimatedVisibility(visible = rotationExpanded) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(
+                                            text = "Interval",
+                                            style = MaterialTheme.typography.labelLarge
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            OutlinedTextField(
+                                                value = intervalValue,
+                                                onValueChange = { newValue ->
+                                                    val filtered = newValue.filter { it.isDigit() }
+                                                    intervalValue = filtered
+                                                    if (intervalError != null) {
+                                                        intervalError = null
+                                                    }
+                                                },
+                                                label = { Text("Duration") },
+                                                singleLine = true,
+                                                enabled = !state.rotation.isUpdating,
+                                                isError = intervalError != null,
+                                                keyboardOptions = KeyboardOptions(
+                                                    keyboardType = KeyboardType.Number,
+                                                    imeAction = ImeAction.Done
+                                                ),
+                                                keyboardActions = KeyboardActions(
+                                                    onDone = {
+                                                        if (commitInterval()) {
+                                                            keyboardController?.hide()
+                                                            focusManager.clearFocus()
+                                                        }
+                                                    }
+                                                ),
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .widthIn(min = 96.dp)
+                                                    .onFocusChanged { focusState ->
+                                                        if (focusState.isFocused) {
+                                                            intervalFieldFocused = true
+                                                        } else if (intervalFieldFocused) {
+                                                            if (commitInterval()) {
+                                                                keyboardController?.hide()
+                                                            }
+                                                            intervalFieldFocused = false
+                                                        }
+                                                    }
+                                            )
+
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                intervalUnits.forEach { unit ->
+                                                    FilterChip(
+                                                        selected = selectedIntervalUnit == unit,
+                                                        onClick = {
+                                                            if (selectedIntervalUnit != unit) {
+                                                                val baseMinutes =
+                                                                    parseIntervalMinutes(intervalValue, selectedIntervalUnit)
+                                                                        ?: state.rotation.intervalMinutes
+                                                                val newValue = unit.valueFromMinutes(baseMinutes)
+                                                                val newMinutes = unit.toMinutes(newValue)
+                                                                if (newMinutes != null) {
+                                                                    selectedIntervalUnit = unit
+                                                                    intervalValue = newValue.toString()
+                                                                    intervalError = null
+                                                                    if (newMinutes != state.rotation.intervalMinutes) {
+                                                                        onSelectRotationInterval(newMinutes)
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        enabled = !state.rotation.isUpdating,
+                                                        label = { Text(unit.displayName) }
+                                                    )
                                                 }
-                                                Text(label)
                                             }
+                                        }
+
+                                        intervalError?.let { error ->
+                                            Text(
+                                                text = error,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text(
+                                            text = "Apply to",
+                                            style = MaterialTheme.typography.labelLarge
+                                        )
+                                        val targetScroll = rememberScrollState()
+                                        Row(
+                                            modifier = Modifier.horizontalScroll(targetScroll),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            listOf(
+                                                WallpaperTarget.HOME,
+                                                WallpaperTarget.LOCK,
+                                                WallpaperTarget.BOTH
+                                            ).forEach { target ->
+                                                FilterChip(
+                                                    selected = state.rotation.target == target,
+                                                    onClick = { onSelectRotationTarget(target) },
+                                                    enabled = !state.rotation.isUpdating,
+                                                    label = { Text(target.label) }
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    val lastApplied = state.rotation.lastAppliedAt?.let { timestamp ->
+                                        DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                                            .format(Date(timestamp))
+                                    }
+                                    if (lastApplied != null) {
+                                        Text(
+                                            text = "Last applied: $lastApplied",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
-                                }
-                            }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    text = "Apply to",
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                                val targetScroll = rememberScrollState()
-                                Row(
-                                    modifier = Modifier.horizontalScroll(targetScroll),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    listOf(
-                                        WallpaperTarget.HOME,
-                                        WallpaperTarget.LOCK,
-                                        WallpaperTarget.BOTH
-                                    ).forEach { target ->
-                                        FilterChip(
-                                            selected = state.rotation.target == target,
-                                            onClick = { onSelectRotationTarget(target) },
-                                            enabled = !state.rotation.isUpdating,
-                                            label = { Text(target.label) }
-                                        )
+                                    Button(
+                                        onClick = onStartRotationNow,
+                                        enabled = state.rotation.isEnabled && !state.rotation.isUpdating
+                                    ) {
+                                        Text(text = "Rotate now")
                                     }
                                 }
-                            }
-
-                            val lastApplied = state.rotation.lastAppliedAt?.let { timestamp ->
-                                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                                    .format(Date(timestamp))
-                            }
-                            if (lastApplied != null) {
-                                Text(
-                                    text = "Last applied: $lastApplied",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            Button(
-                                onClick = onStartRotationNow,
-                                enabled = state.rotation.isEnabled && !state.rotation.isUpdating
-                            ) {
-                                Text(text = "Rotate now")
                             }
                         }
                     }
@@ -507,4 +639,41 @@ private fun AlbumDetailScreen(
             }
         )
     }
+}
+
+private enum class RotationIntervalUnit(val displayName: String, val minutesPerUnit: Long) {
+    MINUTES("Minutes", 1),
+    HOURS("Hours", 60),
+    DAYS("Days", 1440);
+
+    fun toMinutes(value: Long): Long? {
+        if (value <= 0) return null
+        if (value > Long.MAX_VALUE / minutesPerUnit) return null
+        return value * minutesPerUnit
+    }
+
+    fun valueFromMinutes(minutes: Long): Long {
+        return when (this) {
+            MINUTES -> minutes.coerceAtLeast(1)
+            else -> ((minutes + minutesPerUnit - 1) / minutesPerUnit).coerceAtLeast(1)
+        }
+    }
+
+    fun displayValue(minutes: Long): String = valueFromMinutes(minutes).toString()
+
+    companion object {
+        fun fromMinutes(minutes: Long): RotationIntervalUnit {
+            return when {
+                minutes % DAYS.minutesPerUnit == 0L -> DAYS
+                minutes % HOURS.minutesPerUnit == 0L -> HOURS
+                else -> MINUTES
+            }
+        }
+    }
+}
+
+private fun parseIntervalMinutes(value: String, unit: RotationIntervalUnit): Long? {
+    if (value.isBlank()) return null
+    val number = value.toLongOrNull() ?: return null
+    return unit.toMinutes(number)
 }

@@ -41,6 +41,8 @@ class SourceBrowseViewModel(
     private var activeSourceKey: String? = null
     private var lastSourceConfig: String? = null
     private var nextPageCursor: String? = null
+    private var autoDownloadEnabled: Boolean = false
+    private var storageLimitBytes: Long = 0L
 
     init {
         viewModelScope.launch {
@@ -115,12 +117,20 @@ class SourceBrowseViewModel(
                 _uiState.update { state ->
                     val columns = preferences.wallpaperGridColumns
                     val layout = preferences.wallpaperLayout
-                    if (state.wallpaperGridColumns == columns && state.wallpaperLayout == layout) {
+                    autoDownloadEnabled = preferences.autoDownload
+                    storageLimitBytes = preferences.storageLimitBytes
+                    val needsUpdate = state.wallpaperGridColumns != columns ||
+                        state.wallpaperLayout != layout ||
+                        state.autoDownloadEnabled != preferences.autoDownload ||
+                        state.storageLimitBytes != preferences.storageLimitBytes
+                    if (!needsUpdate) {
                         state
                     } else {
                         state.copy(
                             wallpaperGridColumns = columns,
-                            wallpaperLayout = layout
+                            wallpaperLayout = layout,
+                            autoDownloadEnabled = preferences.autoDownload,
+                            storageLimitBytes = preferences.storageLimitBytes
                         )
                     }
                 }
@@ -262,6 +272,7 @@ class SourceBrowseViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isActionInProgress = true) }
             val result = runCatching { libraryRepository.addWallpapersToLibrary(current) }
+            val addedWallpapers = result.getOrNull()?.addedWallpapers ?: emptyList()
             _uiState.update { state ->
                 val (message, clearSelection) = result.fold(
                     onSuccess = { outcome ->
@@ -288,6 +299,33 @@ class SourceBrowseViewModel(
                     selectedIds = updatedSelection,
                     isSelectionMode = updatedSelection.isNotEmpty()
                 )
+            }
+            if (autoDownloadEnabled && addedWallpapers.isNotEmpty()) {
+                viewModelScope.launch {
+                    val downloadResult = runCatching {
+                        libraryRepository.downloadWallpapers(addedWallpapers, storageLimitBytes)
+                    }
+                    downloadResult.fold(
+                        onSuccess = { summary ->
+                            val extra = when {
+                                summary.downloaded > 0 && summary.blocked > 0 ->
+                                    "Auto-downloaded ${summary.downloaded} wallpapers (blocked ${summary.blocked} by storage limit)"
+                                summary.downloaded > 0 ->
+                                    "Auto-downloaded ${summary.downloaded} wallpapers"
+                                summary.blocked > 0 ->
+                                    "Auto-download blocked by storage limit"
+                                summary.failed > 0 ->
+                                    "Auto-download failed for ${summary.failed} wallpapers"
+                                else -> null
+                            }
+                            extra?.let(::setMessage)
+                        },
+                        onFailure = { error ->
+                            val detail = error.localizedMessage?.takeIf { it.isNotBlank() }
+                            setMessage(detail?.let { "Auto-download failed: $it" } ?: "Auto-download failed")
+                        }
+                    )
+                }
             }
         }
     }
@@ -423,7 +461,9 @@ class SourceBrowseViewModel(
         val isAppending: Boolean = false,
         val canLoadMore: Boolean = false,
         val wallpaperGridColumns: Int = 2,
-        val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID
+        val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
+        val autoDownloadEnabled: Boolean = false,
+        val storageLimitBytes: Long = 0L
     )
 
     companion object {

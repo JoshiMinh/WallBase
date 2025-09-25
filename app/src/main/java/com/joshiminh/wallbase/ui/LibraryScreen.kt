@@ -615,6 +615,7 @@ private fun LibraryContent(
                             selectionMode = selectionMode,
                             columns = wallpaperGridColumns,
                             layout = wallpaperLayout,
+                            showDownloadedBadge = true,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )

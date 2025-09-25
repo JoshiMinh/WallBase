@@ -10,9 +10,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import coil3.SingletonImageLoader
 import com.joshiminh.wallbase.data.DatabaseBackupManager
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
 import com.joshiminh.wallbase.data.repository.AlbumLayout
+import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.Dispatchers
@@ -22,13 +24,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class SettingsViewModel(
     application: Application,
     private val backupManager: DatabaseBackupManager,
     private val settingsRepository: SettingsRepository,
-    private val localStorage: LocalStorageCoordinator
+    private val localStorage: LocalStorageCoordinator,
+    private val libraryRepository: LibraryRepository
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -41,25 +45,15 @@ class SettingsViewModel(
                     it.copy(
                         darkTheme = preferences.darkTheme,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
-                        albumLayout = preferences.albumLayout
+                        albumLayout = preferences.albumLayout,
+                        autoDownload = preferences.autoDownload,
+                        storageLimitBytes = preferences.storageLimitBytes
                     )
                 }
             }
         }
 
-        viewModelScope.launch(Dispatchers.IO) {
-            val usage = calculateStorageUsage()
-            val wallpapersDir = runCatching { localStorage.currentBaseDirectory() }.getOrNull()
-            val wallpapersBytes = wallpapersDir?.let { directorySize(it) }
-            _uiState.update {
-                it.copy(
-                    storageBytes = usage?.usedBytes,
-                    storageTotalBytes = usage?.totalBytes,
-                    wallpapersBytes = wallpapersBytes,
-                    isStorageLoading = false
-                )
-            }
-        }
+        refreshStorageSnapshot()
     }
 
     fun exportBackup(destination: Uri) {
@@ -118,6 +112,75 @@ class SettingsViewModel(
         }
     }
 
+    fun setAutoDownload(enabled: Boolean) {
+        if (_uiState.value.autoDownload == enabled) return
+        _uiState.update { it.copy(autoDownload = enabled) }
+        viewModelScope.launch {
+            settingsRepository.setAutoDownload(enabled)
+        }
+    }
+
+    fun setStorageLimit(limitBytes: Long) {
+        if (_uiState.value.storageLimitBytes == limitBytes) return
+        _uiState.update { it.copy(storageLimitBytes = limitBytes, isStorageLoading = true) }
+        viewModelScope.launch {
+            settingsRepository.setStorageLimitBytes(limitBytes)
+            refreshStorageSnapshot()
+        }
+    }
+
+    fun clearPreviewCache() {
+        if (_uiState.value.isClearingPreviews) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isClearingPreviews = true) }
+            val context = getApplication<Application>()
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    SingletonImageLoader.get(context).diskCache?.clear()
+                }
+            }
+            refreshStorageSnapshot()
+            _uiState.update {
+                it.copy(
+                    isClearingPreviews = false,
+                    message = "Deleted preview cache"
+                )
+            }
+        }
+    }
+
+    fun clearOriginalDownloads() {
+        if (_uiState.value.isClearingOriginals) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isClearingOriginals = true) }
+            val result = withContext(Dispatchers.IO) {
+                runCatching { libraryRepository.removeAllDownloads() }
+            }
+            refreshStorageSnapshot()
+            _uiState.update { state ->
+                state.copy(
+                    isClearingOriginals = false,
+                    message = result.fold(
+                        onSuccess = { summary ->
+                            when {
+                                summary.removed > 0 && summary.failed > 0 ->
+                                    "Removed ${summary.removed} downloads (failed ${summary.failed})"
+                                summary.removed > 0 ->
+                                    "Removed ${summary.removed} downloads"
+                                summary.skipped > 0 ->
+                                    "No downloads to remove"
+                                else -> "No downloads removed"
+                            }
+                        },
+                        onFailure = { error ->
+                            error.localizedMessage ?: "Unable to remove downloads"
+                        }
+                    )
+                )
+            }
+        }
+    }
+
     data class SettingsUiState(
         val isBackingUp: Boolean = false,
         val isRestoring: Boolean = false,
@@ -128,7 +191,12 @@ class SettingsViewModel(
         val storageBytes: Long? = null,
         val storageTotalBytes: Long? = null,
         val wallpapersBytes: Long? = null,
-        val isStorageLoading: Boolean = true
+        val previewCacheBytes: Long? = null,
+        val storageLimitBytes: Long = 0,
+        val autoDownload: Boolean = false,
+        val isStorageLoading: Boolean = true,
+        val isClearingPreviews: Boolean = false,
+        val isClearingOriginals: Boolean = false
     )
 
     private data class StorageUsage(
@@ -188,7 +256,31 @@ class SettingsViewModel(
                         ServiceLocator.localStorageCoordinator
                     ),
                     settingsRepository = ServiceLocator.settingsRepository,
-                    localStorage = ServiceLocator.localStorageCoordinator
+                    localStorage = ServiceLocator.localStorageCoordinator,
+                    libraryRepository = ServiceLocator.libraryRepository
+                )
+            }
+        }
+    }
+
+    private fun refreshStorageSnapshot() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = getApplication<Application>()
+            _uiState.update { it.copy(isStorageLoading = true) }
+            runCatching { localStorage.cleanupLegacyEditorCache() }
+            val usage = calculateStorageUsage()
+            val wallpapersDir = runCatching { localStorage.currentBaseDirectory() }.getOrNull()
+            val wallpapersBytes = wallpapersDir?.let { directorySize(it) }
+            val previewCacheBytes = runCatching {
+                SingletonImageLoader.get(context).diskCache?.size ?: 0L
+            }.getOrDefault(0L)
+            _uiState.update {
+                it.copy(
+                    storageBytes = usage?.usedBytes,
+                    storageTotalBytes = usage?.totalBytes,
+                    wallpapersBytes = wallpapersBytes,
+                    previewCacheBytes = previewCacheBytes,
+                    isStorageLoading = false
                 )
             }
         }

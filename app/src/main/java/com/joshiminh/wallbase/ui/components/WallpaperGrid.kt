@@ -35,6 +35,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -62,6 +63,7 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val UNKNOWN_PROVIDER_KEY = ""
+private const val MAX_JUSTIFIED_ITEMS_PER_ROW = 3
 
 private data class JustifiedRow(
     val items: List<WallpaperItem>,
@@ -114,7 +116,7 @@ private fun buildJustifiedRows(
         val threshold = (availableWidth / effectiveTargetHeight).coerceAtLeast(1f)
 
         val isLastItem = index == wallpapers.lastIndex
-        if (ratioSum >= threshold || isLastItem) {
+        if (ratioSum >= threshold || currentItems.size >= MAX_JUSTIFIED_ITEMS_PER_ROW || isLastItem) {
             rows += JustifiedRow(items = currentItems.toList(), startIndex = rowStartIndex)
             currentItems = mutableListOf()
             ratioSum = 0f
@@ -141,6 +143,7 @@ fun WallpaperGrid(
     savedWallpaperKeys: Set<String> = emptySet(),
     savedRemoteIdsByProvider: Map<String, Set<String>> = emptyMap(),
     savedImageUrls: Set<String> = emptySet(),
+    showDownloadedBadge: Boolean = false,
     onLoadMore: (() -> Unit)? = null,
     isLoadingMore: Boolean = false,
     canLoadMore: Boolean = false,
@@ -194,6 +197,7 @@ fun WallpaperGrid(
                         isSelected = isSelected,
                         isSaved = isSaved,
                         selectionMode = selectionMode,
+                        showDownloadedBadge = showDownloadedBadge,
                         onClick = { onWallpaperSelected(wallpaper) },
                         onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
                         modifier = Modifier.fillMaxWidth(),
@@ -299,6 +303,7 @@ fun WallpaperGrid(
                                     isSelected = isSelected,
                                     isSaved = isSaved,
                                     selectionMode = selectionMode,
+                                    showDownloadedBadge = showDownloadedBadge,
                                     onClick = { onWallpaperSelected(wallpaper) },
                                     onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
                                     modifier = Modifier
@@ -365,6 +370,7 @@ fun WallpaperGrid(
                         isSelected = isSelected,
                         isSaved = isSaved,
                         selectionMode = selectionMode,
+                        showDownloadedBadge = showDownloadedBadge,
                         onClick = { onWallpaperSelected(wallpaper) },
                         onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
                         sharedElementModifier = sharedModifier
@@ -447,6 +453,7 @@ fun WallpaperCard(
     isSelected: Boolean,
     isSaved: Boolean,
     selectionMode: Boolean,
+    showDownloadedBadge: Boolean,
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
@@ -503,15 +510,30 @@ fun WallpaperCard(
                 )
             }
 
-            if (isSaved) {
-                Icon(
-                    imageVector = Icons.Outlined.TaskAlt,
-                    contentDescription = "In your library",
-                    tint = MaterialTheme.colorScheme.tertiary,
+            val isDownloaded = showDownloadedBadge && item.isDownloaded && !item.localUri.isNullOrBlank()
+            if (isSaved || isDownloaded) {
+                Column(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                )
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (isDownloaded) {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = "Downloaded",
+                            tint = Color(0xFF2E7D32)
+                        )
+                    }
+                    if (isSaved) {
+                        Icon(
+                            imageVector = Icons.Outlined.TaskAlt,
+                            contentDescription = "In your library",
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                }
             }
 
             Box(
@@ -556,6 +578,7 @@ fun WallpaperListRow(
     isSelected: Boolean,
     isSaved: Boolean,
     selectionMode: Boolean,
+    showDownloadedBadge: Boolean,
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
@@ -616,15 +639,30 @@ fun WallpaperListRow(
                                 .padding(6.dp)
                         )
                     }
-                    if (isSaved) {
-                        Icon(
-                            imageVector = Icons.Outlined.TaskAlt,
-                            contentDescription = "In your library",
-                            tint = MaterialTheme.colorScheme.tertiary,
+                    val isDownloaded = showDownloadedBadge && item.isDownloaded && !item.localUri.isNullOrBlank()
+                    if (isSaved || isDownloaded) {
+                        Column(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(6.dp)
-                        )
+                                .padding(6.dp),
+                            horizontalAlignment = Alignment.End,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (isDownloaded) {
+                                Icon(
+                                    imageVector = Icons.Filled.CheckCircle,
+                                    contentDescription = "Downloaded",
+                                    tint = Color(0xFF2E7D32)
+                                )
+                            }
+                            if (isSaved) {
+                                Icon(
+                                    imageVector = Icons.Outlined.TaskAlt,
+                                    contentDescription = "In your library",
+                                    tint = MaterialTheme.colorScheme.tertiary
+                                )
+                            }
+                        }
                     }
                 }
 
