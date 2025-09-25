@@ -171,7 +171,7 @@ private fun WallpaperDetailScreen(
     val canRemoveFromLibrary = uiState.isInLibrary && wallpaper.sourceKey != null
     val canDownload = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     var showTargetDialog by remember { mutableStateOf(false) }
-    val aspectRatio = wallpaper.aspectRatio ?: DEFAULT_DETAIL_ASPECT_RATIO
+    val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
     val sharedModifier =
         if (sharedTransitionScope != null && animatedVisibilityScope != null) {
             with(sharedTransitionScope) {

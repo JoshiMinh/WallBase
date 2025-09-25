@@ -118,8 +118,7 @@ private fun buildJustifiedRows(
 
         val isLastItem = index == wallpapers.lastIndex
         val isPreferredSizeReached = currentItems.size >= preferredRowSize
-        val shouldRespectPreferredSize = isPreferredSizeReached && currentItems.size >= 2 &&
-            ratioSum >= threshold * 0.75f
+        val shouldRespectPreferredSize = isPreferredSizeReached && ratioSum >= threshold * 0.75f
 
         if (
             ratioSum >= threshold ||
@@ -468,7 +467,7 @@ fun WallpaperCard(
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
-    aspectRatio: Float? = item.aspectRatio ?: DEFAULT_ASPECT_RATIO,
+    aspectRatio: Float? = item.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO,
     sharedElementModifier: Modifier = Modifier
 ) {
     Card(
@@ -618,7 +617,7 @@ fun WallpaperListRow(
                     modifier = sharedElementModifier.then(
                         Modifier
                             .height(96.dp)
-                            .aspectRatio(item.aspectRatio ?: DEFAULT_ASPECT_RATIO)
+                            .aspectRatio(item.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO)
                             .clip(RoundedCornerShape(14.dp))
                     )
                 ) {
