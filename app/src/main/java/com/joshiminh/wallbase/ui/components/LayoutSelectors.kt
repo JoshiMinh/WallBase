@@ -5,17 +5,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ViewQuilt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.ViewAgenda
-import androidx.compose.material.icons.outlined.ViewQuilt
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -78,10 +79,12 @@ fun WallpaperLayoutPicker(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            WallpaperLayout.values().forEach { layout ->
+            WallpaperLayout.entries.forEach { layout ->
                 val (title, description, icon) = when (layout) {
                     WallpaperLayout.GRID -> Triple("Grid", "Balanced rows", Icons.Outlined.GridView)
-                    WallpaperLayout.JUSTIFIED -> Triple("Justified", "Adaptive collage", Icons.Outlined.ViewQuilt)
+                    WallpaperLayout.JUSTIFIED -> Triple("Justified", "Adaptive collage",
+                        Icons.AutoMirrored.Outlined.ViewQuilt
+                    )
                     WallpaperLayout.LIST -> Triple("List", "Large previews", Icons.Outlined.ViewAgenda)
                 }
                 LayoutChoiceCard(
@@ -110,7 +113,7 @@ fun AlbumLayoutPicker(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            AlbumLayout.values().forEach { layout ->
+            AlbumLayout.entries.forEach { layout ->
                 val (title, description, icon) = when (layout) {
                     AlbumLayout.GRID -> Triple("Grid", "Compact tiles", Icons.Outlined.GridView)
                     AlbumLayout.CARD_LIST -> Triple("Card list", "Spacious previews", Icons.Outlined.ViewAgenda)

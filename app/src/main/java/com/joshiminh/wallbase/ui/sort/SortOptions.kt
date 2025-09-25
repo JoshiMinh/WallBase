@@ -27,11 +27,11 @@ enum class WallpaperSortOption(
 ) : SortDescriptor<WallpaperItem> {
     RECENTLY_ADDED(
         label = "Recently added",
-        comparator = compareByDescending<WallpaperItem> { it.addedAt ?: Long.MIN_VALUE }
+        comparator = compareByDescending { it.addedAt ?: Long.MIN_VALUE }
     ),
     OLDEST_ADDED(
         label = "Oldest added",
-        comparator = compareBy<WallpaperItem> { it.addedAt ?: Long.MAX_VALUE }
+        comparator = compareBy { it.addedAt ?: Long.MAX_VALUE }
     ),
     TITLE_ASCENDING(
         label = "Title (A-Z)",
@@ -39,7 +39,7 @@ enum class WallpaperSortOption(
     ),
     TITLE_DESCENDING(
         label = "Title (Z-A)",
-        comparator = compareByDescending<WallpaperItem> { it.title.lowercase(Locale.ROOT) }
+        comparator = compareByDescending { it.title.lowercase(Locale.ROOT) }
     )
 }
 
@@ -63,7 +63,7 @@ enum class AlbumSortOption(
     ),
     TITLE_DESCENDING(
         label = "Title (Z-A)",
-        comparator = compareByDescending<AlbumItem> { it.title.lowercase(Locale.ROOT) }
+        comparator = compareByDescending { it.title.lowercase(Locale.ROOT) }
     )
 }
 
