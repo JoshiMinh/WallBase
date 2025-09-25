@@ -7,7 +7,6 @@ import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.source.SourceEntity
-import com.joshiminh.wallbase.sources.google_drive.DriveFolder
 import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import java.net.MalformedURLException
@@ -75,10 +74,7 @@ class SourceRepository(
     }
 
     suspend fun removeSource(source: Source, deleteWallpapers: Boolean): Int {
-        if ((source.providerKey == SourceKeys.GOOGLE_PHOTOS ||
-                source.providerKey == SourceKeys.GOOGLE_DRIVE) &&
-            source.config.isNullOrBlank()
-        ) {
+        if (source.providerKey == SourceKeys.GOOGLE_PHOTOS && source.config.isNullOrBlank()) {
             throw IllegalStateException("Google sources cannot be removed")
         }
         val wallpapers = if (deleteWallpapers) {
@@ -268,29 +264,6 @@ class SourceRepository(
         return entity.copy(id = id).toDomain()
     }
 
-    suspend fun addGoogleDriveFolder(folder: DriveFolder): Source {
-        val folderId = folder.id
-        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.GOOGLE_DRIVE, folderId)
-        if (existing != null) {
-            throw IllegalStateException("Drive folder already added")
-        }
-
-        val entity = SourceEntity(
-            key = buildGoogleKey(SourceKeys.GOOGLE_DRIVE, folderId),
-            providerKey = SourceKeys.GOOGLE_DRIVE,
-            title = folder.name.ifBlank { "Drive folder" },
-            description = "Google Drive folder",
-            iconRes = R.drawable.google_drive,
-            iconUrl = null,
-            showInExplore = true,
-            isEnabled = true,
-            isLocal = false,
-            config = folderId
-        )
-        val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
-    }
-
     suspend fun addGooglePhotosAlbum(album: GooglePhotosAlbum): Source {
         val albumId = album.id
         val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.GOOGLE_PHOTOS, albumId)
@@ -302,7 +275,7 @@ class SourceRepository(
             "$count photos"
         }
         val entity = SourceEntity(
-            key = buildGoogleKey(SourceKeys.GOOGLE_PHOTOS, albumId),
+            key = buildGooglePhotosKey(albumId),
             providerKey = SourceKeys.GOOGLE_PHOTOS,
             title = album.title.ifBlank { "Google Photos album" },
             description = countDescription ?: "Google Photos album",
@@ -375,9 +348,9 @@ class SourceRepository(
         return "$provider:$sanitized"
     }
 
-    private fun buildGoogleKey(provider: String, id: String): String {
+    private fun buildGooglePhotosKey(id: String): String {
         val sanitized = id.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
-        return if (sanitized.isEmpty()) provider else "$provider:$sanitized"
+        return if (sanitized.isEmpty()) SourceKeys.GOOGLE_PHOTOS else "${SourceKeys.GOOGLE_PHOTOS}:$sanitized"
     }
 
     private fun buildWebsiteMetadata(
@@ -399,9 +372,9 @@ class SourceRepository(
         val queryLabel = url.queryParam("q")?.toDisplayNameSegment()
 
         val title = when (type) {
-            RemoteSourceType.PINTEREST -> listOfNotNull("Pinterest", queryLabel ?: pathSegment)
+            RemoteSourceType.PINTEREST -> listOfNotNull("Pinterest (limited)", queryLabel ?: pathSegment)
                 .joinToString(" - ")
-                .ifBlank { "Pinterest" }
+                .ifBlank { "Pinterest (limited)" }
 
             RemoteSourceType.WALLHAVEN -> listOfNotNull("Wallhaven", queryLabel ?: pathSegment)
                 .joinToString(" - ")

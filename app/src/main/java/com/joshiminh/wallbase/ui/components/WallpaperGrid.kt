@@ -104,6 +104,7 @@ private fun buildJustifiedRows(
     var currentItems = mutableListOf<WallpaperItem>()
     var ratioSum = 0f
     var rowStartIndex = 0
+    var preferredRowSize = MAX_JUSTIFIED_ITEMS_PER_ROW
 
     wallpapers.forEachIndexed { index, item ->
         val ratio = item.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO
@@ -116,11 +117,21 @@ private fun buildJustifiedRows(
         val threshold = (availableWidth / effectiveTargetHeight).coerceAtLeast(1f)
 
         val isLastItem = index == wallpapers.lastIndex
-        if (ratioSum >= threshold || currentItems.size >= MAX_JUSTIFIED_ITEMS_PER_ROW || isLastItem) {
+        val isPreferredSizeReached = currentItems.size >= preferredRowSize
+        val shouldRespectPreferredSize = isPreferredSizeReached && currentItems.size >= 2 &&
+            ratioSum >= threshold * 0.75f
+
+        if (
+            ratioSum >= threshold ||
+            currentItems.size >= MAX_JUSTIFIED_ITEMS_PER_ROW ||
+            shouldRespectPreferredSize ||
+            isLastItem
+        ) {
             rows += JustifiedRow(items = currentItems.toList(), startIndex = rowStartIndex)
             currentItems = mutableListOf()
             ratioSum = 0f
             rowStartIndex = index + 1
+            preferredRowSize = if (preferredRowSize == MAX_JUSTIFIED_ITEMS_PER_ROW) 2 else MAX_JUSTIFIED_ITEMS_PER_ROW
         }
     }
 

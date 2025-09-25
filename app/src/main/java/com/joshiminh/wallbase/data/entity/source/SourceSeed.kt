@@ -1,6 +1,5 @@
 package com.joshiminh.wallbase.data.entity.source
 
-import com.joshiminh.wallbase.sources.google_drive.GoogleDriveSource
 import com.joshiminh.wallbase.sources.google_photos.GooglePhotosSource
 
 /**
@@ -21,7 +20,6 @@ data class SourceSeed(
 
 /** List of default sources bundled with the app. */
 val DefaultSources: List<SourceSeed> = listOf(
-    GooglePhotosSource,
-    GoogleDriveSource
+    GooglePhotosSource
 )
 

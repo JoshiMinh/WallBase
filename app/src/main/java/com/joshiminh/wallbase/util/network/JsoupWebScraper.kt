@@ -49,9 +49,6 @@ class JsoupWebScraper : WebScraper {
             host.endsWith("photos.google.com") || host == "photos.app.goo.gl" -> runCatching {
                 scrapeGooglePhotosAlbum(url, limit, cursor)
             }.getOrNull()
-            host.contains("drive.google.com") -> runCatching {
-                scrapeGoogleDriveFolder(url, limit, cursor)
-            }.getOrNull()
             else -> null
         }
         if (specialized != null) return specialized
@@ -159,67 +156,6 @@ class JsoupWebScraper : WebScraper {
         }
         val nextCursor = if (toIndex < images.size) toIndex.toString() else null
         ScrapePage(pageItems, nextCursor)
-    }
-
-    private suspend fun scrapeGoogleDriveFolder(
-        pageUrl: String,
-        limit: Int,
-        cursor: String?,
-    ): ScrapePage? = withContext(Dispatchers.IO) {
-        val folderId = parseGoogleDriveFolderId(pageUrl) ?: return@withContext null
-        val embedUrl = "https://drive.google.com/embeddedfolderview?id=$folderId#grid"
-        val document = runCatching { fetch(embedUrl) }.getOrElse { return@withContext null }
-        val fileIds = LinkedHashSet<String>()
-        val items = mutableListOf<WallpaperItem>()
-        val anchors = document.select("a[href*=/file/d/]")
-        anchors.forEach { anchor ->
-            val href = anchor.absUrl("href").ifBlank { anchor.attr("href") }
-            val match = DRIVE_FILE_REGEX.find(href) ?: return@forEach
-            val fileId = match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() } ?: return@forEach
-            if (!fileIds.add(fileId)) return@forEach
-            if (anchor.selectFirst("img[src]") == null) return@forEach
-            val title = anchor.attr("title")
-                .ifBlank { anchor.text() }
-                .ifBlank { "Google Drive image" }
-            val imageUrl = "https://drive.google.com/uc?export=view&id=$fileId"
-            val sourceUrl = "https://drive.google.com/file/d/$fileId/view"
-            items += WallpaperItem(
-                id = fileId,
-                title = title,
-                imageUrl = imageUrl,
-                sourceUrl = sourceUrl
-            )
-        }
-        if (items.isEmpty()) return@withContext null
-        val offset = cursor?.toIntOrNull()?.takeIf { it >= 0 } ?: 0
-        val fromIndex = offset.coerceAtMost(items.size)
-        val toIndex = (fromIndex + limit).coerceAtMost(items.size)
-        if (fromIndex >= toIndex) {
-            return@withContext ScrapePage(emptyList(), nextCursor = null)
-        }
-        val pageItems = items.subList(fromIndex, toIndex).mapIndexed { index, item ->
-            val absoluteIndex = fromIndex + index + 1
-            val label = item.title.ifBlank { "Google Drive image $absoluteIndex" }
-            item.copy(title = label)
-        }
-        val nextCursor = if (toIndex < items.size) toIndex.toString() else null
-        ScrapePage(pageItems, nextCursor)
-    }
-
-    private fun parseGoogleDriveFolderId(pageUrl: String): String? {
-        val uri = runCatching { URI(pageUrl) }.getOrNull() ?: return null
-        val pathSegments = uri.path.split('/').filter { it.isNotBlank() }
-        val folderIndex = pathSegments.indexOfFirst { it.equals("folders", ignoreCase = true) }
-        if (folderIndex >= 0 && folderIndex + 1 < pathSegments.size) {
-            return pathSegments[folderIndex + 1]
-        }
-        val query = uri.query ?: return null
-        return query.split('&')
-            .mapNotNull { part ->
-                val pieces = part.split('=')
-                if (pieces.size == 2 && pieces[0] == "id") pieces[1] else null
-            }
-            .firstOrNull { it.isNotBlank() }
     }
 
     private fun extractGooglePhotosImages(html: String): List<String> {
@@ -494,7 +430,6 @@ class JsoupWebScraper : WebScraper {
         private val GOOGLE_PHOTOS_REGEX =
             Regex("""https://lh[0-9]\.googleusercontent\.com/[^"\s<>]+""", RegexOption.IGNORE_CASE)
 
-        private val DRIVE_FILE_REGEX = Regex("/file/d/([a-zA-Z0-9_-]+)")
         private const val PINTEREST_BOARD_ENDPOINT =
             "https://www.pinterest.com/resource/BoardFeedResource/get/"
         private const val PINTEREST_USER_PINS_ENDPOINT =

@@ -3,6 +3,7 @@ package com.joshiminh.wallbase.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -44,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -58,7 +61,6 @@ import java.util.Locale
 @Composable
 fun BrowseScreen(
     uiState: SourcesViewModel.SourcesUiState,
-    onGoogleDriveClick: () -> Unit,
     onGooglePhotosClick: () -> Unit,
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
@@ -87,8 +89,8 @@ fun BrowseScreen(
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item("add_remote_source") {
                 AddSourceFromUrlCard(
@@ -120,7 +122,6 @@ fun BrowseScreen(
                     SourceCard(
                         source = source,
                         onOpenSource = onOpenSource,
-                        onGoogleDriveClick = onGoogleDriveClick,
                         onGooglePhotosClick = onGooglePhotosClick,
                         onRequestRemove = { pendingRemoval = it }
                     )
@@ -162,10 +163,10 @@ private fun AddSourceFromUrlCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             if (showSupportedSources) {
                 SupportedSourcesDialog(onDismiss = { showSupportedSources = false })
             }
@@ -189,7 +190,7 @@ private fun AddSourceFromUrlCard(
             Text(
                 text = "Paste a subreddit or supported wallpaper link to create a new source.",
                 style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp)
+                modifier = Modifier.padding(top = 2.dp)
             )
 
             OutlinedTextField(
@@ -220,8 +221,8 @@ private fun AddSourceFromUrlCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isReddit) {
@@ -248,10 +249,10 @@ private fun AddSourceFromUrlCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 16.dp),
+                            .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
                     }
                 }
 
@@ -260,14 +261,14 @@ private fun AddSourceFromUrlCard(
                         text = searchError,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 16.dp)
+                        modifier = Modifier.padding(top = 12.dp)
                     )
                 }
 
                 results.isNotEmpty() -> {
                     Column(
-                        modifier = Modifier.padding(top = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.padding(top = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         results.forEach { community ->
                             RedditSearchResult(
@@ -291,10 +292,10 @@ private fun RedditSearchResult(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(10.dp)) {
             Text(community.displayName, style = MaterialTheme.typography.titleSmall)
             Text(
                 text = community.title,
@@ -305,14 +306,14 @@ private fun RedditSearchResult(
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 6.dp)
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
+                    .padding(top = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -331,12 +332,12 @@ private fun RedditSearchResult(
 @Composable
 private fun SupportedSourcesDialog(onDismiss: () -> Unit) {
     val sources = listOf(
-        SupportedSourceInfo("Reddit", "reddit.com"),
-        SupportedSourceInfo("Wallhaven", "wallhaven.cc"),
-        SupportedSourceInfo("Danbooru", "danbooru.donmai.us"),
-        SupportedSourceInfo("Unsplash", "unsplash.com"),
-        SupportedSourceInfo("AlphaCoders (Wallpaper Abyss)", "wall.alphacoders.com"),
-        SupportedSourceInfo("Pinterest", "pinterest.com")
+        SupportedSourceInfo("Reddit", faviconDomain = "reddit.com"),
+        SupportedSourceInfo("Wallhaven", faviconDomain = "wallhaven.cc"),
+        SupportedSourceInfo("Danbooru", faviconDomain = "danbooru.donmai.us"),
+        SupportedSourceInfo("Unsplash", faviconDomain = "unsplash.com"),
+        SupportedSourceInfo("AlphaCoders (Wallpaper Abyss)", faviconDomain = "wall.alphacoders.com"),
+        SupportedSourceInfo("… (limited)", staticIcon = Icons.Outlined.MoreHoriz)
     )
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -345,11 +346,28 @@ private fun SupportedSourcesDialog(onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 sources.forEach { source ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        AsyncImage(
-                            model = source.faviconUrl,
-                            contentDescription = source.label,
-                            modifier = Modifier.size(24.dp)
-                        )
+                        when {
+                            source.staticIcon != null -> {
+                                Icon(
+                                    imageVector = source.staticIcon,
+                                    contentDescription = source.label,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            source.faviconUrl != null -> {
+                                AsyncImage(
+                                    model = source.faviconUrl,
+                                    contentDescription = source.label,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            else -> {
+                                Box(modifier = Modifier.size(24.dp))
+                            }
+                        }
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = source.label,
@@ -367,8 +385,14 @@ private fun SupportedSourcesDialog(onDismiss: () -> Unit) {
     )
 }
 
-private data class SupportedSourceInfo(val label: String, val domain: String) {
-    val faviconUrl: String = "https://www.google.com/s2/favicons?sz=128&domain=$domain"
+private data class SupportedSourceInfo(
+    val label: String,
+    val faviconDomain: String? = null,
+    val staticIcon: ImageVector? = null
+) {
+    val faviconUrl: String? = faviconDomain?.let { domain ->
+        "https://www.google.com/s2/favicons?sz=128&domain=$domain"
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -376,17 +400,14 @@ private data class SupportedSourceInfo(val label: String, val domain: String) {
 private fun SourceCard(
     source: Source,
     onOpenSource: (Source) -> Unit,
-    onGoogleDriveClick: () -> Unit,
     onGooglePhotosClick: () -> Unit,
     onRequestRemove: (Source) -> Unit
 ) {
-    val isGoogleDrive = source.providerKey == SourceKeys.GOOGLE_DRIVE
     val isGooglePhotos = source.providerKey == SourceKeys.GOOGLE_PHOTOS
-    val isGoogleDrivePicker = isGoogleDrive && source.config.isNullOrBlank()
     val isGooglePhotosPicker = isGooglePhotos && source.config.isNullOrBlank()
     val isRemovable = when {
-        isGoogleDrivePicker || isGooglePhotosPicker -> false
-        isGoogleDrive || isGooglePhotos -> true
+        isGooglePhotosPicker -> false
+        isGooglePhotos -> true
         else -> source.providerKey in setOf(
             SourceKeys.REDDIT,
             SourceKeys.PINTEREST,
@@ -399,9 +420,6 @@ private fun SourceCard(
     }
 
     val cardModifier = when {
-        isGoogleDrivePicker -> Modifier
-            .fillMaxWidth()
-            .clickable { onGoogleDriveClick() }
         isGooglePhotosPicker -> Modifier
             .fillMaxWidth()
             .clickable { onGooglePhotosClick() }
@@ -412,10 +430,10 @@ private fun SourceCard(
 
     Card(
         modifier = cardModifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (source.iconUrl != null) {
                     AsyncImage(
@@ -434,7 +452,7 @@ private fun SourceCard(
                         )
                     }
                 }
-                Spacer(Modifier.size(16.dp))
+                Spacer(Modifier.size(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(source.title, style = MaterialTheme.typography.titleMedium)
                     Text(source.description, style = MaterialTheme.typography.bodyMedium)
@@ -446,19 +464,13 @@ private fun SourceCard(
                 }
             }
 
-            if (isGoogleDrivePicker || isGooglePhotosPicker) {
-                Spacer(Modifier.size(12.dp))
-                val instructions = if (isGoogleDrivePicker) {
-                    "Choose Drive folders to browse their wallpapers."
-                } else {
-                    "Pick Google Photos albums to browse their images."
-                }
+            if (isGooglePhotosPicker) {
+                Spacer(Modifier.size(8.dp))
+                val instructions = "Pick Google Photos albums to browse their images."
                 Text(instructions, style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.size(4.dp))
-                val buttonLabel = if (isGoogleDrivePicker) "Select folders" else "Select albums"
-                val onClick = if (isGoogleDrivePicker) onGoogleDriveClick else onGooglePhotosClick
-                TextButton(onClick = onClick) {
-                    Text(buttonLabel)
+                TextButton(onClick = onGooglePhotosClick) {
+                    Text("Select albums")
                 }
             }
         }
@@ -479,13 +491,13 @@ private fun RemoveSourceDialog(
         text = {
             Column {
                 Text("Do you also want to remove wallpapers saved from this source?")
-                Spacer(modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.size(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
                         checked = removeWallpapers,
                         onCheckedChange = { removeWallpapers = it }
                     )
-                    Spacer(modifier = Modifier.size(8.dp))
+                    Spacer(modifier = Modifier.size(6.dp))
                     Text("Also remove wallpapers")
                 }
             }

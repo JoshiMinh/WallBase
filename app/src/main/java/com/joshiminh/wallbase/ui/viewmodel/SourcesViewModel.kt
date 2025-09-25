@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.joshiminh.wallbase.sources.google_drive.DriveFolder
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.data.entity.source.Source
@@ -154,21 +153,6 @@ class SourcesViewModel(
                     }
                 }
             )
-        }
-    }
-
-    fun addGoogleDriveFolder(folder: DriveFolder) {
-        viewModelScope.launch {
-            val result = runCatching { sourceRepository.addGoogleDriveFolder(folder) }
-            _uiState.update { state ->
-                val message = result.fold(
-                    onSuccess = { source -> "Added ${source.title}" },
-                    onFailure = { error ->
-                        error.localizedMessage ?: "Unable to add Drive folder."
-                    }
-                )
-                state.copy(snackbarMessage = message)
-            }
         }
     }
 
