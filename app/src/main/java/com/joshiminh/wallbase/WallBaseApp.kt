@@ -11,7 +11,7 @@ class WallBaseApp : Application() {
     override fun onCreate() {
         super.onCreate()
         ServiceLocator.initialize(this)
-        SingletonImageLoader.imageLoader = { context ->
+        SingletonImageLoader.setSafe { context ->
             ImageLoader.Builder(context)
                 .diskCache {
                     DiskCache.Builder()
