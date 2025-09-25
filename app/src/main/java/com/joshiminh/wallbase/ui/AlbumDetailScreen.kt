@@ -348,49 +348,6 @@ private fun AlbumDetailScreen(
                             label = { Text("Removing downloads…") }
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        onClick = { showRotationDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = MaterialTheme.shapes.medium,
-                        tonalElevation = 2.dp
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Scheduled rotation",
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                    Text(
-                                        text = rotationSummary(state.rotation, canConfigureRotation),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Icon(
-                                    imageVector = Icons.Outlined.Schedule,
-                                    contentDescription = null
-                                )
-                            }
-                            val lastApplied = state.rotation.lastAppliedAt?.let { timestamp ->
-                                DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                                    .format(Date(timestamp))
-                            }
-                            if (lastApplied != null) {
-                                Text(
-                                    text = "Last rotated $lastApplied",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     if (wallpapers.isEmpty()) {
                         val message = when {
