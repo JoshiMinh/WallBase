@@ -116,20 +116,19 @@ val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(na
 
 enum class AlbumLayout {
     GRID,
-    CARD_LIST,
-    LIST;
+    CARD_LIST;
 
     val storageValue: String
         get() = when (this) {
             GRID -> "grid"
             CARD_LIST -> "card_list"
-            LIST -> "list"
         }
 
     companion object {
         fun fromStorage(value: String?): AlbumLayout = when (value) {
             "grid" -> GRID
-            "list" -> LIST
+            // Previously saved "list" values now fall back to the card list layout.
+            "list" -> CARD_LIST
             else -> CARD_LIST
         }
     }

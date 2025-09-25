@@ -723,18 +723,6 @@ private fun AlbumList(
                 }
             }
         }
-
-        AlbumLayout.LIST -> {
-            LazyColumn(
-                modifier = modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(albums, key = AlbumItem::id) { album ->
-                    AlbumListRow(album = album, onClick = { onAlbumClick(album) })
-                }
-            }
-        }
     }
 }
 
@@ -776,39 +764,6 @@ private fun AlbumCard(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun AlbumListRow(
-    album: AlbumItem,
-    onClick: () -> Unit
-) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        tonalElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        ListItem(
-            headlineContent = {
-                Text(
-                    text = album.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            },
-            supportingContent = {
-                Text(
-                    text = "${album.wallpaperCount} wallpapers",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            colors = ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        )
     }
 }
 

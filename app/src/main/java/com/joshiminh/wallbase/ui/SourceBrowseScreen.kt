@@ -328,58 +328,62 @@ private fun SourceBrowseScreen(
             }
             Spacer(modifier = Modifier.height(4.dp))
 
-            PullToRefreshBox(
-                isRefreshing = state.isRefreshing,
-                onRefresh = onRefresh,
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                when {
-                    state.isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-
-                    state.wallpapers.isEmpty() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (state.errorMessage != null) {
-                                ErrorMessage(message = state.errorMessage, onRetry = onRefresh)
-                            } else {
-                                Text(
-                                    text = "No wallpapers found.",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
+                PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = onRefresh,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    when {
+                        state.isLoading -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
                             }
                         }
-                    }
 
-                    else -> {
-                        WallpaperGrid(
-                            wallpapers = state.wallpapers,
-                            onWallpaperSelected = onWallpaperClick,
-                            onLongPress = onWallpaperLongPress,
-                            selectedIds = state.selectedIds,
-                            selectionMode = state.isSelectionMode,
-                            savedWallpaperKeys = state.savedWallpaperKeys,
-                            savedRemoteIdsByProvider = state.savedRemoteIdsByProvider,
-                            savedImageUrls = state.savedImageUrls,
-                            onLoadMore = onLoadMore.takeIf { state.canLoadMore },
-                            isLoadingMore = state.isAppending,
-                            canLoadMore = state.canLoadMore,
-                            modifier = Modifier.fillMaxSize(),
-                            columns = state.wallpaperGridColumns,
-                            layout = state.wallpaperLayout,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
+                        state.wallpapers.isEmpty() -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (state.errorMessage != null) {
+                                    ErrorMessage(message = state.errorMessage, onRetry = onRefresh)
+                                } else {
+                                    Text(
+                                        text = "No wallpapers found.",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                            }
+                        }
+
+                        else -> {
+                            WallpaperGrid(
+                                wallpapers = state.wallpapers,
+                                onWallpaperSelected = onWallpaperClick,
+                                onLongPress = onWallpaperLongPress,
+                                selectedIds = state.selectedIds,
+                                selectionMode = state.isSelectionMode,
+                                savedWallpaperKeys = state.savedWallpaperKeys,
+                                savedRemoteIdsByProvider = state.savedRemoteIdsByProvider,
+                                savedImageUrls = state.savedImageUrls,
+                                onLoadMore = onLoadMore.takeIf { state.canLoadMore },
+                                isLoadingMore = state.isAppending,
+                                canLoadMore = state.canLoadMore,
+                                modifier = Modifier.fillMaxSize(),
+                                columns = state.wallpaperGridColumns,
+                                layout = state.wallpaperLayout,
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                        }
                     }
                 }
             }
