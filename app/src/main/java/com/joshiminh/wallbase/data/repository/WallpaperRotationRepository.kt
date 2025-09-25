@@ -102,7 +102,7 @@ class WallpaperRotationRepository(
 
     suspend fun triggerRotationNow() {
         val request = OneTimeWorkRequestBuilder<WallpaperRotationWorker>()
-            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORKER)
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             .build()
         workManager.enqueueUniqueWork(
             WallpaperRotationWorker.ONE_TIME_WORK_NAME,

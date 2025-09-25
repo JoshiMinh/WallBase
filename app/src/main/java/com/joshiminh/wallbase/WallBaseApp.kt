@@ -6,6 +6,7 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import java.io.File
+import okio.Path.Companion.toPath
 
 class WallBaseApp : Application() {
     override fun onCreate() {
@@ -15,11 +16,10 @@ class WallBaseApp : Application() {
             ImageLoader.Builder(context)
                 .diskCache {
                     DiskCache.Builder()
-                        .directory(File(context.cacheDir, "coil_previews"))
+                        .directory(File(context.cacheDir, "coil_previews").absolutePath.toPath())
                         .maxSizeBytes(50L * 1024 * 1024)
                         .build()
                 }
-                .respectCacheHeaders(false)
                 .build()
         }
     }

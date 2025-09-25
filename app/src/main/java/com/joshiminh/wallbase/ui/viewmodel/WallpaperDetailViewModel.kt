@@ -38,7 +38,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.Serializable
 
 class WallpaperDetailViewModel(
     application: Application,
@@ -130,7 +129,7 @@ class WallpaperDetailViewModel(
         }
     }
 
-    private suspend fun ensureEditorLoaded(force: Boolean = false): Serializable {
+    private suspend fun ensureEditorLoaded(force: Boolean = false): Boolean {
         val wallpaper = _uiState.value.wallpaper ?: return false
         val existing = originalBitmap?.takeIf { !it.isRecycled }
         if (!force && existing != null) {
@@ -149,20 +148,23 @@ class WallpaperDetailViewModel(
         val loaded = runCatching {
             withContext(Dispatchers.IO) { editor.loadOriginalBitmap(model) }
         }
-        return loaded.onSuccess { bitmap ->
-            originalBitmap = bitmap
-            generatePreviewForAdjustments(_uiState.value.adjustments)
-            true
-        }.onFailure { throwable ->
-            _uiState.update {
-                it.copy(
-                    isProcessingEdits = false,
-                    isEditorReady = false,
-                    message = throwable.localizedMessage ?: "Unable to load wallpaper for editing"
-                )
+        return loaded.fold(
+            onSuccess = { bitmap ->
+                originalBitmap = bitmap
+                generatePreviewForAdjustments(_uiState.value.adjustments)
+                true
+            },
+            onFailure = { throwable ->
+                _uiState.update {
+                    it.copy(
+                        isProcessingEdits = false,
+                        isEditorReady = false,
+                        message = throwable.localizedMessage ?: "Unable to load wallpaper for editing"
+                    )
+                }
+                false
             }
-            false
-        }
+        )
     }
 
     private fun resetEditorState() {
