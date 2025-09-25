@@ -43,6 +43,20 @@ class LocalStorageCoordinator(
 
     fun ensureStorageDirectory(): File = ensureBaseDirectory()
 
+    suspend fun cleanupLegacyEditorCache(): Boolean = withContext(Dispatchers.IO) {
+        val base = baseDirectory()
+        if (!base.exists() || !base.isDirectory) return@withContext false
+        var cleaned = false
+        listOf("Editor", "editor", "editor_cache").forEach { folderName ->
+            val legacy = File(base, folderName)
+            if (legacy.exists()) {
+                legacy.deleteRecursively()
+                cleaned = true
+            }
+        }
+        cleaned
+    }
+
     suspend fun copyFromUri(
         uri: Uri,
         sourceFolder: String,

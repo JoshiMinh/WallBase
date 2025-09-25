@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.joshiminh.wallbase.data.WallBaseDatabase
@@ -100,10 +101,13 @@ class WallpaperRotationRepository(
     }
 
     suspend fun triggerRotationNow() {
+        val request = OneTimeWorkRequestBuilder<WallpaperRotationWorker>()
+            .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORKER)
+            .build()
         workManager.enqueueUniqueWork(
             WallpaperRotationWorker.ONE_TIME_WORK_NAME,
             ExistingWorkPolicy.REPLACE,
-            OneTimeWorkRequestBuilder<WallpaperRotationWorker>().build()
+            request
         )
     }
 

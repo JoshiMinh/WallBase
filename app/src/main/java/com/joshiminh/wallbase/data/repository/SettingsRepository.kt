@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -35,11 +36,14 @@ class SettingsRepository(
             val albumLayout = AlbumLayout.fromStorage(prefs[Keys.ALBUM_LAYOUT])
             val wallpaperLayout = WallpaperLayout.fromStorage(prefs[Keys.WALLPAPER_LAYOUT])
 
+            val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES
             SettingsPreferences(
                 darkTheme = prefs[Keys.DARK_THEME] ?: false,
                 wallpaperGridColumns = wallpaperColumns,
                 albumLayout = albumLayout,
-                wallpaperLayout = wallpaperLayout
+                wallpaperLayout = wallpaperLayout,
+                autoDownload = prefs[Keys.AUTO_DOWNLOAD_ENABLED] ?: false,
+                storageLimitBytes = storageLimit.coerceIn(0L, MAX_STORAGE_LIMIT_BYTES)
             )
         }
 
@@ -68,17 +72,34 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setAutoDownload(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.AUTO_DOWNLOAD_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setStorageLimitBytes(limitBytes: Long) {
+        val clamped = limitBytes.coerceIn(0L, MAX_STORAGE_LIMIT_BYTES)
+        dataStore.edit { prefs ->
+            prefs[Keys.STORAGE_LIMIT_BYTES] = clamped
+        }
+    }
+
     private object Keys {
         val DARK_THEME = booleanPreferencesKey("dark_theme")
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
         val ALBUM_LAYOUT = stringPreferencesKey("album_layout")
         val WALLPAPER_LAYOUT = stringPreferencesKey("wallpaper_layout")
+        val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
+        val STORAGE_LIMIT_BYTES = longPreferencesKey("storage_limit_bytes")
     }
 
     companion object {
         private const val DEFAULT_WALLPAPER_COLUMNS = 2
         private const val MIN_WALLPAPER_COLUMNS = 1
         private const val MAX_WALLPAPER_COLUMNS = 4
+        private const val MAX_STORAGE_LIMIT_BYTES = 10L * 1024 * 1024 * 1024 // 10 GB
+        private const val DEFAULT_STORAGE_LIMIT_BYTES = 2L * 1024 * 1024 * 1024 // 2 GB
     }
 }
 
@@ -86,7 +107,9 @@ data class SettingsPreferences(
     val darkTheme: Boolean,
     val wallpaperGridColumns: Int,
     val albumLayout: AlbumLayout,
-    val wallpaperLayout: WallpaperLayout
+    val wallpaperLayout: WallpaperLayout,
+    val autoDownload: Boolean,
+    val storageLimitBytes: Long
 )
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")

@@ -38,6 +38,7 @@ class AlbumDetailViewModel(
     private val message = MutableStateFlow<String?>(null)
     private val showRemoveDownloads = MutableStateFlow(false)
     private val rotationUpdating = MutableStateFlow(false)
+    private var storageLimitBytes: Long = 0L
 
     private data class Base(
         val detail: AlbumDetail?, // whatever type repository.observeAlbum(albumId) emits
@@ -76,6 +77,11 @@ class AlbumDetailViewModel(
     val uiState: StateFlow<AlbumDetailUiState> =
         baseState
             .combine(settingsRepository.preferences) { base, preferences ->
+                storageLimitBytes = preferences.storageLimitBytes
+                val layout = when (preferences.wallpaperLayout) {
+                    WallpaperLayout.LIST -> WallpaperLayout.GRID
+                    else -> preferences.wallpaperLayout
+                }
                 if (base.detail == null) {
                     AlbumDetailUiState(
                         isLoading = false,
@@ -85,7 +91,7 @@ class AlbumDetailViewModel(
                         isRemovingDownloads = base.isRemoving,
                         message = base.message,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
-                        wallpaperLayout = preferences.wallpaperLayout,
+                        wallpaperLayout = layout,
                         rotation = base.rotation.toUiState(base.isRotationUpdating)
                     )
                 } else {
@@ -101,7 +107,7 @@ class AlbumDetailViewModel(
                         isRemovingDownloads = base.isRemoving,
                         message = base.message,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
-                        wallpaperLayout = preferences.wallpaperLayout,
+                        wallpaperLayout = layout,
                         rotation = base.rotation.toUiState(base.isRotationUpdating)
                     )
                 }
@@ -124,15 +130,19 @@ class AlbumDetailViewModel(
         if (wallpapers.isEmpty() || downloading.value) return
         viewModelScope.launch {
             downloading.value = true
-            val result = runCatching { repository.downloadWallpapers(wallpapers) }
+            val result = runCatching { repository.downloadWallpapers(wallpapers, storageLimitBytes) }
             downloading.value = false
             message.value = result.fold(
                 onSuccess = { summary ->
                     when {
                         summary.downloaded > 0 && summary.failed > 0 ->
                             "Downloaded ${summary.downloaded} wallpapers (failed ${summary.failed})"
+                        summary.downloaded > 0 && summary.blocked > 0 ->
+                            "Downloaded ${summary.downloaded} wallpapers (blocked ${summary.blocked} by storage limit)"
                         summary.downloaded > 0 ->
                             "Downloaded ${summary.downloaded} wallpapers"
+                        summary.blocked > 0 ->
+                            "Storage limit reached. Download blocked."
                         summary.skipped > 0 ->
                             "All wallpapers are already saved locally"
                         else -> "No wallpapers were downloaded"

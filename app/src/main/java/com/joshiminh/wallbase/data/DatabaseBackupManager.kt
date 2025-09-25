@@ -180,6 +180,8 @@ class DatabaseBackupManager(
 
             restoreLocalWallpapers(sqliteDb, manifestJson, extractedMedia)
 
+            database.invalidationTracker.refreshVersionsAsync()
+
             Result.success(Unit)
         } catch (error: Throwable) {
             Result.failure(error)

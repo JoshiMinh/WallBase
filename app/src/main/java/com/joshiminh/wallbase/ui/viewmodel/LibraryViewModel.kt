@@ -35,6 +35,7 @@ class LibraryViewModel(
     private val selectionActionInProgress = MutableStateFlow(false)
     private val wallpaperSort = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
     private val albumSort = MutableStateFlow(AlbumSortOption.TITLE_ASCENDING)
+    private var storageLimitBytes: Long = 0L
 
     val uiState: StateFlow<LibraryUiState> =
         combine(
@@ -55,6 +56,7 @@ class LibraryViewModel(
             val wallpaperSortOption = arr[5] as WallpaperSortOption
             val albumSortOption = arr[6] as AlbumSortOption
             val preferences = arr[7] as SettingsPreferences
+            storageLimitBytes = preferences.storageLimitBytes
 
             LibraryUiState(
                 wallpapers = wallpapers.sortedWith(wallpaperSortOption),
@@ -173,7 +175,7 @@ class LibraryViewModel(
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {
             selectionActionInProgress.value = true
-            val result = runCatching { repository.downloadWallpapers(wallpapers) }
+            val result = runCatching { repository.downloadWallpapers(wallpapers, storageLimitBytes) }
             selectionActionInProgress.value = false
             messageFlow.update {
                 result.fold(
@@ -181,8 +183,12 @@ class LibraryViewModel(
                         when {
                             summary.downloaded > 0 && summary.failed > 0 ->
                                 "Downloaded ${summary.downloaded} wallpapers (failed ${summary.failed})"
+                            summary.downloaded > 0 && summary.blocked > 0 ->
+                                "Downloaded ${summary.downloaded} wallpapers (blocked ${summary.blocked} by storage limit)"
                             summary.downloaded > 0 ->
                                 "Downloaded ${summary.downloaded} wallpapers"
+                            summary.blocked > 0 ->
+                                "Storage limit reached. Download blocked."
                             summary.skipped > 0 ->
                                 "Selected wallpapers are already saved locally"
                             else -> "No wallpapers were downloaded"
