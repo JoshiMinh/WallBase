@@ -84,11 +84,11 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .imePadding(),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                SettingsSection(spacing = 12.dp) {
+                SettingsSection(spacing = 8.dp) {
                     Text(
                         text = "Appearance",
                         style = MaterialTheme.typography.titleMedium,
@@ -99,7 +99,7 @@ fun SettingsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                                .padding(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -128,7 +128,7 @@ fun SettingsScreen(
             }
 
             item {
-                SettingsSection(spacing = 12.dp) {
+                SettingsSection(spacing = 8.dp) {
                     Text(
                         text = "Data & backup",
                         style = MaterialTheme.typography.titleMedium,
@@ -139,112 +139,45 @@ fun SettingsScreen(
                         val storageBytes = uiState.storageBytes
                         val storageTotalBytes = uiState.storageTotalBytes
                         val hasUsage = storageBytes != null && storageTotalBytes != null && storageTotalBytes > 0L
+                        val limitLabel = if (uiState.storageLimitBytes > 0) {
+                            Formatter.formatFileSize(context, uiState.storageLimitBytes)
+                        } else {
+                            "No limit"
+                        }
+
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
+                                .padding(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
-                                    text = "Storage usage",
+                                    text = "Downloads & storage",
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = "See how much space WallBase takes on this device.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            when {
-                                hasUsage -> {
-                                    val used = Formatter.formatFileSize(context, storageBytes)
-                                    val total = Formatter.formatFileSize(context, storageTotalBytes)
-                                    val progress = (storageBytes.toDouble() / storageTotalBytes.toDouble())
-                                        .toFloat()
-                                        .coerceIn(0f, 1f)
-
-                                    LinearProgressIndicator(
-                                    progress = { progress },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = ProgressIndicatorDefaults.linearColor,
-                                    trackColor = ProgressIndicatorDefaults.linearTrackColor,
-                                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
-                                    )
-                                    Text(
-                                        text = "$used of $total used",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                uiState.isStorageLoading -> {
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                                    Text(
-                                        text = "Calculating storage usage…",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                else -> {
-                                    LinearProgressIndicator(
-                                    progress = { 0f },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = ProgressIndicatorDefaults.linearColor,
-                                    trackColor = ProgressIndicatorDefaults.linearTrackColor,
-                                    strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
-                                    )
-                                    Text(
-                                        text = "Storage usage unavailable",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            uiState.wallpapersBytes?.let { wallpapersBytes ->
-                                val wallpapersSize = Formatter.formatFileSize(context, wallpapersBytes)
-                                Text(
-                                    text = "WallBase wallpapers: $wallpapersSize",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "Wallpapers are stored privately inside WallBase's app data.",
+                                    text = "Control automatic downloads and cached files.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            uiState.previewCacheBytes?.let { previewBytes ->
-                                val previewSize = Formatter.formatFileSize(context, previewBytes)
-                                Text(
-                                    text = "Preview cache: $previewSize",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
 
-                    SettingsCard {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
                                     Text(
                                         text = "Auto-download",
-                                        style = MaterialTheme.typography.titleMedium
+                                        style = MaterialTheme.typography.titleSmall
                                     )
                                     Text(
-                                        text = "Automatically download wallpapers when adding them to your library.",
+                                        text = "Download originals when you save wallpapers.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -255,16 +188,85 @@ fun SettingsScreen(
                                 )
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "Storage usage",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                when {
+                                    hasUsage -> {
+                                        val used = Formatter.formatFileSize(context, storageBytes)
+                                        val total = Formatter.formatFileSize(context, storageTotalBytes)
+                                        val progress = (storageBytes.toDouble() / storageTotalBytes.toDouble())
+                                            .toFloat()
+                                            .coerceIn(0f, 1f)
+
+                                        LinearProgressIndicator(
+                                            progress = { progress },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            color = ProgressIndicatorDefaults.linearColor,
+                                            trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                                            strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
+                                        )
+                                        Text(
+                                            text = "$used of $total used",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    uiState.isStorageLoading -> {
+                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                        Text(
+                                            text = "Calculating storage usage…",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    else -> {
+                                        LinearProgressIndicator(
+                                            progress = { 0f },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            color = ProgressIndicatorDefaults.linearColor,
+                                            trackColor = ProgressIndicatorDefaults.linearTrackColor,
+                                            strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
+                                        )
+                                        Text(
+                                            text = "Storage usage unavailable",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                uiState.wallpapersBytes?.let { wallpapersBytes ->
+                                    val wallpapersSize = Formatter.formatFileSize(context, wallpapersBytes)
+                                    Text(
+                                        text = "Wallpapers: $wallpapersSize",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                uiState.previewCacheBytes?.let { previewBytes ->
+                                    val previewSize = Formatter.formatFileSize(context, previewBytes)
+                                    Text(
+                                        text = "Previews: $previewSize",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
                                     text = "Storage limit",
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.labelLarge
                                 )
-                                val limitLabel = if (uiState.storageLimitBytes > 0) {
-                                    Formatter.formatFileSize(context, uiState.storageLimitBytes)
-                                } else {
-                                    "No limit"
-                                }
                                 Text(
                                     text = "Original downloads cap: $limitLabel",
                                     style = MaterialTheme.typography.bodySmall,
@@ -292,42 +294,46 @@ fun SettingsScreen(
                                 )
                             }
 
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
                                     text = "Quick actions",
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.labelLarge
                                 )
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Button(
                                         onClick = onClearPreviewCache,
-                                        enabled = !uiState.isClearingPreviews
+                                        enabled = !uiState.isClearingPreviews,
+                                        modifier = Modifier.weight(1f)
                                     ) {
                                         if (uiState.isClearingPreviews) {
                                             CircularProgressIndicator(
                                                 modifier = Modifier
-                                                    .size(18.dp),
+                                                    .size(16.dp)
+                                                    .padding(end = 6.dp),
                                                 strokeWidth = 2.dp,
                                                 color = MaterialTheme.colorScheme.onPrimary
                                             )
-                                            Spacer(modifier = Modifier.width(8.dp))
                                         }
                                         Text(text = "Delete previews")
                                     }
                                     Button(
                                         onClick = onClearOriginals,
-                                        enabled = !uiState.isClearingOriginals
+                                        enabled = !uiState.isClearingOriginals,
+                                        modifier = Modifier.weight(1f)
                                     ) {
                                         if (uiState.isClearingOriginals) {
                                             CircularProgressIndicator(
                                                 modifier = Modifier
-                                                    .size(18.dp),
+                                                    .size(16.dp)
+                                                    .padding(end = 6.dp),
                                                 strokeWidth = 2.dp,
                                                 color = MaterialTheme.colorScheme.onPrimary
                                             )
-                                            Spacer(modifier = Modifier.width(8.dp))
                                         }
                                         Text(text = "Delete originals")
                                     }
@@ -341,8 +347,8 @@ fun SettingsScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(
@@ -371,15 +377,15 @@ fun SettingsScreen(
                             HorizontalDivider(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp),
+                                    .padding(horizontal = 12.dp),
                                 thickness = DividerDefaults.Thickness, color = MaterialTheme.colorScheme.outlineVariant
                             )
 
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(
@@ -424,7 +430,7 @@ private fun SettingsSection(
 private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
@@ -446,8 +452,8 @@ private fun SettingsActionButton(
         if (showProgress) {
             CircularProgressIndicator(
                 modifier = Modifier
-                    .size(18.dp)
-                    .padding(end = 12.dp),
+                    .size(16.dp)
+                    .padding(end = 6.dp),
                 strokeWidth = 2.dp,
                 color = MaterialTheme.colorScheme.onPrimary
             )

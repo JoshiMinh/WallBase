@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -53,12 +54,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.sources.google_drive.DriveFolder
 import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.ui.AlbumDetailRoute
 import com.joshiminh.wallbase.ui.BrowseScreen
-import com.joshiminh.wallbase.ui.DriveFolderPickerScreen
 import com.joshiminh.wallbase.ui.GooglePhotosAlbumPickerScreen
 import com.joshiminh.wallbase.ui.LibraryScreen
 import com.joshiminh.wallbase.ui.SettingsScreen
@@ -129,8 +128,6 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     onSettingsMessageShown = settingsViewModel::consumeMessage,
-                    // NEW: thread these in instead of touching sourcesViewModel inside WallBaseApp
-                    onAddDriveFolder = sourcesViewModel::addGoogleDriveFolder,
                     onAddPhotosAlbum = sourcesViewModel::addGooglePhotosAlbum,
                     onToggleAutoDownload = settingsViewModel::setAutoDownload,
                     onUpdateStorageLimit = settingsViewModel::setStorageLimit,
@@ -196,8 +193,6 @@ fun WallBaseApp(
     onExportBackup: () -> Unit,
     onImportBackup: () -> Unit,
     onSettingsMessageShown: () -> Unit,
-    // NEW: passed down from Activity
-    onAddDriveFolder: (DriveFolder) -> Unit,
     onAddPhotosAlbum: (GooglePhotosAlbum) -> Unit,
     onToggleAutoDownload: (Boolean) -> Unit,
     onUpdateStorageLimit: (Long) -> Unit,
@@ -207,7 +202,6 @@ fun WallBaseApp(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val driveToken = remember { "" }
     val photosToken = remember { "" }
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
     var topBarState by remember { mutableStateOf<TopBarState?>(null) }
@@ -323,6 +317,7 @@ fun WallBaseApp(
         SharedTransitionLayout(
             modifier = Modifier
                 .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
             val sharedScope = this
@@ -337,8 +332,8 @@ fun WallBaseApp(
                                 "wallpaper_detail",
                                 wallpaper
                             )
-                            navController.navigate("wallpaperDetail") {
-                                launchSingleTop = true
+                            navController.navigateSingleTop("wallpaperDetail") {
+                                popUpTo("wallpaperDetail") { inclusive = true }
                             }
                         },
                         onAlbumSelected = { album ->
@@ -352,7 +347,6 @@ fun WallBaseApp(
                 composable(RootRoute.Browse.route) {
                     BrowseScreen(
                         uiState = sourcesUiState,
-                        onGoogleDriveClick = { navController.navigateSingleTop("driveFolders") },
                         onGooglePhotosClick = { navController.navigateSingleTop("photosAlbums") },
                         onUpdateSourceInput = onUpdateSourceInput,
                         onSearchReddit = onSearchReddit,
@@ -366,15 +360,6 @@ fun WallBaseApp(
                         onMessageShown = onSourcesMessageShown
                     )
                 }
-            composable("driveFolders") {
-                DriveFolderPickerScreen(
-                    token = driveToken,
-                    onFolderPicked = { folder ->
-                        onAddDriveFolder(folder)
-                        navController.popBackStack()
-                    }
-                )
-            }
             composable("photosAlbums") {
                 GooglePhotosAlbumPickerScreen(
                     token = photosToken,
@@ -396,8 +381,8 @@ fun WallBaseApp(
                                 "wallpaper_detail",
                                 wallpaper
                             )
-                            navController.navigate("wallpaperDetail") {
-                                launchSingleTop = true
+                            navController.navigateSingleTop("wallpaperDetail") {
+                                popUpTo("wallpaperDetail") { inclusive = true }
                             }
                         },
                         onConfigureTopBar = acquireTopBar,
@@ -418,8 +403,8 @@ fun WallBaseApp(
                                 "wallpaper_detail",
                                 wallpaper
                             )
-                            navController.navigate("wallpaperDetail") {
-                                launchSingleTop = true
+                            navController.navigateSingleTop("wallpaperDetail") {
+                                popUpTo("wallpaperDetail") { inclusive = true }
                             }
                         },
                         onConfigureTopBar = acquireTopBar,
@@ -430,6 +415,17 @@ fun WallBaseApp(
             }
             composable("wallpaperDetail") {
                 val previousEntry = navController.previousBackStackEntry
+                if (previousEntry == null) {
+                    topBarState = null
+                    val activity = LocalActivity.current
+                    LaunchedEffect(Unit) {
+                        val popped = navController.popBackStack()
+                        if (!popped) {
+                            activity?.finish()
+                        }
+                    }
+                    return@composable
+                }
                 val sourceHandle = previousEntry?.savedStateHandle
                 val wallpaperState = remember(sourceHandle) {
                     sourceHandle?.getStateFlow<WallpaperItem?>("wallpaper_detail", null)
@@ -495,7 +491,6 @@ private fun currentTitle(dest: NavDestination?): String = when {
     dest.isTopDestination(RootRoute.Browse) -> "Browse"
     dest.isTopDestination(RootRoute.Settings) -> "Settings"
     dest?.route == "wallpaperDetail" -> "Wallpaper"
-    dest?.route == "driveFolders" -> "Drive folders"
     dest?.route == "photosAlbums" -> "Photos albums"
     dest?.route == "album/{albumId}" -> "Album"
     else -> "WallBase"

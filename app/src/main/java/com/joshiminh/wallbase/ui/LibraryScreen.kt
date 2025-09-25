@@ -589,8 +589,11 @@ private fun LibraryContent(
 
         when (selectedTab) {
             0 -> {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 8.dp)
+                ) {
                     if (wallpapers.isEmpty()) {
                         val message = when {
                             uiState.wallpapers.isEmpty() -> "Your library is empty. Save wallpapers from Browse to see them here."
@@ -599,17 +602,13 @@ private fun LibraryContent(
                         }
                         LibraryEmptyState(
                             message = message,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
+                            modifier = Modifier.fillMaxSize()
                         )
                     } else {
                         WallpaperGrid(
                             wallpapers = wallpapers,
                             onWallpaperSelected = onWallpaperClick,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
+                            modifier = Modifier.fillMaxSize(),
                             onLongPress = onWallpaperLongPress,
                             selectedIds = selectedIds,
                             selectionMode = selectionMode,
@@ -624,22 +623,21 @@ private fun LibraryContent(
             }
 
             else -> {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 8.dp)
+                ) {
                     if (albums.isEmpty()) {
                         val hasAlbums = uiState.albums.isNotEmpty()
                         if (hasAlbums && hasQuery) {
                             LibraryEmptyState(
                                 message = "No albums match your search.",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f)
+                                modifier = Modifier.fillMaxSize()
                             )
                         } else {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
+                                modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(
@@ -665,11 +663,8 @@ private fun LibraryContent(
                             albums = albums,
                             layout = albumLayout,
                             onAlbumClick = onAlbumClick,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
+                            modifier = Modifier.fillMaxSize()
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
