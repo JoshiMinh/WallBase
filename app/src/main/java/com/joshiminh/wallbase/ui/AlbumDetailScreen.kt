@@ -285,6 +285,8 @@ private fun AlbumDetailScreen(
 ) {
     val hasQuery = isSearching && searchQuery.isNotBlank()
     var rotationExpanded by rememberSaveable { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(state.rotation.isConfigured) {
         if (!state.rotation.isConfigured) {

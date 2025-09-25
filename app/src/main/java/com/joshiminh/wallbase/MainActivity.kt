@@ -132,7 +132,11 @@ class MainActivity : ComponentActivity() {
                     onSettingsMessageShown = settingsViewModel::consumeMessage,
                     // NEW: thread these in instead of touching sourcesViewModel inside WallBaseApp
                     onAddDriveFolder = sourcesViewModel::addGoogleDriveFolder,
-                    onAddPhotosAlbum = sourcesViewModel::addGooglePhotosAlbum
+                    onAddPhotosAlbum = sourcesViewModel::addGooglePhotosAlbum,
+                    onToggleAutoDownload = settingsViewModel::setAutoDownload,
+                    onUpdateStorageLimit = settingsViewModel::setStorageLimit,
+                    onClearPreviewCache = settingsViewModel::clearPreviewCache,
+                    onClearOriginals = settingsViewModel::clearOriginalDownloads
                 )
             }
         }
@@ -195,7 +199,11 @@ fun WallBaseApp(
     onSettingsMessageShown: () -> Unit,
     // NEW: passed down from Activity
     onAddDriveFolder: (DriveFolder) -> Unit,
-    onAddPhotosAlbum: (GooglePhotosAlbum) -> Unit
+    onAddPhotosAlbum: (GooglePhotosAlbum) -> Unit,
+    onToggleAutoDownload: (Boolean) -> Unit,
+    onUpdateStorageLimit: (Long) -> Unit,
+    onClearPreviewCache: () -> Unit,
+    onClearOriginals: () -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -472,10 +480,10 @@ fun WallBaseApp(
                     onExportBackup = onExportBackup,
                     onImportBackup = onImportBackup,
                     onMessageShown = onSettingsMessageShown,
-                    onToggleAutoDownload = settingsViewModel::setAutoDownload,
-                    onUpdateStorageLimit = settingsViewModel::setStorageLimit,
-                    onClearPreviewCache = settingsViewModel::clearPreviewCache,
-                    onClearOriginals = settingsViewModel::clearOriginalDownloads
+                    onToggleAutoDownload = onToggleAutoDownload,
+                    onUpdateStorageLimit = onUpdateStorageLimit,
+                    onClearPreviewCache = onClearPreviewCache,
+                    onClearOriginals = onClearOriginals
                 )
             }
         }
