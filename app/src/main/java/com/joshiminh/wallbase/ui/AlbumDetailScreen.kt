@@ -17,13 +17,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
@@ -61,9 +64,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.layout.widthIn
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarHandle
@@ -73,7 +73,6 @@ import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
 import com.joshiminh.wallbase.ui.sort.SortField
-import com.joshiminh.wallbase.ui.sort.SortSelection
 import com.joshiminh.wallbase.ui.sort.toSelection
 import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
@@ -397,7 +396,7 @@ private fun AlbumDetailScreen(
                                 )
                             }
 
-                            val intervalUnits = remember { RotationIntervalUnit.values().toList() }
+                            val intervalUnits = remember { RotationIntervalUnit.entries }
                             var selectedIntervalUnit by rememberSaveable {
                                 mutableStateOf(RotationIntervalUnit.fromMinutes(state.rotation.intervalMinutes))
                             }

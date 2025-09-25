@@ -18,17 +18,10 @@ import coil3.request.allowHardware
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/**
- * Lightweight bitmap editing pipeline that mirrors the adjustments offered in
- * [WallpaperDetailScreen]. It loads an image via Coil and applies the selected
- * [WallpaperAdjustments] on a background thread before returning the
- * [EditedWallpaper].
- */
 class WallpaperEditor(
     private val context: Context,
     private val imageLoader: ImageLoader = ImageLoader.Builder(context)
         .diskCachePolicy(CachePolicy.DISABLED)
-        .respectCacheHeaders(false)
         .build(),
 ) {
 

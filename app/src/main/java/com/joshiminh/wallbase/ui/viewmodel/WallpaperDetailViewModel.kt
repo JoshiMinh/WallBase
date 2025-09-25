@@ -1,32 +1,36 @@
+@file:Suppress("unused", "UnusedVariable")
+
 package com.joshiminh.wallbase.ui.viewmodel
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.Application
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.net.Uri
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.util.network.ServiceLocator
 import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
 import com.joshiminh.wallbase.util.wallpapers.PreviewData
-import com.joshiminh.wallbase.util.wallpapers.WallpaperApplier
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
+import com.joshiminh.wallbase.util.wallpapers.WallpaperApplier
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.util.wallpapers.WallpaperEditor
 import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
-import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +38,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.Serializable
 
 class WallpaperDetailViewModel(
     application: Application,
@@ -125,7 +130,7 @@ class WallpaperDetailViewModel(
         }
     }
 
-    private suspend fun ensureEditorLoaded(force: Boolean = false): Boolean {
+    private suspend fun ensureEditorLoaded(force: Boolean = false): Serializable {
         val wallpaper = _uiState.value.wallpaper ?: return false
         val existing = originalBitmap?.takeIf { !it.isRecycled }
         if (!force && existing != null) {
@@ -133,14 +138,13 @@ class WallpaperDetailViewModel(
         }
 
         recycleProcessedWallpaper()
-        if (force || existing != null) {
+        if (force) {
             originalBitmap?.takeIf { !it.isRecycled }?.recycle()
             originalBitmap = null
         }
 
         _uiState.update { it.copy(isProcessingEdits = true, isEditorReady = false) }
-        val model: Any = wallpaper.localUri?.takeIf { it.isNotBlank() }
-            ?.let { Uri.parse(it) }
+        val model: Any = wallpaper.localUri?.takeIf { it.isNotBlank() }?.toUri()
             ?: wallpaper.imageUrl
         val loaded = runCatching {
             withContext(Dispatchers.IO) { editor.loadOriginalBitmap(model) }
@@ -247,6 +251,7 @@ class WallpaperDetailViewModel(
         }
     }
 
+    @SuppressLint("QueryPermissionsNeeded")
     fun applyWallpaper(target: WallpaperTarget) {
         val wallpaper = _uiState.value.wallpaper ?: return
         if (_uiState.value.isApplying) return
