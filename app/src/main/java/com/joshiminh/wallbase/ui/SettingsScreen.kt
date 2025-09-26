@@ -17,13 +17,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -40,10 +44,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 import kotlin.math.roundToInt
 
@@ -426,46 +434,26 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    SettingsCard {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "WallBase",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "Explore the project or support future development.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                    SettingsLinkCard(
+                        title = "GitHub",
+                        description = "Explore the project repository.",
+                        buttonText = "Open",
+                        iconUrl = "https://github.githubassets.com/favicons/favicon.png",
+                        onClick = { uriHandler.openUri("https://github.com/JoshiMinh/WallBase") }
+                    )
 
-                            Column(
-                                horizontalAlignment = Alignment.End,
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                TextButton(onClick = {
-                                    uriHandler.openUri("https://github.com/JoshiMinh/WallBase")
-                                }) {
-                                    Text(text = "GitHub")
-                                }
-                                TextButton(onClick = {
-                                    uriHandler.openUri("https://ko-fi.com/joshiminh")
-                                }) {
-                                    Text(text = "Ko-fi")
-                                }
-                            }
-                        }
-                    }
+                    SettingsLinkCard(
+                        title = "Ko-fi",
+                        description = "Support future development.",
+                        buttonText = "Support",
+                        iconUrl = "https://ko-fi.com/favicon.ico",
+                        onClick = { uriHandler.openUri("https://ko-fi.com/joshiminh") },
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFFF5E5B),
+                            contentColor = Color.White
+                        ),
+                        buttonColors = ButtonDefaults.textButtonColors(contentColor = Color.White)
+                    )
                 }
             }
         }
@@ -481,15 +469,69 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+private fun SettingsCard(
+    modifier: Modifier = Modifier,
+    colors: CardColors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
+    ),
+    content: @Composable ColumnScope.() -> Unit
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
+        colors = colors,
         content = content
     )
+}
+
+@Composable
+private fun SettingsLinkCard(
+    title: String,
+    description: String,
+    buttonText: String,
+    iconUrl: String,
+    onClick: () -> Unit,
+    colors: CardColors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
+    ),
+    buttonColors: ButtonColors = ButtonDefaults.textButtonColors()
+) {
+    SettingsCard(colors = colors) {
+        val contentColor = LocalContentColor.current
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = iconUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.8f)
+                )
+            }
+            TextButton(onClick = onClick, colors = buttonColors) {
+                Text(text = buttonText)
+            }
+        }
+    }
 }
 
 @Composable

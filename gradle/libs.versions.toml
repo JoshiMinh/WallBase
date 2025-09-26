@@ -24,7 +24,6 @@ googleid = "1.1.1"                             # Sign in with Google on Credenti
 
 # Google APIs
 google-api-client-android = "2.8.1"            # Base client for Android :contentReference[oaicite:10]{index=10}
-google-drive = "v3-rev20250829-2.0.0"          # Drive REST client rev
 google-photos = "1.7.3"                        # Photos Library Java client :contentReference[oaicite:12]{index=12}
 
 # SAF helper
@@ -88,9 +87,8 @@ googleid = { module = "com.google.android.libraries.identity.googleid:googleid",
 material3 = { module = "androidx.compose.material3:material3" }
 play-services-auth = { module = "com.google.android.gms:play-services-auth", version = "21.4.0" } # deprecated path; FYI :contentReference[oaicite:19]{index=19}
 
-# Google APIs (Drive + Photos)
+# Google APIs (Photos)
 google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "google-api-client-android" }
-google-api-services-drive = { module = "com.google.apis:google-api-services-drive", version.ref = "google-drive" }
 google-photos-library-client = { module = "com.google.photos.library:google-photos-library-client", version.ref = "google-photos" }
 
 # SAF helper lib
