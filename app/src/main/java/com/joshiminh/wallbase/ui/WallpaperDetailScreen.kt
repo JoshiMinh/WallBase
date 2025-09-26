@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -212,37 +214,39 @@ private fun WallpaperDetailScreen(
         canAddToLibrary
     }
 
+    val scrollState = rememberScrollState()
+
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                shape = RoundedCornerShape(32.dp),
-                color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
                 ) {
-                    val previewBitmap = uiState.editedPreview
-                    val previewShape = RoundedCornerShape(32.dp)
-                    val previewModifier = sharedModifier.then(
-                        Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(aspectRatio)
-                    )
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
                         contentAlignment = Alignment.Center
                     ) {
+                        val previewBitmap = uiState.editedPreview
+                        val previewShape = RoundedCornerShape(24.dp)
+                        val previewModifier = sharedModifier.then(
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(aspectRatio)
+                        )
                         Box(
                             modifier = previewModifier,
                             contentAlignment = Alignment.Center
@@ -281,223 +285,214 @@ private fun WallpaperDetailScreen(
                         }
                     }
                 }
-            }
 
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(24.dp),
-                shape = CircleShape,
-                tonalElevation = 4.dp,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-            ) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
-                    )
-                }
-            }
-
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(24.dp),
-                shape = CircleShape,
-                tonalElevation = 4.dp,
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-            ) {
-                IconButton(onClick = onEditWallpaper) {
-                    Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "Edit wallpaper"
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(start = 24.dp, end = if (showLibraryAction) 96.dp else 24.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (statusMessages.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        statusMessages.forEach { status ->
-                            AssistChip(onClick = {}, enabled = false, label = { Text(text = status) })
-                        }
-                    }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = wallpaper.title.ifBlank { "Untitled wallpaper" },
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.weight(1f),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp),
+                    shape = CircleShape,
+                    tonalElevation = 4.dp,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                ) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
                         )
-                        IconButton(onClick = { uriHandler.openUri(wallpaper.sourceUrl) }) {
-                            Icon(
-                                imageVector = Icons.Outlined.OpenInNew,
-                                contentDescription = "Open original"
-                            )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                    shape = CircleShape,
+                    tonalElevation = 4.dp,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                ) {
+                    IconButton(onClick = onEditWallpaper) {
+                        Icon(
+                            imageVector = Icons.Outlined.Edit,
+                            contentDescription = "Edit wallpaper"
+                        )
+                    }
+                }
+
+                if (showLibraryAction) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(56.dp)
+                            .combinedClickable(
+                                enabled = !libraryBusy,
+                                onClick = {
+                                    if (!libraryBusy && canToggleLibrary) {
+                                        if (uiState.isInLibrary) {
+                                            onRemoveFromLibrary()
+                                        } else {
+                                            onAddToLibrary()
+                                        }
+                                    }
+                                },
+                                onLongClick = {
+                                    if (!libraryBusy) {
+                                        showAlbumPicker = true
+                                    }
+                                }
+                            ),
+                        shape = CircleShape,
+                        tonalElevation = 6.dp,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            when {
+                                libraryBusy -> {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .width(24.dp)
+                                            .height(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+
+                                uiState.isInLibrary -> {
+                                    Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = "Remove from library")
+                                }
+
+                                else -> {
+                                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Add to library")
+                                }
+                            }
                         }
                     }
+                }
+            }
+
+            if (statusMessages.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    statusMessages.forEach { status ->
+                        AssistChip(onClick = {}, enabled = false, label = { Text(text = status) })
+                    }
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = wallpaper.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
+                        text = wallpaper.title.ifBlank { "Untitled wallpaper" },
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    IconButton(onClick = { uriHandler.openUri(wallpaper.sourceUrl) }) {
+                        Icon(
+                            imageVector = Icons.Outlined.OpenInNew,
+                            contentDescription = "Open original"
+                        )
+                    }
+                }
+                Text(
+                    text = wallpaper.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (!uiState.hasWallpaperPermission) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Allow WallBase to open the system wallpaper preview so you can confirm the image.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-
-                if (!uiState.hasWallpaperPermission) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Allow WallBase to open the system wallpaper preview so you can confirm the image.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        TextButton(onClick = onRequestPermission) {
-                            Text(text = "Grant wallpaper access")
-                        }
+                    TextButton(onClick = onRequestPermission) {
+                        Text(text = "Grant wallpaper access")
                     }
                 }
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val downloadEnabled = when {
+                    uiState.isDownloaded -> !uiState.isRemovingDownload
+                    else -> canDownload && !uiState.isDownloading
+                }
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = {
+                        if (uiState.isDownloaded) {
+                            onRequestRemoveDownload()
+                        } else {
+                            onDownload()
+                        }
+                    },
+                    enabled = downloadEnabled
                 ) {
-                    val downloadEnabled = when {
-                        uiState.isDownloaded -> !uiState.isRemovingDownload
-                        else -> canDownload && !uiState.isDownloading
-                    }
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            if (uiState.isDownloaded) {
-                                onRequestRemoveDownload()
-                            } else {
-                                onDownload()
-                            }
-                        },
-                        enabled = downloadEnabled
-                    ) {
-                        when {
-                            uiState.isRemovingDownload -> {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .width(18.dp)
-                                        .height(18.dp),
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Removing…")
-                            }
-
-                            uiState.isDownloading -> {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .width(18.dp)
-                                        .height(18.dp),
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Downloading…")
-                            }
-
-                            uiState.isDownloaded -> {
-                                Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Downloaded")
-                            }
-
-                            else -> {
-                                Icon(imageVector = Icons.Outlined.CloudDownload, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Download")
-                            }
-                        }
-                    }
-
-                    Button(
-                        modifier = Modifier.weight(1f),
-                        onClick = { showTargetDialog = true },
-                        enabled = uiState.hasWallpaperPermission && !uiState.isApplying
-                    ) {
-                        if (uiState.isApplying) {
+                    when {
+                        uiState.isRemovingDownload -> {
                             CircularProgressIndicator(
                                 modifier = Modifier
                                     .width(18.dp)
                                     .height(18.dp),
                                 strokeWidth = 2.dp
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Applying…")
-                        } else {
-                            Icon(imageVector = Icons.Outlined.Wallpaper, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Set")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Removing…")
+                        }
+
+                        uiState.isDownloading -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .width(18.dp)
+                                    .height(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Downloading…")
+                        }
+
+                        uiState.isDownloaded -> {
+                            Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Downloaded")
+                        }
+
+                        else -> {
+                            Icon(imageVector = Icons.Outlined.CloudDownload, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "Download")
                         }
                     }
                 }
-            }
 
-            if (showLibraryAction) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(24.dp)
-                        .size(64.dp)
-                        .combinedClickable(
-                            enabled = !libraryBusy,
-                            onClick = {
-                                if (!libraryBusy && canToggleLibrary) {
-                                    if (uiState.isInLibrary) {
-                                        onRemoveFromLibrary()
-                                    } else {
-                                        onAddToLibrary()
-                                    }
-                                }
-                            },
-                            onLongClick = {
-                                if (!libraryBusy) {
-                                    showAlbumPicker = true
-                                }
-                            }
-                        ),
-                    shape = CircleShape,
-                    tonalElevation = 6.dp,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                Button(
+                    modifier = Modifier.weight(1f),
+                    onClick = { showTargetDialog = true },
+                    enabled = uiState.hasWallpaperPermission && !uiState.isApplying
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        when {
-                            libraryBusy -> {
-                                CircularProgressIndicator(
-                                    modifier = Modifier
-                                        .width(24.dp)
-                                        .height(24.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            }
-
-                            uiState.isInLibrary -> {
-                                Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = "Remove from library")
-                            }
-
-                            else -> {
-                                Icon(imageVector = Icons.Default.Add, contentDescription = "Add to library")
-                            }
-                        }
+                    if (uiState.isApplying) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .width(18.dp)
+                                .height(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Applying…")
+                    } else {
+                        Icon(imageVector = Icons.Outlined.Wallpaper, contentDescription = null)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(text = "Set wallpaper")
                     }
                 }
             }
         }
     }
-
     if (uiState.showRemoveDownloadConfirmation) {
         AlertDialog(
             onDismissRequest = {
