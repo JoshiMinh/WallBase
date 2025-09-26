@@ -263,13 +263,17 @@ class WallpaperRepository(
             runCatching {
                 val normalized = subreddit.normalizeSubredditName()
                 if (query.isNullOrBlank()) {
-                    redditService.fetchSubreddit(subreddit = normalized, after = cursor)
+                    redditService.fetchSubreddit(
+                        subreddit = normalized,
+                        limit = REDDIT_PAGE_LIMIT,
+                        after = cursor
+                    )
                 } else {
                     redditService.searchSubredditPosts(
                         subreddit = normalized,
                         query = query,
                         restrictToSubreddit = 1,
-                        limit = 40,
+                        limit = REDDIT_PAGE_LIMIT,
                         after = cursor
                     )
                 }
@@ -553,6 +557,7 @@ class WallpaperRepository(
         private const val DEFAULT_UNSPLASH_QUERY = "wallpapers"
         private const val DEFAULT_ALPHA_CODERS_URL =
             "https://wall.alphacoders.com/search.php?search=wallpaper"
+        private const val REDDIT_PAGE_LIMIT = 30
         private const val WALLHAVEN_PAGE_LIMIT = 30
         private const val DANBOORU_PAGE_LIMIT = 30
         private const val UNSPLASH_PAGE_LIMIT = 30

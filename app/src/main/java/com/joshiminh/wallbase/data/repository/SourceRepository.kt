@@ -34,10 +34,12 @@ class SourceRepository(
     }
 
     fun observeSources(): Flow<List<Source>> =
-        sourceDao.observeSources().map { entities -> entities.map(SourceEntity::toDomain) }
+        sourceDao.observeSources().map { entities ->
+            entities.map { entity -> entity.sanitized().toDomain() }
+        }
 
     fun observeSource(key: String): Flow<Source?> =
-        sourceDao.observeSourceByKey(key).map { it?.toDomain() }
+        sourceDao.observeSourceByKey(key).map { entity -> entity?.sanitized()?.toDomain() }
 
     suspend fun setSourceEnabled(source: Source, enabled: Boolean) {
         sourceDao.setSourceEnabled(source.key, enabled)
@@ -115,15 +117,15 @@ class SourceRepository(
             providerKey = SourceKeys.REDDIT,
             title = displayName.ifBlank { "r/$normalized" },
             description = description?.takeIf { it.isNotBlank() } ?: "r/$normalized",
-            iconRes = R.drawable.reddit,
-            iconUrl = null,
+            iconRes = null,
+            iconUrl = buildFaviconUrl("reddit.com"),
             showInExplore = true,
             isEnabled = true,
             isLocal = false,
             config = normalized
         )
         val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
+        return entity.copy(id = id).sanitized().toDomain()
     }
 
     private suspend fun addPinterestSource(url: NormalizedUrl): Source {
@@ -146,7 +148,7 @@ class SourceRepository(
             config = url.value
         )
         val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
+        return entity.copy(id = id).sanitized().toDomain()
     }
 
     private suspend fun addWallhavenSource(url: NormalizedUrl): Source {
@@ -169,7 +171,7 @@ class SourceRepository(
             config = url.value
         )
         val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
+        return entity.copy(id = id).sanitized().toDomain()
     }
 
     private suspend fun addDanbooruSource(url: NormalizedUrl): Source {
@@ -192,7 +194,7 @@ class SourceRepository(
             config = url.value
         )
         val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
+        return entity.copy(id = id).sanitized().toDomain()
     }
 
     private suspend fun addUnsplashSource(url: NormalizedUrl): Source {
@@ -215,7 +217,7 @@ class SourceRepository(
             config = url.value
         )
         val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
+        return entity.copy(id = id).sanitized().toDomain()
     }
 
     private suspend fun addAlphaCodersSource(url: NormalizedUrl): Source {
@@ -238,7 +240,7 @@ class SourceRepository(
             config = url.value
         )
         val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
+        return entity.copy(id = id).sanitized().toDomain()
     }
 
     private suspend fun addWebsiteSource(url: NormalizedUrl): Source {
@@ -261,7 +263,58 @@ class SourceRepository(
             config = url.value
         )
         val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
+        return entity.copy(id = id).sanitized().toDomain()
+    }
+
+    private fun SourceEntity.sanitized(): SourceEntity {
+        val sanitizedIconRes = when (providerKey) {
+            SourceKeys.GOOGLE_PHOTOS, SourceKeys.LOCAL -> iconRes?.takeIf { it != 0 }
+            else -> null
+        }
+        val normalizedIconUrl = iconUrl
+            ?.takeIf { it.isNotBlank() }
+            ?.takeIf { it.isNetworkUrl() }
+        val resolvedIconUrl = normalizedIconUrl ?: resolveDefaultIconUrl(providerKey, config)
+
+        val requiresUpdate = sanitizedIconRes != iconRes || resolvedIconUrl != iconUrl
+        return if (requiresUpdate) {
+            copy(iconRes = sanitizedIconRes, iconUrl = resolvedIconUrl)
+        } else {
+            this
+        }
+    }
+
+    private fun String.isNetworkUrl(): Boolean {
+        val lower = lowercase(Locale.ROOT)
+        return lower.startsWith("http://") || lower.startsWith("https://")
+    }
+
+    private fun resolveDefaultIconUrl(providerKey: String, config: String?): String? {
+        return when (providerKey) {
+            SourceKeys.REDDIT -> buildFaviconUrl("reddit.com")
+            SourceKeys.PINTEREST -> {
+                val host = config
+                    ?.let(::tryNormalizeUrl)
+                    ?.host
+                    ?.takeIf { it.isNotBlank() }
+                val domain = when (host) {
+                    null -> "pinterest.com"
+                    "pin.it" -> "pinterest.com"
+                    else -> host
+                }
+                buildFaviconUrl(domain)
+            }
+            SourceKeys.WALLHAVEN,
+            SourceKeys.DANBOORU,
+            SourceKeys.UNSPLASH,
+            SourceKeys.ALPHA_CODERS,
+            SourceKeys.WEBSITES -> config
+                ?.let(::tryNormalizeUrl)
+                ?.host
+                ?.takeIf { it.isNotBlank() }
+                ?.let(::buildFaviconUrl)
+            else -> null
+        }
     }
 
     suspend fun addGooglePhotosAlbum(album: GooglePhotosAlbum): Source {
@@ -287,7 +340,7 @@ class SourceRepository(
             config = albumId
         )
         val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).toDomain()
+        return entity.copy(id = id).sanitized().toDomain()
     }
 
     private fun parseRemoteSourceInput(input: String): RemoteSourceInput? {
@@ -399,30 +452,28 @@ class SourceRepository(
             else -> hostName
         }
 
-        val fallbackIcon = when (type) {
-            RemoteSourceType.PINTEREST -> R.drawable.pinterest
-            RemoteSourceType.WALLHAVEN -> android.R.drawable.ic_menu_gallery
-            RemoteSourceType.DANBOORU -> android.R.drawable.ic_menu_gallery
-            RemoteSourceType.UNSPLASH -> android.R.drawable.ic_menu_gallery
-            RemoteSourceType.ALPHA_CODERS -> android.R.drawable.ic_menu_gallery
-            RemoteSourceType.REDDIT -> R.drawable.reddit
-            RemoteSourceType.WEBSITE -> android.R.drawable.ic_menu_search
+        val iconDomain = when (type) {
+            RemoteSourceType.REDDIT -> "reddit.com"
+            RemoteSourceType.PINTEREST -> when (val host = url.host) {
+                "pin.it" -> "pinterest.com"
+                else -> host
+            }
+            else -> url.host
         }
-        val iconUrl = when (type) {
-            RemoteSourceType.PINTEREST, RemoteSourceType.REDDIT -> null
-            else -> buildFaviconUrl(url.host)
-        }
+        val iconUrl = buildFaviconUrl(iconDomain)
 
         return WebsiteMetadata(
             title = title,
             description = url.value,
             iconUrl = iconUrl,
-            fallbackIcon = fallbackIcon
+            fallbackIcon = null
         )
     }
 
     private fun buildFaviconUrl(host: String): String {
-        val sanitizedHost = host.removePrefix("www.")
+        val sanitizedHost = host
+            .removePrefix("www.")
+            .ifBlank { host }
         return "https://www.google.com/s2/favicons?sz=128&domain=$sanitizedHost"
     }
 
@@ -537,7 +588,7 @@ class SourceRepository(
         val title: String,
         val description: String,
         val iconUrl: String?,
-        val fallbackIcon: Int
+        val fallbackIcon: Int?
     )
 
     private data class NormalizedUrl(

@@ -167,13 +167,12 @@ class SourceBrowseViewModel(
         val state = _uiState.value
         if (!state.canLoadMore || state.isLoading || state.isRefreshing || state.isAppending) return
         val source = state.source ?: return
-        val cursor = nextPageCursor ?: return
         loadWallpapers(
             source = source,
             query = currentQuery,
             showLoading = false,
             append = true,
-            cursor = cursor
+            cursor = nextPageCursor
         )
     }
 
@@ -219,6 +218,7 @@ class SourceBrowseViewModel(
                         val availableIds = combined.mapTo(hashSetOf()) { it.id }
                         val retainedSelection = state.selectedIds.filterTo(hashSetOf()) { it in availableIds }
                         val sorted = combined.sortedWith(state.wallpaperSortOption)
+                        val allowMore = page.nextCursor != null || page.wallpapers.isNotEmpty()
                         state.copy(
                             wallpapers = sorted,
                             isLoading = false,
@@ -227,7 +227,7 @@ class SourceBrowseViewModel(
                             errorMessage = null,
                             selectedIds = retainedSelection,
                             isSelectionMode = retainedSelection.isNotEmpty(),
-                            canLoadMore = page.nextCursor != null
+                            canLoadMore = allowMore
                         )
                     }
                 },

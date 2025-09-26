@@ -6,6 +6,8 @@ import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSharedContentState
+import androidx.compose.animation.sharedBounds
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -468,7 +470,7 @@ fun WallpaperCard(
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
-    aspectRatio: Float? = item.aspectRatio ?: DEFAULT_ASPECT_RATIO,
+    aspectRatio: Float? = item.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO,
     sharedElementModifier: Modifier = Modifier
 ) {
     Card(
@@ -618,7 +620,7 @@ fun WallpaperListRow(
                     modifier = sharedElementModifier.then(
                         Modifier
                             .height(96.dp)
-                            .aspectRatio(item.aspectRatio ?: DEFAULT_ASPECT_RATIO)
+                            .aspectRatio(item.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO)
                             .clip(RoundedCornerShape(14.dp))
                     )
                 ) {

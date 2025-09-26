@@ -39,8 +39,8 @@ data class SourceEntity(
 ) {
     fun toDomain(): Source = Source(
         id = id,
-        iconRes = iconRes,
-        iconUrl = iconUrl,
+        iconRes = iconRes?.takeIf { it != 0 },
+        iconUrl = iconUrl?.takeUnless { it.isBlank() },
         title = title,
         description = description,
         showInExplore = showInExplore,

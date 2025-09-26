@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -46,11 +47,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import android.content.res.Resources
+import androidx.annotation.DrawableRes
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
@@ -435,18 +440,32 @@ private fun SourceCard(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (source.iconUrl != null) {
-                    AsyncImage(
-                        model = source.iconUrl,
-                        contentDescription = source.title,
-                        modifier = Modifier.size(28.dp),
-                        placeholder = source.iconRes?.let { painterResource(id = it) },
-                        error = source.iconRes?.let { painterResource(id = it) }
-                    )
-                } else {
-                    source.iconRes?.let { iconRes ->
+                val iconUrl = source.iconUrl?.takeUnless { it.isBlank() }
+                val fallbackPainter = safePainterResource(source.iconRes)
+                val defaultPainter = rememberVectorPainter(image = Icons.Outlined.Public)
+
+                when {
+                    iconUrl != null -> {
+                        AsyncImage(
+                            model = iconUrl,
+                            contentDescription = source.title,
+                            modifier = Modifier.size(28.dp),
+                            placeholder = fallbackPainter ?: defaultPainter,
+                            error = fallbackPainter ?: defaultPainter
+                        )
+                    }
+
+                    fallbackPainter != null -> {
                         Image(
-                            painter = painterResource(id = iconRes),
+                            painter = fallbackPainter,
+                            contentDescription = source.title,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
+                    else -> {
+                        Icon(
+                            imageVector = Icons.Outlined.Public,
                             contentDescription = source.title,
                             modifier = Modifier.size(28.dp)
                         )
@@ -474,6 +493,16 @@ private fun SourceCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun safePainterResource(@DrawableRes resId: Int?): Painter? {
+    if (resId == null || resId == 0) return null
+    return try {
+        painterResource(id = resId)
+    } catch (_: Resources.NotFoundException) {
+        null
     }
 }
 

@@ -58,6 +58,7 @@ import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.ui.AlbumDetailRoute
 import com.joshiminh.wallbase.ui.BrowseScreen
+import com.joshiminh.wallbase.ui.EditWallpaperRoute
 import com.joshiminh.wallbase.ui.GooglePhotosAlbumPickerScreen
 import com.joshiminh.wallbase.ui.LibraryScreen
 import com.joshiminh.wallbase.ui.SettingsScreen
@@ -65,6 +66,7 @@ import com.joshiminh.wallbase.ui.SourceBrowseRoute
 import com.joshiminh.wallbase.ui.WallpaperDetailRoute
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
+import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import java.text.SimpleDateFormat
@@ -459,6 +461,9 @@ fun WallBaseApp(
                     WallpaperDetailRoute(
                         wallpaper = wallpaper,
                         onNavigateBack = navigateBack,
+                        onEditWallpaper = {
+                            navController.navigate("wallpaperDetail/edit")
+                        },
                         sharedTransitionScope = sharedScope,
                         animatedVisibilityScope = this
                     )
@@ -466,6 +471,29 @@ fun WallBaseApp(
                     LaunchedEffect(wallpaper.id) {
                         topBarState = null
                     }
+                }
+            }
+            composable("wallpaperDetail/edit") {
+                val parentEntry = remember(navController) {
+                    navController.getBackStackEntry("wallpaperDetail")
+                }
+                val viewModel: WallpaperDetailViewModel = viewModel(
+                    parentEntry,
+                    factory = WallpaperDetailViewModel.Factory
+                )
+                val navigateBack: () -> Unit = {
+                    navController.popBackStack()
+                }
+
+                BackHandler(onBack = navigateBack)
+
+                EditWallpaperRoute(
+                    onNavigateBack = navigateBack,
+                    viewModel = viewModel
+                )
+
+                LaunchedEffect(Unit) {
+                    topBarState = null
                 }
             }
             composable(RootRoute.Settings.route) {
