@@ -156,6 +156,23 @@ class SourcesViewModel(
         }
     }
 
+    fun quickAddSource(input: String) {
+        if (input.isBlank()) return
+        viewModelScope.launch {
+            val result = runCatching { sourceRepository.addSourceFromInput(input) }
+            _uiState.update { state ->
+                result.fold(
+                    onSuccess = { source ->
+                        state.copy(snackbarMessage = "Added ${source.title}")
+                    },
+                    onFailure = { error ->
+                        state.copy(snackbarMessage = error.localizedMessage ?: "Unable to add source.")
+                    }
+                )
+            }
+        }
+    }
+
     fun addGooglePhotosAlbum(album: GooglePhotosAlbum) {
         viewModelScope.launch {
             val result = runCatching { sourceRepository.addGooglePhotosAlbum(album) }

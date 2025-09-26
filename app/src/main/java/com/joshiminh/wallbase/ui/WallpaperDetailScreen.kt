@@ -15,6 +15,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -34,7 +35,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.AlertDialog
@@ -318,55 +318,7 @@ private fun WallpaperDetailScreen(
                     }
                 }
 
-                if (showLibraryAction) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(8.dp)
-                            .size(56.dp)
-                            .combinedClickable(
-                                enabled = !libraryBusy,
-                                onClick = {
-                                    if (!libraryBusy && canToggleLibrary) {
-                                        if (uiState.isInLibrary) {
-                                            onRemoveFromLibrary()
-                                        } else {
-                                            onAddToLibrary()
-                                        }
-                                    }
-                                },
-                                onLongClick = {
-                                    if (!libraryBusy) {
-                                        showAlbumPicker = true
-                                    }
-                                }
-                            ),
-                        shape = CircleShape,
-                        tonalElevation = 6.dp,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            when {
-                                libraryBusy -> {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .width(24.dp)
-                                            .height(24.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                }
-
-                                uiState.isInLibrary -> {
-                                    Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = "Remove from library")
-                                }
-
-                                else -> {
-                                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Add to library")
-                                }
-                            }
-                        }
-                    }
-                }
+                // Library action now lives beside the title
             }
 
             if (statusMessages.isNotEmpty()) {
@@ -377,27 +329,54 @@ private fun WallpaperDetailScreen(
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = wallpaper.title.ifBlank { "Untitled wallpaper" },
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    IconButton(onClick = { uriHandler.openUri(wallpaper.sourceUrl) }) {
-                        Icon(
-                            imageVector = Icons.Outlined.OpenInNew,
-                            contentDescription = "Open original"
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val hasSourceUrl = !wallpaper.sourceUrl.isNullOrBlank()
+                    TextButton(
+                        onClick = { wallpaper.sourceUrl?.let(uriHandler::openUri) },
+                        enabled = hasSourceUrl,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text(
+                            text = wallpaper.title.ifBlank { "Untitled wallpaper" },
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+                    Text(
+                        text = wallpaper.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Text(
-                    text = wallpaper.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (showLibraryAction) {
+                    LibraryActionButton(
+                        inLibrary = uiState.isInLibrary,
+                        enabled = canToggleLibrary && !libraryBusy,
+                        busy = libraryBusy,
+                        onClick = {
+                            if (!libraryBusy && canToggleLibrary) {
+                                if (uiState.isInLibrary) {
+                                    onRemoveFromLibrary()
+                                } else {
+                                    onAddToLibrary()
+                                }
+                            }
+                        },
+                        onLongClick = {
+                            if (!libraryBusy) {
+                                showAlbumPicker = true
+                            }
+                        }
+                    )
+                }
             }
 
             if (!uiState.hasWallpaperPermission) {
@@ -559,6 +538,55 @@ private fun WallpaperDetailScreen(
 }
 
 private const val DEFAULT_DETAIL_ASPECT_RATIO = 9f / 16f
+
+@Composable
+private fun LibraryActionButton(
+    inLibrary: Boolean,
+    enabled: Boolean,
+    busy: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .size(44.dp)
+            .combinedClickable(
+                enabled = enabled || busy,
+                onClick = {
+                    if (!busy && enabled) {
+                        onClick()
+                    }
+                },
+                onLongClick = {
+                    if (!busy) {
+                        onLongClick()
+                    }
+                }
+            ),
+        shape = CircleShape,
+        tonalElevation = 4.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            when {
+                busy -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+
+                inLibrary -> {
+                    Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = "In library")
+                }
+
+                else -> {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Add to library")
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun SetWallpaperDialog(

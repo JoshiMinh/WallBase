@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
                     onUpdateSourceInput = sourcesViewModel::updateSourceInput,
                     onSearchReddit = sourcesViewModel::searchRedditCommunities,
                     onAddSourceFromInput = sourcesViewModel::addSourceFromInput,
+                    onQuickAddSource = sourcesViewModel::quickAddSource,
                     onAddRedditCommunity = sourcesViewModel::addRedditCommunity,
                     onClearRedditSearch = sourcesViewModel::clearSearchResults,
                     onRemoveSource = sourcesViewModel::removeSource,
@@ -188,6 +189,7 @@ fun WallBaseApp(
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
+    onQuickAddSource: (String) -> Unit,
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
@@ -353,6 +355,7 @@ fun WallBaseApp(
                         onUpdateSourceInput = onUpdateSourceInput,
                         onSearchReddit = onSearchReddit,
                         onAddSourceFromInput = onAddSourceFromInput,
+                        onQuickAddSource = onQuickAddSource,
                         onAddRedditCommunity = onAddRedditCommunity,
                         onClearSearchResults = onClearRedditSearch,
                         onOpenSource = { source ->

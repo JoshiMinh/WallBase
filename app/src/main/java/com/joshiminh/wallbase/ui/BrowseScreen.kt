@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -41,6 +42,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +72,7 @@ fun BrowseScreen(
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
+    onQuickAddSource: (String) -> Unit,
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearSearchResults: () -> Unit,
     onOpenSource: (Source) -> Unit,
@@ -108,6 +111,7 @@ fun BrowseScreen(
                     onInputChange = onUpdateSourceInput,
                     onSearch = onSearchReddit,
                     onAddSource = onAddSourceFromInput,
+                    onQuickAddSource = onQuickAddSource,
                     onAddResult = onAddRedditCommunity,
                     onClearResults = onClearSearchResults
                 )
@@ -158,6 +162,7 @@ private fun AddSourceFromUrlCard(
     onInputChange: (String) -> Unit,
     onSearch: () -> Unit,
     onAddSource: () -> Unit,
+    onQuickAddSource: (String) -> Unit,
     onAddResult: (RedditCommunity) -> Unit,
     onClearResults: () -> Unit
 ) {
@@ -173,7 +178,13 @@ private fun AddSourceFromUrlCard(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             if (showSupportedSources) {
-                SupportedSourcesDialog(onDismiss = { showSupportedSources = false })
+                SupportedSourcesDialog(
+                    onDismiss = { showSupportedSources = false },
+                    onSelectSource = { suggestion ->
+                        showSupportedSources = false
+                        onQuickAddSource(suggestion)
+                    }
+                )
             }
 
             Row(
@@ -334,14 +345,38 @@ private fun RedditSearchResult(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SupportedSourcesDialog(onDismiss: () -> Unit) {
+private fun SupportedSourcesDialog(
+    onDismiss: () -> Unit,
+    onSelectSource: (String) -> Unit
+) {
     val sources = listOf(
-        SupportedSourceInfo("Reddit", faviconDomain = "reddit.com"),
-        SupportedSourceInfo("Wallhaven", faviconDomain = "wallhaven.cc"),
-        SupportedSourceInfo("Danbooru", faviconDomain = "danbooru.donmai.us"),
-        SupportedSourceInfo("Unsplash", faviconDomain = "unsplash.com"),
-        SupportedSourceInfo("AlphaCoders (Wallpaper Abyss)", faviconDomain = "wall.alphacoders.com"),
+        SupportedSourceInfo(
+            label = "Reddit",
+            faviconDomain = "reddit.com",
+            quickAddInput = "https://www.reddit.com/r/wallpapers/"
+        ),
+        SupportedSourceInfo(
+            label = "Wallhaven",
+            faviconDomain = "wallhaven.cc",
+            quickAddInput = "https://wallhaven.cc/toplist"
+        ),
+        SupportedSourceInfo(
+            label = "Danbooru",
+            faviconDomain = "danbooru.donmai.us",
+            quickAddInput = "https://danbooru.donmai.us/posts"
+        ),
+        SupportedSourceInfo(
+            label = "Unsplash",
+            faviconDomain = "unsplash.com",
+            quickAddInput = "https://unsplash.com/t/wallpapers"
+        ),
+        SupportedSourceInfo(
+            label = "AlphaCoders (Wallpaper Abyss)",
+            faviconDomain = "wall.alphacoders.com",
+            quickAddInput = "https://wall.alphacoders.com/by_category.php?id=3"
+        ),
         SupportedSourceInfo("… (limited)", staticIcon = Icons.Outlined.MoreHoriz)
     )
     AlertDialog(
@@ -350,41 +385,70 @@ private fun SupportedSourcesDialog(onDismiss: () -> Unit) {
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 sources.forEach { source ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        when {
-                            source.staticIcon != null -> {
+                    val isEnabled = source.quickAddInput != null
+                    val backgroundColor = if (isEnabled) {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = backgroundColor,
+                        tonalElevation = if (isEnabled) 4.dp else 0.dp,
+                        onClick = {
+                            source.quickAddInput?.let(onSelectSource)
+                        },
+                        enabled = isEnabled
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            when {
+                                source.staticIcon != null -> {
+                                    Icon(
+                                        imageVector = source.staticIcon,
+                                        contentDescription = source.label,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                source.faviconUrl != null -> {
+                                    AsyncImage(
+                                        model = source.faviconUrl,
+                                        contentDescription = source.label,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                else -> {
+                                    Box(modifier = Modifier.size(24.dp))
+                                }
+                            }
+                            Text(
+                                text = source.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isEnabled) {
                                 Icon(
-                                    imageVector = source.staticIcon,
-                                    contentDescription = source.label,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
+                                    imageVector = Icons.Outlined.Add,
+                                    contentDescription = "Quick add ${source.label}"
                                 )
-                            }
-
-                            source.faviconUrl != null -> {
-                                AsyncImage(
-                                    model = source.faviconUrl,
-                                    contentDescription = source.label,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-
-                            else -> {
-                                Box(modifier = Modifier.size(24.dp))
                             }
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = source.label,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
                     }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Got it")
+                Text("Close")
             }
         }
     )
@@ -393,7 +457,8 @@ private fun SupportedSourcesDialog(onDismiss: () -> Unit) {
 private data class SupportedSourceInfo(
     val label: String,
     val faviconDomain: String? = null,
-    val staticIcon: ImageVector? = null
+    val staticIcon: ImageVector? = null,
+    val quickAddInput: String? = null
 ) {
     val faviconUrl: String? = faviconDomain?.let { domain ->
         "https://www.google.com/s2/favicons?sz=128&domain=$domain"
@@ -440,7 +505,7 @@ private fun SourceCard(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val iconUrl = source.iconUrl?.takeUnless { it.isBlank() }
+                val iconUrl = source.iconUrl?.takeUnless { it.isBlank() || isGooglePhotos }
                 val fallbackPainter = safePainterResource(source.iconRes)
                 val defaultPainter = rememberVectorPainter(image = Icons.Outlined.Public)
 
