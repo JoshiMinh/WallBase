@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
@@ -68,6 +69,11 @@ class WallpaperDetailViewModel(
                 storageLimitBytes = prefs.storageLimitBytes
             }
         }
+        viewModelScope.launch {
+            libraryRepository.observeAlbums().collectLatest { albums ->
+                _uiState.update { it.copy(albums = albums) }
+            }
+        }
     }
 
     fun setWallpaper(wallpaper: WallpaperItem) {
@@ -92,7 +98,8 @@ class WallpaperDetailViewModel(
                 adjustments = WallpaperAdjustments(),
                 editedPreview = null,
                 isEditorReady = false,
-                isProcessingEdits = false
+                isProcessingEdits = false,
+                isAddingToAlbum = false
             )
         }
 
@@ -458,6 +465,69 @@ class WallpaperDetailViewModel(
         }
     }
 
+    fun addToAlbum(albumId: Long) {
+        val wallpaper = _uiState.value.wallpaper ?: return
+        if (_uiState.value.isAddingToAlbum) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isAddingToAlbum = true,
+                    message = null
+                )
+            }
+
+            val ensureResult = runCatching { libraryRepository.addWallpaper(wallpaper) }
+            val addedToLibrary = ensureResult.getOrNull() == true
+            if (ensureResult.isFailure) {
+                val failure = ensureResult.exceptionOrNull()
+                _uiState.update {
+                    it.copy(
+                        isAddingToAlbum = false,
+                        message = failure?.localizedMessage ?: "Unable to add wallpaper to album"
+                    )
+                }
+                return@launch
+            }
+
+            if (addedToLibrary && autoDownloadEnabled && wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL) {
+                downloadWallpaper(autoInitiated = true)
+            }
+
+            val association = runCatching {
+                libraryRepository.addWallpapersToAlbum(albumId, listOf(wallpaper))
+            }
+
+            _uiState.update { current ->
+                current.copy(
+                    isAddingToAlbum = false,
+                    isInLibrary = true,
+                    message = association.fold(
+                        onSuccess = { outcome ->
+                            when {
+                                outcome.addedToAlbum > 0 && (outcome.alreadyPresent > 0 || outcome.skipped > 0) -> {
+                                    val skipped = outcome.alreadyPresent + outcome.skipped
+                                    "Added ${outcome.addedToAlbum} wallpaper${if (outcome.addedToAlbum == 1) "" else "s"} (skipped $skipped others)"
+                                }
+
+                                outcome.addedToAlbum > 0 ->
+                                    "Added ${outcome.addedToAlbum} wallpaper${if (outcome.addedToAlbum == 1) "" else "s"} to the album"
+
+                                outcome.alreadyPresent > 0 || outcome.skipped > 0 ->
+                                    "Wallpaper already in the album"
+
+                                else -> "Wallpaper added to album"
+                            }
+                        },
+                        onFailure = { throwable ->
+                            throwable.localizedMessage ?: "Unable to add wallpaper to album"
+                        }
+                    )
+                )
+            }
+        }
+    }
+
     fun downloadWallpaper(autoInitiated: Boolean = false) {
         val wallpaper = _uiState.value.wallpaper ?: return
         if (_uiState.value.isDownloading) return
@@ -644,7 +714,9 @@ class WallpaperDetailViewModel(
         val editedPreview: Bitmap? = null,
         val isEditorReady: Boolean = false,
         val isProcessingEdits: Boolean = false,
-        val message: String? = null
+        val message: String? = null,
+        val albums: List<AlbumItem> = emptyList(),
+        val isAddingToAlbum: Boolean = false
     )
 
     data class WallpaperPreviewLaunch(

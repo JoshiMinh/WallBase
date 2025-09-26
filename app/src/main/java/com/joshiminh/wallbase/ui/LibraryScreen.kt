@@ -147,7 +147,8 @@ fun LibraryScreen(
         } else {
             uiState.wallpapers.filter { wallpaper ->
                 wallpaper.title.contains(trimmedQuery, ignoreCase = true) ||
-                    (wallpaper.sourceName?.contains(trimmedQuery, ignoreCase = true) == true)
+                    (wallpaper.sourceName?.contains(trimmedQuery, ignoreCase = true) == true) ||
+                    (wallpaper.sourceKey?.contains(trimmedQuery, ignoreCase = true) == true)
             }
         }
     }
@@ -587,6 +588,24 @@ private fun LibraryContent(
             }
         }
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            CountBadge(
+                label = "Wallpapers",
+                count = uiState.wallpapers.size,
+                selected = selectedTab == 0
+            )
+            CountBadge(
+                label = "Albums",
+                count = uiState.albums.size,
+                selected = selectedTab == 1
+            )
+        }
+
         when (selectedTab) {
             0 -> {
                 Box(
@@ -687,6 +706,30 @@ private fun LibraryEmptyState(message: String, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Text(text = message, style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+private fun CountBadge(label: String, count: Int, selected: Boolean, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(50),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    ) {
+        Text(
+            text = "$label · $count",
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelLarge
+        )
     }
 }
 

@@ -31,6 +31,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -40,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
@@ -59,6 +61,7 @@ fun SettingsScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val oneGbBytes = 1024L * 1024L * 1024L
     var storageSliderValue by remember {
         mutableFloatStateOf(uiState.storageLimitBytes.toFloat() / oneGbBytes.toFloat())
@@ -409,6 +412,57 @@ fun SettingsScreen(
                                     showProgress = uiState.isRestoring,
                                     onClick = onImportBackup
                                 )
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsSection(spacing = 8.dp) {
+                    Text(
+                        text = "About",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    SettingsCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "WallBase",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Explore the project or support future development.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                TextButton(onClick = {
+                                    uriHandler.openUri("https://github.com/JoshiMinh/WallBase")
+                                }) {
+                                    Text(text = "GitHub")
+                                }
+                                TextButton(onClick = {
+                                    uriHandler.openUri("https://ko-fi.com/joshiminh")
+                                }) {
+                                    Text(text = "Ko-fi")
+                                }
                             }
                         }
                     }

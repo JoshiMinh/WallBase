@@ -17,6 +17,7 @@ import com.joshiminh.wallbase.data.entity.source.DefaultSources
 import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.SourceSeed
 import com.joshiminh.wallbase.data.entity.source.SourceEntity.Companion.fromSeed
+import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.entity.rotation.RotationScheduleEntity
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +25,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.net.URI
+import java.util.Locale
 
 @Database(
     entities = [
@@ -33,7 +36,7 @@ import kotlinx.coroutines.launch
         SourceEntity::class,
         RotationScheduleEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -58,7 +61,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): WallBaseDatabase {
             val callback = DefaultSourcesCallback(DefaultSources, databaseScope)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
-                .addMigrations(MIGRATION_4_5)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
                 .build()
@@ -86,6 +89,83 @@ abstract class WallBaseDatabase : RoomDatabase() {
                 )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_rotation_schedules_album_id ON rotation_schedules(album_id)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_rotation_schedules_is_enabled ON rotation_schedules(is_enabled)")
+            }
+        }
+
+        val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.query("SELECT source_id, provider_key, config, icon_url FROM sources").use { cursor ->
+                    val idIndex = cursor.getColumnIndex("source_id")
+                    val providerIndex = cursor.getColumnIndex("provider_key")
+                    if (idIndex == -1 || providerIndex == -1) return@use
+
+                    val configIndex = cursor.getColumnIndex("config")
+                    val iconUrlIndex = cursor.getColumnIndex("icon_url")
+
+                    while (cursor.moveToNext()) {
+                        val provider = cursor.getString(providerIndex) ?: continue
+                        if (provider == SourceKeys.GOOGLE_PHOTOS || provider == SourceKeys.LOCAL) continue
+
+                        val id = cursor.getLong(idIndex)
+                        val config = if (configIndex != -1 && !cursor.isNull(configIndex)) {
+                            cursor.getString(configIndex)
+                        } else {
+                            null
+                        }
+                        val existingIconUrl = if (iconUrlIndex != -1 && !cursor.isNull(iconUrlIndex)) {
+                            cursor.getString(iconUrlIndex).takeIf { it.isNotBlank() }
+                        } else {
+                            null
+                        }
+
+                        val resolvedIconUrl = existingIconUrl ?: resolveFaviconUrl(provider, config)
+                        db.execSQL(
+                            "UPDATE sources SET icon_res = NULL, icon_url = ? WHERE source_id = ?",
+                            arrayOf(resolvedIconUrl, id)
+                        )
+                    }
+                }
+            }
+
+            private fun resolveFaviconUrl(provider: String, config: String?): String? {
+                return when (provider) {
+                    SourceKeys.REDDIT -> buildFaviconUrl("reddit.com")
+                    SourceKeys.PINTEREST -> {
+                        val host = extractHost(config)
+                        val domain = when (host) {
+                            null -> "pinterest.com"
+                            "pin.it" -> "pinterest.com"
+                            else -> host
+                        }
+                        buildFaviconUrl(domain)
+                    }
+                    SourceKeys.WALLHAVEN -> extractHost(config)?.let(::buildFaviconUrl)
+                    SourceKeys.DANBOORU -> extractHost(config)?.let(::buildFaviconUrl)
+                    SourceKeys.UNSPLASH -> extractHost(config)?.let(::buildFaviconUrl)
+                    SourceKeys.ALPHA_CODERS -> extractHost(config)?.let(::buildFaviconUrl)
+                    SourceKeys.WEBSITES -> extractHost(config)?.let(::buildFaviconUrl)
+                    else -> null
+                }
+            }
+
+            private fun extractHost(config: String?): String? {
+                if (config.isNullOrBlank()) return null
+                val normalized = config.trim()
+                val candidate = if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+                    normalized
+                } else {
+                    "https://$normalized"
+                }
+                return runCatching { URI(candidate).host }
+                    .getOrNull()
+                    ?.lowercase(Locale.ROOT)
+                    ?.removePrefix("www.")
+                    ?.takeIf { it.isNotBlank() }
+            }
+
+            private fun buildFaviconUrl(host: String): String {
+                val sanitizedHost = host.removePrefix("www.").ifBlank { host }
+                return "https://www.google.com/s2/favicons?sz=128&domain=$sanitizedHost"
             }
         }
 
