@@ -120,8 +120,7 @@ private fun buildJustifiedRows(
 
         val isLastItem = index == wallpapers.lastIndex
         val isPreferredSizeReached = currentItems.size >= preferredRowSize
-        val shouldRespectPreferredSize = isPreferredSizeReached && currentItems.size >= 2 &&
-            ratioSum >= threshold * 0.75f
+        val shouldRespectPreferredSize = isPreferredSizeReached && ratioSum >= threshold * 0.75f
 
         if (
             ratioSum >= threshold ||
