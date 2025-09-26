@@ -57,7 +57,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -489,11 +488,12 @@ fun WallpaperCard(
         border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Box {
-            AsyncImage(
+            WallpaperPreviewImage(
                 model = item.previewModel(),
                 contentDescription = item.title,
                 modifier = sharedElementModifier.then(Modifier.fillMaxSize()),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                clipShape = RoundedCornerShape(18.dp)
             )
 
             if (selectionMode && !isSelected) {
@@ -621,11 +621,12 @@ fun WallpaperListRow(
                             .clip(RoundedCornerShape(14.dp))
                     )
                 ) {
-                    AsyncImage(
+                    WallpaperPreviewImage(
                         model = item.previewModel(),
                         contentDescription = item.title,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        clipShape = RoundedCornerShape(14.dp)
                     )
                     if (selectionMode && !isSelected) {
                         Box(

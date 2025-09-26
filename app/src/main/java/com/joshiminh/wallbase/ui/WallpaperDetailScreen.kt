@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,14 +58,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
+import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
@@ -230,6 +233,7 @@ private fun WallpaperDetailScreen(
                         .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
                 ) {
                     val previewBitmap = uiState.editedPreview
+                    val previewShape = RoundedCornerShape(32.dp)
                     val previewModifier = sharedModifier.then(
                         Modifier
                             .fillMaxWidth()
@@ -239,20 +243,41 @@ private fun WallpaperDetailScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (previewBitmap != null) {
-                            Image(
-                                bitmap = previewBitmap.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = previewModifier,
-                                contentScale = ContentScale.Crop
+                        Box(
+                            modifier = previewModifier,
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clip(previewShape)
+                                    .background(
+                                        Brush.radialGradient(
+                                            colors = listOf(
+                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                Color.Transparent
+                                            )
+                                        )
+                                    )
                             )
-                        } else {
-                            AsyncImage(
-                                model = wallpaper.previewModel(),
-                                contentDescription = null,
-                                modifier = previewModifier,
-                                contentScale = ContentScale.Crop
-                            )
+                            if (previewBitmap != null) {
+                                Image(
+                                    bitmap = previewBitmap.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clip(previewShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                WallpaperPreviewImage(
+                                    model = wallpaper.previewModel(),
+                                    contentDescription = wallpaper.title,
+                                    modifier = Modifier.matchParentSize(),
+                                    contentScale = ContentScale.Crop,
+                                    clipShape = previewShape
+                                )
+                            }
                         }
                     }
                 }
