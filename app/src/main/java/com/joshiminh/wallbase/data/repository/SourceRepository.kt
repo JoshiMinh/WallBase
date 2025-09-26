@@ -1,21 +1,23 @@
+@file:Suppress("unused")
+
 package com.joshiminh.wallbase.data.repository
 
-import android.net.Uri
+import androidx.core.net.toUri
 import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.dao.SourceDao
-import com.joshiminh.wallbase.data.entity.source.Source
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.dao.WallpaperDao
+import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceEntity
+import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.net.MalformedURLException
 import java.net.URL
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.Locale
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 
 class SourceRepository(
     private val sourceDao: SourceDao,
@@ -90,7 +92,7 @@ class SourceRepository(
         wallpapers.forEach { entity ->
             val localUri = entity.localUri
             if (!localUri.isNullOrBlank() && (entity.isDownloaded || entity.sourceKey == SourceKeys.LOCAL)) {
-                runCatching { localStorage.deleteDocument(Uri.parse(localUri)) }
+                runCatching { localStorage.deleteDocument(localUri.toUri()) }
                     .onFailure { error ->
                         if (error is IllegalStateException) throw error
                     }
@@ -291,7 +293,9 @@ class SourceRepository(
 
     private fun resolveDefaultIconUrl(providerKey: String, config: String?): String? {
         return when (providerKey) {
-            SourceKeys.REDDIT -> buildFaviconUrl("reddit.com")
+            SourceKeys.REDDIT -> {
+                buildFaviconUrl("reddit.com")
+            }
             SourceKeys.PINTEREST -> {
                 val host = config
                     ?.let(::tryNormalizeUrl)
@@ -308,12 +312,16 @@ class SourceRepository(
             SourceKeys.DANBOORU,
             SourceKeys.UNSPLASH,
             SourceKeys.ALPHA_CODERS,
-            SourceKeys.WEBSITES -> config
-                ?.let(::tryNormalizeUrl)
-                ?.host
-                ?.takeIf { it.isNotBlank() }
-                ?.let(::buildFaviconUrl)
-            else -> null
+            SourceKeys.WEBSITES -> {
+                config
+                    ?.let(::tryNormalizeUrl)
+                    ?.host
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let(::buildFaviconUrl)
+            }
+            else -> {
+                null
+            }
         }
     }
 
@@ -493,19 +501,18 @@ class SourceRepository(
         return normalized.takeIf { it.isNotBlank() && SUBREDDIT_PATTERN.matches(it) }
     }
 
-    private fun String.tryNormalizeUrl(): NormalizedUrl? {
-        var candidate = trim()
+    private fun String?.tryNormalizeUrl(): NormalizedUrl? {
+        val candidate = this?.trim().orEmpty()
         if (candidate.isBlank()) return null
-        if (!candidate.startsWith("http://", ignoreCase = true) &&
-            !candidate.startsWith("https://", ignoreCase = true)
-        ) {
-            candidate = "https://$candidate"
-        }
+        val prefixed = if (!candidate.startsWith("http://", true) &&
+            !candidate.startsWith("https://", true)) {
+            "https://$candidate"
+        } else candidate
 
         return try {
-            val url = URL(candidate)
-            val scheme = url.protocol?.lowercase(Locale.ROOT)?.takeIf { it == "http" || it == "https" }
-                ?: "https"
+            val url = URL(prefixed)
+            val scheme = url.protocol?.lowercase(Locale.ROOT)
+                ?.takeIf { it == "http" || it == "https" } ?: "https"
             val host = url.host?.lowercase(Locale.ROOT)?.takeIf { it.isNotBlank() } ?: return null
             val port = if (url.port != -1 && url.port != url.defaultPort) ":${url.port}" else ""
             val path = url.path?.trim('/') ?: ""
@@ -513,26 +520,11 @@ class SourceRepository(
             val query = url.query
             val fragment = url.ref
             val normalized = buildString {
-                append(scheme)
-                append("://")
-                append(host)
-                append(port)
-                append(pathComponent)
-                if (!query.isNullOrBlank()) {
-                    append('?')
-                    append(query)
-                }
-                if (!fragment.isNullOrBlank()) {
-                    append('#')
-                    append(fragment)
-                }
+                append(scheme).append("://").append(host).append(port).append(pathComponent)
+                if (!query.isNullOrBlank()) append('?').append(query)
+                if (!fragment.isNullOrBlank()) append('#').append(fragment)
             }
-            NormalizedUrl(
-                value = normalized,
-                host = host,
-                path = path,
-                query = query
-            )
+            NormalizedUrl(normalized, host, path, query)
         } catch (_: MalformedURLException) {
             null
         }

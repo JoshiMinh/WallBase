@@ -1,5 +1,7 @@
 package com.joshiminh.wallbase.ui
 
+import android.annotation.SuppressLint
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,10 +10,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,6 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,7 +41,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,12 +56,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import android.content.res.Resources
-import androidx.annotation.DrawableRes
-import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.repository.SourceRepository
+import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
 import java.util.Locale
 
@@ -496,14 +496,19 @@ private fun SourceCard(
     }
 }
 
+@SuppressLint("LocalContextResourcesRead")
 @Composable
-private fun safePainterResource(@DrawableRes resId: Int?): Painter? {
+fun safePainterResource(@DrawableRes resId: Int?): Painter? {
     if (resId == null || resId == 0) return null
-    return try {
-        painterResource(id = resId)
-    } catch (_: Resources.NotFoundException) {
-        null
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Do the risky check off the composable path
+    val isValid = remember(resId, context) {
+        runCatching { context.resources.getResourceName(resId) }.isSuccess
     }
+
+    // Only invoke the composable if valid (no try/catch around it)
+    return if (isValid) painterResource(resId) else null
 }
 
 @Composable
