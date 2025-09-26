@@ -298,7 +298,7 @@ class SourceRepository(
             }
             SourceKeys.PINTEREST -> {
                 val host = config
-                    ?.let(::tryNormalizeUrl)
+                    ?.let { it.tryNormalizeUrl() }
                     ?.host
                     ?.takeIf { it.isNotBlank() }
                 val domain = when (host) {
@@ -314,7 +314,7 @@ class SourceRepository(
             SourceKeys.ALPHA_CODERS,
             SourceKeys.WEBSITES -> {
                 config
-                    ?.let(::tryNormalizeUrl)
+                    ?.let { it.tryNormalizeUrl() }
                     ?.host
                     ?.takeIf { it.isNotBlank() }
                     ?.let(::buildFaviconUrl)

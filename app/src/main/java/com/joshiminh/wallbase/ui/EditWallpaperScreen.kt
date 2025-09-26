@@ -47,7 +47,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
@@ -247,13 +247,14 @@ private fun WallpaperPreview(
                     contentScale = ContentScale.Crop
                 )
             } else {
-                AsyncImage(
+                WallpaperPreviewImage(
                     model = wallpaper.previewModel(),
-                    contentDescription = null,
+                    contentDescription = wallpaper.title,
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(aspectRatio),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    clipShape = RoundedCornerShape(24.dp)
                 )
             }
         }

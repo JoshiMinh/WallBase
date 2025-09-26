@@ -1,8 +1,11 @@
 package com.joshiminh.wallbase.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -37,6 +41,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -396,63 +401,76 @@ fun LibraryScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        floatingActionButton = {
-            if (selectedTab == 1) {
-                val creating = uiState.isCreatingAlbum
-                ExtendedFloatingActionButton(
-                    onClick = { if (!creating) showAlbumDialog = true },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = "Add album"
+    val showDownloadProgress =
+        uiState.isSelectionActionInProgress &&
+            uiState.selectionAction == LibraryViewModel.SelectionAction.DOWNLOAD
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            floatingActionButton = {
+                if (selectedTab == 1) {
+                    val creating = uiState.isCreatingAlbum
+                    ExtendedFloatingActionButton(
+                        onClick = { if (!creating) showAlbumDialog = true },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = "Add album"
+                            )
+                        },
+                        text = { Text(text = "Add album") },
+                        expanded = true,
+                        modifier = Modifier.then(
+                            if (creating) {
+                                Modifier
+                                    .alpha(0.6f)
+                                    .semantics { disabled() }
+                            } else {
+                                Modifier
+                            }
                         )
-                    },
-                    text = { Text(text = "Add album") },
-                    expanded = true,
-                    modifier = Modifier.then(
-                        if (creating) {
-                            Modifier
-                                .alpha(0.6f)
-                                .semantics { disabled() }
-                        } else {
-                            Modifier
-                        }
                     )
-                )
-            }
-        },
-        contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
-    ) { innerPadding ->
-        LibraryContent(
-            uiState = uiState,
-            wallpapers = displayedWallpapers,
-            albums = displayedAlbums,
-            selectedTab = selectedTab,
-            onTabSelected = { selectedTab = it },
-            onWallpaperClick = onWallpaperClick,
-            onWallpaperLongPress = onWallpaperLongPress,
-            selectedIds = selectedIds,
-            selectionMode = selectionMode,
-            onAlbumClick = onAlbumSelected,
-            onCreateAlbum = {
-                libraryViewModel.createAlbum(it)
-                showAlbumDialog = false
+                }
             },
-            onRequestCreateAlbum = { showAlbumDialog = true },
-            onDismissCreateAlbum = { showAlbumDialog = false },
-            showAlbumDialog = showAlbumDialog,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedVisibilityScope = animatedVisibilityScope,
-            isSearching = isSearchActive,
-            searchQuery = trimmedQuery,
-            wallpaperGridColumns = wallpaperGridColumns,
-            wallpaperLayout = wallpaperLayout,
-            albumLayout = albumLayout,
+            contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
+        ) { innerPadding ->
+            LibraryContent(
+                uiState = uiState,
+                wallpapers = displayedWallpapers,
+                albums = displayedAlbums,
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                onWallpaperClick = onWallpaperClick,
+                onWallpaperLongPress = onWallpaperLongPress,
+                selectedIds = selectedIds,
+                selectionMode = selectionMode,
+                onAlbumClick = onAlbumSelected,
+                onCreateAlbum = {
+                    libraryViewModel.createAlbum(it)
+                    showAlbumDialog = false
+                },
+                onRequestCreateAlbum = { showAlbumDialog = true },
+                onDismissCreateAlbum = { showAlbumDialog = false },
+                showAlbumDialog = showAlbumDialog,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                isSearching = isSearchActive,
+                searchQuery = trimmedQuery,
+                wallpaperGridColumns = wallpaperGridColumns,
+                wallpaperLayout = wallpaperLayout,
+                albumLayout = albumLayout,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            )
+        }
+
+        DownloadProgressToast(
+            visible = showDownloadProgress,
             modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 32.dp)
         )
     }
 
@@ -545,6 +563,37 @@ fun LibraryScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun DownloadProgressToast(visible: Boolean, modifier: Modifier = Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = modifier
+    ) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    text = "Downloading wallpapers…",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
     }
 }
 

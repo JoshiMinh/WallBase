@@ -33,6 +33,7 @@ class LibraryViewModel(
     private val messageFlow = MutableStateFlow<String?>(null)
     private val isCreatingAlbum = MutableStateFlow(false)
     private val selectionActionInProgress = MutableStateFlow(false)
+    private val selectionAction = MutableStateFlow<SelectionAction?>(null)
     private val wallpaperSort = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
     private val albumSort = MutableStateFlow(AlbumSortOption.TITLE_ASCENDING)
     private var storageLimitBytes: Long = 0L
@@ -43,6 +44,7 @@ class LibraryViewModel(
             repository.observeAlbums(),
             isCreatingAlbum,
             selectionActionInProgress,
+            selectionAction,
             messageFlow,
             wallpaperSort,
             albumSort,
@@ -52,10 +54,11 @@ class LibraryViewModel(
             val albums = arr[1] as List<AlbumItem>
             val creating = arr[2] as Boolean
             val selectionBusy = arr[3] as Boolean
-            val message = arr[4] as String?
-            val wallpaperSortOption = arr[5] as WallpaperSortOption
-            val albumSortOption = arr[6] as AlbumSortOption
-            val preferences = arr[7] as SettingsPreferences
+            val action = arr[4] as SelectionAction?
+            val message = arr[5] as String?
+            val wallpaperSortOption = arr[6] as WallpaperSortOption
+            val albumSortOption = arr[7] as AlbumSortOption
+            val preferences = arr[8] as SettingsPreferences
             storageLimitBytes = preferences.storageLimitBytes
 
             LibraryUiState(
@@ -63,6 +66,7 @@ class LibraryViewModel(
                 albums = albums.sortedWith(albumSortOption),
                 isCreatingAlbum = creating,
                 isSelectionActionInProgress = selectionBusy,
+                selectionAction = action,
                 message = message,
                 wallpaperSortOption = wallpaperSortOption,
                 albumSortOption = albumSortOption,
@@ -126,9 +130,11 @@ class LibraryViewModel(
     fun removeWallpapers(wallpapers: List<WallpaperItem>) {
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {
+            selectionAction.value = SelectionAction.REMOVE_FROM_LIBRARY
             selectionActionInProgress.value = true
             val result = runCatching { repository.removeWallpapers(wallpapers) }
             selectionActionInProgress.value = false
+            selectionAction.value = null
             messageFlow.update {
                 result.fold(
                     onSuccess = { removed ->
@@ -147,9 +153,11 @@ class LibraryViewModel(
     fun addWallpapersToAlbum(albumId: Long, wallpapers: List<WallpaperItem>) {
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {
+            selectionAction.value = SelectionAction.ADD_TO_ALBUM
             selectionActionInProgress.value = true
             val result = runCatching { repository.addWallpapersToAlbum(albumId, wallpapers) }
             selectionActionInProgress.value = false
+            selectionAction.value = null
             messageFlow.update {
                 result.fold(
                     onSuccess = { outcome ->
@@ -174,9 +182,11 @@ class LibraryViewModel(
     fun downloadWallpapers(wallpapers: List<WallpaperItem>) {
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {
+            selectionAction.value = SelectionAction.DOWNLOAD
             selectionActionInProgress.value = true
             val result = runCatching { repository.downloadWallpapers(wallpapers, storageLimitBytes) }
             selectionActionInProgress.value = false
+            selectionAction.value = null
             messageFlow.update {
                 result.fold(
                     onSuccess = { summary ->
@@ -205,9 +215,11 @@ class LibraryViewModel(
     fun removeDownloads(wallpapers: List<WallpaperItem>) {
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {
+            selectionAction.value = SelectionAction.REMOVE_DOWNLOADS
             selectionActionInProgress.value = true
             val result = runCatching { repository.removeDownloads(wallpapers) }
             selectionActionInProgress.value = false
+            selectionAction.value = null
             messageFlow.update {
                 result.fold(
                     onSuccess = { summary ->
@@ -237,6 +249,7 @@ class LibraryViewModel(
         }
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {
+            selectionAction.value = SelectionAction.ADD_TO_ALBUM
             selectionActionInProgress.value = true
             val result = runCatching {
                 val album = repository.createAlbum(trimmed)
@@ -244,6 +257,7 @@ class LibraryViewModel(
                 album to association
             }
             selectionActionInProgress.value = false
+            selectionAction.value = null
             messageFlow.update {
                 result.fold(
                     onSuccess = { (album, outcome) ->
@@ -269,6 +283,7 @@ class LibraryViewModel(
         val albums: List<AlbumItem> = emptyList(),
         val isCreatingAlbum: Boolean = false,
         val isSelectionActionInProgress: Boolean = false,
+        val selectionAction: SelectionAction? = null,
         val message: String? = null,
         val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
         val albumSortOption: AlbumSortOption = AlbumSortOption.TITLE_ASCENDING,
@@ -276,6 +291,13 @@ class LibraryViewModel(
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID
     )
+
+    enum class SelectionAction {
+        DOWNLOAD,
+        REMOVE_FROM_LIBRARY,
+        ADD_TO_ALBUM,
+        REMOVE_DOWNLOADS
+    }
 
     companion object {
         val Factory = viewModelFactory {
