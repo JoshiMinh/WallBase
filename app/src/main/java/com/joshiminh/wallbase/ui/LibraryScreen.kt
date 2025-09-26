@@ -623,36 +623,21 @@ private fun LibraryContent(
     albumLayout: AlbumLayout,
     modifier: Modifier = Modifier
 ) {
-    val tabs = listOf("All Wallpapers", "Albums")
+    val tabs = listOf(
+        "Wallpapers" to uiState.wallpapers.size,
+        "Albums" to uiState.albums.size
+    )
     val hasQuery = isSearching && searchQuery.isNotBlank()
 
     Column(modifier) {
         TabRow(selectedTabIndex = selectedTab) {
-            tabs.forEachIndexed { index, title ->
+            tabs.forEachIndexed { index, (title, count) ->
                 Tab(
                     selected = selectedTab == index,
                     onClick = { onTabSelected(index) },
-                    text = { Text(title) }
+                    text = { Text("$title · $count") }
                 )
             }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            CountBadge(
-                label = "Wallpapers",
-                count = uiState.wallpapers.size,
-                selected = selectedTab == 0
-            )
-            CountBadge(
-                label = "Albums",
-                count = uiState.albums.size,
-                selected = selectedTab == 1
-            )
         }
 
         when (selectedTab) {
@@ -755,30 +740,6 @@ private fun LibraryEmptyState(message: String, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Text(text = message, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Composable
-private fun CountBadge(label: String, count: Int, selected: Boolean, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        },
-        contentColor = if (selected) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
-    ) {
-        Text(
-            text = "$label · $count",
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelLarge
-        )
     }
 }
 

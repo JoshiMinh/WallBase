@@ -1,33 +1,29 @@
 package com.joshiminh.wallbase.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
-import androidx.compose.material.icons.outlined.Sort
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.SortByAlpha
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.sort.SortDirection
@@ -75,18 +71,19 @@ fun SortBottomSheet(
                 )
             }
             availableFields.forEach { field ->
-                SortFieldRow(
+                val isSelected = selection.field == field
+                val direction = selection.direction.takeIf { isSelected }
+                SortOptionRow(
                     field = field,
-                    selected = selection.field == field,
-                    direction = selection.direction.takeIf { selection.field == field },
+                    selected = isSelected,
+                    direction = direction,
                     onClick = {
-                        val isCurrent = selection.field == field
-                        val direction = if (isCurrent) {
+                        val newDirection = if (isSelected) {
                             selection.direction.toggle()
                         } else {
                             field.defaultDirection()
                         }
-                        val updated = SortSelection(field, direction)
+                        val updated = SortSelection(field, newDirection)
                         if (selection != updated) {
                             onSelectionChanged(updated)
                         }
@@ -95,102 +92,80 @@ fun SortBottomSheet(
             }
             additionalContent?.let { content ->
                 Divider()
-                Spacer(modifier = Modifier.height(12.dp))
                 content()
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SortFieldRow(
+private fun SortOptionRow(
     field: SortField,
     selected: Boolean,
     direction: SortDirection?,
     onClick: () -> Unit
 ) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.secondaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
     Surface(
-        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        tonalElevation = if (selected) 10.dp else 0.dp,
-        color = if (selected) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
-        }
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        tonalElevation = if (selected) 6.dp else 0.dp,
+        onClick = onClick
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-                .animateContentSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            Box(
-                modifier = Modifier,
-                contentAlignment = Alignment.Center
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Sort,
-                        contentDescription = null,
-                        modifier = Modifier.padding(10.dp)
-                    )
+        ListItem(
+            colors = ListItemDefaults.colors(
+                containerColor = Color.Transparent,
+                headlineColor = if (selected) {
+                    MaterialTheme.colorScheme.onSecondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
                 }
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = field.displayName,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                AnimatedVisibility(visible = selected) {
+            ),
+            leadingContent = {
+                Icon(imageVector = field.icon(), contentDescription = null)
+            },
+            headlineContent = {
+                Text(field.displayName, style = MaterialTheme.typography.titleSmall)
+            },
+            supportingContent = {
+                if (direction != null) {
                     Text(
-                        text = "Tap to toggle direction",
+                        text = direction.description(field),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-            AnimatedVisibility(visible = direction != null) {
-                direction?.let { dir ->
-                    DirectionBadge(direction = dir)
+            },
+            trailingContent = {
+                if (direction != null) {
+                    Icon(
+                        imageVector = direction.icon(),
+                        contentDescription = direction.description(field)
+                    )
                 }
             }
-        }
+        )
     }
 }
 
-@Composable
-private fun DirectionBadge(direction: SortDirection) {
-    val (icon, label) = if (direction == SortDirection.Ascending) {
-        Icons.Outlined.ArrowUpward to "Ascending"
-    } else {
-        Icons.Outlined.ArrowDownward to "Descending"
-    }
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(imageVector = icon, contentDescription = label)
-            Text(text = label, style = MaterialTheme.typography.labelLarge)
-        }
-    }
+private fun SortField.icon() = when (this) {
+    SortField.Alphabet -> Icons.Outlined.SortByAlpha
+    SortField.DateAdded -> Icons.Outlined.Schedule
+}
+
+private fun SortDirection.description(field: SortField): String = when (field) {
+    SortField.Alphabet -> if (this == SortDirection.Ascending) "A → Z" else "Z → A"
+    SortField.DateAdded -> if (this == SortDirection.Descending) "Newest first" else "Oldest first"
+}
+
+private fun SortDirection.icon() = if (this == SortDirection.Ascending) {
+    Icons.Outlined.ArrowUpward
+} else {
+    Icons.Outlined.ArrowDownward
 }
