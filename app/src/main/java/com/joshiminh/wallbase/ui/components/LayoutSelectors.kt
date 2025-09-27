@@ -37,7 +37,7 @@ fun GridColumnPicker(
     selectedColumns: Int,
     onColumnsSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    range: IntRange = 1..4,
+    range: IntRange = 1..3,
     enabled: Boolean = true
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {

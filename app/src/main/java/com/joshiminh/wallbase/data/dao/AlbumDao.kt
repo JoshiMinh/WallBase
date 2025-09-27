@@ -24,6 +24,19 @@ interface AlbumDao {
     @Query("SELECT * FROM albums WHERE title = :title LIMIT 1")
     suspend fun findAlbumByTitle(title: String): AlbumEntity?
 
+    @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
+    suspend fun getAlbum(albumId: Long): AlbumEntity?
+
+    @Transaction
+    @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
+    suspend fun getAlbumWithWallpapers(albumId: Long): AlbumWithWallpapers?
+
+    @Query("UPDATE albums SET title = :title, updated_at = :updatedAt WHERE album_id = :albumId")
+    suspend fun updateAlbumTitle(albumId: Long, title: String, updatedAt: Long): Int
+
+    @Query("DELETE FROM albums WHERE album_id IN (:albumIds)")
+    suspend fun deleteAlbums(albumIds: Collection<Long>): Int
+
     @Transaction
     @Query("SELECT * FROM albums ORDER BY sort_order, title")
     fun observeAlbumsWithWallpapers(): Flow<List<AlbumWithWallpapers>>

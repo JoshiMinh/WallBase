@@ -7,7 +7,9 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,12 +27,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Album
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
@@ -127,7 +131,8 @@ fun LibraryScreen(
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var showAlbumDialog by rememberSaveable { mutableStateOf(false) }
     var showSelectionAlbumDialog by rememberSaveable { mutableStateOf(false) }
-    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedWallpaperIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedAlbumIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showRemoveDownloadsDialog by rememberSaveable { mutableStateOf(false) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
@@ -137,13 +142,22 @@ fun LibraryScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFocusRequester = remember { FocusRequester() }
 
-    val selectionMode = selectedIds.isNotEmpty()
-    val selectedWallpapers = remember(selectedIds, uiState.wallpapers) {
-        if (selectedIds.isEmpty()) emptyList()
-        else {
-            val byId = uiState.wallpapers.associateBy { it.id }
-            selectedIds.mapNotNull(byId::get)
-        }
+    val isWallpaperSelection = selectedWallpaperIds.isNotEmpty()
+    val isAlbumSelection = selectedAlbumIds.isNotEmpty()
+    val selectionMode = isWallpaperSelection || isAlbumSelection
+    val wallpapersById = remember(uiState.wallpapers) {
+        uiState.wallpapers.associateBy { it.id }
+    }
+    val albumsById = remember(uiState.albums) {
+        uiState.albums.associateBy { it.id }
+    }
+    val selectedWallpapers = remember(selectedWallpaperIds, wallpapersById) {
+        if (selectedWallpaperIds.isEmpty()) emptyList()
+        else selectedWallpaperIds.mapNotNull(wallpapersById::get)
+    }
+    val selectedAlbums = remember(selectedAlbumIds, albumsById) {
+        if (selectedAlbumIds.isEmpty()) emptyList()
+        else selectedAlbumIds.mapNotNull(albumsById::get)
     }
 
     val trimmedQuery = remember(searchQuery) { searchQuery.trim() }
@@ -190,11 +204,20 @@ fun LibraryScreen(
     }
 
     LaunchedEffect(uiState.wallpapers) {
-        if (selectedIds.isEmpty()) return@LaunchedEffect
+        if (selectedWallpaperIds.isEmpty()) return@LaunchedEffect
         val available = uiState.wallpapers.mapTo(hashSetOf()) { it.id }
-        val filtered = selectedIds.filterTo(mutableSetOf()) { it in available }
-        if (filtered.size != selectedIds.size) {
-            selectedIds = filtered
+        val filtered = selectedWallpaperIds.filterTo(mutableSetOf()) { it in available }
+        if (filtered.size != selectedWallpaperIds.size) {
+            selectedWallpaperIds = filtered
+        }
+    }
+
+    LaunchedEffect(uiState.albums) {
+        if (selectedAlbumIds.isEmpty()) return@LaunchedEffect
+        val available = uiState.albums.mapTo(hashSetOf()) { it.id }
+        val filtered = selectedAlbumIds.filterTo(mutableSetOf()) { it in available }
+        if (filtered.size != selectedAlbumIds.size) {
+            selectedAlbumIds = filtered
         }
     }
 
@@ -216,8 +239,11 @@ fun LibraryScreen(
     }
 
     LaunchedEffect(selectedTab) {
-        if (selectedTab != 0 && selectedIds.isNotEmpty()) {
-            selectedIds = emptySet()
+        if (selectedTab != 0 && selectedWallpaperIds.isNotEmpty()) {
+            selectedWallpaperIds = emptySet()
+        }
+        if (selectedTab != 1 && selectedAlbumIds.isNotEmpty()) {
+            selectedAlbumIds = emptySet()
         }
     }
 
@@ -238,138 +264,182 @@ fun LibraryScreen(
     }
 
     val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
-    val topBarState = if (selectionMode) {
-        val selectionTitle = "${selectedIds.size} selected"
-        val removeLabel = "Remove from library"
-        val selectAllLabel = "Select all"
-        val addLabel = "Add to album"
-        val allSelectedDownloaded = selectedWallpapers.isNotEmpty() &&
-            selectedWallpapers.all { it.isDownloaded && !it.localUri.isNullOrBlank() }
-        val downloadLabel = if (allSelectedDownloaded) {
-            "Remove downloads"
-        } else {
-            "Download"
-        }
-        val clearLabel = "Clear selection"
-        val actions: @Composable RowScope.() -> Unit = {
-            val selectAllEnabled = !uiState.isSelectionActionInProgress &&
-                displayedWallpapers.isNotEmpty() &&
-                selectedIds.size < displayedWallpapers.size
-            IconButton(
-                onClick = {
-                    selectedIds = displayedWallpapers.mapTo(mutableSetOf()) { it.id }
-                },
-                enabled = selectAllEnabled
-            ) {
-                Icon(imageVector = Icons.Outlined.SelectAll, contentDescription = selectAllLabel)
+    val topBarState = when {
+        isWallpaperSelection -> {
+            val selectionTitle = "${selectedWallpaperIds.size} selected"
+            val removeLabel = "Remove from library"
+            val selectAllLabel = "Select all"
+            val addLabel = "Add to album"
+            val allSelectedDownloaded = selectedWallpapers.isNotEmpty() &&
+                selectedWallpapers.all { it.isDownloaded && !it.localUri.isNullOrBlank() }
+            val downloadLabel = if (allSelectedDownloaded) {
+                "Remove downloads"
+            } else {
+                "Download"
             }
-            IconButton(
-                onClick = {
-                    if (selectedWallpapers.isNotEmpty()) {
-                        libraryViewModel.removeWallpapers(selectedWallpapers)
-                    }
-                    selectedIds = emptySet()
-                },
-                enabled = !uiState.isSelectionActionInProgress
-            ) {
-                Icon(imageVector = Icons.Outlined.Delete, contentDescription = removeLabel)
-            }
-            if (allSelectedDownloaded) {
+            val clearLabel = "Clear selection"
+            val actions: @Composable RowScope.() -> Unit = {
+                val selectAllEnabled = !uiState.isSelectionActionInProgress &&
+                    displayedWallpapers.isNotEmpty() &&
+                    selectedWallpaperIds.size < displayedWallpapers.size
                 IconButton(
                     onClick = {
-                        if (!uiState.isSelectionActionInProgress) {
-                            showRemoveDownloadsDialog = true
-                        }
+                        selectedWallpaperIds = displayedWallpapers.mapTo(mutableSetOf()) { it.id }
                     },
-                    enabled = !uiState.isSelectionActionInProgress
+                    enabled = selectAllEnabled
                 ) {
-                    Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = downloadLabel)
+                    Icon(imageVector = Icons.Outlined.SelectAll, contentDescription = selectAllLabel)
                 }
-            } else {
                 IconButton(
                     onClick = {
                         if (selectedWallpapers.isNotEmpty()) {
-                            libraryViewModel.downloadWallpapers(selectedWallpapers)
+                            libraryViewModel.removeWallpapers(selectedWallpapers)
+                        }
+                        selectedWallpaperIds = emptySet()
+                    },
+                    enabled = !uiState.isSelectionActionInProgress
+                ) {
+                    Icon(imageVector = Icons.Outlined.Delete, contentDescription = removeLabel)
+                }
+                if (allSelectedDownloaded) {
+                    IconButton(
+                        onClick = {
+                            if (!uiState.isSelectionActionInProgress) {
+                                showRemoveDownloadsDialog = true
+                            }
+                        },
+                        enabled = !uiState.isSelectionActionInProgress
+                    ) {
+                        Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = downloadLabel)
+                    }
+                } else {
+                    IconButton(
+                        onClick = {
+                            if (selectedWallpapers.isNotEmpty()) {
+                                libraryViewModel.downloadWallpapers(selectedWallpapers)
+                            }
+                        },
+                        enabled = !uiState.isSelectionActionInProgress
+                    ) {
+                        Icon(imageVector = Icons.Outlined.Download, contentDescription = downloadLabel)
+                    }
+                }
+                IconButton(
+                    onClick = {
+                        if (!uiState.isSelectionActionInProgress) {
+                            showSelectionAlbumDialog = true
                         }
                     },
                     enabled = !uiState.isSelectionActionInProgress
                 ) {
-                    Icon(imageVector = Icons.Outlined.Download, contentDescription = downloadLabel)
+                    Icon(imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd, contentDescription = addLabel)
                 }
             }
-            IconButton(
-                onClick = {
-                    if (!uiState.isSelectionActionInProgress) {
-                        showSelectionAlbumDialog = true
+            TopBarState(
+                title = selectionTitle,
+                navigationIcon = TopBarState.NavigationIcon(
+                    icon = Icons.Outlined.Close,
+                    contentDescription = clearLabel,
+                    onClick = { selectedWallpaperIds = emptySet() }
+                ),
+                actions = actions
+            )
+        }
+
+        isAlbumSelection -> {
+            val selectionTitle = "${selectedAlbumIds.size} selected"
+            val selectAllLabel = "Select all"
+            val deleteLabel = if (selectedAlbumIds.size > 1) "Delete albums" else "Delete album"
+            val clearLabel = "Clear selection"
+            val actions: @Composable RowScope.() -> Unit = {
+                val selectAllEnabled = !uiState.isSelectionActionInProgress &&
+                    displayedAlbums.isNotEmpty() &&
+                    selectedAlbumIds.size < displayedAlbums.size
+                IconButton(
+                    onClick = {
+                        selectedAlbumIds = displayedAlbums.mapTo(mutableSetOf()) { it.id }
+                    },
+                    enabled = selectAllEnabled
+                ) {
+                    Icon(imageVector = Icons.Outlined.SelectAll, contentDescription = selectAllLabel)
+                }
+                IconButton(
+                    onClick = {
+                        if (selectedAlbumIds.isNotEmpty() && !uiState.isSelectionActionInProgress) {
+                            libraryViewModel.deleteAlbums(selectedAlbumIds)
+                        }
+                        selectedAlbumIds = emptySet()
+                    },
+                    enabled = !uiState.isSelectionActionInProgress
+                ) {
+                    Icon(imageVector = Icons.Outlined.Delete, contentDescription = deleteLabel)
+                }
+            }
+            TopBarState(
+                title = selectionTitle,
+                navigationIcon = TopBarState.NavigationIcon(
+                    icon = Icons.Outlined.Close,
+                    contentDescription = clearLabel,
+                    onClick = { selectedAlbumIds = emptySet() }
+                ),
+                actions = actions
+            )
+        }
+
+        else -> {
+            val baseTitle = if (selectedTab == 0) "Library" else "Albums"
+            val searchPlaceholder = if (selectedTab == 0) {
+                "Search wallpapers"
+            } else {
+                "Search albums"
+            }
+            val actions: @Composable RowScope.() -> Unit = {
+                if (isSearchActive) {
+                    IconButton(onClick = {
+                        isSearchActive = false
+                        searchQuery = ""
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }) {
+                        Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
                     }
-                },
-                enabled = !uiState.isSelectionActionInProgress
-            ) {
-                Icon(imageVector = Icons.AutoMirrored.Outlined.PlaylistAdd, contentDescription = addLabel)
-            }
-        }
-        TopBarState(
-            title = selectionTitle,
-            navigationIcon = TopBarState.NavigationIcon(
-                icon = Icons.Outlined.Close,
-                contentDescription = clearLabel,
-                onClick = { selectedIds = emptySet() }
-            ),
-            actions = actions
-        )
-    } else {
-        val baseTitle = if (selectedTab == 0) "Library" else "Albums"
-        val searchPlaceholder = if (selectedTab == 0) {
-            "Search wallpapers"
-        } else {
-            "Search albums"
-        }
-        val actions: @Composable RowScope.() -> Unit = {
-            if (isSearchActive) {
-                IconButton(onClick = {
-                    isSearchActive = false
-                    searchQuery = ""
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                }) {
-                    Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
+                    IconButton(onClick = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }) {
+                        Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
+                    }
+                } else {
+                    IconButton(onClick = { isSearchActive = true }) {
+                        Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
+                    }
                 }
-                IconButton(onClick = {
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                }) {
-                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
+                IconButton(onClick = { showSortSheet = true }) {
+                    Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
+                }
+            }
+            val navigationIcon: TopBarState.NavigationIcon? = null
+            val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
+                {
+                    TopBarSearchField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        onClear = { searchQuery = "" },
+                        placeholder = searchPlaceholder,
+                        focusRequester = searchFocusRequester,
+                        showClearButton = false
+                    )
                 }
             } else {
-                IconButton(onClick = { isSearchActive = true }) {
-                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
-                }
+                null
             }
-            IconButton(onClick = { showSortSheet = true }) {
-                Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
-            }
+            TopBarState(
+                title = if (isSearchActive) null else baseTitle,
+                navigationIcon = navigationIcon,
+                actions = actions,
+                titleContent = titleContent
+            )
         }
-        val navigationIcon: TopBarState.NavigationIcon? = null
-        val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
-            {
-                TopBarSearchField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    onClear = { searchQuery = "" },
-                    placeholder = searchPlaceholder,
-                    focusRequester = searchFocusRequester,
-                    showClearButton = false
-                )
-            }
-        } else {
-            null
-        }
-        TopBarState(
-            title = if (isSearchActive) null else baseTitle,
-            navigationIcon = navigationIcon,
-            actions = actions,
-            titleContent = titleContent
-        )
     }
 
     SideEffect {
@@ -389,18 +459,48 @@ fun LibraryScreen(
     }
 
     val onWallpaperClick: (WallpaperItem) -> Unit = { wallpaper ->
-        if (selectionMode) {
-            selectedIds = selectedIds.toggle(wallpaper.id)
-        } else {
-            onWallpaperSelected(wallpaper)
+        when {
+            isWallpaperSelection -> {
+                selectedWallpaperIds = selectedWallpaperIds.toggle(wallpaper.id)
+            }
+
+            isAlbumSelection -> Unit
+
+            else -> onWallpaperSelected(wallpaper)
         }
     }
 
     val onWallpaperLongPress: (WallpaperItem) -> Unit = { wallpaper ->
-        selectedIds = if (selectionMode) {
-            selectedIds.toggle(wallpaper.id, forceAdd = true)
+        if (isAlbumSelection) {
+            selectedAlbumIds = emptySet()
+        }
+        selectedWallpaperIds = if (isWallpaperSelection) {
+            selectedWallpaperIds.toggle(wallpaper.id, forceAdd = true)
         } else {
             setOf(wallpaper.id)
+        }
+    }
+
+    val onAlbumClick: (AlbumItem) -> Unit = { album ->
+        when {
+            isAlbumSelection -> {
+                selectedAlbumIds = selectedAlbumIds.toggle(album.id)
+            }
+
+            isWallpaperSelection -> Unit
+
+            else -> onAlbumSelected(album)
+        }
+    }
+
+    val onAlbumLongPress: (AlbumItem) -> Unit = { album ->
+        if (isWallpaperSelection) {
+            selectedWallpaperIds = emptySet()
+        }
+        selectedAlbumIds = if (isAlbumSelection) {
+            selectedAlbumIds.toggle(album.id, forceAdd = true)
+        } else {
+            setOf(album.id)
         }
     }
 
@@ -459,9 +559,13 @@ fun LibraryScreen(
                 onTabSelected = { selectedTab = it },
                 onWallpaperClick = onWallpaperClick,
                 onWallpaperLongPress = onWallpaperLongPress,
-                selectedIds = selectedIds,
+                wallpaperSelectionIds = selectedWallpaperIds,
+                albumSelectionIds = selectedAlbumIds,
+                isWallpaperSelectionMode = isWallpaperSelection,
+                isAlbumSelectionMode = isAlbumSelection,
                 selectionMode = selectionMode,
-                onAlbumClick = onAlbumSelected,
+                onAlbumClick = onAlbumClick,
+                onAlbumLongPress = onAlbumLongPress,
                 onCreateAlbum = {
                     libraryViewModel.createAlbum(it)
                     showAlbumDialog = false
@@ -529,14 +633,14 @@ fun LibraryScreen(
                 if (selectedWallpapers.isNotEmpty()) {
                     libraryViewModel.addWallpapersToAlbum(albumId, selectedWallpapers)
                 }
-                selectedIds = emptySet()
+                selectedWallpaperIds = emptySet()
                 showSelectionAlbumDialog = false
             },
             onCreateNew = { title ->
                 if (selectedWallpapers.isNotEmpty()) {
                     libraryViewModel.createAlbumAndAdd(title, selectedWallpapers)
                 }
-                selectedIds = emptySet()
+                selectedWallpaperIds = emptySet()
                 showSelectionAlbumDialog = false
             },
             onDismiss = { showSelectionAlbumDialog = false }
@@ -623,9 +727,13 @@ private fun LibraryContent(
     onTabSelected: (Int) -> Unit,
     onWallpaperClick: (WallpaperItem) -> Unit,
     onWallpaperLongPress: (WallpaperItem) -> Unit,
-    selectedIds: Set<String>,
+    wallpaperSelectionIds: Set<String>,
+    albumSelectionIds: Set<Long>,
+    isWallpaperSelectionMode: Boolean,
+    isAlbumSelectionMode: Boolean,
     selectionMode: Boolean,
     onAlbumClick: (AlbumItem) -> Unit,
+    onAlbumLongPress: (AlbumItem) -> Unit,
     onCreateAlbum: (String) -> Unit,
     onRequestCreateAlbum: () -> Unit,
     onDismissCreateAlbum: () -> Unit,
@@ -679,8 +787,8 @@ private fun LibraryContent(
                             onWallpaperSelected = onWallpaperClick,
                             modifier = Modifier.fillMaxSize(),
                             onLongPress = onWallpaperLongPress,
-                            selectedIds = selectedIds,
-                            selectionMode = selectionMode,
+                            selectedIds = wallpaperSelectionIds,
+                            selectionMode = isWallpaperSelectionMode,
                             columns = wallpaperGridColumns,
                             layout = wallpaperLayout,
                             showDownloadedBadge = true,
@@ -732,6 +840,9 @@ private fun LibraryContent(
                             albums = albums,
                             layout = albumLayout,
                             onAlbumClick = onAlbumClick,
+                            onAlbumLongPress = onAlbumLongPress,
+                            selectedAlbumIds = albumSelectionIds,
+                            selectionMode = isAlbumSelectionMode,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -764,6 +875,9 @@ private fun AlbumList(
     albums: List<AlbumItem>,
     layout: AlbumLayout,
     onAlbumClick: (AlbumItem) -> Unit,
+    onAlbumLongPress: (AlbumItem) -> Unit,
+    selectedAlbumIds: Set<Long>,
+    selectionMode: Boolean,
     modifier: Modifier = Modifier
 ) {
     when (layout) {
@@ -776,7 +890,14 @@ private fun AlbumList(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 gridItems(albums, key = AlbumItem::id) { album ->
-                    AlbumGridCard(album = album, onClick = { onAlbumClick(album) })
+                    val isSelected = album.id in selectedAlbumIds
+                    AlbumGridCard(
+                        album = album,
+                        selected = isSelected,
+                        selectionMode = selectionMode,
+                        onClick = { onAlbumClick(album) },
+                        onLongPress = { onAlbumLongPress(album) }
+                    )
                 }
             }
         }
@@ -788,7 +909,14 @@ private fun AlbumList(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(albums, key = AlbumItem::id) { album ->
-                    AlbumRowCard(album = album, onClick = { onAlbumClick(album) })
+                    val isSelected = album.id in selectedAlbumIds
+                    AlbumRowCard(
+                        album = album,
+                        selected = isSelected,
+                        selectionMode = selectionMode,
+                        onClick = { onAlbumClick(album) },
+                        onLongPress = { onAlbumLongPress(album) }
+                    )
                 }
             }
         }
@@ -796,15 +924,25 @@ private fun AlbumList(
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun AlbumGridCard(
     album: AlbumItem,
-    onClick: () -> Unit
+    selected: Boolean,
+    selectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit
 ) {
+    val indicatorColor = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
     Card(
-        onClick = onClick,
         shape = RoundedCornerShape(24.dp),
+        border = if (selected) BorderStroke(2.dp, indicatorColor) else null,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
-        modifier = Modifier.aspectRatio(3f / 4f)
+        modifier = Modifier
+            .aspectRatio(3f / 4f)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
+            )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (!album.coverImageUrl.isNullOrBlank()) {
@@ -839,6 +977,15 @@ private fun AlbumGridCard(
                     )
             )
 
+            if (selectionMode) {
+                SelectionCheckmark(
+                    selected = selected,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -867,19 +1014,26 @@ private fun AlbumGridCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AlbumRowCard(
     album: AlbumItem,
-    onClick: () -> Unit
+    selected: Boolean,
+    selectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit
 ) {
     Card(
-        onClick = onClick,
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongPress
+                )
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -923,7 +1077,38 @@ private fun AlbumRowCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            if (selectionMode) {
+                SelectionCheckmark(selected = selected)
+            }
         }
+    }
+}
+
+@Composable
+private fun SelectionCheckmark(selected: Boolean, modifier: Modifier = Modifier) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = containerColor,
+        tonalElevation = if (selected) 6.dp else 2.dp
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.CheckCircle,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.padding(6.dp)
+        )
     }
 }
 
@@ -1164,6 +1349,17 @@ private fun AlbumSelectionRow(
 }
 
 private fun Set<String>.toggle(id: String, forceAdd: Boolean = false): Set<String> {
+    val mutable = toMutableSet()
+    if (!mutable.add(id) && !forceAdd) {
+        mutable.remove(id)
+    }
+    if (forceAdd) {
+        mutable.add(id)
+    }
+    return mutable
+}
+
+private fun Set<Long>.toggle(id: Long, forceAdd: Boolean = false): Set<Long> {
     val mutable = toMutableSet()
     if (!mutable.add(id) && !forceAdd) {
         mutable.remove(id)

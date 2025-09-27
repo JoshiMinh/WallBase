@@ -63,6 +63,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 import kotlin.math.roundToInt
 
@@ -71,13 +72,18 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     uiState: SettingsViewModel.SettingsUiState,
     onToggleDarkTheme: (Boolean) -> Unit,
-    onExportBackup: () -> Unit,
+    onExportBackup: (Boolean) -> Unit,
     onImportBackup: () -> Unit,
     onMessageShown: () -> Unit,
     onToggleAutoDownload: (Boolean) -> Unit,
     onUpdateStorageLimit: (Long) -> Unit,
     onClearPreviewCache: () -> Unit,
-    onClearOriginals: () -> Unit
+    onClearOriginals: () -> Unit,
+    onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
+    onCheckForUpdates: () -> Unit,
+    onOpenUpdateUrl: (String) -> Unit,
+    onDismissUpdate: () -> Unit,
+    onClearUpdateStatus: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -95,6 +101,12 @@ fun SettingsScreen(
         val message = uiState.message ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         onMessageShown()
+    }
+
+    LaunchedEffect(uiState.updateError) {
+        val error = uiState.updateError ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(error)
+        onClearUpdateStatus()
     }
 
     Scaffold(
@@ -355,7 +367,8 @@ fun SettingsScreen(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(
-                                        text = "Save your sources, library, and albums as a backup file.",
+                                        text = "Save your library and albums as a backup file. " +
+                                            "Optionally include downloaded sources.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -365,7 +378,35 @@ fun SettingsScreen(
                                     text = if (uiState.isBackingUp) "Exporting…" else "Export",
                                     enabled = !uiState.isBackingUp && !uiState.isRestoring,
                                     showProgress = uiState.isBackingUp,
-                                    onClick = onExportBackup
+                                    onClick = { onExportBackup(uiState.includeSourcesInBackup) }
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Include source files",
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = "Attach downloaded wallpapers to the backup file.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Switch(
+                                    checked = uiState.includeSourcesInBackup,
+                                    onCheckedChange = onToggleIncludeSourcesInBackup,
+                                    enabled = !uiState.isBackingUp && !uiState.isRestoring
                                 )
                             }
 
@@ -418,6 +459,114 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    SettingsCard {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "App updates",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Current version ${BuildConfig.VERSION_NAME}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            when {
+                                uiState.isCheckingForUpdates -> {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Text(
+                                            text = "Checking for updates…",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
+
+                                uiState.availableUpdateVersion != null -> {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "Version ${uiState.availableUpdateVersion} is available.",
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                        uiState.updateNotes?.takeIf { it.isNotBlank() }?.let { notes ->
+                                            Text(
+                                                text = notes.trim(),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+
+                                uiState.hasCheckedForUpdates -> {
+                                    Text(
+                                        text = "You're up to date!",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                else -> {
+                                    Text(
+                                        text = "Stay current with the latest releases.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            val updateAvailable = uiState.availableUpdateVersion != null
+                            if (updateAvailable) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val updateUrl = uiState.updateUrl
+                                    Button(
+                                        enabled = updateUrl != null,
+                                        onClick = {
+                                            val url = updateUrl ?: return@Button
+                                            onOpenUpdateUrl(url)
+                                            uriHandler.openUri(url)
+                                        }
+                                    ) {
+                                        Text(text = "Download")
+                                        Icon(
+                                            imageVector = Icons.Outlined.OpenInNew,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .padding(start = 6.dp)
+                                                .size(18.dp)
+                                        )
+                                    }
+
+                                    TextButton(onClick = onDismissUpdate) {
+                                        Text(text = "Not now")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     SettingsLinkCard(
                         title = "GitHub",
                         description = "Explore the project repository.",
@@ -435,6 +584,26 @@ fun SettingsScreen(
                             contentColor = Color.White
                         )
                     )
+                }
+            }
+
+            item {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !uiState.isCheckingForUpdates,
+                    onClick = onCheckForUpdates
+                ) {
+                    if (uiState.isCheckingForUpdates) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(18.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(text = "Checking…")
+                    } else {
+                        Text(text = "Check for updates")
+                    }
                 }
             }
         }

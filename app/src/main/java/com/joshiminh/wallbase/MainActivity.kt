@@ -85,10 +85,12 @@ class MainActivity : ComponentActivity() {
             val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
             val darkTheme = settingsUiState.darkTheme
 
+            var pendingIncludeSources by remember { mutableStateOf(true) }
+
             val backupExporter = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
                 onResult = { uri ->
-                    if (uri != null) settingsViewModel.exportBackup(uri)
+                    if (uri != null) settingsViewModel.exportBackup(uri, pendingIncludeSources)
                 }
             )
 
@@ -116,7 +118,8 @@ class MainActivity : ComponentActivity() {
                     onClearRedditSearch = sourcesViewModel::clearSearchResults,
                     onRemoveSource = sourcesViewModel::removeSource,
                     onSourcesMessageShown = sourcesViewModel::consumeMessage,
-                    onExportBackup = {
+                    onExportBackup = { includeSources ->
+                        pendingIncludeSources = includeSources
                         val timestamp = backupFileFormatter.format(Date())
                         backupExporter.launch("wallbase-backup-$timestamp.wbbackup")
                     },
@@ -135,7 +138,12 @@ class MainActivity : ComponentActivity() {
                     onToggleAutoDownload = settingsViewModel::setAutoDownload,
                     onUpdateStorageLimit = settingsViewModel::setStorageLimit,
                     onClearPreviewCache = settingsViewModel::clearPreviewCache,
-                    onClearOriginals = settingsViewModel::clearOriginalDownloads
+                    onClearOriginals = settingsViewModel::clearOriginalDownloads,
+                    onToggleIncludeSourcesInBackup = settingsViewModel::setIncludeSourcesInBackup,
+                    onCheckForUpdates = settingsViewModel::checkForUpdates,
+                    onOpenUpdateUrl = settingsViewModel::onUpdateUrlOpened,
+                    onDismissUpdate = settingsViewModel::dismissAvailableUpdate,
+                    onClearUpdateStatus = settingsViewModel::clearUpdateStatus
                 )
             }
         }
@@ -195,14 +203,19 @@ fun WallBaseApp(
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
     onSourcesMessageShown: () -> Unit,
-    onExportBackup: () -> Unit,
+    onExportBackup: (Boolean) -> Unit,
     onImportBackup: () -> Unit,
     onSettingsMessageShown: () -> Unit,
     onAddPhotosAlbum: (GooglePhotosAlbum) -> Unit,
     onToggleAutoDownload: (Boolean) -> Unit,
     onUpdateStorageLimit: (Long) -> Unit,
     onClearPreviewCache: () -> Unit,
-    onClearOriginals: () -> Unit
+    onClearOriginals: () -> Unit,
+    onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
+    onCheckForUpdates: () -> Unit,
+    onOpenUpdateUrl: (String) -> Unit,
+    onDismissUpdate: () -> Unit,
+    onClearUpdateStatus: () -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -258,7 +271,8 @@ fun WallBaseApp(
                         }
                     },
                     navigationIcon = {
-                        val overrideNav = topBarState?.navigationIcon
+                        val overrideState = topBarState
+                        val overrideNav = overrideState?.navigationIcon
                         when {
                             overrideNav != null -> {
                                 IconButton(onClick = overrideNav.onClick) {
@@ -268,6 +282,9 @@ fun WallBaseApp(
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
+                            }
+                            overrideState != null -> {
+                                // Explicitly no navigation icon when a top bar state is provided.
                             }
                             canNavigateBack -> {
                                 IconButton(onClick = { navController.navigateUp() }) {
@@ -405,6 +422,9 @@ fun WallBaseApp(
                                 popUpTo("wallpaperDetail") { inclusive = true }
                             }
                         },
+                        onAlbumDeleted = {
+                            navController.popBackStack()
+                        },
                         onConfigureTopBar = acquireTopBar,
                         sharedTransitionScope = sharedScope,
                         animatedVisibilityScope = this
@@ -487,7 +507,12 @@ fun WallBaseApp(
                     onToggleAutoDownload = onToggleAutoDownload,
                     onUpdateStorageLimit = onUpdateStorageLimit,
                     onClearPreviewCache = onClearPreviewCache,
-                    onClearOriginals = onClearOriginals
+                    onClearOriginals = onClearOriginals,
+                    onToggleIncludeSourcesInBackup = onToggleIncludeSourcesInBackup,
+                    onCheckForUpdates = onCheckForUpdates,
+                    onOpenUpdateUrl = onOpenUpdateUrl,
+                    onDismissUpdate = onDismissUpdate,
+                    onClearUpdateStatus = onClearUpdateStatus
                 )
             }
         }

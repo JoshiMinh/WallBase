@@ -38,6 +38,9 @@ class AlbumDetailViewModel(
     private val message = MutableStateFlow<String?>(null)
     private val showRemoveDownloads = MutableStateFlow(false)
     private val rotationUpdating = MutableStateFlow(false)
+    private val renamingAlbum = MutableStateFlow(false)
+    private val deletingAlbum = MutableStateFlow(false)
+    private val albumDeleted = MutableStateFlow(false)
     private var storageLimitBytes: Long = 0L
 
     private data class Base(
@@ -114,6 +117,15 @@ class AlbumDetailViewModel(
             }
             .combine(showRemoveDownloads) { state, showRemove ->
                 state.copy(showRemoveDownloadsConfirmation = showRemove)
+            }
+            .combine(renamingAlbum) { state, renaming ->
+                state.copy(isRenamingAlbum = renaming)
+            }
+            .combine(deletingAlbum) { state, deleting ->
+                state.copy(isDeletingAlbum = deleting)
+            }
+            .combine(albumDeleted) { state, deleted ->
+                state.copy(isAlbumDeleted = deleted)
             }
             .stateIn(
                 scope = viewModelScope,
@@ -194,6 +206,49 @@ class AlbumDetailViewModel(
 
     fun consumeMessage() {
         message.value = null
+    }
+
+    fun consumeAlbumDeleted() {
+        albumDeleted.value = false
+    }
+
+    fun renameAlbum(newTitle: String) {
+        val trimmed = newTitle.trim()
+        if (trimmed.isEmpty()) {
+            message.value = "Enter a name for your album"
+            return
+        }
+        if (renamingAlbum.value) return
+        viewModelScope.launch {
+            renamingAlbum.value = true
+            val result = runCatching { repository.renameAlbum(albumId, trimmed) }
+            renamingAlbum.value = false
+            message.value = result.fold(
+                onSuccess = { album -> "Renamed album to \"${album.title}\"" },
+                onFailure = { throwable -> throwable.localizedMessage ?: "Unable to rename album" }
+            )
+        }
+    }
+
+    fun deleteAlbum() {
+        if (deletingAlbum.value) return
+        viewModelScope.launch {
+            deletingAlbum.value = true
+            val result = runCatching {
+                rotationRepository.disableSchedule(albumId)
+                repository.deleteAlbums(listOf(albumId))
+            }
+            deletingAlbum.value = false
+            result.onSuccess { deleted ->
+                if (deleted > 0) {
+                    albumDeleted.value = true
+                } else {
+                    message.value = "Album not found"
+                }
+            }.onFailure { throwable ->
+                message.value = throwable.localizedMessage ?: "Unable to delete album"
+            }
+        }
     }
 
     fun toggleRotation(enabled: Boolean) {
@@ -290,7 +345,10 @@ class AlbumDetailViewModel(
         val showRemoveDownloadsConfirmation: Boolean = false,
         val wallpaperGridColumns: Int = 2,
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
-        val rotation: RotationUiState = RotationUiState()
+        val rotation: RotationUiState = RotationUiState(),
+        val isRenamingAlbum: Boolean = false,
+        val isDeletingAlbum: Boolean = false,
+        val isAlbumDeleted: Boolean = false
     )
 
     data class RotationUiState(

@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,15 +19,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -37,7 +41,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -95,6 +102,7 @@ import java.util.Date
 fun AlbumDetailRoute(
     albumId: Long,
     onWallpaperSelected: (WallpaperItem) -> Unit,
+    onAlbumDeleted: () -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     viewModel: AlbumDetailViewModel = viewModel(factory = AlbumDetailViewModel.provideFactory(albumId)),
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -105,6 +113,10 @@ fun AlbumDetailRoute(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val canSort = uiState.wallpapers.isNotEmpty()
+    var showAlbumMenu by rememberSaveable { mutableStateOf(false) }
+    var showRenameDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var renameInput by rememberSaveable(title) { mutableStateOf(title) }
     val actionEnabled = canSort &&
         !uiState.isDownloading &&
         !uiState.isRemovingDownloads &&
@@ -144,6 +156,19 @@ fun AlbumDetailRoute(
         if (!canSort && isSearchActive) {
             isSearchActive = false
             searchQuery = ""
+        }
+    }
+
+    LaunchedEffect(showRenameDialog) {
+        if (showRenameDialog) {
+            renameInput = title
+        }
+    }
+
+    LaunchedEffect(uiState.isAlbumDeleted) {
+        if (uiState.isAlbumDeleted) {
+            onAlbumDeleted()
+            viewModel.consumeAlbumDeleted()
         }
     }
 
@@ -271,6 +296,81 @@ fun AlbumDetailRoute(
         },
         onDismissRequest = { showSortSheet = false }
     )
+
+    if (showRenameDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isRenamingAlbum) {
+                    showRenameDialog = false
+                }
+            },
+            title = { Text(text = "Rename album") },
+            text = {
+                OutlinedTextField(
+                    value = renameInput,
+                    onValueChange = { renameInput = it },
+                    label = { Text(text = "Album name") },
+                    singleLine = true,
+                    enabled = !uiState.isRenamingAlbum
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.renameAlbum(renameInput)
+                        showRenameDialog = false
+                    },
+                    enabled = renameInput.isNotBlank() && !uiState.isRenamingAlbum
+                ) {
+                    Text(text = if (uiState.isRenamingAlbum) "Renaming…" else "Rename")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showRenameDialog = false },
+                    enabled = !uiState.isRenamingAlbum
+                ) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isDeletingAlbum) {
+                    showDeleteDialog = false
+                }
+            },
+            title = { Text(text = "Delete album?") },
+            text = {
+                Text(
+                    text = "Deleting this album won't remove the wallpapers from your library.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteAlbum()
+                        showDeleteDialog = false
+                    },
+                    enabled = !uiState.isDeletingAlbum
+                ) {
+                    Text(text = if (uiState.isDeletingAlbum) "Deleting…" else "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    enabled = !uiState.isDeletingAlbum
+                ) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -357,6 +457,48 @@ private fun AlbumDetailScreen(
                             label = { Text("Removing downloads…") }
                         )
                     }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Box {
+                            FilledTonalButton(
+                                onClick = { showAlbumMenu = true },
+                                enabled = !uiState.isRenamingAlbum && !uiState.isDeletingAlbum
+                            ) {
+                                Icon(imageVector = Icons.Outlined.Edit, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(text = "Edit album")
+                            }
+                            DropdownMenu(
+                                expanded = showAlbumMenu,
+                                onDismissRequest = { showAlbumMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Rename album") },
+                                    leadingIcon = {
+                                        Icon(imageVector = Icons.Outlined.Edit, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        showAlbumMenu = false
+                                        showRenameDialog = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete album") },
+                                    leadingIcon = {
+                                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        showAlbumMenu = false
+                                        showDeleteDialog = true
+                                    }
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     if (wallpapers.isEmpty()) {
                         val message = when {
@@ -441,6 +583,7 @@ private fun AlbumDetailScreen(
 
 @Composable
 
+
 private fun RotationScheduleDialog(
     rotationState: AlbumDetailViewModel.RotationUiState,
     canConfigure: Boolean,
@@ -469,7 +612,7 @@ private fun RotationScheduleDialog(
         intervalError = null
     }
 
-    val quickIntervals = remember { listOf(30L, 60L, 180L, 360L, 720L, 1440L) }
+    val quickIntervals = remember { listOf(30L, 60L, 180L, 360L, 720L, 1440L, 2880L, 10080L) }
 
     val commitInterval: () -> Boolean = {
         val minutes = parseIntervalMinutes(intervalValue, selectedIntervalUnit)
@@ -526,91 +669,86 @@ private fun RotationScheduleDialog(
                     }
                 }
 
-                RotationSummaryCard(
-                    summary = rotationSummary(rotationState, canConfigure),
-                    lastApplied = lastApplied,
-                    isUpdating = rotationState.isUpdating
-                )
-
-                RotationToggleRow(
-                    enabled = rotationState.isEnabled,
-                    canConfigure = canConfigure,
-                    isBusy = rotationState.isUpdating,
-                    onToggle = {
-                        if (!it || commitInterval()) {
-                            onToggleRotation(it)
-                        }
-                    }
-                )
-
-                RotationIntervalCard(
-                    value = intervalValue,
-                    unit = selectedIntervalUnit,
-                    units = intervalUnits,
-                    enabled = canConfigure && !rotationState.isUpdating,
-                    errorText = intervalError,
-                    quickIntervals = quickIntervals,
-                    onValueChange = { newValue ->
-                        intervalValue = newValue.filter { it.isDigit() }
-                        if (intervalError != null) {
-                            intervalError = null
-                        }
-                    },
-                    onCommit = {
-                        if (commitInterval()) {
-                            keyboardController?.hide()
-                            focusManager.clearFocus()
-                        }
-                    },
-                    onUnitSelected = { unit ->
-                        if (selectedIntervalUnit != unit) {
-                            val baseMinutes =
-                                parseIntervalMinutes(intervalValue, selectedIntervalUnit)
-                                    ?: rotationState.intervalMinutes
-                            val newValue = unit.valueFromMinutes(baseMinutes)
-                            val newMinutes = unit.toMinutes(newValue)
-                            if (newMinutes != null) {
-                                selectedIntervalUnit = unit
-                                intervalValue = newValue.toString()
-                                intervalError = null
-                                if (newMinutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating) {
-                                    onSelectRotationInterval(newMinutes)
-                                }
+                val scrollState = rememberScrollState()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(scrollState),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    RotationToggleCard(
+                        summary = rotationSummary(rotationState, canConfigure),
+                        lastApplied = lastApplied,
+                        enabled = rotationState.isEnabled,
+                        canConfigure = canConfigure,
+                        isBusy = rotationState.isUpdating,
+                        onToggle = {
+                            if (!it || commitInterval()) {
+                                onToggleRotation(it)
                             }
-                        }
-                    },
-                    onIntervalSelected = { minutes ->
-                        val sanitized = minutes.coerceAtLeast(WallpaperRotationDefaults.MIN_INTERVAL_MINUTES)
-                        val unit = RotationIntervalUnit.fromMinutes(sanitized)
-                        selectedIntervalUnit = unit
-                        intervalValue = unit.displayValue(sanitized)
-                        intervalError = null
-                        onSelectRotationInterval(sanitized)
-                    },
-                    onFocusChanged = { focused ->
-                        if (!focused && intervalFieldFocused) {
+                        },
+                        onRotateNow = onStartRotationNow
+                    )
+                    RotationIntervalCard(
+                        value = intervalValue,
+                        unit = selectedIntervalUnit,
+                        units = intervalUnits,
+                        enabled = canConfigure && !rotationState.isUpdating,
+                        errorText = intervalError,
+                        quickIntervals = quickIntervals,
+                        onValueChange = { newValue ->
+                            intervalValue = newValue.filter { it.isDigit() }
+                            if (intervalError != null) {
+                                intervalError = null
+                            }
+                        },
+                        onCommit = {
                             if (commitInterval()) {
                                 keyboardController?.hide()
+                                focusManager.clearFocus()
                             }
-                            intervalFieldFocused = false
-                        } else if (focused) {
-                            intervalFieldFocused = true
+                        },
+                        onUnitSelected = { unit ->
+                            if (selectedIntervalUnit != unit) {
+                                val baseMinutes =
+                                    parseIntervalMinutes(intervalValue, selectedIntervalUnit)
+                                        ?: rotationState.intervalMinutes
+                                val newValue = unit.valueFromMinutes(baseMinutes)
+                                val newMinutes = unit.toMinutes(newValue)
+                                if (newMinutes != null) {
+                                    selectedIntervalUnit = unit
+                                    intervalValue = newValue.toString()
+                                    intervalError = null
+                                    if (newMinutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating) {
+                                        onSelectRotationInterval(newMinutes)
+                                    }
+                                }
+                            }
+                        },
+                        onIntervalSelected = { minutes ->
+                            val sanitized = minutes.coerceAtLeast(WallpaperRotationDefaults.MIN_INTERVAL_MINUTES)
+                            val unit = RotationIntervalUnit.fromMinutes(sanitized)
+                            selectedIntervalUnit = unit
+                            intervalValue = unit.displayValue(sanitized)
+                            intervalError = null
+                            onSelectRotationInterval(sanitized)
+                        },
+                        onFocusChanged = { focused ->
+                            if (!focused && intervalFieldFocused) {
+                                if (commitInterval()) {
+                                    keyboardController?.hide()
+                                }
+                                intervalFieldFocused = false
+                            } else if (focused) {
+                                intervalFieldFocused = true
+                            }
                         }
-                    }
-                )
-
-                RotationTargetCard(
-                    selectedTarget = rotationState.target,
-                    enabled = canConfigure && !rotationState.isUpdating,
-                    onSelect = onSelectRotationTarget
-                )
-
-                Button(
-                    onClick = onStartRotationNow,
-                    enabled = canConfigure && rotationState.isEnabled && !rotationState.isUpdating,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = "Rotate now")
+                    )
+                    RotationTargetCard(
+                        selectedTarget = rotationState.target,
+                        enabled = canConfigure && !rotationState.isUpdating,
+                        onSelect = onSelectRotationTarget
+                    )
                 }
 
                 TextButton(
@@ -625,64 +763,64 @@ private fun RotationScheduleDialog(
 }
 
 @Composable
-private fun RotationSummaryCard(summary: String, lastApplied: String?, isUpdating: Boolean) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(text = summary, style = MaterialTheme.typography.bodyLarge)
-            if (lastApplied != null) {
-                Text(
-                    text = "Last rotated $lastApplied",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            if (isUpdating) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-}
-
-@Composable
-private fun RotationToggleRow(
+private fun RotationToggleCard(
+    summary: String,
+    lastApplied: String?,
     enabled: Boolean,
     canConfigure: Boolean,
     isBusy: Boolean,
-    onToggle: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit,
+    onRotateNow: () -> Unit
 ) {
     Card(
+        modifier = Modifier.widthIn(min = 240.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+        )
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = "Enable scheduled rotation", style = MaterialTheme.typography.titleMedium)
-                val helperText = when {
-                    !canConfigure -> "Add wallpapers to this album to enable rotation."
-                    enabled -> "Rotation will use the interval and target below."
-                    else -> "Keep your home fresh by turning rotation on."
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "Enable rotation", style = MaterialTheme.typography.titleMedium)
+                Text(text = summary, style = MaterialTheme.typography.bodyMedium)
+                if (lastApplied != null) {
+                    Text(
+                        text = "Last rotated $lastApplied",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
+            }
+            if (isBusy) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = helperText,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = if (enabled) "On" else "Off",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = onToggle,
+                    enabled = canConfigure && !isBusy,
+                    colors = SwitchDefaults.colors()
+                )
             }
-            Switch(
-                checked = enabled,
-                onCheckedChange = onToggle,
-                enabled = canConfigure && !isBusy,
-                colors = SwitchDefaults.colors()
-            )
+            Button(
+                onClick = onRotateNow,
+                enabled = enabled && canConfigure && !isBusy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(text = "Rotate now")
+            }
         }
     }
 }
@@ -703,8 +841,11 @@ private fun RotationIntervalCard(
     onFocusChanged: (Boolean) -> Unit
 ) {
     Card(
+        modifier = Modifier.widthIn(min = 240.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+        )
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
@@ -718,7 +859,10 @@ private fun RotationIntervalCard(
                 singleLine = true,
                 enabled = enabled,
                 isError = errorText != null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done
+                ),
                 keyboardActions = KeyboardActions(onDone = { onCommit() }),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -772,14 +916,17 @@ private fun RotationTargetCard(
 ) {
     val targets = remember {
         listOf(
-            RotationTargetOption(WallpaperTarget.HOME, "Home screen", Icons.Outlined.Home),
-            RotationTargetOption(WallpaperTarget.LOCK, "Lock screen", Icons.Outlined.Lock),
+            RotationTargetOption(WallpaperTarget.HOME, "Home", Icons.Outlined.Home),
+            RotationTargetOption(WallpaperTarget.LOCK, "Lock", Icons.Outlined.Lock),
             RotationTargetOption(WallpaperTarget.BOTH, "Both", Icons.Outlined.Wallpaper)
         )
     }
     Card(
+        modifier = Modifier.widthIn(min = 220.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+        )
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
@@ -801,7 +948,7 @@ private fun RotationTargetCard(
                             MaterialTheme.colorScheme.surfaceColorAtElevation(0.dp)
                         },
                         modifier = Modifier
-                            .widthIn(min = 120.dp)
+                            .widthIn(min = 100.dp)
                             .clickable(enabled = enabled) { onSelect(option.target) }
                     ) {
                         Column(
@@ -840,7 +987,6 @@ private data class RotationTargetOption(
     val label: String,
     val icon: ImageVector
 )
-
 private fun rotationSummary(
     rotation: AlbumDetailViewModel.RotationUiState,
     canConfigure: Boolean
@@ -865,6 +1011,7 @@ private fun formatIntervalText(value: Long, unit: RotationIntervalUnit): String 
         RotationIntervalUnit.MINUTES -> if (value == 1L) "minute" else "minutes"
         RotationIntervalUnit.HOURS -> if (value == 1L) "hour" else "hours"
         RotationIntervalUnit.DAYS -> if (value == 1L) "day" else "days"
+        RotationIntervalUnit.WEEKS -> if (value == 1L) "week" else "weeks"
     }
     return "$value $unitLabel"
 }
@@ -872,7 +1019,8 @@ private fun formatIntervalText(value: Long, unit: RotationIntervalUnit): String 
 private enum class RotationIntervalUnit(val displayName: String, val minutesPerUnit: Long) {
     MINUTES("Minutes", 1),
     HOURS("Hours", 60),
-    DAYS("Days", 1440);
+    DAYS("Days", 1440),
+    WEEKS("Weeks", 10080);
 
     fun toMinutes(value: Long): Long? {
         if (value <= 0) return null
@@ -892,6 +1040,7 @@ private enum class RotationIntervalUnit(val displayName: String, val minutesPerU
     companion object {
         fun fromMinutes(minutes: Long): RotationIntervalUnit {
             return when {
+                minutes % WEEKS.minutesPerUnit == 0L -> WEEKS
                 minutes % DAYS.minutesPerUnit == 0L -> DAYS
                 minutes % HOURS.minutesPerUnit == 0L -> HOURS
                 else -> MINUTES

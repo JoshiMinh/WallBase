@@ -43,7 +43,8 @@ class SettingsRepository(
                 albumLayout = albumLayout,
                 wallpaperLayout = wallpaperLayout,
                 autoDownload = prefs[Keys.AUTO_DOWNLOAD_ENABLED] ?: false,
-                storageLimitBytes = storageLimit.coerceIn(0L, MAX_STORAGE_LIMIT_BYTES)
+                storageLimitBytes = storageLimit.coerceIn(0L, MAX_STORAGE_LIMIT_BYTES),
+                dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION]
             )
         }
 
@@ -85,6 +86,16 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setDismissedUpdateVersion(version: String?) {
+        dataStore.edit { prefs ->
+            if (version.isNullOrBlank()) {
+                prefs.remove(Keys.DISMISSED_UPDATE_VERSION)
+            } else {
+                prefs[Keys.DISMISSED_UPDATE_VERSION] = version
+            }
+        }
+    }
+
     private object Keys {
         val DARK_THEME = booleanPreferencesKey("dark_theme")
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
@@ -92,12 +103,13 @@ class SettingsRepository(
         val WALLPAPER_LAYOUT = stringPreferencesKey("wallpaper_layout")
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
         val STORAGE_LIMIT_BYTES = longPreferencesKey("storage_limit_bytes")
+        val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
     }
 
     companion object {
         private const val DEFAULT_WALLPAPER_COLUMNS = 2
         private const val MIN_WALLPAPER_COLUMNS = 1
-        private const val MAX_WALLPAPER_COLUMNS = 4
+        private const val MAX_WALLPAPER_COLUMNS = 3
         private const val MAX_STORAGE_LIMIT_BYTES = 10L * 1024 * 1024 * 1024 // 10 GB
         private const val DEFAULT_STORAGE_LIMIT_BYTES = 2L * 1024 * 1024 * 1024 // 2 GB
     }
@@ -109,7 +121,8 @@ data class SettingsPreferences(
     val albumLayout: AlbumLayout,
     val wallpaperLayout: WallpaperLayout,
     val autoDownload: Boolean,
-    val storageLimitBytes: Long
+    val storageLimitBytes: Long,
+    val dismissedUpdateVersion: String?
 )
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
