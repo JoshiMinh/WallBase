@@ -7,7 +7,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
@@ -16,17 +18,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -34,7 +38,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -68,6 +73,10 @@ fun EditWallpaperRoute(
         return
     }
 
+    LaunchedEffect(wallpaper.id) {
+        viewModel.prepareEditor()
+    }
+
     LaunchedEffect(uiState.message) {
         val message = uiState.message ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
@@ -81,7 +90,6 @@ fun EditWallpaperRoute(
         uiState = uiState,
         snackbarHostState = snackbarHostState,
         onNavigateBack = onNavigateBack,
-        onPrepareEditor = viewModel::prepareEditor,
         onAdjustBrightness = viewModel::updateBrightness,
         onSelectFilter = viewModel::updateFilter,
         onSelectCrop = viewModel::updateCrop,
@@ -95,7 +103,6 @@ private fun EditWallpaperScreen(
     uiState: WallpaperDetailViewModel.WallpaperDetailUiState,
     snackbarHostState: SnackbarHostState,
     onNavigateBack: () -> Unit,
-    onPrepareEditor: () -> Unit,
     onAdjustBrightness: (Float) -> Unit,
     onSelectFilter: (WallpaperFilter) -> Unit,
     onSelectCrop: (WallpaperCrop) -> Unit,
@@ -104,6 +111,19 @@ private fun EditWallpaperScreen(
     val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(text = "Edit wallpaper") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
     ) { innerPadding ->
@@ -117,98 +137,83 @@ private fun EditWallpaperScreen(
                 wallpaper = wallpaper,
                 editedPreview = uiState.editedPreview,
                 aspectRatio = aspectRatio,
-                onNavigateBack = onNavigateBack
+                isProcessing = uiState.isProcessingEdits,
+                isReady = uiState.isEditorReady
             )
 
             Column(
                 modifier = Modifier
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                Text(
-                    text = "Adjust wallpaper",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                AdjustmentSection(
+                    title = "Brightness",
+                    subtitle = "Fine-tune the exposure",
+                ) {
+                    Slider(
+                        value = uiState.adjustments.brightness,
+                        onValueChange = onAdjustBrightness,
+                        valueRange = -0.5f..0.5f,
+                        enabled = uiState.isEditorReady,
+                        colors = SliderDefaults.colors()
+                    )
+                    val brightnessPercent = (uiState.adjustments.brightness * 100).roundToInt()
+                    Text(
+                        text = "${if (brightnessPercent >= 0) "+" else ""}$brightnessPercent%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-                if (!uiState.isEditorReady) {
-                    Spacer(Modifier.height(4.dp))
-                    if (uiState.isProcessingEdits) {
-                        Text(
-                            text = "Preparing editor…",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        Text(
-                            text = "Load the full-quality image before editing.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick = onPrepareEditor) {
-                            Text(text = "Prepare editor")
+                Spacer(Modifier.height(16.dp))
+
+                AdjustmentSection(
+                    title = "Filters",
+                    subtitle = "Change the overall mood",
+                ) {
+                    FlowingChipRow {
+                        WallpaperFilter.values().forEach { filter ->
+                            FilterChip(
+                                selected = uiState.adjustments.filter == filter,
+                                onClick = { onSelectFilter(filter) },
+                                enabled = uiState.isEditorReady,
+                                label = { Text(text = filter.displayName()) }
+                            )
                         }
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(16.dp))
 
-                Slider(
-                    value = uiState.adjustments.brightness,
-                    onValueChange = onAdjustBrightness,
-                    valueRange = -0.5f..0.5f,
-                    enabled = uiState.isEditorReady,
-                    colors = SliderDefaults.colors()
-                )
-                val brightnessPercent = (uiState.adjustments.brightness * 100).roundToInt()
-                Text(
-                    text = "Brightness ${if (brightnessPercent >= 0) "+" else ""}$brightnessPercent%",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                AdjustmentSection(
+                    title = "Crop",
+                    subtitle = "Select how the wallpaper is framed",
                 ) {
-                    WallpaperFilter.values().forEach { filter ->
-                        FilterChip(
-                            selected = uiState.adjustments.filter == filter,
-                            onClick = { onSelectFilter(filter) },
-                            enabled = uiState.isEditorReady,
-                            label = { Text(text = filter.displayName()) }
-                        )
+                    FlowingChipRow {
+                        WallpaperCrop.values().forEach { crop ->
+                            FilterChip(
+                                selected = uiState.adjustments.crop == crop,
+                                onClick = { onSelectCrop(crop) },
+                                enabled = uiState.isEditorReady,
+                                label = { Text(text = crop.displayName()) }
+                            )
+                        }
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    WallpaperCrop.values().forEach { crop ->
-                        FilterChip(
-                            selected = uiState.adjustments.crop == crop,
-                            onClick = { onSelectCrop(crop) },
-                            enabled = uiState.isEditorReady,
-                            label = { Text(text = crop.displayName()) }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(4.dp))
-
-                TextButton(
+                OutlinedButton(
                     onClick = onResetAdjustments,
                     enabled = !uiState.adjustments.isIdentity
                 ) {
                     Text(text = "Reset adjustments")
                 }
 
-                if (uiState.isProcessingEdits) {
-                    Spacer(Modifier.height(12.dp))
+                if (!uiState.isEditorReady) {
+                    Spacer(Modifier.height(16.dp))
+                    EditorStatusCard(isProcessing = uiState.isProcessingEdits)
+                } else if (uiState.isProcessingEdits) {
+                    Spacer(Modifier.height(16.dp))
                     AssistChip(
                         onClick = {},
                         label = { Text(text = "Updating preview…") },
@@ -225,53 +230,116 @@ private fun WallpaperPreview(
     wallpaper: WallpaperItem,
     editedPreview: android.graphics.Bitmap?,
     aspectRatio: Float,
-    onNavigateBack: () -> Unit,
+    isProcessing: Boolean,
+    isReady: Boolean,
 ) {
     Box(
         modifier = Modifier
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
-                .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
-        ) {
-            if (editedPreview != null) {
-                Image(
-                    bitmap = editedPreview.asImageBitmap(),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(aspectRatio),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                WallpaperPreviewImage(
-                    model = wallpaper.previewModel(),
-                    contentDescription = wallpaper.title,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(aspectRatio),
-                    contentScale = ContentScale.Crop,
-                    clipShape = RoundedCornerShape(24.dp)
-                )
-            }
-        }
-
         Surface(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(12.dp),
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(28.dp),
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
         ) {
-            IconButton(onClick = onNavigateBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
-                )
+            Box {
+                if (editedPreview != null) {
+                    Image(
+                        bitmap = editedPreview.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(aspectRatio),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    WallpaperPreviewImage(
+                        model = wallpaper.previewModel(),
+                        contentDescription = wallpaper.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(aspectRatio),
+                        contentScale = ContentScale.Crop,
+                        clipShape = RoundedCornerShape(28.dp)
+                    )
+                }
+
+                if (!isReady) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(aspectRatio)
+                            .background(Color.Black.copy(alpha = 0.35f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.6f))
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = if (isProcessing) "Preparing full resolution…" else "Starting editor…",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun AdjustmentSection(
+    title: String,
+    subtitle: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(12.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun FlowingChipRow(content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        content = content
+    )
+}
+
+@Composable
+private fun EditorStatusCard(isProcessing: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = if (isProcessing) "Preparing editor…" else "Fetching full-quality image…",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }

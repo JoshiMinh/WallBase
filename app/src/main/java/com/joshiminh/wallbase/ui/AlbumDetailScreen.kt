@@ -3,12 +3,15 @@ package com.joshiminh.wallbase.ui
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.ExperimentalLayoutApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,15 +26,20 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +53,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -62,6 +71,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -431,6 +442,7 @@ private fun AlbumDetailScreen(
 }
 
 @Composable
+
 private fun RotationScheduleDialog(
     rotationState: AlbumDetailViewModel.RotationUiState,
     canConfigure: Boolean,
@@ -458,6 +470,8 @@ private fun RotationScheduleDialog(
         intervalValue = unit.displayValue(rotationState.intervalMinutes)
         intervalError = null
     }
+
+    val quickIntervals = remember { listOf(30L, 60L, 180L, 360L, 720L, 1440L) }
 
     val commitInterval: () -> Boolean = {
         val minutes = parseIntervalMinutes(intervalValue, selectedIntervalUnit)
@@ -493,19 +507,19 @@ private fun RotationScheduleDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
-                .widthIn(max = 420.dp),
+                .widthIn(max = 460.dp),
             shape = MaterialTheme.shapes.large,
-            tonalElevation = 2.dp
+            tonalElevation = 6.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Schedule rotation",
+                        text = "Scheduled rotation",
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.weight(1f)
                     )
@@ -514,179 +528,321 @@ private fun RotationScheduleDialog(
                     }
                 }
 
-                Text(
-                    text = rotationSummary(rotationState, canConfigure),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                RotationSummaryCard(
+                    summary = rotationSummary(rotationState, canConfigure),
+                    lastApplied = lastApplied,
+                    isUpdating = rotationState.isUpdating
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Enable rotation",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        if (!canConfigure) {
-                            Text(
-                                text = "Add wallpapers to this album to enable rotation.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                RotationToggleRow(
+                    enabled = rotationState.isEnabled,
+                    canConfigure = canConfigure,
+                    isBusy = rotationState.isUpdating,
+                    onToggle = {
+                        if (!it || commitInterval()) {
+                            onToggleRotation(it)
                         }
                     }
-                    Switch(
-                        checked = rotationState.isEnabled,
-                        onCheckedChange = { enabled ->
-                            if (!enabled || commitInterval()) {
-                                onToggleRotation(enabled)
-                            }
-                        },
-                        enabled = canConfigure && !rotationState.isUpdating,
-                        colors = SwitchDefaults.colors()
-                    )
-                }
+                )
 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Interval",
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedTextField(
-                                value = intervalValue,
-                                onValueChange = { newValue ->
-                                    val filtered = newValue.filter { it.isDigit() }
-                                    intervalValue = filtered
-                                    if (intervalError != null) {
-                                        intervalError = null
-                                    }
-                                },
-                                label = { Text("Duration") },
-                                singleLine = true,
-                                enabled = canConfigure && !rotationState.isUpdating,
-                                isError = intervalError != null,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = {
-                                        if (commitInterval()) {
-                                            keyboardController?.hide()
-                                            focusManager.clearFocus()
-                                        }
-                                    }
-                                ),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .widthIn(min = 96.dp)
-                                    .onFocusChanged { focusState ->
-                                        if (focusState.isFocused) {
-                                            intervalFieldFocused = true
-                                        } else if (intervalFieldFocused) {
-                                            if (commitInterval()) {
-                                                keyboardController?.hide()
-                                            }
-                                            intervalFieldFocused = false
-                                        }
-                                    }
-                            )
-
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                intervalUnits.forEach { unit ->
-                                    FilterChip(
-                                        selected = selectedIntervalUnit == unit,
-                                        onClick = {
-                                            if (selectedIntervalUnit != unit) {
-                                                val baseMinutes =
-                                                    parseIntervalMinutes(intervalValue, selectedIntervalUnit)
-                                                        ?: rotationState.intervalMinutes
-                                                val newValue = unit.valueFromMinutes(baseMinutes)
-                                                val newMinutes = unit.toMinutes(newValue)
-                                                if (newMinutes != null) {
-                                                    selectedIntervalUnit = unit
-                                                    intervalValue = newValue.toString()
-                                                    intervalError = null
-                                                    if (newMinutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating) {
-                                                        onSelectRotationInterval(newMinutes)
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        enabled = canConfigure && !rotationState.isUpdating,
-                                        label = { Text(unit.displayName) }
-                                    )
+                RotationIntervalCard(
+                    value = intervalValue,
+                    unit = selectedIntervalUnit,
+                    units = intervalUnits,
+                    enabled = canConfigure && !rotationState.isUpdating,
+                    errorText = intervalError,
+                    quickIntervals = quickIntervals,
+                    onValueChange = { newValue ->
+                        intervalValue = newValue.filter { it.isDigit() }
+                        if (intervalError != null) {
+                            intervalError = null
+                        }
+                    },
+                    onCommit = {
+                        if (commitInterval()) {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                        }
+                    },
+                    onUnitSelected = { unit ->
+                        if (selectedIntervalUnit != unit) {
+                            val baseMinutes =
+                                parseIntervalMinutes(intervalValue, selectedIntervalUnit)
+                                    ?: rotationState.intervalMinutes
+                            val newValue = unit.valueFromMinutes(baseMinutes)
+                            val newMinutes = unit.toMinutes(newValue)
+                            if (newMinutes != null) {
+                                selectedIntervalUnit = unit
+                                intervalValue = newValue.toString()
+                                intervalError = null
+                                if (newMinutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating) {
+                                    onSelectRotationInterval(newMinutes)
                                 }
                             }
                         }
-
-                        intervalError?.let { error ->
-                            Text(
-                                text = error,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Apply to",
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                        val targetScroll = rememberScrollState()
-                        Row(
-                            modifier = Modifier.horizontalScroll(targetScroll),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf(
-                                WallpaperTarget.HOME,
-                                WallpaperTarget.LOCK,
-                                WallpaperTarget.BOTH
-                            ).forEach { target ->
-                                FilterChip(
-                                    selected = rotationState.target == target,
-                                    onClick = { onSelectRotationTarget(target) },
-                                    enabled = canConfigure && !rotationState.isUpdating,
-                                    label = { Text(target.label) }
-                                )
+                    },
+                    onIntervalSelected = { minutes ->
+                        val sanitized = minutes.coerceAtLeast(WallpaperRotationDefaults.MIN_INTERVAL_MINUTES)
+                        val unit = RotationIntervalUnit.fromMinutes(sanitized)
+                        selectedIntervalUnit = unit
+                        intervalValue = unit.displayValue(sanitized)
+                        intervalError = null
+                        onSelectRotationInterval(sanitized)
+                    },
+                    onFocusChanged = { focused ->
+                        if (!focused && intervalFieldFocused) {
+                            if (commitInterval()) {
+                                keyboardController?.hide()
                             }
+                            intervalFieldFocused = false
+                        } else if (focused) {
+                            intervalFieldFocused = true
                         }
                     }
+                )
+
+                RotationTargetCard(
+                    selectedTarget = rotationState.target,
+                    enabled = canConfigure && !rotationState.isUpdating,
+                    onSelect = onSelectRotationTarget
+                )
+
+                Button(
+                    onClick = onStartRotationNow,
+                    enabled = canConfigure && rotationState.isEnabled && !rotationState.isUpdating,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = "Rotate now")
                 }
 
-                if (lastApplied != null) {
-                    Text(
-                        text = "Last rotated $lastApplied",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text(text = "Close")
+                }
+            }
+        }
+    }
+}
+}
+
+@Composable
+private fun RotationSummaryCard(summary: String, lastApplied: String?, isUpdating: Boolean) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(text = summary, style = MaterialTheme.typography.bodyLarge)
+            if (lastApplied != null) {
+                Text(
+                    text = "Last rotated $lastApplied",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (isUpdating) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
+}
+
+@Composable
+private fun RotationToggleRow(
+    enabled: Boolean,
+    canConfigure: Boolean,
+    isBusy: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = "Enable scheduled rotation", style = MaterialTheme.typography.titleMedium)
+                val helperText = when {
+                    !canConfigure -> "Add wallpapers to this album to enable rotation."
+                    enabled -> "Rotation will use the interval and target below."
+                    else -> "Keep your home fresh by turning rotation on."
+                }
+                Text(
+                    text = helperText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = enabled,
+                onCheckedChange = onToggle,
+                enabled = canConfigure && !isBusy,
+                colors = SwitchDefaults.colors()
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RotationIntervalCard(
+    value: String,
+    unit: RotationIntervalUnit,
+    units: List<RotationIntervalUnit>,
+    enabled: Boolean,
+    errorText: String?,
+    quickIntervals: List<Long>,
+    onValueChange: (String) -> Unit,
+    onCommit: () -> Unit,
+    onUnitSelected: (RotationIntervalUnit) -> Unit,
+    onIntervalSelected: (Long) -> Unit,
+    onFocusChanged: (Boolean) -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(text = "Rotate every", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                label = { Text(text = "Duration") },
+                singleLine = true,
+                enabled = enabled,
+                isError = errorText != null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { onCommit() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { onFocusChanged(it.isFocused) }
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                quickIntervals.distinct().sorted().forEach { minutes ->
+                    val displayUnit = RotationIntervalUnit.fromMinutes(minutes)
+                    val displayValue = displayUnit.valueFromMinutes(minutes)
+                    AssistChip(
+                        onClick = { onIntervalSelected(minutes) },
+                        enabled = enabled,
+                        label = { Text(text = formatIntervalText(displayValue, displayUnit)) }
                     )
                 }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                units.forEach { item ->
+                    FilterChip(
+                        selected = unit == item,
+                        onClick = { onUnitSelected(item) },
+                        enabled = enabled,
+                        label = { Text(text = item.displayName) }
+                    )
+                }
+            }
+            if (errorText != null) {
+                Text(
+                    text = errorText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+}
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(text = "Done")
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Button(
-                        onClick = onStartRotationNow,
-                        enabled = canConfigure && rotationState.isEnabled && !rotationState.isUpdating
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RotationTargetCard(
+    selectedTarget: WallpaperTarget,
+    enabled: Boolean,
+    onSelect: (WallpaperTarget) -> Unit
+) {
+    val targets = remember {
+        listOf(
+            RotationTargetOption(WallpaperTarget.HOME, "Home screen", Icons.Outlined.Home),
+            RotationTargetOption(WallpaperTarget.LOCK, "Lock screen", Icons.Outlined.Lock),
+            RotationTargetOption(WallpaperTarget.BOTH, "Both", Icons.Outlined.Wallpaper)
+        )
+    }
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(text = "Apply to", style = MaterialTheme.typography.titleMedium)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                targets.forEach { option ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        tonalElevation = if (selectedTarget == option.target) 6.dp else 0.dp,
+                        color = if (selectedTarget == option.target) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceColorAtElevation(0.dp)
+                        },
+                        modifier = Modifier
+                            .widthIn(min = 120.dp)
+                            .clickable(enabled = enabled) { onSelect(option.target) }
                     ) {
-                        Text(text = "Rotate now")
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = option.icon,
+                                contentDescription = option.label,
+                                tint = if (selectedTarget == option.target) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                            Text(
+                                text = option.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (selectedTarget == option.target) {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
+
+private data class RotationTargetOption(
+    val target: WallpaperTarget,
+    val label: String,
+    val icon: ImageVector
+)
 
 private fun rotationSummary(
     rotation: AlbumDetailViewModel.RotationUiState,

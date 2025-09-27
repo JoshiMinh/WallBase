@@ -7,6 +7,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -34,9 +36,11 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Album
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -85,6 +89,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -237,6 +242,7 @@ fun LibraryScreen(
     val topBarState = if (selectionMode) {
         val selectionTitle = "${selectedIds.size} selected"
         val removeLabel = "Remove from library"
+        val selectAllLabel = "Select all"
         val addLabel = "Add to album"
         val allSelectedDownloaded = selectedWallpapers.isNotEmpty() &&
             selectedWallpapers.all { it.isDownloaded && !it.localUri.isNullOrBlank() }
@@ -247,6 +253,17 @@ fun LibraryScreen(
         }
         val clearLabel = "Clear selection"
         val actions: @Composable RowScope.() -> Unit = {
+            val selectAllEnabled = !uiState.isSelectionActionInProgress &&
+                displayedWallpapers.isNotEmpty() &&
+                selectedIds.size < displayedWallpapers.size
+            IconButton(
+                onClick = {
+                    selectedIds = displayedWallpapers.mapTo(mutableSetOf<String>()) { it.id }
+                },
+                enabled = selectAllEnabled
+            ) {
+                Icon(imageVector = Icons.Outlined.SelectAll, contentDescription = selectAllLabel)
+            }
             IconButton(
                 onClick = {
                     if (selectedWallpapers.isNotEmpty()) {
@@ -760,7 +777,7 @@ private fun AlbumList(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 gridItems(albums, key = AlbumItem::id) { album ->
-                    AlbumCard(album = album, onClick = { onAlbumClick(album) })
+                    AlbumGridCard(album = album, onClick = { onAlbumClick(album) })
                 }
             }
         }
@@ -772,7 +789,7 @@ private fun AlbumList(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(albums, key = AlbumItem::id) { album ->
-                    AlbumCard(album = album, onClick = { onAlbumClick(album) })
+                    AlbumRowCard(album = album, onClick = { onAlbumClick(album) })
                 }
             }
         }
@@ -780,40 +797,131 @@ private fun AlbumList(
 }
 
 @Composable
-private fun AlbumCard(
+private fun AlbumGridCard(
     album: AlbumItem,
     onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
+        modifier = Modifier.aspectRatio(3f / 4f)
     ) {
-        Column(
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (!album.coverImageUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = album.coverImageUrl,
+                    contentDescription = album.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.surface
+                                )
+                            )
+                        )
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.65f))
+                        )
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                ) {
+                    Text(
+                        text = "${album.wallpaperCount} wallpapers",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                Text(
+                    text = album.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumRowCard(
+    album: AlbumItem,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = album.title,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = "${album.wallpaperCount} wallpapers",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            album.coverImageUrl?.let { cover ->
-                AsyncImage(
-                    model = cover,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
+            Box(
+                modifier = Modifier
+                    .size(92.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                if (!album.coverImageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = album.coverImageUrl,
+                        contentDescription = album.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Wallpaper,
+                        contentDescription = null,
+                        modifier = Modifier.align(Alignment.Center),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = album.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "${album.wallpaperCount} wallpapers",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
