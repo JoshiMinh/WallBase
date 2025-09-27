@@ -6,7 +6,6 @@ import android.content.Context
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.pm.ServiceInfoCompat
 import androidx.core.net.toUri
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
@@ -118,8 +117,7 @@ class WallpaperRotationWorker(
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ForegroundInfo(
                 NOTIFICATION_ID,
-                notification,
-                ServiceInfoCompat.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                notification
             )
         } else {
             ForegroundInfo(NOTIFICATION_ID, notification)
