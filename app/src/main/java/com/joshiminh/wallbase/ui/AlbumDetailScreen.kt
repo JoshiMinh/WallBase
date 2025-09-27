@@ -8,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -283,7 +284,12 @@ fun AlbumDetailRoute(
         onSelectRotationTarget = viewModel::updateRotationTarget,
         onStartRotationNow = viewModel::triggerRotationNow,
         sharedTransitionScope = sharedTransitionScope,
-        animatedVisibilityScope = animatedVisibilityScope
+        animatedVisibilityScope = animatedVisibilityScope,
+        // NEW:
+        showAlbumMenu = showAlbumMenu,
+        onShowAlbumMenuChange = { showAlbumMenu = it },
+        onRequestRename = { showRenameDialog = true },
+        onRequestDelete = { showDeleteDialog = true }
     )
 
     SortBottomSheet(
@@ -389,7 +395,12 @@ private fun AlbumDetailScreen(
     onSelectRotationTarget: (WallpaperTarget) -> Unit,
     onStartRotationNow: () -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
-    animatedVisibilityScope: AnimatedVisibilityScope?
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+    // NEW:
+    showAlbumMenu: Boolean,
+    onShowAlbumMenuChange: (Boolean) -> Unit,
+    onRequestRename: () -> Unit,
+    onRequestDelete: () -> Unit
 ) {
     val hasQuery = isSearching && searchQuery.isNotBlank()
     var showRotationDialog by rememberSaveable { mutableStateOf(false) }
@@ -465,35 +476,32 @@ private fun AlbumDetailScreen(
                     ) {
                         Box {
                             FilledTonalButton(
-                                onClick = { showAlbumMenu = true },
-                                enabled = !uiState.isRenamingAlbum && !uiState.isDeletingAlbum
+                                onClick = { onShowAlbumMenuChange(true) },
+                                enabled = !state.isRenamingAlbum && !state.isDeletingAlbum  // was uiState
                             ) {
                                 Icon(imageVector = Icons.Outlined.Edit, contentDescription = null)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(text = "Edit album")
                             }
+
                             DropdownMenu(
                                 expanded = showAlbumMenu,
-                                onDismissRequest = { showAlbumMenu = false }
+                                onDismissRequest = { onShowAlbumMenuChange(false) }
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("Rename album") },
-                                    leadingIcon = {
-                                        Icon(imageVector = Icons.Outlined.Edit, contentDescription = null)
-                                    },
+                                    leadingIcon = { Icon(imageVector = Icons.Outlined.Edit, contentDescription = null) },
                                     onClick = {
-                                        showAlbumMenu = false
-                                        showRenameDialog = true
+                                        onShowAlbumMenuChange(false)
+                                        onRequestRename() // was showRenameDialog = true
                                     }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Delete album") },
-                                    leadingIcon = {
-                                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = null)
-                                    },
+                                    leadingIcon = { Icon(imageVector = Icons.Outlined.Delete, contentDescription = null) },
                                     onClick = {
-                                        showAlbumMenu = false
-                                        showDeleteDialog = true
+                                        onShowAlbumMenuChange(false)
+                                        onRequestDelete() // was showDeleteDialog = true
                                     }
                                 )
                             }
