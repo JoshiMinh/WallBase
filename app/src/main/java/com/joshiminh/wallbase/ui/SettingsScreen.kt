@@ -534,6 +534,7 @@ fun SettingsScreen(
                             }
 
                             val updateAvailable = uiState.availableUpdateVersion != null
+                            val isChecking = uiState.isCheckingForUpdates
                             if (updateAvailable) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -563,6 +564,13 @@ fun SettingsScreen(
                                         Text(text = "Not now")
                                     }
                                 }
+                            } else {
+                                SettingsActionButton(
+                                    text = if (isChecking) "Checking…" else "Check for updates",
+                                    enabled = !isChecking,
+                                    showProgress = isChecking,
+                                    onClick = onCheckForUpdates
+                                )
                             }
                         }
                     }
@@ -587,25 +595,6 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !uiState.isCheckingForUpdates,
-                    onClick = onCheckForUpdates
-                ) {
-                    if (uiState.isCheckingForUpdates) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .padding(end = 8.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Text(text = "Checking…")
-                    } else {
-                        Text(text = "Check for updates")
-                    }
-                }
-            }
         }
     }
 }
