@@ -53,7 +53,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.joshiminh.wallbase.data.entity.source.Source
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.ui.AlbumDetailRoute
@@ -67,6 +66,7 @@ import com.joshiminh.wallbase.ui.WallpaperDetailRoute
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
+import com.joshiminh.wallbase.ui.viewmodel.WallpaperSelectionViewModel
 import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import java.text.SimpleDateFormat
@@ -207,6 +207,7 @@ fun WallBaseApp(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val photosToken = remember { "" }
+    val wallpaperSelectionViewModel: WallpaperSelectionViewModel = viewModel()
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
     var topBarState by remember { mutableStateOf<TopBarState?>(null) }
     var topBarOwnerId by remember { mutableStateOf<Long?>(null) }
@@ -332,10 +333,7 @@ fun WallBaseApp(
                 composable(RootRoute.Library.route) {
                     LibraryScreen(
                         onWallpaperSelected = { wallpaper ->
-                            navController.currentBackStackEntry?.savedStateHandle?.set(
-                                "wallpaper_detail",
-                                wallpaper
-                            )
+                            wallpaperSelectionViewModel.select(wallpaper)
                             navController.navigateSingleTop("wallpaperDetail") {
                                 popUpTo("wallpaperDetail") { inclusive = true }
                             }
@@ -382,10 +380,7 @@ fun WallBaseApp(
                     SourceBrowseRoute(
                         sourceKey = key,
                         onWallpaperSelected = { wallpaper ->
-                            navController.currentBackStackEntry?.savedStateHandle?.set(
-                                "wallpaper_detail",
-                                wallpaper
-                            )
+                            wallpaperSelectionViewModel.select(wallpaper)
                             navController.navigateSingleTop("wallpaperDetail") {
                                 popUpTo("wallpaperDetail") { inclusive = true }
                             }
@@ -404,10 +399,7 @@ fun WallBaseApp(
                     AlbumDetailRoute(
                         albumId = id,
                         onWallpaperSelected = { wallpaper ->
-                            navController.currentBackStackEntry?.savedStateHandle?.set(
-                                "wallpaper_detail",
-                                wallpaper
-                            )
+                            wallpaperSelectionViewModel.select(wallpaper)
                             navController.navigateSingleTop("wallpaperDetail") {
                                 popUpTo("wallpaperDetail") { inclusive = true }
                             }
@@ -419,40 +411,21 @@ fun WallBaseApp(
                 }
             }
             composable("wallpaperDetail") {
-                val previousEntry = navController.previousBackStackEntry
-                if (previousEntry == null) {
+                val wallpaper by wallpaperSelectionViewModel.selectedWallpaper.collectAsStateWithLifecycle()
+                if (wallpaper == null) {
                     topBarState = null
                     val activity = LocalActivity.current
                     LaunchedEffect(Unit) {
+                        wallpaperSelectionViewModel.clear()
                         val popped = navController.popBackStack()
                         if (!popped) {
                             activity?.finish()
                         }
                     }
-                    return@composable
-                }
-                val sourceHandle = previousEntry?.savedStateHandle
-                val wallpaperState = remember(sourceHandle) {
-                    sourceHandle?.getStateFlow<WallpaperItem?>("wallpaper_detail", null)
-                }?.collectAsStateWithLifecycle()
-                val wallpaper = wallpaperState?.value
-
-                DisposableEffect(previousEntry?.id) {
-                    val handle = sourceHandle
-                    onDispose {
-                        handle?.remove<WallpaperItem>("wallpaper_detail")
-                    }
-                }
-
-                if (wallpaper == null) {
-                    topBarState = null
-                    LaunchedEffect(Unit) {
-                        sourceHandle?.remove<WallpaperItem>("wallpaper_detail")
-                        navController.popBackStack()
-                    }
                 } else {
                     val activity = LocalActivity.current
                     val navigateBack: () -> Unit = {
+                        wallpaperSelectionViewModel.clear()
                         val popped = navController.popBackStack()
                         if (!popped) {
                             activity?.finish()
@@ -461,14 +434,20 @@ fun WallBaseApp(
 
                     BackHandler(onBack = navigateBack)
 
+                    val viewModel: WallpaperDetailViewModel = viewModel(
+                        factory = WallpaperDetailViewModel.Factory
+                    )
+
                     WallpaperDetailRoute(
                         wallpaper = wallpaper,
                         onNavigateBack = navigateBack,
                         onEditWallpaper = {
+                            viewModel.prepareEditor()
                             navController.navigate("wallpaperDetail/edit")
                         },
                         sharedTransitionScope = sharedScope,
-                        animatedVisibilityScope = this
+                        animatedVisibilityScope = this,
+                        viewModel = viewModel
                     )
 
                     LaunchedEffect(wallpaper.id) {

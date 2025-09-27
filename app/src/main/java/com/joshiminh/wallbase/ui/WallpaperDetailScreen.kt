@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,9 +38,13 @@ import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Wallpaper as RoundedWallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -62,17 +67,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
 import kotlin.collections.buildList
@@ -168,6 +175,7 @@ private fun WallpaperDetailScreen(
 ) {
     val wallpaper = uiState.wallpaper ?: return
     val uriHandler = LocalUriHandler.current
+    val hasSourceUrl = !wallpaper.sourceUrl.isNullOrBlank()
     val canAddToLibrary = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     val canRemoveFromLibrary = uiState.isInLibrary && wallpaper.sourceKey != null
     val canDownload = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
@@ -337,19 +345,12 @@ private fun WallpaperDetailScreen(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    val hasSourceUrl = !wallpaper.sourceUrl.isNullOrBlank()
-                    TextButton(
-                        onClick = { wallpaper.sourceUrl?.let(uriHandler::openUri) },
-                        enabled = hasSourceUrl,
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Text(
-                            text = wallpaper.title.ifBlank { "Untitled wallpaper" },
-                            style = MaterialTheme.typography.titleLarge,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = wallpaper.title.ifBlank { "Untitled wallpaper" },
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Text(
                         text = wallpaper.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
                         style = MaterialTheme.typography.bodyMedium,
@@ -466,8 +467,24 @@ private fun WallpaperDetailScreen(
                     } else {
                         Icon(imageVector = Icons.Outlined.Wallpaper, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text(text = "Set wallpaper")
+                        Text(text = "Set")
                     }
+                }
+            }
+
+            if (hasSourceUrl) {
+                TextButton(
+                    onClick = { wallpaper.sourceUrl?.let(uriHandler::openUri) },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                    modifier = Modifier.align(Alignment.Start)
+                ) {
+                    Text(
+                        text = "Open original",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
@@ -594,43 +611,129 @@ private fun SetWallpaperDialog(
     onTargetSelected: (WallpaperTarget) -> Unit,
     isApplying: Boolean
 ) {
+    val applyOptions = remember {
+        listOf(
+            ApplyOption(
+                target = WallpaperTarget.HOME,
+                title = "Home screen",
+                description = "Replace the wallpaper on your home screen.",
+                icon = Icons.Rounded.Home
+            ),
+            ApplyOption(
+                target = WallpaperTarget.LOCK,
+                title = "Lock screen",
+                description = "Show this wallpaper when your device is locked.",
+                icon = Icons.Rounded.Lock
+            ),
+            ApplyOption(
+                target = WallpaperTarget.BOTH,
+                title = "Both screens",
+                description = "Apply everywhere for a consistent look.",
+                icon = RoundedWallpaper
+            )
+        )
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "Choose where to apply") },
+        title = { Text(text = "Set wallpaper") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(text = "Select where you want to set this wallpaper.")
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onTargetSelected(WallpaperTarget.HOME) },
-                    enabled = !isApplying
-                ) {
-                    Text(text = "Set as home screen")
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    text = "Choose where to apply this wallpaper.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (isApplying) {
+                    AssistiveLoadingRow()
                 }
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onTargetSelected(WallpaperTarget.LOCK) },
-                    enabled = !isApplying
-                ) {
-                    Text(text = "Set as lock screen")
-                }
-                Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { onTargetSelected(WallpaperTarget.BOTH) },
-                    enabled = !isApplying
-                ) {
-                    Text(text = "Set as both screens")
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    applyOptions.forEach { option ->
+                        ApplyOptionCard(
+                            option = option,
+                            enabled = !isApplying,
+                            onClick = { onTargetSelected(option.target) }
+                        )
+                    }
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "Back")
+            TextButton(onClick = onDismiss, enabled = !isApplying) {
+                Text(text = "Cancel")
             }
         }
     )
 }
+
+@Composable
+private fun AssistiveLoadingRow() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+        Text(
+            text = "Applying wallpaper…",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ApplyOptionCard(
+    option: ApplyOption,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(enabled = enabled, role = Role.Button) { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 2.dp,
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = option.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = option.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = option.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+private data class ApplyOption(
+    val target: WallpaperTarget,
+    val title: String,
+    val description: String,
+    val icon: ImageVector
+)
 
 @Composable
 private fun PreviewFallbackDialog(

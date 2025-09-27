@@ -6,10 +6,12 @@ package com.joshiminh.wallbase.data
 
 import android.content.ContentResolver
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import androidx.core.net.toFile
 import androidx.documentfile.provider.DocumentFile
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.joshiminh.wallbase.data.entity.source.DefaultSources
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
@@ -49,22 +51,30 @@ class DatabaseBackupManager(
             }
 
             val tempFile = File.createTempFile("wallbase_export_", ".db", context.cacheDir)
-            var usedVacuum: Boolean
 
             try {
                 val quotedPath = tempFile.absolutePath.replace("'", "''")
-                usedVacuum = runCatching {
+                val usedVacuum = runCatching {
                     sqliteDb.execSQL("VACUUM INTO '$quotedPath'")
                 }.isSuccess
 
-                val sourceFile = if (usedVacuum) tempFile else dbFile
+                if (!usedVacuum) {
+                    FileInputStream(dbFile).use { input ->
+                        FileOutputStream(tempFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                }
+
+                sanitizeDatabaseForExport(tempFile)
+
                 val wallpapersWithMedia = database.wallpaperDao()
                     .getWallpapersWithLocalMedia()
 
                 context.contentResolver.openOutputStream(destination)?.use { output ->
                     ZipOutputStream(BufferedOutputStream(output)).use { zip ->
                         zip.putNextEntry(ZipEntry(DATABASE_ENTRY))
-                        sourceFile.inputStream().use { input -> input.copyTo(zip) }
+                        tempFile.inputStream().use { input -> input.copyTo(zip) }
                         zip.closeEntry()
 
                         if (wallpapersWithMedia.isNotEmpty()) {
@@ -325,6 +335,27 @@ class DatabaseBackupManager(
                 ?: sourceKey.substringBefore(':', sourceKey)
             val sanitizedFolder = localStorage.sanitizeFolderName(rawFolder)
             FolderInfo(sanitizedFolder, null)
+        }
+    }
+
+    private fun sanitizeDatabaseForExport(databaseFile: File) {
+        val excludedKeys = DefaultSources.map { it.key }.toSet()
+        if (excludedKeys.isEmpty()) return
+
+        SQLiteDatabase.openDatabase(
+            databaseFile.absolutePath,
+            null,
+            SQLiteDatabase.OPEN_READWRITE
+        ).use { db ->
+            db.beginTransaction()
+            try {
+                excludedKeys.forEach { key ->
+                    db.delete("sources", "key = ?", arrayOf(key))
+                }
+                db.setTransactionSuccessful()
+            } finally {
+                db.endTransaction()
+            }
         }
     }
 

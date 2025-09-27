@@ -85,7 +85,7 @@ class SettingsViewModel(
             val result = backupManager.importBackup(source)
             val message = result.fold(
                 onSuccess = {
-                    "Backup imported."
+                    "Backup imported. Please restart the app to continue."
                 },
                 onFailure = { error ->
                     val detail = error.localizedMessage

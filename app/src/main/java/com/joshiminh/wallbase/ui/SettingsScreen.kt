@@ -5,9 +5,10 @@ import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +32,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -64,6 +66,7 @@ import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsScreen(
     uiState: SettingsViewModel.SettingsUiState,
@@ -168,35 +171,70 @@ fun SettingsScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
-                            Text(
-                                text = "Downloads & storage",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                text = "Control automatic downloads and cached files.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Downloads & storage",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Control automatic downloads and cached files.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
 
-                            SettingsListItem(
-                                headline = "Auto-download",
-                                supporting = "Download originals when you save wallpapers.",
-                                leadingIcon = Icons.Outlined.Download,
-                                trailingContent = {
-                                    Switch(
-                                        checked = uiState.autoDownload,
-                                        onCheckedChange = onToggleAutoDownload
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(imageVector = Icons.Outlined.Download, contentDescription = null)
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "Auto-download",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = "Download originals when you save wallpapers.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                            )
+                                Switch(
+                                    checked = uiState.autoDownload,
+                                    onCheckedChange = onToggleAutoDownload
+                                )
+                            }
 
-                            SettingsListItem(
-                                headline = "Storage usage",
-                                supportingIcon = Icons.Outlined.Storage
-                            ) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(imageVector = Icons.Outlined.Storage, contentDescription = null)
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = "Storage usage",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                        Text(
+                                            text = "See how much space downloads and previews use.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                                 StorageUsageContent(
                                     hasUsage = hasUsage,
                                     storageBytes = storageBytes,
@@ -208,15 +246,27 @@ fun SettingsScreen(
                                 )
                             }
 
-                            SettingsListItem(
-                                headline = "Storage limit",
-                                supportingIcon = Icons.Outlined.Storage
-                            ) {
-                                Text(
-                                    text = "Original downloads cap: $limitLabel",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(imageVector = Icons.Outlined.Storage, contentDescription = null)
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = "Storage limit",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                        Text(
+                                            text = "Current cap: $limitLabel",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                                 Slider(
                                     value = storageSliderValue.coerceIn(0f, 10f),
                                     onValueChange = { storageSliderValue = it },
@@ -239,16 +289,35 @@ fun SettingsScreen(
                                 )
                             }
 
-                            SettingsListItem(
-                                headline = "Cache actions",
-                                supporting = "Quickly clear cached wallpaper files.",
-                                leadingIcon = Icons.Outlined.CleaningServices
-                            ) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(imageVector = Icons.Outlined.CleaningServices, contentDescription = null)
+                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                        Text(
+                                            text = "Cache actions",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                        Text(
+                                            text = "Quickly clear cached wallpaper files.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                    maxItemsInEachRow = 2
                                 ) {
                                     CacheActionButton(
+                                        modifier = Modifier.weight(1f),
                                         text = "Delete previews",
                                         icon = Icons.Outlined.Image,
                                         onClick = onClearPreviewCache,
@@ -256,6 +325,7 @@ fun SettingsScreen(
                                         showProgress = uiState.isClearingPreviews
                                     )
                                     CacheActionButton(
+                                        modifier = Modifier.weight(1f),
                                         text = "Delete originals",
                                         icon = Icons.Outlined.Storage,
                                         onClick = onClearOriginals,
@@ -565,26 +635,35 @@ private fun StorageUsageContent(
 
 @Composable
 private fun CacheActionButton(
+    modifier: Modifier = Modifier,
     text: String,
     icon: ImageVector,
     onClick: () -> Unit,
     enabled: Boolean,
     showProgress: Boolean
 ) {
-    TextButton(
+    FilledTonalButton(
+        modifier = modifier,
         onClick = onClick,
         enabled = enabled,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
     ) {
         if (showProgress) {
             CircularProgressIndicator(
                 modifier = Modifier
                     .size(16.dp)
-                    .padding(end = 6.dp),
-                strokeWidth = 2.dp
+                    .padding(end = 8.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
         } else {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(18.dp)
+                    .padding(end = 8.dp)
+            )
         }
         Text(text = text)
     }
