@@ -3,7 +3,10 @@ package com.joshiminh.wallbase.util.wallpapers.rotation
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.pm.ServiceInfoCompat
 import androidx.core.net.toUri
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
@@ -24,13 +27,15 @@ class WallpaperRotationWorker(
         ServiceLocator.initialize(applicationContext)
         val rotationRepository = ServiceLocator.rotationRepository
         val schedule = rotationRepository.getActiveSchedule() ?: return Result.success()
+        val foregroundInfo = buildForegroundInfo()
+        setForeground(foregroundInfo)
+
         val wallpapers = rotationRepository.fetchAlbumWallpapers(schedule.albumId)
         if (wallpapers.isEmpty()) {
             rotationRepository.disableSchedule(schedule.albumId)
             return Result.success()
         }
         val next = selectNextWallpaper(wallpapers, schedule.lastWallpaperId) ?: return Result.success()
-        setForeground(createForegroundInfo())
         val model: Any = next.localUri?.takeIf { it.isNotBlank() }?.toUri() ?: next.imageUrl
         val editor = WallpaperEditor(applicationContext)
         val applier = WallpaperApplier(applicationContext)
@@ -81,14 +86,16 @@ class WallpaperRotationWorker(
         private const val CHANNEL_ID_SUFFIX = "wallpaper_rotation"
     }
 
+    override suspend fun getForegroundInfo(): ForegroundInfo = buildForegroundInfo()
 
-    private fun createForegroundInfo(): ForegroundInfo {
+    @Suppress("DEPRECATION")
+    private fun buildForegroundInfo(): ForegroundInfo {
         val context = applicationContext
         val channelId = "${context.packageName}.$CHANNEL_ID_SUFFIX"
         val channelName = "Wallpaper rotation"
         val notificationTitle = "Wallpaper rotation running"
         val notificationText = "Applying scheduled wallpaper rotation."
-        val manager = context.getSystemService(NotificationManager::class.java)
+        val manager = NotificationManagerCompat.from(context)
         val channel = NotificationChannel(
             channelId,
             channelName,
@@ -97,7 +104,7 @@ class WallpaperRotationWorker(
             setShowBadge(false)
             description = notificationTitle
         }
-        manager?.createNotificationChannel(channel)
+        manager.createNotificationChannel(channel)
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_stat_wallpaper_rotation)
             .setContentTitle(notificationTitle)
@@ -108,6 +115,14 @@ class WallpaperRotationWorker(
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-        return ForegroundInfo(NOTIFICATION_ID, notification)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ForegroundInfo(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfoCompat.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            ForegroundInfo(NOTIFICATION_ID, notification)
+        }
     }
 }

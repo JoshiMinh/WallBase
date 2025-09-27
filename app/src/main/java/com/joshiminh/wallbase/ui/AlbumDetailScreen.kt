@@ -4,7 +4,7 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -227,6 +227,35 @@ fun AlbumDetailRoute(
                 )
             }
         }
+        Box {
+            IconButton(
+                onClick = { showAlbumMenu = true },
+                enabled = !uiState.isRenamingAlbum && !uiState.isDeletingAlbum && !uiState.notFound
+            ) {
+                Icon(imageVector = Icons.Outlined.Edit, contentDescription = "Edit album")
+            }
+            DropdownMenu(
+                expanded = showAlbumMenu,
+                onDismissRequest = { showAlbumMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Rename album") },
+                    leadingIcon = { Icon(imageVector = Icons.Outlined.Edit, contentDescription = null) },
+                    onClick = {
+                        showAlbumMenu = false
+                        showRenameDialog = true
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete album") },
+                    leadingIcon = { Icon(imageVector = Icons.Outlined.Delete, contentDescription = null) },
+                    onClick = {
+                        showAlbumMenu = false
+                        showDeleteDialog = true
+                    }
+                )
+            }
+        }
     }
     val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
         {
@@ -284,12 +313,7 @@ fun AlbumDetailRoute(
         onSelectRotationTarget = viewModel::updateRotationTarget,
         onStartRotationNow = viewModel::triggerRotationNow,
         sharedTransitionScope = sharedTransitionScope,
-        animatedVisibilityScope = animatedVisibilityScope,
-        // NEW:
-        showAlbumMenu = showAlbumMenu,
-        onShowAlbumMenuChange = { showAlbumMenu = it },
-        onRequestRename = { showRenameDialog = true },
-        onRequestDelete = { showDeleteDialog = true }
+        animatedVisibilityScope = animatedVisibilityScope
     )
 
     SortBottomSheet(
@@ -395,12 +419,7 @@ private fun AlbumDetailScreen(
     onSelectRotationTarget: (WallpaperTarget) -> Unit,
     onStartRotationNow: () -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
-    animatedVisibilityScope: AnimatedVisibilityScope?,
-    // NEW:
-    showAlbumMenu: Boolean,
-    onShowAlbumMenuChange: (Boolean) -> Unit,
-    onRequestRename: () -> Unit,
-    onRequestDelete: () -> Unit
+    animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
     val hasQuery = isSearching && searchQuery.isNotBlank()
     var showRotationDialog by rememberSaveable { mutableStateOf(false) }
@@ -467,45 +486,6 @@ private fun AlbumDetailScreen(
                             enabled = false,
                             label = { Text("Removing downloads…") }
                         )
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Box {
-                            FilledTonalButton(
-                                onClick = { onShowAlbumMenuChange(true) },
-                                enabled = !state.isRenamingAlbum && !state.isDeletingAlbum  // was uiState
-                            ) {
-                                Icon(imageVector = Icons.Outlined.Edit, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "Edit album")
-                            }
-
-                            DropdownMenu(
-                                expanded = showAlbumMenu,
-                                onDismissRequest = { onShowAlbumMenuChange(false) }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Rename album") },
-                                    leadingIcon = { Icon(imageVector = Icons.Outlined.Edit, contentDescription = null) },
-                                    onClick = {
-                                        onShowAlbumMenuChange(false)
-                                        onRequestRename() // was showRenameDialog = true
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Delete album") },
-                                    leadingIcon = { Icon(imageVector = Icons.Outlined.Delete, contentDescription = null) },
-                                    onClick = {
-                                        onShowAlbumMenuChange(false)
-                                        onRequestDelete() // was showDeleteDialog = true
-                                    }
-                                )
-                            }
-                        }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     if (wallpapers.isEmpty()) {
@@ -678,11 +658,11 @@ private fun RotationScheduleDialog(
                 }
 
                 val scrollState = rememberScrollState()
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(scrollState),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        .verticalScroll(scrollState),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     RotationToggleCard(
                         summary = rotationSummary(rotationState, canConfigure),
@@ -781,40 +761,42 @@ private fun RotationToggleCard(
     onRotateNow: () -> Unit
 ) {
     Card(
-        modifier = Modifier.widthIn(min = 240.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
         )
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "Enable rotation", style = MaterialTheme.typography.titleMedium)
-                Text(text = summary, style = MaterialTheme.typography.bodyMedium)
-                if (lastApplied != null) {
-                    Text(
-                        text = "Last rotated $lastApplied",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            if (isBusy) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = if (enabled) "On" else "Off",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = if (enabled) "Rotation enabled" else "Rotation disabled",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = summary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (lastApplied != null) {
+                        Text(
+                            text = "Last rotated $lastApplied",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 Switch(
                     checked = enabled,
                     onCheckedChange = onToggle,
@@ -822,7 +804,10 @@ private fun RotationToggleCard(
                     colors = SwitchDefaults.colors()
                 )
             }
-            Button(
+            if (isBusy) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            FilledTonalButton(
                 onClick = onRotateNow,
                 enabled = enabled && canConfigure && !isBusy,
                 modifier = Modifier.fillMaxWidth()
@@ -849,17 +834,24 @@ private fun RotationIntervalCard(
     onFocusChanged: (Boolean) -> Unit
 ) {
     Card(
-        modifier = Modifier.widthIn(min = 240.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
         )
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(text = "Rotate every", style = MaterialTheme.typography.titleMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = "Rotation interval", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Choose how often WallBase applies a wallpaper from this album.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -876,40 +868,57 @@ private fun RotationIntervalCard(
                     .fillMaxWidth()
                     .onFocusChanged { onFocusChanged(it.isFocused) }
             )
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                quickIntervals.distinct().sorted().forEach { minutes ->
-                    val displayUnit = RotationIntervalUnit.fromMinutes(minutes)
-                    val displayValue = displayUnit.valueFromMinutes(minutes)
-                    AssistChip(
-                        onClick = { onIntervalSelected(minutes) },
-                        enabled = enabled,
-                        label = { Text(text = formatIntervalText(displayValue, displayUnit)) }
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                units.forEach { item ->
-                    FilterChip(
-                        selected = unit == item,
-                        onClick = { onUnitSelected(item) },
-                        enabled = enabled,
-                        label = { Text(text = item.displayName) }
-                    )
-                }
-            }
             if (errorText != null) {
                 Text(
                     text = errorText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
+            }
+            if (quickIntervals.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Quick picks",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        quickIntervals.distinct().sorted().forEach { minutes ->
+                            val displayUnit = RotationIntervalUnit.fromMinutes(minutes)
+                            val displayValue = displayUnit.valueFromMinutes(minutes)
+                            AssistChip(
+                                onClick = { onIntervalSelected(minutes) },
+                                enabled = enabled,
+                                label = { Text(text = formatIntervalText(displayValue, displayUnit)) }
+                            )
+                        }
+                    }
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Time unit",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    units.forEach { item ->
+                        FilterChip(
+                            selected = unit == item,
+                            onClick = { onUnitSelected(item) },
+                            enabled = enabled,
+                            label = { Text(text = item.displayName) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -930,60 +939,43 @@ private fun RotationTargetCard(
         )
     }
     Card(
-        modifier = Modifier.widthIn(min = 220.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
         )
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(text = "Apply to", style = MaterialTheme.typography.titleMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = "Apply to", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Select which screens receive new wallpapers.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 targets.forEach { option ->
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        tonalElevation = if (selectedTarget == option.target) 6.dp else 0.dp,
-                        color = if (selectedTarget == option.target) {
-                            MaterialTheme.colorScheme.secondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.surfaceColorAtElevation(0.dp)
-                        },
-                        modifier = Modifier
-                            .widthIn(min = 100.dp)
-                            .clickable(enabled = enabled) { onSelect(option.target) }
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
+                    FilterChip(
+                        selected = selectedTarget == option.target,
+                        onClick = { onSelect(option.target) },
+                        enabled = enabled,
+                        label = { Text(text = option.label) },
+                        leadingIcon = {
                             Icon(
                                 imageVector = option.icon,
-                                contentDescription = option.label,
-                                tint = if (selectedTarget == option.target) {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                            )
-                            Text(
-                                text = option.label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (selectedTarget == option.target) {
-                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                }
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
-                    }
+                    )
                 }
             }
         }
