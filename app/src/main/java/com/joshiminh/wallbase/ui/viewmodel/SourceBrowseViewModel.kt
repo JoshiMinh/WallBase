@@ -397,7 +397,7 @@ class SourceBrowseViewModel(
     }
 
     fun updateGridColumns(columns: Int) {
-        val clamped = columns.coerceIn(1, 4)
+        val clamped = columns.coerceIn(1, 3)
         if (_uiState.value.wallpaperGridColumns == clamped) return
         _uiState.update { it.copy(wallpaperGridColumns = clamped) }
         viewModelScope.launch {

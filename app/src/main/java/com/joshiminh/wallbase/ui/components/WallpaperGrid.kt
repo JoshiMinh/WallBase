@@ -179,7 +179,7 @@ fun WallpaperGrid(
                 }
             }
 
-            val columnCount = columns.coerceIn(1, 4)
+            val columnCount = columns.coerceIn(1, 3)
 
             LazyVerticalStaggeredGrid(
                 modifier = modifier.fillMaxSize(),
@@ -189,7 +189,11 @@ fun WallpaperGrid(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
             ) {
-                items(wallpapers, key = WallpaperItem::id) { wallpaper ->
+                items(
+                    wallpapers,
+                    key = WallpaperItem::id,
+                    contentType = { "wallpaper" }
+                ) { wallpaper ->
                     val isSelected = wallpaper.id in selectedIds
                     val isSaved = wallpaper.isSaved(
                         savedWallpaperKeys = savedWallpaperKeys,
@@ -215,7 +219,7 @@ fun WallpaperGrid(
                 }
 
                 if (isLoadingMore) {
-                    item(span = StaggeredGridItemSpan.FullLine) {
+                    item(span = StaggeredGridItemSpan.FullLine, contentType = "loading") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -270,7 +274,11 @@ fun WallpaperGrid(
                     verticalArrangement = Arrangement.spacedBy(rowSpacing),
                     contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
                 ) {
-                    itemsIndexed(rows, key = { _, row -> row.startIndex }) { _, row ->
+                    itemsIndexed(
+                        rows,
+                        key = { _, row -> row.startIndex },
+                        contentType = { _, _ -> "justifiedRow" }
+                    ) { _, row ->
                         val rowItems = row.items
                         val ratios = rowItems.map { item ->
                             val ratio = item.aspectRatio
@@ -326,7 +334,7 @@ fun WallpaperGrid(
                     }
 
                     if (isLoadingMore) {
-                        item {
+                        item(contentType = "loading") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -362,7 +370,11 @@ fun WallpaperGrid(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 24.dp)
             ) {
-                lazyItems(wallpapers, key = WallpaperItem::id) { wallpaper ->
+                lazyItems(
+                    wallpapers,
+                    key = WallpaperItem::id,
+                    contentType = { "wallpaper" }
+                ) { wallpaper ->
                     val isSelected = wallpaper.id in selectedIds
                     val isSaved = wallpaper.isSaved(
                         savedWallpaperKeys = savedWallpaperKeys,
@@ -387,7 +399,7 @@ fun WallpaperGrid(
                 }
 
                 if (isLoadingMore) {
-                    item {
+                    item(contentType = "loading") {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()

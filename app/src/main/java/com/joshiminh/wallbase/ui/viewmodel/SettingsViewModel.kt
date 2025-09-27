@@ -16,6 +16,7 @@ import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
 import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
+import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ class SettingsViewModel(
     application: Application,
     private val backupManager: DatabaseBackupManager,
     private val settingsRepository: SettingsRepository,
+    private val updateRepository: UpdateRepository,
     private val localStorage: LocalStorageCoordinator,
     private val libraryRepository: LibraryRepository
 ) : AndroidViewModel(application) {
@@ -47,7 +49,8 @@ class SettingsViewModel(
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
                         albumLayout = preferences.albumLayout,
                         autoDownload = preferences.autoDownload,
-                        storageLimitBytes = preferences.storageLimitBytes
+                        storageLimitBytes = preferences.storageLimitBytes,
+                        dismissedUpdateVersion = preferences.dismissedUpdateVersion
                     )
                 }
             }
@@ -56,11 +59,11 @@ class SettingsViewModel(
         refreshStorageSnapshot()
     }
 
-    fun exportBackup(destination: Uri) {
+    fun exportBackup(destination: Uri, includeSources: Boolean) {
         if (_uiState.value.isBackingUp) return
         viewModelScope.launch {
             _uiState.update { it.copy(isBackingUp = true, message = null) }
-            val result = backupManager.exportBackup(destination)
+            val result = backupManager.exportBackup(destination, includeSources)
             val message = result.fold(
                 onSuccess = {
                     "Backup saved."
@@ -102,6 +105,99 @@ class SettingsViewModel(
 
     fun consumeMessage() {
         _uiState.update { it.copy(message = null) }
+    }
+
+    fun setIncludeSourcesInBackup(include: Boolean) {
+        if (_uiState.value.includeSourcesInBackup == include) return
+        _uiState.update { it.copy(includeSourcesInBackup = include) }
+    }
+
+    fun checkForUpdates() {
+        if (_uiState.value.isCheckingForUpdates) return
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isCheckingForUpdates = true,
+                    updateError = null
+                )
+            }
+            when (val result = updateRepository.checkForUpdates()) {
+                is UpdateRepository.UpdateResult.UpToDate -> {
+                    _uiState.update {
+                        it.copy(
+                            isCheckingForUpdates = false,
+                            availableUpdateVersion = null,
+                            updateNotes = null,
+                            updateUrl = null,
+                            hasCheckedForUpdates = true,
+                            updateError = null
+                        )
+                    }
+                }
+
+                is UpdateRepository.UpdateResult.UpdateAvailable -> {
+                    val releaseUrl = result.downloadUrl ?: DEFAULT_RELEASES_URL
+                    _uiState.update { state ->
+                        if (state.dismissedUpdateVersion == result.version) {
+                            state.copy(
+                                isCheckingForUpdates = false,
+                                hasCheckedForUpdates = true,
+                                updateError = null
+                            )
+                        } else {
+                            state.copy(
+                                isCheckingForUpdates = false,
+                                availableUpdateVersion = result.version,
+                                updateNotes = result.notes,
+                                updateUrl = releaseUrl,
+                                hasCheckedForUpdates = true,
+                                updateError = null
+                            )
+                        }
+                    }
+                }
+
+                is UpdateRepository.UpdateResult.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isCheckingForUpdates = false,
+                            updateError = result.throwable.localizedMessage
+                                ?: "Unable to check for updates.",
+                            hasCheckedForUpdates = true
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun clearUpdateStatus() {
+        _uiState.update {
+            it.copy(updateError = null)
+        }
+    }
+
+    fun dismissAvailableUpdate() {
+        val version = _uiState.value.availableUpdateVersion ?: return
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                settingsRepository.setDismissedUpdateVersion(version)
+            }
+        }
+        _uiState.update {
+            it.copy(
+                availableUpdateVersion = null,
+                updateNotes = null,
+                updateUrl = null,
+                dismissedUpdateVersion = version,
+                hasCheckedForUpdates = true
+            )
+        }
+    }
+
+    fun onUpdateUrlOpened(@Suppress("UNUSED_PARAMETER") url: String) {
+        if (_uiState.value.availableUpdateVersion == null) return
+        dismissAvailableUpdate()
     }
 
     fun setDarkTheme(enabled: Boolean) {
@@ -196,7 +292,15 @@ class SettingsViewModel(
         val autoDownload: Boolean = false,
         val isStorageLoading: Boolean = true,
         val isClearingPreviews: Boolean = false,
-        val isClearingOriginals: Boolean = false
+        val isClearingOriginals: Boolean = false,
+        val includeSourcesInBackup: Boolean = true,
+        val isCheckingForUpdates: Boolean = false,
+        val availableUpdateVersion: String? = null,
+        val updateNotes: String? = null,
+        val updateUrl: String? = null,
+        val updateError: String? = null,
+        val hasCheckedForUpdates: Boolean = false,
+        val dismissedUpdateVersion: String? = null
     )
 
     private data class StorageUsage(
@@ -245,6 +349,8 @@ class SettingsViewModel(
     }
 
     companion object {
+        private const val DEFAULT_RELEASES_URL = "https://github.com/JoshiMinh/WallBase/releases"
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application =
@@ -256,6 +362,7 @@ class SettingsViewModel(
                         ServiceLocator.localStorageCoordinator
                     ),
                     settingsRepository = ServiceLocator.settingsRepository,
+                    updateRepository = ServiceLocator.updateRepository,
                     localStorage = ServiceLocator.localStorageCoordinator,
                     libraryRepository = ServiceLocator.libraryRepository
                 )

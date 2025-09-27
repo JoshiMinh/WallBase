@@ -8,6 +8,7 @@ import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.SourceRepository
+import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRotationRepository
 import com.joshiminh.wallbase.data.repository.settingsDataStore
@@ -22,6 +23,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import retrofit2.create
 
 object ServiceLocator {
 
@@ -122,6 +124,18 @@ object ServiceLocator {
         unsplashRetrofit.create(UnsplashService::class.java)
     }
 
+    private val githubRetrofit: Retrofit by lazy {
+        Retrofit.Builder()
+            .baseUrl("https://api.github.com/repos/JoshiMinh/WallBase/")
+            .client(okHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+    }
+
+    private val updateService: UpdateService by lazy {
+        githubRetrofit.create()
+    }
+
     private val scraper: WebScraper by lazy { JsoupWebScraper() }
 
     private val database: WallBaseDatabase by lazy {
@@ -167,5 +181,9 @@ object ServiceLocator {
             database = database,
             workManager = WorkManager.getInstance(context)
         )
+    }
+
+    val updateRepository: UpdateRepository by lazy {
+        UpdateRepository(updateService)
     }
 }

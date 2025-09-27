@@ -36,10 +36,11 @@ class DatabaseBackupManager(
     private val database: WallBaseDatabase = WallBaseDatabase.getInstance(context)
 ) {
 
-    suspend fun exportBackup(destination: Uri): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val dbFile = context.getDatabasePath(DATABASE_NAME)
-            require(dbFile.exists()) { "Database file not found" }
+    suspend fun exportBackup(destination: Uri, includeSources: Boolean): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val dbFile = context.getDatabasePath(DATABASE_NAME)
+                require(dbFile.exists()) { "Database file not found" }
 
             val sqliteDb = database.openHelper.writableDatabase
             runCatching {
@@ -68,8 +69,11 @@ class DatabaseBackupManager(
 
                 sanitizeDatabaseForExport(tempFile)
 
-                val wallpapersWithMedia = database.wallpaperDao()
-                    .getWallpapersWithLocalMedia()
+                val wallpapersWithMedia = if (includeSources) {
+                    database.wallpaperDao().getWallpapersWithLocalMedia()
+                } else {
+                    emptyList()
+                }
 
                 context.contentResolver.openOutputStream(destination)?.use { output ->
                     ZipOutputStream(BufferedOutputStream(output)).use { zip ->
@@ -77,7 +81,7 @@ class DatabaseBackupManager(
                         tempFile.inputStream().use { input -> input.copyTo(zip) }
                         zip.closeEntry()
 
-                        if (wallpapersWithMedia.isNotEmpty()) {
+                        if (includeSources && wallpapersWithMedia.isNotEmpty()) {
                             val manifest = JSONArray()
                             wallpapersWithMedia.forEach { entity ->
                                 val uri = entity.localUri?.let(Uri::parse) ?: return@forEach
@@ -125,11 +129,11 @@ class DatabaseBackupManager(
                 if (!tempFile.delete()) tempFile.deleteOnExit()
             }
 
-            Result.success(Unit)
-        } catch (error: Throwable) {
-            Result.failure(error)
+                Result.success(Unit)
+            } catch (error: Throwable) {
+                Result.failure(error)
+            }
         }
-    }
 
     suspend fun importBackup(source: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         val extractedMedia = mutableMapOf<Long, ExtractedMedia>()

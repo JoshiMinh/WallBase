@@ -1,14 +1,11 @@
 package com.joshiminh.wallbase.ui.components
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,14 +34,19 @@ fun WallpaperPreviewImage(
             .data(model)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(true)
+            .crossfade(false)
             .build()
     }
-    val gradientAlpha by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 450, easing = FastOutSlowInEasing),
-        label = "WallpaperPreviewGradientAlpha"
-    )
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+    val gradientBrush = remember(surfaceVariant) {
+        Brush.verticalGradient(
+            colors = listOf(
+                surfaceVariant.copy(alpha = 0.25f),
+                Color.Transparent,
+                surfaceVariant.copy(alpha = 0.2f)
+            )
+        )
+    }
 
     Box(
         modifier = modifier
@@ -61,15 +63,7 @@ fun WallpaperPreviewImage(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f * gradientAlpha),
-                            Color.Transparent,
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f * gradientAlpha)
-                        )
-                    )
-                )
+                .background(gradientBrush)
         )
     }
 }

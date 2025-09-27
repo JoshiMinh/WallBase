@@ -571,6 +571,36 @@ class LibraryRepository(
         }
     }
 
+    suspend fun renameAlbum(albumId: Long, title: String): AlbumItem {
+        val normalizedTitle = title.trim()
+        require(normalizedTitle.isNotEmpty()) { "Album name cannot be blank" }
+
+        return withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val existing = albumDao.getAlbum(albumId) ?: throw IllegalStateException("Album not found")
+            val duplicate = albumDao.findAlbumByTitle(normalizedTitle)
+            if (duplicate != null && duplicate.id != albumId) {
+                throw IllegalStateException("Album already exists")
+            }
+            albumDao.updateAlbumTitle(albumId, normalizedTitle, now)
+            val detail = albumDao.getAlbumWithWallpapers(albumId)
+            detail?.toAlbumItem() ?: AlbumItem(
+                id = albumId,
+                title = normalizedTitle,
+                wallpaperCount = 0,
+                coverImageUrl = null,
+                createdAt = existing.createdAt
+            )
+        }
+    }
+
+    suspend fun deleteAlbums(albumIds: Collection<Long>): Int {
+        if (albumIds.isEmpty()) return 0
+        return withContext(Dispatchers.IO) {
+            albumDao.deleteAlbums(albumIds)
+        }
+    }
+
     data class LocalImportResult(val imported: Int, val skipped: Int)
 
     data class LocalFolderImportResult(

@@ -212,6 +212,29 @@ class LibraryViewModel(
         }
     }
 
+    fun deleteAlbums(albumIds: Collection<Long>) {
+        if (albumIds.isEmpty() || selectionActionInProgress.value) return
+        viewModelScope.launch {
+            selectionAction.value = SelectionAction.DELETE_ALBUMS
+            selectionActionInProgress.value = true
+            val result = runCatching { repository.deleteAlbums(albumIds) }
+            selectionActionInProgress.value = false
+            selectionAction.value = null
+            messageFlow.update {
+                result.fold(
+                    onSuccess = { deleted ->
+                        when {
+                            deleted > 1 -> "Deleted $deleted albums"
+                            deleted == 1 -> "Deleted 1 album"
+                            else -> "No albums were deleted"
+                        }
+                    },
+                    onFailure = { t -> t.localizedMessage ?: "Unable to delete albums" }
+                )
+            }
+        }
+    }
+
     fun removeDownloads(wallpapers: List<WallpaperItem>) {
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {
@@ -296,7 +319,8 @@ class LibraryViewModel(
         DOWNLOAD,
         REMOVE_FROM_LIBRARY,
         ADD_TO_ALBUM,
-        REMOVE_DOWNLOADS
+        REMOVE_DOWNLOADS,
+        DELETE_ALBUMS
     }
 
     companion object {
