@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.joshiminh.wallbase.ui
 
 import androidx.activity.compose.BackHandler
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,10 +35,10 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -46,14 +49,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
 import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
@@ -171,7 +173,7 @@ private fun EditWallpaperScreen(
                     subtitle = "Change the overall mood",
                 ) {
                     FlowingChipRow {
-                        WallpaperFilter.values().forEach { filter ->
+                        WallpaperFilter.entries.forEach { filter ->
                             FilterChip(
                                 selected = uiState.adjustments.filter == filter,
                                 onClick = { onSelectFilter(filter) },
@@ -189,7 +191,7 @@ private fun EditWallpaperScreen(
                     subtitle = "Select how the wallpaper is framed",
                 ) {
                     FlowingChipRow {
-                        WallpaperCrop.values().forEach { crop ->
+                        WallpaperCrop.entries.forEach { crop ->
                             FilterChip(
                                 selected = uiState.adjustments.crop == crop,
                                 onClick = { onSelectCrop(crop) },
@@ -357,4 +359,3 @@ private fun WallpaperCrop.displayName(): String = when (this) {
     WallpaperCrop.ORIGINAL -> "Original"
     WallpaperCrop.SQUARE -> "Square"
 }
-

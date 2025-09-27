@@ -1,5 +1,6 @@
 package com.joshiminh.wallbase
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -32,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -65,9 +65,9 @@ import com.joshiminh.wallbase.ui.SourceBrowseRoute
 import com.joshiminh.wallbase.ui.WallpaperDetailRoute
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
+import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperSelectionViewModel
-import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -180,6 +180,7 @@ class TopBarHandle internal constructor(
     }
 }
 
+@SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun WallBaseApp(
@@ -439,7 +440,7 @@ fun WallBaseApp(
                     )
 
                     WallpaperDetailRoute(
-                        wallpaper = wallpaper,
+                        wallpaper = wallpaper!!,
                         onNavigateBack = navigateBack,
                         onEditWallpaper = {
                             viewModel.prepareEditor()
@@ -450,15 +451,13 @@ fun WallBaseApp(
                         viewModel = viewModel
                     )
 
-                    LaunchedEffect(wallpaper.id) {
+                    LaunchedEffect(wallpaper!!.id) {
                         topBarState = null
                     }
                 }
             }
             composable("wallpaperDetail/edit") {
-                val parentEntry = remember(navController) {
-                    navController.getBackStackEntry("wallpaperDetail")
-                }
+                val parentEntry = remember(navController) { navController.getBackStackEntry("wallpaperDetail") }
                 val viewModel: WallpaperDetailViewModel = viewModel(
                     parentEntry,
                     factory = WallpaperDetailViewModel.Factory

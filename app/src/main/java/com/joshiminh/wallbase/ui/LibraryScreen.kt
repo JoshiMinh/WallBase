@@ -14,20 +14,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
@@ -36,36 +33,37 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Album
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.TextField
+import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -81,6 +79,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -89,8 +89,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
@@ -100,9 +98,9 @@ import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
-import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.AlbumLayoutPicker
 import com.joshiminh.wallbase.ui.components.GridColumnPicker
+import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
 import com.joshiminh.wallbase.ui.components.WallpaperLayoutPicker
@@ -112,6 +110,7 @@ import com.joshiminh.wallbase.ui.sort.toAlbumSortOption
 import com.joshiminh.wallbase.ui.sort.toSelection
 import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.LibraryViewModel
+import androidx.compose.foundation.lazy.grid.items as gridItems
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -258,7 +257,7 @@ fun LibraryScreen(
                 selectedIds.size < displayedWallpapers.size
             IconButton(
                 onClick = {
-                    selectedIds = displayedWallpapers.mapTo(mutableSetOf<String>()) { it.id }
+                    selectedIds = displayedWallpapers.mapTo(mutableSetOf()) { it.id }
                 },
                 enabled = selectAllEnabled
             ) {

@@ -1,3 +1,5 @@
+@file:Suppress("unused", "UnusedVariable")
+
 package com.joshiminh.wallbase.ui
 
 import android.Manifest
@@ -28,9 +30,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -40,7 +42,7 @@ import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Wallpaper as RoundedWallpaper
+import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -67,8 +69,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
@@ -82,7 +84,6 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
-import kotlin.collections.buildList
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -175,7 +176,7 @@ private fun WallpaperDetailScreen(
 ) {
     val wallpaper = uiState.wallpaper ?: return
     val uriHandler = LocalUriHandler.current
-    val hasSourceUrl = !wallpaper.sourceUrl.isNullOrBlank()
+    val hasSourceUrl = wallpaper.sourceUrl.isNotBlank()
     val canAddToLibrary = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     val canRemoveFromLibrary = uiState.isInLibrary && wallpaper.sourceKey != null
     val canDownload = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
@@ -360,10 +361,10 @@ private fun WallpaperDetailScreen(
                 if (showLibraryAction) {
                     LibraryActionButton(
                         inLibrary = uiState.isInLibrary,
-                        enabled = canToggleLibrary && !libraryBusy,
+                        enabled = !libraryBusy,
                         busy = libraryBusy,
                         onClick = {
-                            if (!libraryBusy && canToggleLibrary) {
+                            if (!libraryBusy) {
                                 if (uiState.isInLibrary) {
                                     onRemoveFromLibrary()
                                 } else {
@@ -474,7 +475,7 @@ private fun WallpaperDetailScreen(
 
             if (hasSourceUrl) {
                 TextButton(
-                    onClick = { wallpaper.sourceUrl?.let(uriHandler::openUri) },
+                    onClick = { wallpaper.sourceUrl.let(uriHandler::openUri) },
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
@@ -629,7 +630,7 @@ private fun SetWallpaperDialog(
                 target = WallpaperTarget.BOTH,
                 title = "Both screens",
                 description = "Apply everywhere for a consistent look.",
-                icon = RoundedWallpaper
+                icon = Icons.Rounded.Wallpaper
             )
         )
     }
