@@ -633,15 +633,15 @@ private fun RotationScheduleDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .widthIn(max = 460.dp),
+                .padding(4.dp)
+                .widthIn(max = 1000.dp),
             shape = MaterialTheme.shapes.large,
             tonalElevation = 6.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
