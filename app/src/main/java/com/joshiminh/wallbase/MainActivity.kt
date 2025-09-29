@@ -53,12 +53,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.joshiminh.wallbase.data.entity.source.Source
-import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.ui.AlbumDetailRoute
 import com.joshiminh.wallbase.ui.BrowseScreen
 import com.joshiminh.wallbase.ui.EditWallpaperRoute
-import com.joshiminh.wallbase.ui.GooglePhotosAlbumPickerScreen
 import com.joshiminh.wallbase.ui.LibraryScreen
 import com.joshiminh.wallbase.ui.SettingsScreen
 import com.joshiminh.wallbase.ui.SourceBrowseRoute
@@ -118,6 +116,7 @@ class MainActivity : ComponentActivity() {
                     onClearRedditSearch = sourcesViewModel::clearSearchResults,
                     onRemoveSource = sourcesViewModel::removeSource,
                     onSourcesMessageShown = sourcesViewModel::consumeMessage,
+                    onSourceUrlCopied = sourcesViewModel::onSourceUrlCopied,
                     onExportBackup = { includeSources ->
                         pendingIncludeSources = includeSources
                         val timestamp = backupFileFormatter.format(Date())
@@ -134,7 +133,6 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     onSettingsMessageShown = settingsViewModel::consumeMessage,
-                    onAddPhotosAlbum = sourcesViewModel::addGooglePhotosAlbum,
                     onToggleAutoDownload = settingsViewModel::setAutoDownload,
                     onUpdateStorageLimit = settingsViewModel::setStorageLimit,
                     onClearPreviewCache = settingsViewModel::clearPreviewCache,
@@ -203,10 +201,10 @@ fun WallBaseApp(
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
     onSourcesMessageShown: () -> Unit,
+    onSourceUrlCopied: (String) -> Unit,
     onExportBackup: (Boolean) -> Unit,
     onImportBackup: () -> Unit,
     onSettingsMessageShown: () -> Unit,
-    onAddPhotosAlbum: (GooglePhotosAlbum) -> Unit,
     onToggleAutoDownload: (Boolean) -> Unit,
     onUpdateStorageLimit: (Long) -> Unit,
     onClearPreviewCache: () -> Unit,
@@ -220,7 +218,6 @@ fun WallBaseApp(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
-    val photosToken = remember { "" }
     val wallpaperSelectionViewModel: WallpaperSelectionViewModel = viewModel()
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
     var topBarState by remember { mutableStateOf<TopBarState?>(null) }
@@ -367,7 +364,6 @@ fun WallBaseApp(
                 composable(RootRoute.Browse.route) {
                     BrowseScreen(
                         uiState = sourcesUiState,
-                        onGooglePhotosClick = { navController.navigateSingleTop("photosAlbums") },
                         onUpdateSourceInput = onUpdateSourceInput,
                         onSearchReddit = onSearchReddit,
                         onAddSourceFromInput = onAddSourceFromInput,
@@ -378,18 +374,10 @@ fun WallBaseApp(
                             navController.navigateSingleTop("sourceBrowse/${Uri.encode(source.key)}")
                         },
                         onRemoveSource = onRemoveSource,
-                        onMessageShown = onSourcesMessageShown
+                        onMessageShown = onSourcesMessageShown,
+                        onSourceUrlCopied = onSourceUrlCopied
                     )
                 }
-            composable("photosAlbums") {
-                GooglePhotosAlbumPickerScreen(
-                    token = photosToken,
-                    onAlbumPicked = { album ->
-                        onAddPhotosAlbum(album)
-                        navController.popBackStack()
-                    }
-                )
-            }
             composable("sourceBrowse/{sourceKey}") { backStackEntry ->
                 val key = backStackEntry.arguments?.getString("sourceKey")
                 if (key.isNullOrBlank()) {

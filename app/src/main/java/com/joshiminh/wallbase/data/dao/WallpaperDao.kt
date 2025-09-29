@@ -84,4 +84,14 @@ interface WallpaperDao {
 
     @Query("SELECT COALESCE(SUM(file_size_bytes), 0) FROM wallpapers WHERE is_downloaded = 1")
     suspend fun totalDownloadedBytes(): Long
+
+    @Query(
+        "UPDATE wallpapers SET crop_settings = :cropSettings, updated_at = :updatedAt " +
+            "WHERE wallpaper_id = :id"
+    )
+    suspend fun updateCropSettings(
+        id: Long,
+        cropSettings: String?,
+        updatedAt: Long
+    )
 }

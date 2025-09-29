@@ -1,6 +1,7 @@
 package com.joshiminh.wallbase.data.entity.wallpaper
 
 import android.os.Parcelable
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import kotlinx.parcelize.Parcelize
 
 /**
@@ -18,7 +19,8 @@ data class WallpaperItem(
     val height: Int? = null,
     val addedAt: Long? = null,
     val localUri: String? = null,
-    val isDownloaded: Boolean = false
+    val isDownloaded: Boolean = false,
+    val cropSettings: WallpaperCropSettings? = null,
 ) : Parcelable {
 
     val aspectRatio: Float?

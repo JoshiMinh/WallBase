@@ -40,6 +40,8 @@ data class WallpaperEntity(
     val height: Int? = null,
     @ColumnInfo(name = "color_palette")
     val colorPalette: String? = null,
+    @ColumnInfo(name = "crop_settings")
+    val cropSettings: String? = null,
     @ColumnInfo(name = "file_size_bytes")
     val fileSizeBytes: Long? = null,
     @ColumnInfo(name = "is_favorite")

@@ -36,7 +36,7 @@ import java.util.Locale
         SourceEntity::class,
         RotationScheduleEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -61,7 +61,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): WallBaseDatabase {
             val callback = DefaultSourcesCallback(DefaultSources, databaseScope)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
                 .build()
@@ -104,7 +104,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
 
                     while (cursor.moveToNext()) {
                         val provider = cursor.getString(providerIndex) ?: continue
-                        if (provider == SourceKeys.GOOGLE_PHOTOS || provider == SourceKeys.LOCAL) continue
+                        if (provider == SourceKeys.LOCAL) continue
 
                         val id = cursor.getLong(idIndex)
                         val config = if (configIndex != -1 && !cursor.isNull(configIndex)) {
@@ -166,6 +166,12 @@ abstract class WallBaseDatabase : RoomDatabase() {
             private fun buildFaviconUrl(host: String): String {
                 val sanitizedHost = host.removePrefix("www.").ifBlank { host }
                 return "https://www.google.com/s2/favicons?sz=128&domain=$sanitizedHost"
+            }
+        }
+
+        val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE wallpapers ADD COLUMN crop_settings TEXT")
             }
         }
 

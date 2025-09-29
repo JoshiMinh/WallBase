@@ -116,9 +116,6 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.work.runtime.ktx)
 
-    // ---------------- Google Play Services (Auth) ----------------
-    implementation(libs.play.services.auth)
-
     // ---------------- Testing ----------------
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

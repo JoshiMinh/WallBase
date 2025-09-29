@@ -46,9 +46,6 @@ class JsoupWebScraper : WebScraper {
             host.contains("pinterest.") -> runCatching {
                 scrapePinterestUrl(url, limit, cursor)
             }.getOrNull()
-            host.endsWith("photos.google.com") || host == "photos.app.goo.gl" -> runCatching {
-                scrapeGooglePhotosAlbum(url, limit, cursor)
-            }.getOrNull()
             else -> null
         }
         if (specialized != null) return specialized
@@ -129,65 +126,6 @@ class JsoupWebScraper : WebScraper {
         return runCatching {
             fetchPinterestContinuation(parsedCursor)
         }.getOrNull()
-    }
-
-    private suspend fun scrapeGooglePhotosAlbum(
-        pageUrl: String,
-        limit: Int,
-        cursor: String?,
-    ): ScrapePage? = withContext(Dispatchers.IO) {
-        val document = runCatching { fetch(pageUrl) }.getOrElse { return@withContext null }
-        val images = extractGooglePhotosImages(document.html())
-        if (images.isEmpty()) return@withContext null
-        val offset = cursor?.toIntOrNull()?.takeIf { it >= 0 } ?: 0
-        val fromIndex = offset.coerceAtMost(images.size)
-        val toIndex = (fromIndex + limit).coerceAtMost(images.size)
-        if (fromIndex >= toIndex) {
-            return@withContext ScrapePage(emptyList(), nextCursor = null)
-        }
-        val pageItems = images.subList(fromIndex, toIndex).mapIndexed { index, imageUrl ->
-            val absoluteIndex = fromIndex + index + 1
-            WallpaperItem(
-                id = "google_photos_${imageUrl.hashCode()}",
-                title = "Google Photos image $absoluteIndex",
-                imageUrl = imageUrl,
-                sourceUrl = pageUrl
-            )
-        }
-        val nextCursor = if (toIndex < images.size) toIndex.toString() else null
-        ScrapePage(pageItems, nextCursor)
-    }
-
-    private fun extractGooglePhotosImages(html: String): List<String> {
-        val matches = GOOGLE_PHOTOS_REGEX.findAll(html)
-        val urls = LinkedHashSet<String>()
-        matches.forEach { match ->
-            var url = match.value
-            url = url
-                .replace("\\u003d", "=")
-                .replace("\\u0026", "&")
-                .replace("&amp;", "&")
-            val cleaned = normalizeGooglePhotosUrl(url)
-            urls.add(cleaned)
-        }
-        return urls.toList()
-    }
-
-    private fun normalizeGooglePhotosUrl(url: String): String {
-        val anchor = when {
-            "=w" in url -> url.substringBefore("=w")
-            "=s" in url -> url.substringBefore("=s")
-            "=h" in url -> url.substringBefore("=h")
-            "=d" in url -> url.substringBefore("=d")
-            "=m" in url -> url.substringBefore("=m")
-            else -> url
-        }
-        val sanitized = anchor.removeSuffix("-no").removeSuffix("-rw")
-        if (sanitized.contains("=w") || sanitized.contains("=s") || sanitized.contains("=h")) {
-            return sanitized
-        }
-        val separator = if (sanitized.contains('?')) '&' else '='
-        return "$sanitized${separator}w4096-h4096"
     }
 
     private fun parsePinterestInitialPage(
@@ -425,10 +363,6 @@ class JsoupWebScraper : WebScraper {
         private val IMAGE_ATTRIBUTES =
             listOf("src", "data-src", "data-lazy-src", "data-original", "data-actualsrc")
         private val PINTEREST_IMAGE_ORDER = listOf("orig", "736x", "600x", "564x", "474x", "236x")
-
-        // Fixed regex: removed stray ')', used raw string for clarity.
-        private val GOOGLE_PHOTOS_REGEX =
-            Regex("""https://lh[0-9]\.googleusercontent\.com/[^"\s<>]+""", RegexOption.IGNORE_CASE)
 
         private const val PINTEREST_BOARD_ENDPOINT =
             "https://www.pinterest.com/resource/BoardFeedResource/get/"

@@ -16,6 +16,7 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperWithAlbums
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator.CopyResult
 import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -324,6 +325,17 @@ class LibraryRepository(
         }
     }
 
+    suspend fun updateCropSettings(wallpaper: WallpaperItem, settings: WallpaperCropSettings?) {
+        withContext(Dispatchers.IO) {
+            val id = resolveWallpaperId(wallpaper) ?: return@withContext
+            wallpaperDao.updateCropSettings(
+                id = id,
+                cropSettings = settings?.encodeToString(),
+                updatedAt = System.currentTimeMillis()
+            )
+        }
+    }
+
     suspend fun saveEditedWallpaper(
         wallpaper: WallpaperItem,
         edited: EditedWallpaper,
@@ -573,20 +585,22 @@ class LibraryRepository(
     }
 
     suspend fun getWallpaperLibraryState(wallpaper: WallpaperItem): WallpaperLibraryState {
-        val sourceKey = wallpaper.sourceKey ?: return WallpaperLibraryState(false, false, null)
+        val sourceKey = wallpaper.sourceKey ?: return WallpaperLibraryState(false, false, null, null)
         return withContext(Dispatchers.IO) {
             when (sourceKey) {
                 SourceKeys.LOCAL -> {
                     val localId = wallpaper.remoteIdentifierWithinSource()?.toLongOrNull()
                     if (localId == null) {
-                        WallpaperLibraryState(isInLibrary = false, isDownloaded = false, localUri = null)
+                        WallpaperLibraryState(isInLibrary = false, isDownloaded = false, localUri = null, cropSettings = null)
                     } else {
                         val entity = wallpaperDao.getById(localId)
                         val localUri = entity?.localUri
+                        val crop = WallpaperCropSettings.fromString(entity?.cropSettings)
                         WallpaperLibraryState(
                             isInLibrary = entity != null,
                             isDownloaded = entity?.isDownloaded == true && !localUri.isNullOrBlank(),
-                            localUri = localUri
+                            localUri = localUri,
+                            cropSettings = crop
                         )
                     }
                 }
@@ -598,10 +612,12 @@ class LibraryRepository(
                         else -> wallpaperDao.getBySourceKeyAndImageUrl(sourceKey, wallpaper.imageUrl)
                     }
                     val localUri = entity?.localUri
+                    val crop = WallpaperCropSettings.fromString(entity?.cropSettings)
                     WallpaperLibraryState(
                         isInLibrary = entity != null,
                         isDownloaded = entity?.isDownloaded == true && !localUri.isNullOrBlank(),
-                        localUri = localUri
+                        localUri = localUri,
+                        cropSettings = crop
                     )
                 }
             }
@@ -704,7 +720,8 @@ class LibraryRepository(
     data class WallpaperLibraryState(
         val isInLibrary: Boolean,
         val isDownloaded: Boolean,
-        val localUri: String?
+        val localUri: String?,
+        val cropSettings: WallpaperCropSettings? = null,
     )
 
     sealed class DirectAddResult {
@@ -785,6 +802,7 @@ class LibraryRepository(
             width = wallpaper.width,
             height = wallpaper.height,
             colorPalette = null,
+            cropSettings = wallpaper.cropSettings?.encodeToString(),
             fileSizeBytes = null,
             isFavorite = false,
             isDownloaded = false,
@@ -925,7 +943,8 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
         height = height,
         addedAt = addedAt,
         localUri = localUri,
-        isDownloaded = isDownloaded
+        isDownloaded = isDownloaded,
+        cropSettings = WallpaperCropSettings.fromString(cropSettings)
     )
 }
 

@@ -1,7 +1,6 @@
 package com.joshiminh.wallbase.data.entity.source
 
 object SourceKeys {
-    const val GOOGLE_PHOTOS = "google_photos"
     const val REDDIT = "reddit"
     const val PINTEREST = "pinterest"
     const val WALLHAVEN = "wallhaven"
