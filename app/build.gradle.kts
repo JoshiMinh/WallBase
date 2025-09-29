@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.ksp)
+    id("org.jetbrains.kotlin.kapt")
     id("org.jetbrains.kotlin.plugin.parcelize")
 }
 
@@ -93,7 +93,7 @@ dependencies {
 
     // Optional
     implementation(libs.androidx.documentfile)
-    implementation(libs.androidx.compose.animation) // or newer
+    implementation(libs.androidx.compose.animation)
 
     // ---------------- Networking / JSON ----------------
     implementation(libs.retrofit)
@@ -107,10 +107,10 @@ dependencies {
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network.okhttp)
 
-    // ---------------- Room (KSP) ----------------
+    // ---------------- Room (annotation processing) ----------------
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
+    kapt(libs.androidx.room.compiler)
 
     // ---------------- WorkManager ----------------
     implementation(libs.androidx.work.runtime)
@@ -121,7 +121,5 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    implementation(platform(libs.androidx.compose.bom.vcurrent))
-    implementation(libs.material3)
-    implementation(libs.androidx.lifecycle.runtime.compose) // or newer
+    // Additional Compose utilities are already aligned by the BOM above.
 }
