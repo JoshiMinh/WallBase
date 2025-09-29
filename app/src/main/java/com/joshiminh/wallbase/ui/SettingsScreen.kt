@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.SystemUpdate
@@ -84,6 +85,7 @@ fun SettingsScreen(
     onClearPreviewCache: () -> Unit,
     onClearOriginals: () -> Unit,
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
+    onRequestAppLockChange: (Boolean) -> Unit,
     onCheckForUpdates: () -> Unit,
     onOpenUpdateUrl: (String) -> Unit,
     onDismissUpdate: () -> Unit,
@@ -450,6 +452,46 @@ fun SettingsScreen(
                                     onClick = onImportBackup
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsSection(spacing = 8.dp) {
+                    Text(
+                        text = "Privacy & security",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    SettingsCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(imageVector = Icons.Outlined.Lock, contentDescription = null)
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "App lock",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Require your device screen lock before opening WallBase. Rotations keep running.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = uiState.appLockEnabled,
+                                onCheckedChange = onRequestAppLockChange
+                            )
                         }
                     }
                 }

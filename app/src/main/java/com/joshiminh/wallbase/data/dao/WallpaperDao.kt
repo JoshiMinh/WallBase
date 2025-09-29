@@ -86,12 +86,13 @@ interface WallpaperDao {
     suspend fun totalDownloadedBytes(): Long
 
     @Query(
-        "UPDATE wallpapers SET crop_settings = :cropSettings, updated_at = :updatedAt " +
+        "UPDATE wallpapers SET crop_settings = :cropSettings, edit_settings = :editSettings, updated_at = :updatedAt " +
             "WHERE wallpaper_id = :id"
     )
-    suspend fun updateCropSettings(
+    suspend fun updateEditSettings(
         id: Long,
         cropSettings: String?,
+        editSettings: String?,
         updatedAt: Long
     )
 }

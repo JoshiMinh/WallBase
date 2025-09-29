@@ -20,6 +20,10 @@ import com.joshiminh.wallbase.data.entity.source.SourceEntity.Companion.fromSeed
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.entity.rotation.RotationScheduleEntity
+import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
+import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustmentsJson
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,7 +40,7 @@ import java.util.Locale
         SourceEntity::class,
         RotationScheduleEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -61,7 +65,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): WallBaseDatabase {
             val callback = DefaultSourcesCallback(DefaultSources, databaseScope)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
                 .build()
@@ -172,6 +176,37 @@ abstract class WallBaseDatabase : RoomDatabase() {
         val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE wallpapers ADD COLUMN crop_settings TEXT")
+            }
+        }
+
+        val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE wallpapers ADD COLUMN edit_settings TEXT")
+                db.query("SELECT wallpaper_id, crop_settings FROM wallpapers WHERE crop_settings IS NOT NULL")
+                    .use { cursor ->
+                        val idIndex = cursor.getColumnIndex("wallpaper_id")
+                        val cropIndex = cursor.getColumnIndex("crop_settings")
+                        if (idIndex == -1 || cropIndex == -1) return@use
+
+                        while (cursor.moveToNext()) {
+                            if (cursor.isNull(cropIndex)) continue
+                            val id = cursor.getLong(idIndex)
+                            val rawCrop = cursor.getString(cropIndex)
+                            val cropSettings = WallpaperCropSettings.fromString(rawCrop)
+                            if (cropSettings != null) {
+                                val sanitized = cropSettings.sanitized()
+                                val adjustments = WallpaperAdjustments(
+                                    crop = WallpaperCrop.Custom(sanitized)
+                                )
+                                val json = WallpaperAdjustmentsJson.encode(adjustments)
+                                val csv = sanitized.encodeToString()
+                                db.execSQL(
+                                    "UPDATE wallpapers SET crop_settings = ?, edit_settings = ? WHERE wallpaper_id = ?",
+                                    arrayOf(csv, json, id)
+                                )
+                            }
+                        }
+                    }
             }
         }
 

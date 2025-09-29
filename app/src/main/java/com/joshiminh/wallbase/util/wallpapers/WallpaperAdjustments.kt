@@ -22,6 +22,21 @@ data class WallpaperAdjustments(
 
     val cropSettings: WallpaperCropSettings?
         get() = (crop as? WallpaperCrop.Custom)?.settings
+
+    fun sanitized(): WallpaperAdjustments {
+        val clippedBrightness = brightness.coerceIn(-0.5f, 0.5f)
+        val sanitizedCrop = when (val current = crop) {
+            is WallpaperCrop.Custom -> WallpaperCrop.Custom(current.settings.sanitized())
+            else -> current
+        }
+        return copy(
+            brightness = clippedBrightness,
+            crop = sanitizedCrop
+        )
+    }
+
+    fun normalizedCropSettings(): WallpaperCropSettings? =
+        (crop as? WallpaperCrop.Custom)?.settings?.sanitized()
 }
 
 /**

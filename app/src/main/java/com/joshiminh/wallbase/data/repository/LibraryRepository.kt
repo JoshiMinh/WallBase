@@ -16,6 +16,9 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperWithAlbums
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator.CopyResult
 import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
+import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
+import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustmentsJson
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -325,12 +328,20 @@ class LibraryRepository(
         }
     }
 
-    suspend fun updateCropSettings(wallpaper: WallpaperItem, settings: WallpaperCropSettings?) {
+    suspend fun updateAdjustments(
+        wallpaper: WallpaperItem,
+        adjustments: WallpaperAdjustments?
+    ) {
         withContext(Dispatchers.IO) {
             val id = resolveWallpaperId(wallpaper) ?: return@withContext
-            wallpaperDao.updateCropSettings(
+            val sanitized = adjustments?.sanitized()
+            val normalized = sanitized?.takeUnless { it.isIdentity }
+            val cropSettings = normalized?.normalizedCropSettings()?.encodeToString()
+            val editSettings = normalized?.let { WallpaperAdjustmentsJson.encode(it) }
+            wallpaperDao.updateEditSettings(
                 id = id,
-                cropSettings = settings?.encodeToString(),
+                cropSettings = cropSettings,
+                editSettings = editSettings,
                 updatedAt = System.currentTimeMillis()
             )
         }
@@ -585,22 +596,32 @@ class LibraryRepository(
     }
 
     suspend fun getWallpaperLibraryState(wallpaper: WallpaperItem): WallpaperLibraryState {
-        val sourceKey = wallpaper.sourceKey ?: return WallpaperLibraryState(false, false, null, null)
+        val sourceKey = wallpaper.sourceKey ?: return WallpaperLibraryState(false, false, null, null, null)
         return withContext(Dispatchers.IO) {
             when (sourceKey) {
                 SourceKeys.LOCAL -> {
                     val localId = wallpaper.remoteIdentifierWithinSource()?.toLongOrNull()
                     if (localId == null) {
-                        WallpaperLibraryState(isInLibrary = false, isDownloaded = false, localUri = null, cropSettings = null)
+                        WallpaperLibraryState(
+                            isInLibrary = false,
+                            isDownloaded = false,
+                            localUri = null,
+                            cropSettings = null,
+                            adjustments = null
+                        )
                     } else {
                         val entity = wallpaperDao.getById(localId)
                         val localUri = entity?.localUri
-                        val crop = WallpaperCropSettings.fromString(entity?.cropSettings)
+                        val adjustments = entity?.editSettings?.let(WallpaperAdjustmentsJson::decode)
+                        val normalized = adjustments?.sanitized()
+                        val crop = normalized?.normalizedCropSettings()
+                            ?: WallpaperCropSettings.fromString(entity?.cropSettings)
                         WallpaperLibraryState(
                             isInLibrary = entity != null,
                             isDownloaded = entity?.isDownloaded == true && !localUri.isNullOrBlank(),
                             localUri = localUri,
-                            cropSettings = crop
+                            cropSettings = crop,
+                            adjustments = normalized
                         )
                     }
                 }
@@ -612,12 +633,16 @@ class LibraryRepository(
                         else -> wallpaperDao.getBySourceKeyAndImageUrl(sourceKey, wallpaper.imageUrl)
                     }
                     val localUri = entity?.localUri
-                    val crop = WallpaperCropSettings.fromString(entity?.cropSettings)
+                    val adjustments = entity?.editSettings?.let(WallpaperAdjustmentsJson::decode)
+                    val normalized = adjustments?.sanitized()
+                    val crop = normalized?.normalizedCropSettings()
+                        ?: WallpaperCropSettings.fromString(entity?.cropSettings)
                     WallpaperLibraryState(
                         isInLibrary = entity != null,
                         isDownloaded = entity?.isDownloaded == true && !localUri.isNullOrBlank(),
                         localUri = localUri,
-                        cropSettings = crop
+                        cropSettings = crop,
+                        adjustments = normalized
                     )
                 }
             }
@@ -722,6 +747,7 @@ class LibraryRepository(
         val isDownloaded: Boolean,
         val localUri: String?,
         val cropSettings: WallpaperCropSettings? = null,
+        val adjustments: WallpaperAdjustments? = null,
     )
 
     sealed class DirectAddResult {
@@ -790,6 +816,10 @@ class LibraryRepository(
         }
 
         val now = System.currentTimeMillis()
+        val initialCrop = wallpaper.cropSettings?.sanitized()
+        val initialAdjustments = initialCrop?.let {
+            WallpaperAdjustments(crop = WallpaperCrop.Custom(it))
+        }
         val entity = WallpaperEntity(
             sourceKey = sourceKey,
             remoteId = remoteId,
@@ -802,7 +832,8 @@ class LibraryRepository(
             width = wallpaper.width,
             height = wallpaper.height,
             colorPalette = null,
-            cropSettings = wallpaper.cropSettings?.encodeToString(),
+            cropSettings = initialCrop?.encodeToString(),
+            editSettings = initialAdjustments?.let { WallpaperAdjustmentsJson.encode(it) },
             fileSizeBytes = null,
             isFavorite = false,
             isDownloaded = false,
@@ -932,6 +963,9 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
     val remoteId = remoteId ?: id.toString()
     val displayImageUrl = localUri ?: imageUrl
     val originalUrl = sourceUrl ?: localUri ?: imageUrl
+    val adjustments = editSettings?.let(WallpaperAdjustmentsJson::decode)
+    val crop = adjustments?.normalizedCropSettings()
+        ?: WallpaperCropSettings.fromString(cropSettings)
     return WallpaperItem(
         id = "${sourceKey}:$remoteId",
         title = title,
@@ -944,7 +978,7 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
         addedAt = addedAt,
         localUri = localUri,
         isDownloaded = isDownloaded,
-        cropSettings = WallpaperCropSettings.fromString(cropSettings)
+        cropSettings = crop
     )
 }
 
