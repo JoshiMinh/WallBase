@@ -167,17 +167,6 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    if (settingsUiState.appLockEnabled && !isAppUnlocked) {
-        AppLockOverlay(
-            modifier = Modifier.fillMaxSize(),
-            onUnlock = {
-                if (pendingAppLockRequest == null && activeAppLockRequest == null) {
-                    pendingAppLockRequest = AppLockRequest.Unlock
-                }
-            }
-        )
-    }
 }
 
 /** Top-level routes for bottom navigation */
@@ -654,8 +643,17 @@ fun WallBaseApp(
                 )
             }
         }
+        if (settingsUiState.appLockEnabled && !isAppUnlocked) {
+            AppLockOverlay(
+                modifier = Modifier.fillMaxSize(),
+                onUnlock = {
+                    if (pendingAppLockRequest == null && activeAppLockRequest == null) {
+                        pendingAppLockRequest = AppLockRequest.Unlock
+                    }
+                }
+            )
+        }
     }
-}
 }
 
 private fun currentTitle(dest: NavDestination?): String = when {
@@ -724,4 +722,4 @@ private fun AppLockOverlay(
             }
         }
     }
-}}
+}
