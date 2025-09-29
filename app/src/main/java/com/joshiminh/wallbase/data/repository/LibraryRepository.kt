@@ -156,6 +156,75 @@ class LibraryRepository(
         }
     }
 
+    suspend fun addDirectWallpaper(url: String): DirectAddResult {
+        val normalized = url.trim()
+        require(normalized.isNotEmpty()) { "Wallpaper URL cannot be blank" }
+
+        val parsedUri = Uri.parse(normalized)
+        val scheme = parsedUri.scheme?.lowercase(Locale.ROOT)
+        if (scheme == null || scheme !in DIRECT_LINK_SCHEMES || parsedUri.host.isNullOrBlank()) {
+            return DirectAddResult.Failure(
+                reason = "Enter a valid HTTP or HTTPS image link."
+            )
+        }
+
+        return withContext(Dispatchers.IO) {
+            val existing = wallpaperDao.getBySourceKeyAndSourceUrl(SourceKeys.LOCAL, normalized)
+            if (existing != null) {
+                return@withContext DirectAddResult.AlreadyExists(existing.toLibraryWallpaperItem())
+            }
+
+            val remote = downloadRemoteImage(normalized)
+                ?: return@withContext DirectAddResult.Failure(
+                    reason = "Unable to download image. Check the link and try again."
+                )
+
+            val mimeType = remote.mimeType?.lowercase(Locale.ROOT)
+            if (mimeType != null && !mimeType.startsWith("image/")) {
+                return@withContext DirectAddResult.Failure(
+                    reason = "The provided link does not point to an image."
+                )
+            }
+
+            if (remote.bytes.isEmpty()) {
+                return@withContext DirectAddResult.Failure(
+                    reason = "Downloaded image is empty."
+                )
+            }
+
+            val displayName = displayNameFromUrl(normalized)
+            val copy = runCatching {
+                localStorage.writeBytes(
+                    data = remote.bytes,
+                    sourceFolder = DIRECT_SOURCE_FOLDER,
+                    displayName = displayName,
+                    mimeTypeHint = remote.mimeType
+                )
+            }.getOrElse { error ->
+                if (error is IllegalStateException) throw error
+                return@withContext DirectAddResult.Failure(
+                    reason = error.localizedMessage ?: "Unable to save wallpaper"
+                )
+            }
+
+            val folderName = parsedUri.host?.takeIf { it.isNotBlank() }
+                ?: DIRECT_SOURCE_FOLDER
+            val now = System.currentTimeMillis()
+            val baseEntity = createLocalWallpaperEntity(copy, now, folderName)
+            val entity = baseEntity.copy(sourceUrl = normalized)
+            val insertedId = wallpaperDao.insertWallpaper(entity)
+            if (insertedId == -1L) {
+                runCatching { localStorage.deleteDocument(copy.uri) }
+                val existingEntity = wallpaperDao
+                    .getBySourceKeyAndImageUrl(SourceKeys.LOCAL, entity.imageUrl)
+                return@withContext DirectAddResult.AlreadyExists(existingEntity?.toLibraryWallpaperItem())
+            }
+
+            val saved = entity.copy(id = insertedId)
+            DirectAddResult.Success(saved.toLibraryWallpaperItem())
+        }
+    }
+
     suspend fun downloadWallpapers(
         wallpapers: List<WallpaperItem>,
         storageLimitBytes: Long? = null
@@ -638,6 +707,12 @@ class LibraryRepository(
         val localUri: String?
     )
 
+    sealed class DirectAddResult {
+        data class Success(val wallpaper: WallpaperItem) : DirectAddResult()
+        data class AlreadyExists(val wallpaper: WallpaperItem?) : DirectAddResult()
+        data class Failure(val reason: String) : DirectAddResult()
+    }
+
     private suspend fun ensureAlbum(title: String, now: Long): AlbumEntity {
         val normalized = title.trim().ifBlank { "Album" }
         albumDao.findAlbumByTitle(normalized)?.let { return it }
@@ -746,8 +821,12 @@ class LibraryRepository(
     private suspend fun downloadRemoteImage(url: String): RemoteImage? {
         return withContext(Dispatchers.IO) {
             runCatching {
-                val connection = URL(url).openConnection()
+                val connection = URL(url).openConnection().apply {
+                    connectTimeout = REMOTE_CONNECT_TIMEOUT_MS
+                    readTimeout = REMOTE_READ_TIMEOUT_MS
+                }
                 if (connection is HttpURLConnection) {
+                    connection.instanceFollowRedirects = true
                     connection.connect()
                     if (connection.responseCode >= 400) {
                         connection.disconnect()
@@ -770,6 +849,13 @@ class LibraryRepository(
             ?: wallpaper.providerKey()?.takeIf { it.isNotBlank() }
             ?: "Remote"
         return localStorage.sanitizeFolderName(title)
+    }
+
+    private fun displayNameFromUrl(url: String): String {
+        val candidate = url.substringAfterLast('/')
+            .substringBefore('?')
+            .substringBefore('#')
+        return localStorage.sanitizeFileName(candidate, DIRECT_FILE_FALLBACK)
     }
 
     private fun DocumentFile.isImageFile(): Boolean {
@@ -814,6 +900,11 @@ class LibraryRepository(
 
     private companion object {
         private const val LOCAL_SOURCE_FOLDER = "Local"
+        private const val DIRECT_SOURCE_FOLDER = "Direct"
+        private const val DIRECT_FILE_FALLBACK = "Wallpaper"
+        private val DIRECT_LINK_SCHEMES = setOf("http", "https")
+        private const val REMOTE_CONNECT_TIMEOUT_MS = 15_000
+        private const val REMOTE_READ_TIMEOUT_MS = 20_000
     }
 }
 

@@ -39,6 +39,9 @@ interface WallpaperDao {
     @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl LIMIT 1")
     suspend fun getBySourceKeyAndImageUrl(sourceKey: String, imageUrl: String): WallpaperEntity?
 
+    @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey AND source_url = :sourceUrl LIMIT 1")
+    suspend fun getBySourceKeyAndSourceUrl(sourceKey: String, sourceUrl: String): WallpaperEntity?
+
     @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey")
     suspend fun getWallpapersBySource(sourceKey: String): List<WallpaperEntity>
 

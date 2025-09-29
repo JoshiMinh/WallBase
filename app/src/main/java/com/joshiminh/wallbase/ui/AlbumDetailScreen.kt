@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -42,6 +41,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -49,6 +49,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -58,6 +59,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -78,7 +80,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarHandle
@@ -420,14 +421,14 @@ private fun AlbumDetailScreen(
     animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
     val hasQuery = isSearching && searchQuery.isNotBlank()
-    var showRotationDialog by rememberSaveable { mutableStateOf(false) }
+    var showRotationSheet by rememberSaveable { mutableStateOf(false) }
     val canConfigureRotation = state.wallpapers.isNotEmpty()
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             if (!state.isLoading && !state.notFound) {
-                FloatingActionButton(onClick = { showRotationDialog = true }) {
+                FloatingActionButton(onClick = { showRotationSheet = true }) {
                     Icon(
                         imageVector = Icons.Outlined.Schedule,
                         contentDescription = "Schedule rotation"
@@ -521,11 +522,11 @@ private fun AlbumDetailScreen(
         }
     }
 
-    if (showRotationDialog) {
-        RotationScheduleDialog(
+    if (showRotationSheet) {
+        RotationScheduleBottomSheet(
             rotationState = state.rotation,
             canConfigure = canConfigureRotation,
-            onDismiss = { showRotationDialog = false },
+            onDismiss = { showRotationSheet = false },
             onToggleRotation = onToggleRotation,
             onSelectRotationInterval = onSelectRotationInterval,
             onSelectRotationTarget = onSelectRotationTarget,
@@ -567,10 +568,9 @@ private fun AlbumDetailScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-
-
-private fun RotationScheduleDialog(
+private fun RotationScheduleBottomSheet(
     rotationState: AlbumDetailViewModel.RotationUiState,
     canConfigure: Boolean,
     onDismiss: () -> Unit,
@@ -629,120 +629,117 @@ private fun RotationScheduleDialog(
             .format(Date(timestamp))
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState
+    ) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(4.dp)
-                .widthIn(max = 1000.dp),
-            shape = MaterialTheme.shapes.large,
-            tonalElevation = 6.dp
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Scheduled rotation",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close")
+                }
+            }
+
+            val scrollState = rememberScrollState()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Scheduled rotation",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close")
-                    }
-                }
-
-                val scrollState = rememberScrollState()
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(scrollState),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    RotationToggleCard(
-                        summary = rotationSummary(rotationState, canConfigure),
-                        lastApplied = lastApplied,
-                        enabled = rotationState.isEnabled,
-                        canConfigure = canConfigure,
-                        isBusy = rotationState.isUpdating,
-                        onToggle = {
-                            if (!it || commitInterval()) {
-                                onToggleRotation(it)
-                            }
-                        },
-                        onRotateNow = onStartRotationNow
-                    )
-                    RotationIntervalCard(
-                        value = intervalValue,
-                        unit = selectedIntervalUnit,
-                        units = intervalUnits,
-                        enabled = canConfigure && !rotationState.isUpdating,
-                        errorText = intervalError,
-                        quickIntervals = quickIntervals,
-                        onValueChange = { newValue ->
-                            intervalValue = newValue.filter { it.isDigit() }
-                            if (intervalError != null) {
-                                intervalError = null
-                            }
-                        },
-                        onCommit = {
-                            if (commitInterval()) {
-                                keyboardController?.hide()
-                                focusManager.clearFocus()
-                            }
-                        },
-                        onUnitSelected = { unit ->
-                            if (selectedIntervalUnit != unit) {
-                                val baseMinutes =
-                                    parseIntervalMinutes(intervalValue, selectedIntervalUnit)
-                                        ?: rotationState.intervalMinutes
-                                val newValue = unit.valueFromMinutes(baseMinutes)
-                                val newMinutes = unit.toMinutes(newValue)
-                                if (newMinutes != null) {
-                                    selectedIntervalUnit = unit
-                                    intervalValue = newValue.toString()
-                                    intervalError = null
-                                    if (newMinutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating) {
-                                        onSelectRotationInterval(newMinutes)
-                                    }
-                                }
-                            }
-                        },
-                        onIntervalSelected = { minutes ->
-                            val sanitized = minutes.coerceAtLeast(WallpaperRotationDefaults.MIN_INTERVAL_MINUTES)
-                            val unit = RotationIntervalUnit.fromMinutes(sanitized)
-                            selectedIntervalUnit = unit
-                            intervalValue = unit.displayValue(sanitized)
+                RotationToggleCard(
+                    summary = rotationSummary(rotationState, canConfigure),
+                    lastApplied = lastApplied,
+                    enabled = rotationState.isEnabled,
+                    canConfigure = canConfigure,
+                    isBusy = rotationState.isUpdating,
+                    onToggle = {
+                        if (!it || commitInterval()) {
+                            onToggleRotation(it)
+                        }
+                    },
+                    onRotateNow = onStartRotationNow
+                )
+                RotationIntervalCard(
+                    value = intervalValue,
+                    unit = selectedIntervalUnit,
+                    units = intervalUnits,
+                    enabled = canConfigure && !rotationState.isUpdating,
+                    errorText = intervalError,
+                    quickIntervals = quickIntervals,
+                    onValueChange = { newValue ->
+                        intervalValue = newValue.filter { it.isDigit() }
+                        if (intervalError != null) {
                             intervalError = null
-                            onSelectRotationInterval(sanitized)
-                        },
-                        onFocusChanged = { focused ->
-                            if (!focused && intervalFieldFocused) {
-                                if (commitInterval()) {
-                                    keyboardController?.hide()
+                        }
+                    },
+                    onCommit = {
+                        if (commitInterval()) {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                        }
+                    },
+                    onUnitSelected = { unit ->
+                        if (selectedIntervalUnit != unit) {
+                            val baseMinutes =
+                                parseIntervalMinutes(intervalValue, selectedIntervalUnit)
+                                    ?: rotationState.intervalMinutes
+                            val newValue = unit.valueFromMinutes(baseMinutes)
+                            val newMinutes = unit.toMinutes(newValue)
+                            if (newMinutes != null) {
+                                selectedIntervalUnit = unit
+                                intervalValue = newValue.toString()
+                                intervalError = null
+                                if (newMinutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating
+                                ) {
+                                    onSelectRotationInterval(newMinutes)
                                 }
-                                intervalFieldFocused = false
-                            } else if (focused) {
-                                intervalFieldFocused = true
                             }
                         }
-                    )
-                    RotationTargetCard(
-                        selectedTarget = rotationState.target,
-                        enabled = canConfigure && !rotationState.isUpdating,
-                        onSelect = onSelectRotationTarget
-                    )
-                }
+                    },
+                    onIntervalSelected = { minutes ->
+                        val sanitized = minutes.coerceAtLeast(WallpaperRotationDefaults.MIN_INTERVAL_MINUTES)
+                        val unit = RotationIntervalUnit.fromMinutes(sanitized)
+                        selectedIntervalUnit = unit
+                        intervalValue = unit.displayValue(sanitized)
+                        intervalError = null
+                        onSelectRotationInterval(sanitized)
+                    },
+                    onFocusChanged = { focused ->
+                        if (!focused && intervalFieldFocused) {
+                            if (commitInterval()) {
+                                keyboardController?.hide()
+                            }
+                            intervalFieldFocused = false
+                        } else if (focused) {
+                            intervalFieldFocused = true
+                        }
+                    }
+                )
+                RotationTargetCard(
+                    selectedTarget = rotationState.target,
+                    enabled = canConfigure && !rotationState.isUpdating,
+                    onSelect = onSelectRotationTarget
+                )
+            }
 
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text(text = "Close")
-                }
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(text = "Close")
             }
         }
     }

@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.ui
 
 import android.content.Context
 import android.text.format.Formatter
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CleaningServices
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -43,6 +46,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -459,121 +463,15 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    SettingsCard {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "App updates",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "Current version ${BuildConfig.VERSION_NAME}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            when {
-                                uiState.isCheckingForUpdates -> {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            strokeWidth = 2.dp
-                                        )
-                                        Text(
-                                            text = "Checking for updates…",
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                    }
-                                }
-
-                                uiState.availableUpdateVersion != null -> {
-                                    Column(
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Text(
-                                            text = "Version ${uiState.availableUpdateVersion} is available.",
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                        uiState.updateNotes?.takeIf { it.isNotBlank() }?.let { notes ->
-                                            Text(
-                                                text = notes.trim(),
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
-
-                                uiState.hasCheckedForUpdates -> {
-                                    Text(
-                                        text = "You're up to date!",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
-                                else -> {
-                                    Text(
-                                        text = "Stay current with the latest releases.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            val updateAvailable = uiState.availableUpdateVersion != null
-                            val isChecking = uiState.isCheckingForUpdates
-                            if (updateAvailable) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val updateUrl = uiState.updateUrl
-                                    Button(
-                                        enabled = updateUrl != null,
-                                        onClick = {
-                                            val url = updateUrl ?: return@Button
-                                            onOpenUpdateUrl(url)
-                                            uriHandler.openUri(url)
-                                        }
-                                    ) {
-                                        Text(text = "Download")
-                                        Icon(
-                                            imageVector = Icons.Outlined.OpenInNew,
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .padding(start = 6.dp)
-                                                .size(18.dp)
-                                        )
-                                    }
-
-                                    TextButton(onClick = onDismissUpdate) {
-                                        Text(text = "Not now")
-                                    }
-                                }
-                            } else {
-                                SettingsActionButton(
-                                    text = if (isChecking) "Checking…" else "Check for updates",
-                                    enabled = !isChecking,
-                                    showProgress = isChecking,
-                                    onClick = onCheckForUpdates
-                                )
-                            }
-                        }
-                    }
+                    AppUpdateCard(
+                        uiState = uiState,
+                        onCheckForUpdates = onCheckForUpdates,
+                        onDownloadUpdate = { url ->
+                            onOpenUpdateUrl(url)
+                            uriHandler.openUri(url)
+                        },
+                        onDismissUpdate = onDismissUpdate
+                    )
 
                     SettingsLinkCard(
                         title = "GitHub",
@@ -605,6 +503,177 @@ private fun SettingsSection(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(spacing), content = content)
+}
+
+@Composable
+private fun AppUpdateCard(
+    uiState: SettingsViewModel.SettingsUiState,
+    onCheckForUpdates: () -> Unit,
+    onDownloadUpdate: (String) -> Unit,
+    onDismissUpdate: () -> Unit
+) {
+    val updateAvailable = uiState.availableUpdateVersion != null
+    val isChecking = uiState.isCheckingForUpdates
+    val statusLabel = when {
+        updateAvailable -> "Update available"
+        isChecking -> "Checking…"
+        uiState.hasCheckedForUpdates -> "Up to date"
+        else -> null
+    }
+    val statusColor = when {
+        updateAvailable -> MaterialTheme.colorScheme.primary
+        isChecking -> MaterialTheme.colorScheme.tertiary
+        uiState.hasCheckedForUpdates -> MaterialTheme.colorScheme.secondary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    SettingsCard {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .animateContentSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Surface(
+                    modifier = Modifier.size(44.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.SystemUpdate,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .padding(10.dp)
+                            .size(24.dp)
+                    )
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "App updates",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Current version ${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                statusLabel?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = statusColor
+                    )
+                }
+            }
+
+            when {
+                isChecking -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = "Checking for updates…",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                updateAvailable -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Version ${uiState.availableUpdateVersion} is available.",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        uiState.updateNotes?.takeIf { it.isNotBlank() }?.let { notes ->
+                            Text(
+                                text = notes.trim(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                uiState.hasCheckedForUpdates -> {
+                    Text(
+                        text = "You're up to date!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                else -> {
+                    Text(
+                        text = "Stay current with the latest releases.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (updateAvailable) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val updateUrl = uiState.updateUrl
+                    FilledTonalButton(
+                        enabled = updateUrl != null,
+                        onClick = {
+                            val url = updateUrl ?: return@FilledTonalButton
+                            onDownloadUpdate(url)
+                        }
+                    ) {
+                        Text(text = "Download")
+                        Icon(
+                            imageVector = Icons.Outlined.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(start = 6.dp)
+                                .size(18.dp)
+                        )
+                    }
+
+                    TextButton(onClick = onDismissUpdate) {
+                        Text(text = "Not now")
+                    }
+                }
+            } else {
+                FilledTonalButton(
+                    onClick = onCheckForUpdates,
+                    enabled = !isChecking
+                ) {
+                    if (isChecking) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    Text(text = if (isChecking) "Checking…" else "Check for updates")
+                }
+            }
+        }
+    }
 }
 
 @Composable

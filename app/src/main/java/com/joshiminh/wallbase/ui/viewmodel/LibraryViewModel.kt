@@ -10,6 +10,7 @@ import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.LibraryRepository
+import com.joshiminh.wallbase.data.repository.LibraryRepository.DirectAddResult
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.SettingsPreferences
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -34,6 +36,8 @@ class LibraryViewModel(
     private val isCreatingAlbum = MutableStateFlow(false)
     private val selectionActionInProgress = MutableStateFlow(false)
     private val selectionAction = MutableStateFlow<SelectionAction?>(null)
+    private val directAddInProgress = MutableStateFlow(false)
+    private val directAddStatus = MutableStateFlow<Boolean?>(null)
     private val wallpaperSort = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
     private val albumSort = MutableStateFlow(AlbumSortOption.TITLE_ASCENDING)
     private var storageLimitBytes: Long = 0L
@@ -48,31 +52,28 @@ class LibraryViewModel(
             messageFlow,
             wallpaperSort,
             albumSort,
-            settingsRepository.preferences
-        ) { arr: Array<Any?> ->
-            val wallpapers = arr[0] as List<WallpaperItem>
-            val albums = arr[1] as List<AlbumItem>
-            val creating = arr[2] as Boolean
-            val selectionBusy = arr[3] as Boolean
-            val action = arr[4] as SelectionAction?
-            val message = arr[5] as String?
-            val wallpaperSortOption = arr[6] as WallpaperSortOption
-            val albumSortOption = arr[7] as AlbumSortOption
-            val preferences = arr[8] as SettingsPreferences
-            storageLimitBytes = preferences.storageLimitBytes
+            settingsRepository.preferences,
+            directAddInProgress,
+            directAddStatus
+        ) { values ->
+            values.toLibraryStateInputs()
+        }.map { inputs ->
+            storageLimitBytes = inputs.preferences.storageLimitBytes
 
             LibraryUiState(
-                wallpapers = wallpapers.sortedWith(wallpaperSortOption),
-                albums = albums.sortedWith(albumSortOption),
-                isCreatingAlbum = creating,
-                isSelectionActionInProgress = selectionBusy,
-                selectionAction = action,
-                message = message,
-                wallpaperSortOption = wallpaperSortOption,
-                albumSortOption = albumSortOption,
-                wallpaperGridColumns = preferences.wallpaperGridColumns,
-                albumLayout = preferences.albumLayout,
-                wallpaperLayout = preferences.wallpaperLayout
+                wallpapers = inputs.wallpapers.sortedWith(inputs.wallpaperSortOption),
+                albums = inputs.albums.sortedWith(inputs.albumSortOption),
+                isCreatingAlbum = inputs.isCreatingAlbum,
+                isSelectionActionInProgress = inputs.isSelectionActionInProgress,
+                selectionAction = inputs.selectionAction,
+                message = inputs.message,
+                wallpaperSortOption = inputs.wallpaperSortOption,
+                albumSortOption = inputs.albumSortOption,
+                wallpaperGridColumns = inputs.preferences.wallpaperGridColumns,
+                albumLayout = inputs.preferences.albumLayout,
+                wallpaperLayout = inputs.preferences.wallpaperLayout,
+                isDirectAddInProgress = inputs.isDirectAddInProgress,
+                directAddCompleted = inputs.directAddCompleted
             )
         }.stateIn(
             scope = viewModelScope,
@@ -103,6 +104,43 @@ class LibraryViewModel(
     fun updateAlbumLayout(layout: AlbumLayout) {
         viewModelScope.launch {
             settingsRepository.setAlbumLayout(layout)
+        }
+    }
+
+    fun addDirectWallpaper(link: String) {
+        val trimmed = link.trim()
+        if (trimmed.isEmpty()) {
+            messageFlow.value = "Enter a direct image link"
+            return
+        }
+        if (directAddInProgress.value) return
+
+        directAddStatus.value = null
+        viewModelScope.launch {
+            directAddInProgress.value = true
+            val outcome = runCatching { repository.addDirectWallpaper(trimmed) }
+                .getOrElse { error ->
+                    DirectAddResult.Failure(error.localizedMessage ?: "Unable to add wallpaper")
+                }
+            directAddInProgress.value = false
+            when (outcome) {
+                is DirectAddResult.Success -> {
+                    val title = outcome.wallpaper.title.takeIf { it.isNotBlank() } ?: "Wallpaper"
+                    messageFlow.value = "Added \"$title\" to your library"
+                    directAddStatus.value = true
+                }
+
+                is DirectAddResult.AlreadyExists -> {
+                    val title = outcome.wallpaper?.title?.takeIf { it.isNotBlank() } ?: "Wallpaper"
+                    messageFlow.value = "\"$title\" is already in your library"
+                    directAddStatus.value = true
+                }
+
+                is DirectAddResult.Failure -> {
+                    messageFlow.value = outcome.reason
+                    directAddStatus.value = false
+                }
+            }
         }
     }
 
@@ -301,6 +339,10 @@ class LibraryViewModel(
         messageFlow.value = null
     }
 
+    fun consumeDirectAddStatus() {
+        directAddStatus.value = null
+    }
+
     data class LibraryUiState(
         val wallpapers: List<WallpaperItem> = emptyList(),
         val albums: List<AlbumItem> = emptyList(),
@@ -312,7 +354,9 @@ class LibraryViewModel(
         val albumSortOption: AlbumSortOption = AlbumSortOption.TITLE_ASCENDING,
         val wallpaperGridColumns: Int = 2,
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
-        val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID
+        val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
+        val isDirectAddInProgress: Boolean = false,
+        val directAddCompleted: Boolean? = null
     )
 
     enum class SelectionAction {
@@ -333,4 +377,34 @@ class LibraryViewModel(
             }
         }
     }
+}
+
+private data class LibraryStateInputs(
+    val wallpapers: List<WallpaperItem>,
+    val albums: List<AlbumItem>,
+    val isCreatingAlbum: Boolean,
+    val isSelectionActionInProgress: Boolean,
+    val selectionAction: LibraryViewModel.SelectionAction?,
+    val message: String?,
+    val wallpaperSortOption: WallpaperSortOption,
+    val albumSortOption: AlbumSortOption,
+    val preferences: SettingsPreferences,
+    val isDirectAddInProgress: Boolean,
+    val directAddCompleted: Boolean?
+)
+
+private fun Array<Any?>.toLibraryStateInputs(): LibraryStateInputs {
+    return LibraryStateInputs(
+        wallpapers = this[0] as List<WallpaperItem>,
+        albums = this[1] as List<AlbumItem>,
+        isCreatingAlbum = this[2] as Boolean,
+        isSelectionActionInProgress = this[3] as Boolean,
+        selectionAction = this[4] as LibraryViewModel.SelectionAction?,
+        message = this[5] as String?,
+        wallpaperSortOption = this[6] as WallpaperSortOption,
+        albumSortOption = this[7] as AlbumSortOption,
+        preferences = this[8] as SettingsPreferences,
+        isDirectAddInProgress = this[9] as Boolean,
+        directAddCompleted = this[10] as Boolean?
+    )
 }
