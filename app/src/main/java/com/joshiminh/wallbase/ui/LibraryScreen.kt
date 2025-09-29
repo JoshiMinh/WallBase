@@ -83,6 +83,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -90,11 +91,15 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
@@ -137,6 +142,8 @@ fun LibraryScreen(
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var showDirectAddDialog by rememberSaveable { mutableStateOf(false) }
+    var directAddUrl by rememberSaveable { mutableStateOf("") }
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -238,12 +245,37 @@ fun LibraryScreen(
         }
     }
 
+    LaunchedEffect(uiState.directAddCompleted) {
+        when (uiState.directAddCompleted) {
+            true -> {
+                showDirectAddDialog = false
+                directAddUrl = ""
+                libraryViewModel.consumeDirectAddStatus()
+            }
+
+            false -> {
+                libraryViewModel.consumeDirectAddStatus()
+            }
+
+            null -> Unit
+        }
+    }
+
+    LaunchedEffect(showDirectAddDialog) {
+        if (!showDirectAddDialog) {
+            directAddUrl = ""
+        }
+    }
+
     LaunchedEffect(selectedTab) {
         if (selectedTab != 0 && selectedWallpaperIds.isNotEmpty()) {
             selectedWallpaperIds = emptySet()
         }
         if (selectedTab != 1 && selectedAlbumIds.isNotEmpty()) {
             selectedAlbumIds = emptySet()
+        }
+        if (selectedTab != 0 && showDirectAddDialog) {
+            showDirectAddDialog = false
         }
     }
 
@@ -254,6 +286,7 @@ fun LibraryScreen(
                 isSearchActive = false
                 searchQuery = ""
             }
+            showDirectAddDialog = false
         } else {
             showRemoveDownloadsDialog = false
         }
@@ -410,6 +443,11 @@ fun LibraryScreen(
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                     }
                 } else {
+                    if (selectedTab == 0) {
+                        IconButton(onClick = { showDirectAddDialog = true }) {
+                            Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add wallpaper")
+                        }
+                    }
                     IconButton(onClick = { isSearchActive = true }) {
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                     }
@@ -684,6 +722,16 @@ fun LibraryScreen(
             }
         )
     }
+
+    if (showDirectAddDialog) {
+        DirectAddDialog(
+            url = directAddUrl,
+            onUrlChange = { directAddUrl = it },
+            isBusy = uiState.isDirectAddInProgress,
+            onConfirm = { libraryViewModel.addDirectWallpaper(directAddUrl) },
+            onDismiss = { showDirectAddDialog = false }
+        )
+    }
 }
 
 @Composable
@@ -715,6 +763,103 @@ private fun DownloadProgressToast(visible: Boolean, modifier: Modifier = Modifie
             }
         }
     }
+}
+
+@Composable
+private fun DirectAddDialog(
+    url: String,
+    onUrlChange: (String) -> Unit,
+    isBusy: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+    val canSubmit = url.isNotBlank() && !isBusy
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isBusy) {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+                onDismiss()
+            }
+        },
+        title = { Text(text = "Add wallpaper") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Paste a direct image link to save it in your library.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = onUrlChange,
+                    label = { Text("Image link") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (canSubmit) {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                onConfirm()
+                            }
+                        }
+                    )
+                )
+                Text(
+                    text = "Example: https://www.reddit.com/media?url=https%3A%2F%2Fpreview.redd.it%2Fshare-your-wallpapers-high-quality-is-appreciated-v0-mfolekrpzsnf1.jpeg%3Fwidth%3D1170%26auto%3Dwebp%26s%3D7f528b4d58a0d35285312494e5a9279fbb5bc9bc",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    onConfirm()
+                },
+                enabled = canSubmit
+            ) {
+                if (isBusy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(text = "Add")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    onDismiss()
+                },
+                enabled = !isBusy
+            ) {
+                Text(text = "Cancel")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)

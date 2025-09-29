@@ -44,7 +44,8 @@ class SettingsRepository(
                 wallpaperLayout = wallpaperLayout,
                 autoDownload = prefs[Keys.AUTO_DOWNLOAD_ENABLED] ?: false,
                 storageLimitBytes = storageLimit.coerceIn(0L, MAX_STORAGE_LIMIT_BYTES),
-                dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION]
+                dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION],
+                appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: false
             )
         }
 
@@ -96,6 +97,12 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setAppLockEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.APP_LOCK_ENABLED] = enabled
+        }
+    }
+
     private object Keys {
         val DARK_THEME = booleanPreferencesKey("dark_theme")
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
@@ -104,6 +111,7 @@ class SettingsRepository(
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
         val STORAGE_LIMIT_BYTES = longPreferencesKey("storage_limit_bytes")
         val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
+        val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
     }
 
     companion object {
@@ -122,7 +130,8 @@ data class SettingsPreferences(
     val wallpaperLayout: WallpaperLayout,
     val autoDownload: Boolean,
     val storageLimitBytes: Long,
-    val dismissedUpdateVersion: String?
+    val dismissedUpdateVersion: String?,
+    val appLockEnabled: Boolean
 )
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")

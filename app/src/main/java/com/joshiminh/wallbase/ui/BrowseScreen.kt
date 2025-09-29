@@ -3,7 +3,7 @@ package com.joshiminh.wallbase.ui
 import android.annotation.SuppressLint
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,7 +54,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -68,7 +70,6 @@ import java.util.Locale
 @Composable
 fun BrowseScreen(
     uiState: SourcesViewModel.SourcesUiState,
-    onGooglePhotosClick: () -> Unit,
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
@@ -77,7 +78,8 @@ fun BrowseScreen(
     onClearSearchResults: () -> Unit,
     onOpenSource: (Source) -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
-    onMessageShown: () -> Unit
+    onMessageShown: () -> Unit,
+    onSourceUrlCopied: (String) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingRemoval by remember { mutableStateOf<Source?>(null) }
@@ -131,8 +133,8 @@ fun BrowseScreen(
                     SourceCard(
                         source = source,
                         onOpenSource = onOpenSource,
-                        onGooglePhotosClick = onGooglePhotosClick,
-                        onRequestRemove = { pendingRemoval = it }
+                        onRequestRemove = { pendingRemoval = it },
+                        onSourceUrlCopied = onSourceUrlCopied
                     )
                 }
             }
@@ -360,7 +362,7 @@ private fun SupportedSourcesDialog(
         SupportedSourceInfo(
             label = "Wallhaven",
             faviconDomain = "wallhaven.cc",
-            quickAddInput = "https://wallhaven.cc/toplist"
+            quickAddInput = "https://wallhaven.cc"
         ),
         SupportedSourceInfo(
             label = "Danbooru",
@@ -465,47 +467,43 @@ private data class SupportedSourceInfo(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SourceCard(
     source: Source,
     onOpenSource: (Source) -> Unit,
-    onGooglePhotosClick: () -> Unit,
-    onRequestRemove: (Source) -> Unit
+    onRequestRemove: (Source) -> Unit,
+    onSourceUrlCopied: (String) -> Unit
 ) {
-    val isGooglePhotos = source.providerKey == SourceKeys.GOOGLE_PHOTOS
-    val isGooglePhotosPicker = isGooglePhotos && source.config.isNullOrBlank()
-    val isRemovable = when {
-        isGooglePhotosPicker -> false
-        isGooglePhotos -> true
-        else -> source.providerKey in setOf(
-            SourceKeys.REDDIT,
-            SourceKeys.PINTEREST,
-            SourceKeys.WEBSITES,
-            SourceKeys.WALLHAVEN,
-            SourceKeys.DANBOORU,
-            SourceKeys.UNSPLASH,
-            SourceKeys.ALPHA_CODERS
-        )
-    }
-
-    val cardModifier = when {
-        isGooglePhotosPicker -> Modifier
-            .fillMaxWidth()
-            .clickable { onGooglePhotosClick() }
-        else -> Modifier
-            .fillMaxWidth()
-            .clickable { onOpenSource(source) }
-    }
+    val clipboardManager = LocalClipboardManager.current
+    val shareUrl = remember(source) { sourceShareUrl(source) }
+    val isRemovable = source.providerKey in setOf(
+        SourceKeys.REDDIT,
+        SourceKeys.PINTEREST,
+        SourceKeys.WEBSITES,
+        SourceKeys.WALLHAVEN,
+        SourceKeys.DANBOORU,
+        SourceKeys.UNSPLASH,
+        SourceKeys.ALPHA_CODERS
+    )
 
     Card(
-        modifier = cardModifier,
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { onOpenSource(source) },
+                onLongClick = {
+                    shareUrl?.let {
+                        clipboardManager.setText(AnnotatedString(it))
+                        onSourceUrlCopied(it)
+                    }
+                }
+            ),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val iconUrl = source.iconUrl?.takeUnless { it.isBlank() || isGooglePhotos }
+                val iconUrl = source.iconUrl?.takeUnless { it.isBlank() }
                 val fallbackPainter = safePainterResource(source.iconRes)
                 val defaultPainter = rememberVectorPainter(image = Icons.Outlined.Public)
 
@@ -548,16 +546,34 @@ private fun SourceCard(
                 }
             }
 
-            if (isGooglePhotosPicker) {
-                Spacer(Modifier.size(8.dp))
-                val instructions = "Pick Google Photos albums to browse their images."
-                Text(instructions, style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.size(4.dp))
-                TextButton(onClick = onGooglePhotosClick) {
-                    Text("Select albums")
-                }
+            shareUrl?.let { url ->
+                Spacer(Modifier.size(6.dp))
+                Text(
+                    text = "Long-press to copy $url",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
+    }
+}
+
+private fun sourceShareUrl(source: Source): String? {
+    val config = source.config?.takeIf { it.isNotBlank() } ?: return null
+    return when (source.providerKey) {
+        SourceKeys.REDDIT -> {
+            val slug = config.trim('/').ifBlank { return null }
+            "https://www.reddit.com/r/$slug/"
+        }
+
+        SourceKeys.PINTEREST,
+        SourceKeys.WALLHAVEN,
+        SourceKeys.DANBOORU,
+        SourceKeys.UNSPLASH,
+        SourceKeys.ALPHA_CODERS,
+        SourceKeys.WEBSITES -> config
+
+        else -> null
     }
 }
 

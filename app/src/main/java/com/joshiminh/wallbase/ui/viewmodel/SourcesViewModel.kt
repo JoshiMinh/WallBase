@@ -14,7 +14,6 @@ import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
-import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -173,25 +172,19 @@ class SourcesViewModel(
         }
     }
 
-    fun addGooglePhotosAlbum(album: GooglePhotosAlbum) {
-        viewModelScope.launch {
-            val result = runCatching { sourceRepository.addGooglePhotosAlbum(album) }
-            _uiState.update { state ->
-                val message = result.fold(
-                    onSuccess = { source -> "Added ${source.title}" },
-                    onFailure = { error ->
-                        error.localizedMessage ?: "Unable to add Google Photos album."
-                    }
-                )
-                state.copy(snackbarMessage = message)
-            }
-        }
-    }
-
     fun clearSearchResults() {
         _uiState.update {
             it.copy(redditSearchResults = emptyList(), redditSearchError = null)
         }
+    }
+
+    fun onSourceUrlCopied(url: String) {
+        val host = runCatching { Uri.parse(url).host }
+            .getOrNull()
+            ?.removePrefix("www.")
+            ?.takeIf { it.isNotBlank() }
+        val label = host ?: url
+        _uiState.update { it.copy(snackbarMessage = "Copied $label to clipboard") }
     }
 
     fun removeSource(source: Source, deleteWallpapers: Boolean) {

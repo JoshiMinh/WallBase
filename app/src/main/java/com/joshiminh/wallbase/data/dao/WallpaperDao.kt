@@ -39,6 +39,9 @@ interface WallpaperDao {
     @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey AND image_url = :imageUrl LIMIT 1")
     suspend fun getBySourceKeyAndImageUrl(sourceKey: String, imageUrl: String): WallpaperEntity?
 
+    @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey AND source_url = :sourceUrl LIMIT 1")
+    suspend fun getBySourceKeyAndSourceUrl(sourceKey: String, sourceUrl: String): WallpaperEntity?
+
     @Query("SELECT * FROM wallpapers WHERE source_key = :sourceKey")
     suspend fun getWallpapersBySource(sourceKey: String): List<WallpaperEntity>
 
@@ -81,4 +84,15 @@ interface WallpaperDao {
 
     @Query("SELECT COALESCE(SUM(file_size_bytes), 0) FROM wallpapers WHERE is_downloaded = 1")
     suspend fun totalDownloadedBytes(): Long
+
+    @Query(
+        "UPDATE wallpapers SET crop_settings = :cropSettings, edit_settings = :editSettings, updated_at = :updatedAt " +
+            "WHERE wallpaper_id = :id"
+    )
+    suspend fun updateEditSettings(
+        id: Long,
+        cropSettings: String?,
+        editSettings: String?,
+        updatedAt: Long
+    )
 }

@@ -9,7 +9,6 @@ import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.sources.google_photos.GooglePhotosAlbum
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -78,9 +77,6 @@ class SourceRepository(
     }
 
     suspend fun removeSource(source: Source, deleteWallpapers: Boolean): Int {
-        if (source.providerKey == SourceKeys.GOOGLE_PHOTOS && source.config.isNullOrBlank()) {
-            throw IllegalStateException("Google sources cannot be removed")
-        }
         val wallpapers = if (deleteWallpapers) {
             wallpaperDao.getWallpapersBySource(source.key)
         } else {
@@ -270,7 +266,7 @@ class SourceRepository(
 
     private fun SourceEntity.sanitized(): SourceEntity {
         val sanitizedIconRes = when (providerKey) {
-            SourceKeys.GOOGLE_PHOTOS, SourceKeys.LOCAL -> iconRes?.takeIf { it != 0 }
+            SourceKeys.LOCAL -> iconRes?.takeIf { it != 0 }
             else -> null
         }
         val normalizedIconUrl = iconUrl
@@ -323,32 +319,6 @@ class SourceRepository(
                 null
             }
         }
-    }
-
-    suspend fun addGooglePhotosAlbum(album: GooglePhotosAlbum): Source {
-        val albumId = album.id
-        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.GOOGLE_PHOTOS, albumId)
-        if (existing != null) {
-            throw IllegalStateException("Album already added")
-        }
-
-        val countDescription = album.mediaItemsCount?.takeIf { it > 0 }?.let { count ->
-            "$count photos"
-        }
-        val entity = SourceEntity(
-            key = buildGooglePhotosKey(albumId),
-            providerKey = SourceKeys.GOOGLE_PHOTOS,
-            title = album.title.ifBlank { "Google Photos album" },
-            description = countDescription ?: "Google Photos album",
-            iconRes = R.drawable.google_photos,
-            iconUrl = null,
-            showInExplore = true,
-            isEnabled = true,
-            isLocal = false,
-            config = albumId
-        )
-        val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).sanitized().toDomain()
     }
 
     private fun parseRemoteSourceInput(input: String): RemoteSourceInput? {
@@ -409,10 +379,6 @@ class SourceRepository(
         return "$provider:$sanitized"
     }
 
-    private fun buildGooglePhotosKey(id: String): String {
-        val sanitized = id.replace(Regex("[^A-Za-z0-9]+"), "_").trim('_')
-        return if (sanitized.isEmpty()) SourceKeys.GOOGLE_PHOTOS else "${SourceKeys.GOOGLE_PHOTOS}:$sanitized"
-    }
 
     private fun buildWebsiteMetadata(
         url: NormalizedUrl,

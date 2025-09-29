@@ -52,26 +52,49 @@ class WallpaperEditor(
     }
 
     private fun applyCrop(bitmap: Bitmap, crop: WallpaperCrop): Bitmap {
-        val desiredRatio = when (crop) {
-            WallpaperCrop.AUTO -> metrics.widthPixels.toFloat() / metrics.heightPixels.toFloat()
-            WallpaperCrop.ORIGINAL -> return bitmap
-            WallpaperCrop.SQUARE -> 1f
+        return when (crop) {
+            WallpaperCrop.Auto -> {
+                val desiredRatio = metrics.widthPixels.toFloat() / metrics.heightPixels.toFloat()
+                if (desiredRatio <= 0f) return bitmap
+                val currentRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                if (abs(currentRatio - desiredRatio) < 0.01f) return bitmap
+                val cropWidth: Int
+                val cropHeight: Int
+                if (currentRatio > desiredRatio) {
+                    cropHeight = bitmap.height
+                    cropWidth = (cropHeight * desiredRatio).roundToInt().coerceIn(1, bitmap.width)
+                } else {
+                    cropWidth = bitmap.width
+                    cropHeight = (cropWidth / desiredRatio).roundToInt().coerceIn(1, bitmap.height)
+                }
+                val offsetX = ((bitmap.width - cropWidth) / 2f).roundToInt().coerceIn(0, bitmap.width - cropWidth)
+                val offsetY = ((bitmap.height - cropHeight) / 2f).roundToInt().coerceIn(0, bitmap.height - cropHeight)
+                Bitmap.createBitmap(bitmap, offsetX, offsetY, cropWidth, cropHeight)
+            }
+
+            WallpaperCrop.Original -> bitmap
+
+            WallpaperCrop.Square -> {
+                val desiredRatio = 1f
+                val currentRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                if (abs(currentRatio - desiredRatio) < 0.01f) return bitmap
+                val size = minOf(bitmap.width, bitmap.height)
+                val offsetX = ((bitmap.width - size) / 2f).roundToInt().coerceIn(0, bitmap.width - size)
+                val offsetY = ((bitmap.height - size) / 2f).roundToInt().coerceIn(0, bitmap.height - size)
+                Bitmap.createBitmap(bitmap, offsetX, offsetY, size, size)
+            }
+
+            is WallpaperCrop.Custom -> {
+                val settings = crop.settings.sanitized()
+                val widthFraction = settings.widthFraction().coerceIn(WallpaperCropSettings.minFraction(), 1f)
+                val heightFraction = settings.heightFraction().coerceIn(WallpaperCropSettings.minFraction(), 1f)
+                val cropWidth = (bitmap.width * widthFraction).roundToInt().coerceIn(1, bitmap.width)
+                val cropHeight = (bitmap.height * heightFraction).roundToInt().coerceIn(1, bitmap.height)
+                val offsetX = (bitmap.width * settings.left).roundToInt().coerceIn(0, bitmap.width - cropWidth)
+                val offsetY = (bitmap.height * settings.top).roundToInt().coerceIn(0, bitmap.height - cropHeight)
+                Bitmap.createBitmap(bitmap, offsetX, offsetY, cropWidth, cropHeight)
+            }
         }
-        if (desiredRatio <= 0f) return bitmap
-        val currentRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
-        if (abs(currentRatio - desiredRatio) < 0.01f) return bitmap
-        val cropWidth: Int
-        val cropHeight: Int
-        if (currentRatio > desiredRatio) {
-            cropHeight = bitmap.height
-            cropWidth = (cropHeight * desiredRatio).roundToInt().coerceIn(1, bitmap.width)
-        } else {
-            cropWidth = bitmap.width
-            cropHeight = (cropWidth / desiredRatio).roundToInt().coerceIn(1, bitmap.height)
-        }
-        val offsetX = ((bitmap.width - cropWidth) / 2f).roundToInt().coerceIn(0, bitmap.width - cropWidth)
-        val offsetY = ((bitmap.height - cropHeight) / 2f).roundToInt().coerceIn(0, bitmap.height - cropHeight)
-        return Bitmap.createBitmap(bitmap, offsetX, offsetY, cropWidth, cropHeight)
     }
 
     private fun applyFilter(bitmap: Bitmap, filter: WallpaperFilter): Bitmap {

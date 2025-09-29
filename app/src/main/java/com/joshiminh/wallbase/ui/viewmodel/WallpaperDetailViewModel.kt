@@ -26,6 +26,7 @@ import com.joshiminh.wallbase.util.wallpapers.PreviewData
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperApplier
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import com.joshiminh.wallbase.util.wallpapers.WallpaperEditor
 import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
@@ -37,6 +38,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -52,6 +54,7 @@ class WallpaperDetailViewModel(
     private var processedWallpaper: EditedWallpaper? = null
     private var cachedAdjustments: WallpaperAdjustments? = null
     private var previewJob: Job? = null
+    private var persistAdjustmentsJob: Job? = null
     private var autoDownloadEnabled: Boolean = false
     private var storageLimitBytes: Long = 0L
 
@@ -77,25 +80,33 @@ class WallpaperDetailViewModel(
     }
 
     fun setWallpaper(wallpaper: WallpaperItem) {
-        if (_uiState.value.wallpaper?.id != wallpaper.id) {
+        val sanitizedCrop = wallpaper.cropSettings?.sanitized()
+        val normalizedWallpaper = if (sanitizedCrop != null && sanitizedCrop != wallpaper.cropSettings) {
+            wallpaper.copy(cropSettings = sanitizedCrop)
+        } else {
+            wallpaper
+        }
+        val initialCrop = sanitizedCrop?.let { WallpaperCrop.Custom(it) } ?: WallpaperCrop.Auto
+        if (_uiState.value.wallpaper?.id != normalizedWallpaper.id) {
             resetEditorState()
+            persistAdjustmentsJob?.cancel()
         }
         _uiState.update { current ->
-            if (current.wallpaper?.id == wallpaper.id) current
+            if (current.wallpaper?.id == normalizedWallpaper.id) current
             else current.copy(
-                wallpaper = wallpaper,
+                wallpaper = normalizedWallpaper,
                 isApplying = false,
                 isAddingToLibrary = false,
                 isRemovingFromLibrary = false,
-                isInLibrary = wallpaper.sourceKey == SourceKeys.LOCAL,
+                isInLibrary = normalizedWallpaper.sourceKey == SourceKeys.LOCAL,
                 isDownloading = false,
                 isRemovingDownload = false,
-                isDownloaded = wallpaper.isDownloaded && !wallpaper.localUri.isNullOrBlank(),
+                isDownloaded = normalizedWallpaper.isDownloaded && !normalizedWallpaper.localUri.isNullOrBlank(),
                 showRemoveDownloadConfirmation = false,
                 pendingPreview = null,
                 pendingFallback = null,
                 message = null,
-                adjustments = WallpaperAdjustments(),
+                adjustments = WallpaperAdjustments(crop = initialCrop),
                 editedPreview = null,
                 isEditorReady = false,
                 isProcessingEdits = false,
@@ -103,26 +114,63 @@ class WallpaperDetailViewModel(
             )
         }
 
-        val sourceKey = wallpaper.sourceKey
+        val sourceKey = normalizedWallpaper.sourceKey
         if (sourceKey != null) {
             viewModelScope.launch {
-                val libraryState = runCatching { libraryRepository.getWallpaperLibraryState(wallpaper) }
+                val libraryState = runCatching { libraryRepository.getWallpaperLibraryState(normalizedWallpaper) }
                     .getOrNull()
                 if (libraryState != null) {
+                    var shouldRefreshPreview = false
                     _uiState.update { current ->
-                        if (current.wallpaper?.id == wallpaper.id) {
+                        if (current.wallpaper?.id == normalizedWallpaper.id) {
+                            val storedAdjustments = libraryState.adjustments?.sanitized()
+                            val storedCrop = storedAdjustments?.normalizedCropSettings()
+                            val legacyCrop = libraryState.cropSettings?.sanitized()
+                            val resolvedCrop = storedCrop ?: legacyCrop
                             val updatedWallpaper = current.wallpaper.copy(
                                 localUri = libraryState.localUri,
-                                isDownloaded = libraryState.isDownloaded
+                                isDownloaded = libraryState.isDownloaded,
+                                cropSettings = resolvedCrop ?: current.wallpaper.cropSettings
                             )
+                            val updatedAdjustments = when {
+                                storedAdjustments != null -> {
+                                    if (current.adjustments != storedAdjustments) {
+                                        shouldRefreshPreview = true
+                                    }
+                                    storedAdjustments
+                                }
+                                resolvedCrop != null && current.adjustments.crop == WallpaperCrop.Auto -> {
+                                    shouldRefreshPreview = true
+                                    current.adjustments.copy(crop = WallpaperCrop.Custom(resolvedCrop))
+                                }
+                                resolvedCrop == null && current.adjustments.crop is WallpaperCrop.Custom -> {
+                                    shouldRefreshPreview = true
+                                    current.adjustments.copy(crop = WallpaperCrop.Auto)
+                                }
+                                current.adjustments.crop is WallpaperCrop.Custom && resolvedCrop != null -> {
+                                    val existing = (current.adjustments.crop as WallpaperCrop.Custom).settings
+                                    if (existing != resolvedCrop) {
+                                        shouldRefreshPreview = true
+                                        current.adjustments.copy(crop = WallpaperCrop.Custom(resolvedCrop))
+                                    } else {
+                                        current.adjustments
+                                    }
+                                }
+                                else -> current.adjustments
+                            }
                             current.copy(
                                 wallpaper = updatedWallpaper,
                                 isInLibrary = libraryState.isInLibrary,
-                                isDownloaded = libraryState.isDownloaded
+                                isDownloaded = libraryState.isDownloaded,
+                                adjustments = updatedAdjustments
                             )
                         } else {
                             current
                         }
+                    }
+                    if (shouldRefreshPreview) {
+                        cachedAdjustments = null
+                        generatePreviewForAdjustments(_uiState.value.adjustments)
                     }
                 }
             }
@@ -186,6 +234,18 @@ class WallpaperDetailViewModel(
         processedWallpaper?.bitmap?.takeIf { !it.isRecycled }?.recycle()
         processedWallpaper = null
         cachedAdjustments = null
+    }
+
+    private fun schedulePersistAdjustments(immediate: Boolean = false) {
+        val currentWallpaper = _uiState.value.wallpaper ?: return
+        val adjustments = _uiState.value.adjustments
+        persistAdjustmentsJob?.cancel()
+        persistAdjustmentsJob = viewModelScope.launch {
+            if (!immediate) {
+                delay(400)
+            }
+            runCatching { libraryRepository.updateAdjustments(currentWallpaper, adjustments) }
+        }
     }
 
     private fun generatePreviewForAdjustments(adjustments: WallpaperAdjustments) {
@@ -275,6 +335,7 @@ class WallpaperDetailViewModel(
         }
 
         viewModelScope.launch {
+            schedulePersistAdjustments(immediate = true)
             _uiState.update {
                 it.copy(
                     isApplying = true,
@@ -346,6 +407,7 @@ class WallpaperDetailViewModel(
         _uiState.update { it.copy(adjustments = current.copy(brightness = clipped)) }
         cachedAdjustments = null
         generatePreviewForAdjustments(_uiState.value.adjustments)
+        schedulePersistAdjustments()
     }
 
     fun updateFilter(filter: WallpaperFilter) {
@@ -354,20 +416,43 @@ class WallpaperDetailViewModel(
         _uiState.update { it.copy(adjustments = current.copy(filter = filter)) }
         cachedAdjustments = null
         generatePreviewForAdjustments(_uiState.value.adjustments)
+        schedulePersistAdjustments()
     }
 
     fun updateCrop(crop: WallpaperCrop) {
+        val normalized = when (crop) {
+            is WallpaperCrop.Custom -> WallpaperCrop.Custom(crop.settings.sanitized())
+            else -> crop
+        }
         val current = _uiState.value.adjustments
-        if (current.crop == crop) return
-        _uiState.update { it.copy(adjustments = current.copy(crop = crop)) }
+        if (current.crop == normalized) return
+        _uiState.update { state ->
+            val updatedWallpaper = state.wallpaper?.let { existing ->
+                when (normalized) {
+                    is WallpaperCrop.Custom -> existing.copy(cropSettings = normalized.settings)
+                    else -> existing.copy(cropSettings = null)
+                }
+            }
+            state.copy(
+                adjustments = current.copy(crop = normalized),
+                wallpaper = updatedWallpaper
+            )
+        }
         cachedAdjustments = null
         generatePreviewForAdjustments(_uiState.value.adjustments)
+        schedulePersistAdjustments()
     }
 
     fun resetAdjustments() {
-        _uiState.update { it.copy(adjustments = WallpaperAdjustments()) }
+        _uiState.update {
+            it.copy(
+                adjustments = WallpaperAdjustments(),
+                wallpaper = it.wallpaper?.copy(cropSettings = null)
+            )
+        }
         cachedAdjustments = null
         generatePreviewForAdjustments(_uiState.value.adjustments)
+        schedulePersistAdjustments()
     }
 
     fun confirmApplyWithoutPreview() {

@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.data.repository
 
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import com.joshiminh.wallbase.data.dao.AlbumDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
@@ -16,17 +17,24 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperWithAlbums
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator.CopyResult
 import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
-import java.io.IOException
+import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
+import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustmentsJson
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
+import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 import java.util.LinkedHashSet
 import java.util.Locale
-import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import androidx.core.net.toUri
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 
 class LibraryRepository(
     private val wallpaperDao: WallpaperDao,
@@ -156,6 +164,75 @@ class LibraryRepository(
         }
     }
 
+    suspend fun addDirectWallpaper(url: String): DirectAddResult {
+        val normalized = url.trim()
+        require(normalized.isNotEmpty()) { "Wallpaper URL cannot be blank" }
+
+        val parsedUri = Uri.parse(normalized)
+        val scheme = parsedUri.scheme?.lowercase(Locale.ROOT)
+        if (scheme == null || scheme !in DIRECT_LINK_SCHEMES || parsedUri.host.isNullOrBlank()) {
+            return DirectAddResult.Failure(
+                reason = "Enter a valid HTTP or HTTPS image link."
+            )
+        }
+
+        return withContext(Dispatchers.IO) {
+            val existing = wallpaperDao.getBySourceKeyAndSourceUrl(SourceKeys.LOCAL, normalized)
+            if (existing != null) {
+                return@withContext DirectAddResult.AlreadyExists(existing.toLibraryWallpaperItem())
+            }
+
+            val remote = downloadRemoteImage(normalized)
+                ?: return@withContext DirectAddResult.Failure(
+                    reason = "Unable to download image. Check the link and try again."
+                )
+
+            val mimeType = remote.mimeType?.lowercase(Locale.ROOT)
+            if (mimeType != null && !mimeType.startsWith("image/")) {
+                return@withContext DirectAddResult.Failure(
+                    reason = "The provided link does not point to an image."
+                )
+            }
+
+            if (remote.bytes.isEmpty()) {
+                return@withContext DirectAddResult.Failure(
+                    reason = "Downloaded image is empty."
+                )
+            }
+
+            val displayName = displayNameFromUrl(normalized)
+            val copy = runCatching {
+                localStorage.writeBytes(
+                    data = remote.bytes,
+                    sourceFolder = DIRECT_SOURCE_FOLDER,
+                    displayName = displayName,
+                    mimeTypeHint = remote.mimeType
+                )
+            }.getOrElse { error ->
+                if (error is IllegalStateException) throw error
+                return@withContext DirectAddResult.Failure(
+                    reason = error.localizedMessage ?: "Unable to save wallpaper"
+                )
+            }
+
+            val folderName = parsedUri.host?.takeIf { it.isNotBlank() }
+                ?: DIRECT_SOURCE_FOLDER
+            val now = System.currentTimeMillis()
+            val baseEntity = createLocalWallpaperEntity(copy, now, folderName)
+            val entity = baseEntity.copy(sourceUrl = normalized)
+            val insertedId = wallpaperDao.insertWallpaper(entity)
+            if (insertedId == -1L) {
+                runCatching { localStorage.deleteDocument(copy.uri) }
+                val existingEntity = wallpaperDao
+                    .getBySourceKeyAndImageUrl(SourceKeys.LOCAL, entity.imageUrl)
+                return@withContext DirectAddResult.AlreadyExists(existingEntity?.toLibraryWallpaperItem())
+            }
+
+            val saved = entity.copy(id = insertedId)
+            DirectAddResult.Success(saved.toLibraryWallpaperItem())
+        }
+    }
+
     suspend fun downloadWallpapers(
         wallpapers: List<WallpaperItem>,
         storageLimitBytes: Long? = null
@@ -251,6 +328,25 @@ class LibraryRepository(
                 failed = failed,
                 blocked = blocked,
                 totalBytes = totalBytes
+            )
+        }
+    }
+
+    suspend fun updateAdjustments(
+        wallpaper: WallpaperItem,
+        adjustments: WallpaperAdjustments?
+    ) {
+        withContext(Dispatchers.IO) {
+            val id = resolveWallpaperId(wallpaper) ?: return@withContext
+            val sanitized = adjustments?.sanitized()
+            val normalized = sanitized?.takeUnless { it.isIdentity }
+            val cropSettings = normalized?.normalizedCropSettings()?.encodeToString()
+            val editSettings = normalized?.let { WallpaperAdjustmentsJson.encode(it) }
+            wallpaperDao.updateEditSettings(
+                id = id,
+                cropSettings = cropSettings,
+                editSettings = editSettings,
+                updatedAt = System.currentTimeMillis()
             )
         }
     }
@@ -504,20 +600,32 @@ class LibraryRepository(
     }
 
     suspend fun getWallpaperLibraryState(wallpaper: WallpaperItem): WallpaperLibraryState {
-        val sourceKey = wallpaper.sourceKey ?: return WallpaperLibraryState(false, false, null)
+        val sourceKey = wallpaper.sourceKey ?: return WallpaperLibraryState(false, false, null, null, null)
         return withContext(Dispatchers.IO) {
             when (sourceKey) {
                 SourceKeys.LOCAL -> {
                     val localId = wallpaper.remoteIdentifierWithinSource()?.toLongOrNull()
                     if (localId == null) {
-                        WallpaperLibraryState(isInLibrary = false, isDownloaded = false, localUri = null)
+                        WallpaperLibraryState(
+                            isInLibrary = false,
+                            isDownloaded = false,
+                            localUri = null,
+                            cropSettings = null,
+                            adjustments = null
+                        )
                     } else {
                         val entity = wallpaperDao.getById(localId)
                         val localUri = entity?.localUri
+                        val adjustments = entity?.editSettings?.let(WallpaperAdjustmentsJson::decode)
+                        val normalized = adjustments?.sanitized()
+                        val crop = normalized?.normalizedCropSettings()
+                            ?: WallpaperCropSettings.fromString(entity?.cropSettings)
                         WallpaperLibraryState(
                             isInLibrary = entity != null,
                             isDownloaded = entity?.isDownloaded == true && !localUri.isNullOrBlank(),
-                            localUri = localUri
+                            localUri = localUri,
+                            cropSettings = crop,
+                            adjustments = normalized
                         )
                     }
                 }
@@ -529,10 +637,16 @@ class LibraryRepository(
                         else -> wallpaperDao.getBySourceKeyAndImageUrl(sourceKey, wallpaper.imageUrl)
                     }
                     val localUri = entity?.localUri
+                    val adjustments = entity?.editSettings?.let(WallpaperAdjustmentsJson::decode)
+                    val normalized = adjustments?.sanitized()
+                    val crop = normalized?.normalizedCropSettings()
+                        ?: WallpaperCropSettings.fromString(entity?.cropSettings)
                     WallpaperLibraryState(
                         isInLibrary = entity != null,
                         isDownloaded = entity?.isDownloaded == true && !localUri.isNullOrBlank(),
-                        localUri = localUri
+                        localUri = localUri,
+                        cropSettings = crop,
+                        adjustments = normalized
                     )
                 }
             }
@@ -635,8 +749,16 @@ class LibraryRepository(
     data class WallpaperLibraryState(
         val isInLibrary: Boolean,
         val isDownloaded: Boolean,
-        val localUri: String?
+        val localUri: String?,
+        val cropSettings: WallpaperCropSettings? = null,
+        val adjustments: WallpaperAdjustments? = null,
     )
+
+    sealed class DirectAddResult {
+        data class Success(val wallpaper: WallpaperItem) : DirectAddResult()
+        data class AlreadyExists(val wallpaper: WallpaperItem?) : DirectAddResult()
+        data class Failure(val reason: String) : DirectAddResult()
+    }
 
     private suspend fun ensureAlbum(title: String, now: Long): AlbumEntity {
         val normalized = title.trim().ifBlank { "Album" }
@@ -698,6 +820,10 @@ class LibraryRepository(
         }
 
         val now = System.currentTimeMillis()
+        val initialCrop = wallpaper.cropSettings?.sanitized()
+        val initialAdjustments = initialCrop?.let {
+            WallpaperAdjustments(crop = WallpaperCrop.Custom(it))
+        }
         val entity = WallpaperEntity(
             sourceKey = sourceKey,
             remoteId = remoteId,
@@ -710,6 +836,8 @@ class LibraryRepository(
             width = wallpaper.width,
             height = wallpaper.height,
             colorPalette = null,
+            cropSettings = initialCrop?.encodeToString(),
+            editSettings = initialAdjustments?.let { WallpaperAdjustmentsJson.encode(it) },
             fileSizeBytes = null,
             isFavorite = false,
             isDownloaded = false,
@@ -743,26 +871,232 @@ class LibraryRepository(
         }
     }
 
-    private suspend fun downloadRemoteImage(url: String): RemoteImage? {
-        return withContext(Dispatchers.IO) {
-            runCatching {
-                val connection = URL(url).openConnection()
-                if (connection is HttpURLConnection) {
-                    connection.connect()
-                    if (connection.responseCode >= 400) {
-                        connection.disconnect()
-                        throw IOException("HTTP ${connection.responseCode}")
-                    }
-                    val bytes = connection.inputStream.use { it.readBytes() }
-                    val type = connection.contentType
-                    connection.disconnect()
-                    RemoteImage(bytes, type)
-                } else {
-                    val bytes = connection.getInputStream().use { it.readBytes() }
+    private suspend fun downloadRemoteImage(url: String): RemoteImage? = withContext(Dispatchers.IO) {
+        runCatching { fetchRemoteImage(url, 0, mutableSetOf()) }.getOrNull()
+    }
+
+    private fun fetchRemoteImage(
+        url: String,
+        depth: Int,
+        visited: MutableSet<String>
+    ): RemoteImage? {
+        if (depth > REMOTE_MAX_REDIRECTS || !visited.add(url)) {
+            return null
+        }
+
+        val connection = runCatching { URL(url).openConnection() }.getOrNull() ?: return null
+        if (connection !is HttpURLConnection) {
+            connection.connectTimeout = REMOTE_CONNECT_TIMEOUT_MS
+            connection.readTimeout = REMOTE_READ_TIMEOUT_MS
+            return runCatching {
+                connection.getInputStream().use { stream ->
+                    val bytes = stream.readBytes()
                     RemoteImage(bytes, connection.contentType)
                 }
             }.getOrNull()
         }
+
+        return connection.runCatching {
+            instanceFollowRedirects = false
+            connectTimeout = REMOTE_CONNECT_TIMEOUT_MS
+            readTimeout = REMOTE_READ_TIMEOUT_MS
+            setRequestProperty("User-Agent", REMOTE_USER_AGENT)
+            setRequestProperty("Accept", REMOTE_ACCEPT_HEADER)
+            setRequestProperty("Accept-Language", REMOTE_ACCEPT_LANGUAGE)
+            setRequestProperty("Referer", REMOTE_REFERER)
+            connect()
+
+            val status = responseCode
+            if (status in 300..399) {
+                val location = getHeaderField("Location")?.takeIf { it.isNotBlank() }
+                disconnect()
+                val resolved = location?.let { resolveUrl(url, it) }
+                return resolved?.let { fetchRemoteImage(it, depth + 1, visited) }
+            }
+            if (status >= 400) {
+                disconnect()
+                return null
+            }
+
+            val rawContentType = getHeaderField("Content-Type")
+            val rawMimeType = rawContentType?.substringBefore(';')?.trim()
+            val mimeType = rawMimeType?.lowercase(Locale.ROOT)
+            val contentDisposition = getHeaderField("Content-Disposition")
+            val finalUrl = connection.url.toString()
+            val bytes = inputStream.use { it.readBytes() }
+
+            if (bytes.isEmpty()) {
+                disconnect()
+                return null
+            }
+
+            if (mimeType != null && mimeType.startsWith("image/")) {
+                disconnect()
+                return RemoteImage(bytes, rawMimeType)
+            }
+            if (!contentDisposition.isNullOrBlank() && contentDisposition.contains("filename", ignoreCase = true)) {
+                disconnect()
+                return RemoteImage(bytes, rawMimeType)
+            }
+            if (mimeType == null && looksLikeImageUrl(finalUrl)) {
+                disconnect()
+                return RemoteImage(bytes, rawMimeType)
+            }
+
+            val effectiveType = mimeType ?: ""
+            if (effectiveType.contains("text/html") || effectiveType.contains("application/xhtml")) {
+                val charset = parseCharset(rawContentType)
+                val html = bytes.toString(charset)
+                val nextUrl = extractImageUrlFromHtml(finalUrl, html)
+                disconnect()
+                if (!nextUrl.isNullOrBlank()) {
+                    return fetchRemoteImage(nextUrl, depth + 1, visited)
+                }
+                return null
+            }
+
+            disconnect()
+            null
+        }.getOrNull()
+    }
+
+    private fun parseCharset(contentType: String?): Charset {
+        if (contentType == null) return StandardCharsets.UTF_8
+        val parts = contentType.split(';')
+        for (part in parts) {
+            val trimmed = part.trim()
+            if (trimmed.startsWith("charset=", ignoreCase = true)) {
+                val value = trimmed.substringAfter('=')
+                return runCatching { Charset.forName(value) }.getOrDefault(StandardCharsets.UTF_8)
+            }
+        }
+        return StandardCharsets.UTF_8
+    }
+
+    private fun extractImageUrlFromHtml(baseUrl: String, html: String): String? {
+        val document = runCatching { Jsoup.parse(html, baseUrl) }.getOrNull() ?: return null
+        val host = runCatching { URI(baseUrl).host?.lowercase(Locale.ROOT) }.getOrNull() ?: ""
+
+        metaImageCandidates(document).forEach { candidate ->
+            if (candidate.isNotBlank()) {
+                return candidate
+            }
+        }
+
+        hostSpecificImage(document, host)?.let { return it }
+
+        return document.select(IMAGE_FALLBACK_SELECTOR)
+            .asSequence()
+            .mapNotNull { element ->
+                element.resolveImageCandidate(
+                    "data-full",
+                    "data-fullsrc",
+                    "data-src",
+                    "data-lazy-src",
+                    "data-original",
+                    "src"
+                )
+            }
+            .firstOrNull { isLikelyImageCandidate(it) }
+    }
+
+    private fun metaImageCandidates(document: Document): Sequence<String> {
+        return sequence {
+            val selectors = listOf(
+                "meta[property=og:image:secure_url]",
+                "meta[property=og:image]",
+                "meta[name=og:image]",
+                "meta[name=twitter:image:src]",
+                "meta[name=twitter:image]",
+                "meta[property=twitter:image]",
+                "meta[itemprop=image]",
+                "link[rel=image_src]",
+                "meta[name=thumbnail]"
+            )
+            for (selector in selectors) {
+                val element = document.selectFirst(selector) ?: continue
+                val value = when (element.tagName()) {
+                    "link" -> element.absUrl("href").ifBlank { element.attr("href") }
+                    else -> element.absUrl("content").ifBlank { element.attr("content") }
+                }
+                if (value.isNotBlank()) {
+                    yield(value)
+                }
+            }
+        }
+    }
+
+    private fun hostSpecificImage(document: Document, host: String): String? {
+        if (host.contains("wallhaven.cc")) {
+            document.selectFirst("#wallpaper")?.let { element ->
+                element.resolveImageCandidate("data-cfsrc", "data-src", "src")?.let { return it }
+            }
+        }
+        if (host.contains("alphacoders.com")) {
+            document.selectFirst("img#mainImage")?.let { element ->
+                element.resolveImageCandidate("data-src", "src")?.let { return it }
+            }
+            document.select("div.big_container img").firstOrNull()?.let { element ->
+                element.resolveImageCandidate("data-src", "src")?.let { return it }
+            }
+        }
+        if (host.contains("reddit.com")) {
+            document.select("img[src]").firstOrNull { element ->
+                val candidate = element.absUrl("src")
+                candidate.contains("preview.redd.it") || candidate.contains("i.redd.it")
+            }?.let { element ->
+                element.resolveImageCandidate("src")?.let { return it }
+            }
+        }
+        if (host.contains("unsplash.com")) {
+            document.select("link[rel=preload][as=image]").firstOrNull()?.let { element ->
+                element.absUrl("href").takeIf { it.isNotBlank() }?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun Element.resolveImageCandidate(vararg attributes: String): String? {
+        val base = ownerDocument()?.baseUri()
+        for (attribute in attributes) {
+            val absolute = absUrl(attribute)
+            if (absolute.isNotBlank()) {
+                return absolute
+            }
+            val raw = attr(attribute)
+            if (raw.isNotBlank()) {
+                val normalized = when {
+                    raw.startsWith("//") -> "https:$raw"
+                    base != null && (raw.startsWith("/") || !raw.startsWith("http", ignoreCase = true)) ->
+                        runCatching { URL(URL(base), raw).toString() }.getOrElse { raw }
+                    else -> raw
+                }
+                if (normalized.isNotBlank()) {
+                    return normalized
+                }
+            }
+        }
+        return null
+    }
+
+    private fun looksLikeImageUrl(url: String): Boolean {
+        val normalized = url.substringBefore('?').substringBefore('#').lowercase(Locale.ROOT)
+        return IMAGE_EXTENSIONS.any { normalized.endsWith(it) }
+    }
+
+    private fun isLikelyImageCandidate(url: String): Boolean {
+        if (!url.startsWith("http", ignoreCase = true)) return false
+        if (looksLikeImageUrl(url)) return true
+        val host = runCatching { URI(url).host?.lowercase(Locale.ROOT) }.getOrNull() ?: return false
+        return host.contains("unsplash.com") ||
+            host.contains("redd.it") ||
+            host.contains("redditmedia.com") ||
+            host.contains("wallhaven.cc") ||
+            host.contains("alphacoders.com")
+    }
+
+    private fun resolveUrl(baseUrl: String, location: String): String {
+        return runCatching { URL(URL(baseUrl), location).toString() }.getOrElse { location }
     }
 
     private fun wallpaperFolderName(wallpaper: WallpaperItem): String {
@@ -770,6 +1104,13 @@ class LibraryRepository(
             ?: wallpaper.providerKey()?.takeIf { it.isNotBlank() }
             ?: "Remote"
         return localStorage.sanitizeFolderName(title)
+    }
+
+    private fun displayNameFromUrl(url: String): String {
+        val candidate = url.substringAfterLast('/')
+            .substringBefore('?')
+            .substringBefore('#')
+        return localStorage.sanitizeFileName(candidate, DIRECT_FILE_FALLBACK)
     }
 
     private fun DocumentFile.isImageFile(): Boolean {
@@ -814,6 +1155,30 @@ class LibraryRepository(
 
     private companion object {
         private const val LOCAL_SOURCE_FOLDER = "Local"
+        private const val DIRECT_SOURCE_FOLDER = "Direct"
+        private const val DIRECT_FILE_FALLBACK = "Wallpaper"
+        private val DIRECT_LINK_SCHEMES = setOf("http", "https")
+        private const val REMOTE_CONNECT_TIMEOUT_MS = 15_000
+        private const val REMOTE_READ_TIMEOUT_MS = 20_000
+        private const val REMOTE_MAX_REDIRECTS = 5
+        private const val REMOTE_USER_AGENT = "WallBase/1.0 (Android)"
+        private const val REMOTE_REFERER = "https://www.google.com/"
+        private const val REMOTE_ACCEPT_HEADER = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+        private const val REMOTE_ACCEPT_LANGUAGE = "en-US,en;q=0.9"
+        private const val IMAGE_FALLBACK_SELECTOR =
+            "img[src],img[data-src],img[data-full],img[data-fullsrc],img[data-lazy-src],img[data-original]"
+        private val IMAGE_EXTENSIONS = setOf(
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif",
+            ".bmp",
+            ".avif",
+            ".heic",
+            ".heif",
+            ".jfif"
+        )
     }
 }
 
@@ -823,6 +1188,9 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
     val remoteId = remoteId ?: id.toString()
     val displayImageUrl = localUri ?: imageUrl
     val originalUrl = sourceUrl ?: localUri ?: imageUrl
+    val adjustments = editSettings?.let(WallpaperAdjustmentsJson::decode)
+    val crop = adjustments?.normalizedCropSettings()
+        ?: WallpaperCropSettings.fromString(cropSettings)
     return WallpaperItem(
         id = "${sourceKey}:$remoteId",
         title = title,
@@ -834,7 +1202,8 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
         height = height,
         addedAt = addedAt,
         localUri = localUri,
-        isDownloaded = isDownloaded
+        isDownloaded = isDownloaded,
+        cropSettings = crop
     )
 }
 

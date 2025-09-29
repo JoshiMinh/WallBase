@@ -7,7 +7,6 @@ androidx-core-ktx = "1.13.1"
 animation = "1.9.1"
 compose-bom-version = "<current>"
 kotlin = "2.2.10"                              # Kotlin Gradle plugin :contentReference[oaicite:1]{index=1}
-ksp = "2.2.10-RC2-2.0.2"                       # Latest KSP build available for Kotlin 2.2.10
 
 # Compose
 compose-bom = "2025.08.01"                     # Latest production BOM (1.9 core) :contentReference[oaicite:3]{index=3}
@@ -17,15 +16,6 @@ core-ktx = "1.17.0"                            # Stable core-ktx :contentReferen
 lifecycle-ktx = "2.8.4"                        # Stable Lifecycle runtime ktx :contentReference[oaicite:5]{index=5}
 activity-compose = "1.10.1"                    # Stable Activity Compose :contentReference[oaicite:6]{index=6}
 documentfile = "1.1.0"
-
-# Auth (Credential Manager + Google bridge)
-credentials = "1.5.0"                          # Stable credentials API :contentReference[oaicite:7]{index=7}
-credentials-play-services = "1.5.0"            # Bridge to Google Password Manager (runtimeOnly) :contentReference[oaicite:8]{index=8}
-googleid = "1.1.1"                             # Sign in with Google on Credential Manager :contentReference[oaicite:9]{index=9}
-
-# Google APIs
-google-api-client-android = "2.8.1"            # Base client for Android :contentReference[oaicite:10]{index=10}
-google-photos = "1.7.3"                        # Photos Library Java client :contentReference[oaicite:12]{index=12}
 
 # SAF helper
 anggrayudi-storage = "2.2.0"                   # SimpleStorage from Maven Central :contentReference[oaicite:13]{index=13}
@@ -82,18 +72,7 @@ androidx-compose-material-pullrefresh = { module = "androidx.compose.material:pu
 # DocumentFile (SAF helpers)
 androidx-documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
 
-# Credential Manager + Google Sign-In bridge
-androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
-androidx-credentials-play-services = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials-play-services" }
-androidx-work-runtime-ktx-v290 = { module = "androidx.work:work-runtime-ktx", version.ref = "work-runtime-ktx" }
-googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
-# (Legacy) Google Play Services Auth – only if you still need old GSI APIs; otherwise prefer Credential Manager
 material3 = { module = "androidx.compose.material3:material3" }
-play-services-auth = { module = "com.google.android.gms:play-services-auth", version = "21.4.0" } # deprecated path; FYI :contentReference[oaicite:19]{index=19}
-
-# Google APIs (Photos)
-google-api-client-android = { module = "com.google.api-client:google-api-client-android", version.ref = "google-api-client-android" }
-google-photos-library-client = { module = "com.google.photos.library:google-photos-library-client", version.ref = "google-photos" }
 
 # SAF helper lib
 anggrayudi-storage = { module = "com.anggrayudi:storage", version.ref = "anggrayudi-storage" }
@@ -136,4 +115,4 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+

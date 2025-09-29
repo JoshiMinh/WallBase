@@ -50,7 +50,8 @@ class SettingsViewModel(
                         albumLayout = preferences.albumLayout,
                         autoDownload = preferences.autoDownload,
                         storageLimitBytes = preferences.storageLimitBytes,
-                        dismissedUpdateVersion = preferences.dismissedUpdateVersion
+                        dismissedUpdateVersion = preferences.dismissedUpdateVersion,
+                        appLockEnabled = preferences.appLockEnabled
                     )
                 }
             }
@@ -225,6 +226,18 @@ class SettingsViewModel(
         }
     }
 
+    fun setAppLockEnabled(enabled: Boolean) {
+        if (_uiState.value.appLockEnabled == enabled) return
+        _uiState.update { it.copy(appLockEnabled = enabled) }
+        viewModelScope.launch {
+            settingsRepository.setAppLockEnabled(enabled)
+        }
+    }
+
+    fun showMessage(message: String) {
+        _uiState.update { it.copy(message = message) }
+    }
+
     fun clearPreviewCache() {
         if (_uiState.value.isClearingPreviews) return
         viewModelScope.launch {
@@ -294,6 +307,7 @@ class SettingsViewModel(
         val isClearingPreviews: Boolean = false,
         val isClearingOriginals: Boolean = false,
         val includeSourcesInBackup: Boolean = true,
+        val appLockEnabled: Boolean = false,
         val isCheckingForUpdates: Boolean = false,
         val availableUpdateVersion: String? = null,
         val updateNotes: String? = null,
