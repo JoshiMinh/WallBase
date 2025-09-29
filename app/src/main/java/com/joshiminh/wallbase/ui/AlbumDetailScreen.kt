@@ -44,6 +44,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -117,10 +118,6 @@ fun AlbumDetailRoute(
     var showRenameDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var renameInput by rememberSaveable(title) { mutableStateOf(title) }
-    val actionEnabled = canSort &&
-        !uiState.isDownloading &&
-        !uiState.isRemovingDownloads &&
-        !uiState.notFound
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
     val availableSortFields = remember { listOf(SortField.Alphabet, SortField.DateAdded) }
     val sortSelection = uiState.wallpaperSortOption.toSelection()
@@ -205,27 +202,6 @@ fun AlbumDetailRoute(
         ) {
             Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
         }
-        if (uiState.isAlbumDownloaded) {
-            IconButton(
-                onClick = viewModel::promptRemoveDownloads,
-                enabled = actionEnabled
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.TaskAlt,
-                    contentDescription = "Remove downloaded files"
-                )
-            }
-        } else {
-            IconButton(
-                onClick = viewModel::downloadAlbum,
-                enabled = actionEnabled
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Download,
-                    contentDescription = "Download album"
-                )
-            }
-        }
         Box {
             IconButton(
                 onClick = { showAlbumMenu = true },
@@ -305,6 +281,8 @@ fun AlbumDetailRoute(
         searchQuery = trimmedQuery,
         onWallpaperSelected = onWallpaperSelected,
         snackbarHostState = snackbarHostState,
+        onDownloadAlbum = viewModel::downloadAlbum,
+        onPromptRemoveDownloads = viewModel::promptRemoveDownloads,
         onConfirmRemoveDownloads = viewModel::removeAlbumDownloads,
         onDismissRemoveDownloads = viewModel::dismissRemoveDownloadsPrompt,
         onToggleRotation = viewModel::toggleRotation,
@@ -411,6 +389,8 @@ private fun AlbumDetailScreen(
     searchQuery: String,
     onWallpaperSelected: (WallpaperItem) -> Unit,
     snackbarHostState: SnackbarHostState,
+    onDownloadAlbum: () -> Unit,
+    onPromptRemoveDownloads: () -> Unit,
     onConfirmRemoveDownloads: () -> Unit,
     onDismissRemoveDownloads: () -> Unit,
     onToggleRotation: (Boolean) -> Unit,
@@ -423,19 +403,58 @@ private fun AlbumDetailScreen(
     val hasQuery = isSearching && searchQuery.isNotBlank()
     var showRotationSheet by rememberSaveable { mutableStateOf(false) }
     val canConfigureRotation = state.wallpapers.isNotEmpty()
+    val canDownloadAlbum = state.wallpapers.isNotEmpty() &&
+        !state.isDownloading &&
+        !state.isRemovingDownloads &&
+        !state.notFound
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             if (!state.isLoading && !state.notFound) {
-                FloatingActionButton(onClick = { showRotationSheet = true }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Schedule,
-                        contentDescription = "Schedule rotation"
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FloatingActionButton(
+                        onClick = {
+                            if (state.isAlbumDownloaded) {
+                                onPromptRemoveDownloads()
+                            } else {
+                                onDownloadAlbum()
+                            }
+                        },
+                        enabled = canDownloadAlbum
+                    ) {
+                        Icon(
+                            imageVector = if (state.isAlbumDownloaded) {
+                                Icons.Outlined.TaskAlt
+                            } else {
+                                Icons.Outlined.Download
+                            },
+                            contentDescription = if (state.isAlbumDownloaded) {
+                                "Remove downloaded files"
+                            } else {
+                                "Download album"
+                            }
+                        )
+                    }
+                    FloatingActionButton(
+                        onClick = { showRotationSheet = true },
+                        enabled = canConfigureRotation
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Schedule,
+                            contentDescription = "Schedule rotation"
+                        )
+                    }
                 }
             }
         },
+        floatingActionButtonPosition = FabPosition.Center,
         contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
     ) { innerPadding ->
         when {
