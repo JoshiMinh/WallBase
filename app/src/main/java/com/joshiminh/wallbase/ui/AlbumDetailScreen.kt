@@ -403,7 +403,7 @@ private fun AlbumDetailScreen(
             !state.isDownloading &&
             !state.isRemovingDownloads &&
             !state.notFound
-    val defaultFabContainerColor = FloatingActionButtonDefaults.containerColor()
+    val defaultFabContainerColor = FloatingActionButtonDefaults.containerColor
     val defaultFabContentColor = FloatingActionButtonDefaults.contentColor()
     val disabledFabContainerColor = MaterialTheme.colorScheme.surfaceVariant
     val disabledFabContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
