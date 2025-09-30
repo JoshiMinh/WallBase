@@ -2,10 +2,8 @@ package com.joshiminh.wallbase.ui.components
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -21,6 +19,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,8 +56,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val UNKNOWN_PROVIDER_KEY = ""
@@ -200,7 +199,7 @@ fun WallpaperGrid(
                         savedRemoteIdsByProvider = savedRemoteIdsByProvider,
                         savedImageUrls = savedImageUrls
                     )
-                    val sharedModifier = sharedModifierFor(
+                    val sharedModifier = sharedWallpaperTransitionModifier(
                         wallpaper = wallpaper,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope
@@ -310,7 +309,7 @@ fun WallpaperGrid(
                                     savedRemoteIdsByProvider = savedRemoteIdsByProvider,
                                     savedImageUrls = savedImageUrls
                                 )
-                                val sharedModifier = sharedModifierFor(
+                                val sharedModifier = sharedWallpaperTransitionModifier(
                                     wallpaper = wallpaper,
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = animatedVisibilityScope
@@ -381,7 +380,7 @@ fun WallpaperGrid(
                         savedRemoteIdsByProvider = savedRemoteIdsByProvider,
                         savedImageUrls = savedImageUrls
                     )
-                    val sharedModifier = sharedModifierFor(
+                    val sharedModifier = sharedWallpaperTransitionModifier(
                         wallpaper = wallpaper,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope
@@ -412,27 +411,6 @@ fun WallpaperGrid(
                 }
             }
         }
-    }
-}
-
-@SuppressLint("ModifierFactoryExtensionFunction")
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-private fun sharedModifierFor(
-    wallpaper: WallpaperItem,
-    sharedTransitionScope: SharedTransitionScope?,
-    animatedVisibilityScope: AnimatedVisibilityScope?
-): Modifier {
-    if (sharedTransitionScope == null || animatedVisibilityScope == null) {
-        return Modifier
-    }
-    return with(sharedTransitionScope) {
-        Modifier.sharedBounds(
-            sharedContentState = rememberSharedContentState(key = wallpaper.transitionKey()),
-            animatedVisibilityScope = animatedVisibilityScope,
-            resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
-            boundsTransform = BoundsTransform { _, _ -> tween(durationMillis = 350) }
-        )
     }
 }
 
