@@ -162,7 +162,9 @@ class JsoupWebScraper : WebScraper {
             }
 
             metaImageCandidates(document).forEach { candidate ->
-                if (candidate.isBlank()) return@forEach
+                if (candidate.isBlank()) {
+                    return@forEach
+                }
                 val normalized = if (candidate.contains("twimg.com")) {
                     upgradeTwitterMediaQuality(candidate)
                 } else {
@@ -173,7 +175,7 @@ class JsoupWebScraper : WebScraper {
                 }
             }
 
-            document.select("img[src*="twimg.com/"]").forEach { element ->
+            document.select("img[src*=\"twimg.com\"]").forEach { element ->
                 val candidate = element.absUrl("src").ifBlank { element.attr("src") }
                 if (candidate.isNotBlank()) {
                     images += upgradeTwitterMediaQuality(candidate)
@@ -498,5 +500,18 @@ class JsoupWebScraper : WebScraper {
                 normalized.endsWith(".jpeg") ||
                 normalized.endsWith(".png") ||
                 normalized.endsWith(".webp")
+    }
+
+    private fun metaImageCandidates(doc: Document): List<String> {
+        // most common meta image slots sites use
+        val selectors = listOf(
+            "meta[property=og:image]",
+            "meta[property=og:image:url]",
+            "meta[name=twitter:image]",
+            "meta[name=twitter:image:src]"
+        )
+        return selectors.mapNotNull { sel ->
+            doc.selectFirst(sel)?.attr("content")?.takeIf { it.isNotBlank() }
+        }
     }
 }

@@ -1084,7 +1084,7 @@ class LibraryRepository(
             host.contains("vxtwitter.com") ||
             host.contains("fxtwitter.com")
         ) {
-            document.select("img[src*="twimg.com/"]").forEach { element ->
+            document.select("img[src*=\"twimg.com\"]").forEach { element ->
                 element.resolveImageCandidate("src")?.let { return upgradeTwitterMediaQuality(it) }
             }
         }

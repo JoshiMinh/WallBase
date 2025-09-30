@@ -26,7 +26,7 @@ class ShareReceiverActivity : ComponentActivity() {
         processShareIntent(intent)
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         processShareIntent(intent)
     }
@@ -87,7 +87,7 @@ class ShareReceiverActivity : ComponentActivity() {
     }
 
     private suspend fun importSharedUris(candidates: List<Uri>): ShareOutcome {
-        val unique = LinkedHashSet<Uri>().apply { addAll(candidates.filterNotNull()) }.toList()
+        val unique = LinkedHashSet<Uri>().apply { addAll(candidates) }.toList()
         if (unique.isEmpty()) {
             return ShareOutcome("No images were shared.", bringToFront = false)
         }
@@ -136,7 +136,7 @@ class ShareReceiverActivity : ComponentActivity() {
     private fun extractFirstUrl(text: CharSequence?): String? {
         if (text.isNullOrBlank()) return null
         val matcher = Patterns.WEB_URL.matcher(text)
-        return if (matcher.find()) matcher.group()?.trim() else null
+        return if (matcher.find()) matcher.group().trim() else null
     }
 
     private data class ShareOutcome(val message: String, val bringToFront: Boolean)
