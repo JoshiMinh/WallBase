@@ -59,6 +59,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
@@ -77,11 +78,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarHandle
@@ -403,8 +404,10 @@ private fun AlbumDetailScreen(
             !state.isDownloading &&
             !state.isRemovingDownloads &&
             !state.notFound
+
     val defaultFabContainerColor = FloatingActionButtonDefaults.containerColor
-    val defaultFabContentColor = FloatingActionButtonDefaults.contentColor
+    val defaultFabContentColor = contentColorFor(defaultFabContainerColor)
+
     val disabledFabContainerColor = MaterialTheme.colorScheme.surfaceVariant
     val disabledFabContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
 
