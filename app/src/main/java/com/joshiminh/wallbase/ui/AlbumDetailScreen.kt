@@ -619,8 +619,7 @@ private fun RotationScheduleBottomSheet(
                 if (minutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating) {
                     onSelectRotationInterval(minutes)
                 }
-                intervalValue = selectedIntervalUnit.displayValue(minute
-                        s)
+                intervalValue = selectedIntervalUnit.displayValue(minutes)
                 true
             }
         }

@@ -6,10 +6,8 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,6 +24,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -82,6 +81,7 @@ import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
+import com.joshiminh.wallbase.ui.components.sharedWallpaperTransitionModifier
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
 
@@ -183,21 +183,11 @@ private fun WallpaperDetailScreen(
     var showTargetDialog by remember { mutableStateOf(false) }
     var showAlbumPicker by remember { mutableStateOf(false) }
     val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
-    val sharedModifier =
-        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-            with(sharedTransitionScope) {
-                Modifier.sharedBounds(
-                    sharedContentState = rememberSharedContentState(key = wallpaper.transitionKey()),
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    // pick one:
-                    resizeMode = SharedTransitionScope.ResizeMode.ScaleToBounds(),
-                    // or: resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-                    boundsTransform = BoundsTransform { _, _ -> tween(durationMillis = 350) }
-                )
-            }
-        } else {
-            Modifier
-        }
+    val sharedModifier = sharedWallpaperTransitionModifier(
+        wallpaper = wallpaper,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope
+    )
     val statusMessages = remember(
         uiState.isDownloading,
         uiState.isRemovingDownload,
