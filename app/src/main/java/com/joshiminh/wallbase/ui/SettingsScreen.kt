@@ -573,17 +573,17 @@ private fun AppUpdateCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(20.dp)
                 .animateContentSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(48.dp),
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 ) {
@@ -592,17 +592,17 @@ private fun AppUpdateCard(
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
-                            .padding(10.dp)
+                            .padding(12.dp)
                             .size(24.dp)
                     )
                 }
 
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "App updates",
+                        text = "Check for updates",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
@@ -613,13 +613,21 @@ private fun AppUpdateCard(
                 }
 
                 statusLabel?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = statusColor
-                    )
+                    Surface(
+                        color = statusColor.copy(alpha = 0.18f),
+                        contentColor = statusColor,
+                        shape = RoundedCornerShape(100.dp)
+                    ) {
+                        Text(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            text = it,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
+
+            HorizontalDivider(color = DividerDefaults.color.copy(alpha = 0.3f))
 
             when {
                 isChecking -> {
@@ -632,31 +640,40 @@ private fun AppUpdateCard(
                             strokeWidth = 2.dp
                         )
                         Text(
-                            text = "Checking for updates…",
+                            text = "We're checking for a new release…",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
 
                 updateAvailable -> {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Text(
-                            text = "Version ${uiState.availableUpdateVersion} is available.",
+                            text = "Version ${uiState.availableUpdateVersion} is ready to install.",
                             style = MaterialTheme.typography.bodyMedium
                         )
+
                         uiState.updateNotes?.takeIf { it.isNotBlank() }?.let { notes ->
-                            Text(
-                                text = notes.trim(),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    modifier = Modifier.padding(12.dp),
+                                    text = notes.trim(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
 
                 uiState.hasCheckedForUpdates -> {
                     Text(
-                        text = "You're up to date!",
+                        text = "You're already running the latest build.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -664,7 +681,7 @@ private fun AppUpdateCard(
 
                 else -> {
                     Text(
-                        text = "Stay current with the latest releases.",
+                        text = "Stay current with new wallpapers and fixes by checking for updates.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -677,25 +694,25 @@ private fun AppUpdateCard(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     val updateUrl = uiState.updateUrl
-                    FilledTonalButton(
+                    Button(
                         enabled = updateUrl != null,
                         onClick = {
-                            val url = updateUrl ?: return@FilledTonalButton
+                            val url = updateUrl ?: return@Button
                             onDownloadUpdate(url)
                         }
                     ) {
-                        Text(text = "Download")
+                        Text(text = "Download update")
                         Icon(
                             imageVector = Icons.Outlined.OpenInNew,
                             contentDescription = null,
                             modifier = Modifier
-                                .padding(start = 6.dp)
+                                .padding(start = 8.dp)
                                 .size(18.dp)
                         )
                     }
 
                     TextButton(onClick = onDismissUpdate) {
-                        Text(text = "Not now")
+                        Text(text = "Remind me later")
                     }
                 }
             } else {
@@ -711,7 +728,7 @@ private fun AppUpdateCard(
                             strokeWidth = 2.dp
                         )
                     }
-                    Text(text = if (isChecking) "Checking…" else "Check for updates")
+                    Text(text = if (isChecking) "Checking…" else "Check now")
                 }
             }
         }
