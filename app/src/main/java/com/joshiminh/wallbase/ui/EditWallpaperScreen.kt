@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -516,7 +515,7 @@ private fun CropOverlay(
     handleRadius: Float,
     overlayColor: Color,
 ) {
-    Canvas(modifier = Modifier.matchParentSize()) {
+    Canvas(Canvas(Modifier.fillMaxSize())) {
         if (size.width <= 0f || size.height <= 0f) return@Canvas
         val left = crop.left.coerceIn(0f, 1f) * size.width
         val top = crop.top.coerceIn(0f, 1f) * size.height

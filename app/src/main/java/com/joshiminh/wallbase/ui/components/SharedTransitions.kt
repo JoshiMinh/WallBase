@@ -1,21 +1,23 @@
+@file:Suppress("UnusedReceiverParameter")
+
 package com.joshiminh.wallbase.ui.components
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.rememberSharedContentState
-import androidx.compose.animation.sharedBounds
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 
 private const val SHARED_TRANSITION_DURATION_MILLIS = 350
 
+@SuppressLint("ModifierFactoryUnreferencedReceiver")
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun sharedWallpaperTransitionModifier(
+fun Modifier.sharedWallpaperTransitionModifier(
     wallpaper: WallpaperItem,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?
