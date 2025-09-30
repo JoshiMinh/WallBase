@@ -10,6 +10,7 @@ plugins {
 
 android {
     namespace = "com.joshiminh.wallbase"
+    //noinspection GradleDependency
     compileSdk = 36
     buildFeatures { buildConfig = true }
 
@@ -110,6 +111,7 @@ dependencies {
     // ---------------- Room (annotation processing) ----------------
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    //noinspection KaptUsageInsteadOfKsp
     kapt(libs.androidx.room.compiler)
 
     // ---------------- WorkManager ----------------

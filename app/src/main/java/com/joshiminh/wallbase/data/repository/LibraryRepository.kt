@@ -1,3 +1,5 @@
+@file:Suppress("unused", "UnusedVariable", "AssignedValueIsNeverRead")
+
 package com.joshiminh.wallbase.data.repository
 
 import android.graphics.Bitmap
@@ -35,6 +37,7 @@ import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.io.ByteArrayOutputStream
 
 class LibraryRepository(
     private val wallpaperDao: WallpaperDao,
@@ -138,9 +141,9 @@ class LibraryRepository(
             val wallpaperIds = buildList {
                 entities.forEachIndexed { index, entity ->
                     val insertedId = insertResults.getOrNull(index)
-                    when {
-                        insertedId == null -> {}
-                        insertedId == -1L -> {
+                    when (insertedId) {
+                        null -> {}
+                        -1L -> {
                             wallpaperDao.findIdByImageUrl(SourceKeys.LOCAL, entity.imageUrl)?.let { add(it) }
                         }
                         else -> add(insertedId)
@@ -168,7 +171,7 @@ class LibraryRepository(
         val normalized = url.trim()
         require(normalized.isNotEmpty()) { "Wallpaper URL cannot be blank" }
 
-        val parsedUri = Uri.parse(normalized)
+        val parsedUri = normalized.toUri()
         val scheme = parsedUri.scheme?.lowercase(Locale.ROOT)
         if (scheme == null || scheme !in DIRECT_LINK_SCHEMES || parsedUri.host.isNullOrBlank()) {
             return DirectAddResult.Failure(
@@ -600,7 +603,13 @@ class LibraryRepository(
     }
 
     suspend fun getWallpaperLibraryState(wallpaper: WallpaperItem): WallpaperLibraryState {
-        val sourceKey = wallpaper.sourceKey ?: return WallpaperLibraryState(false, false, null, null, null)
+        val sourceKey = wallpaper.sourceKey ?: return WallpaperLibraryState(
+            isInLibrary = false,
+            isDownloaded = false,
+            localUri = null,
+            cropSettings = null,
+            adjustments = null
+        )
         return withContext(Dispatchers.IO) {
             when (sourceKey) {
                 SourceKeys.LOCAL -> {

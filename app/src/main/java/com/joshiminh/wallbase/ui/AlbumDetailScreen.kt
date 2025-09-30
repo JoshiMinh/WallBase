@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,9 +41,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,7 +54,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -128,13 +126,14 @@ fun AlbumDetailRoute(
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFocusRequester = remember { FocusRequester() }
     val trimmedQuery = remember(searchQuery) { searchQuery.trim() }
+
     val displayedWallpapers = remember(uiState.wallpapers, trimmedQuery, isSearchActive) {
         if (!isSearchActive || trimmedQuery.isEmpty()) {
             uiState.wallpapers
         } else {
             uiState.wallpapers.filter { wallpaper ->
                 wallpaper.title.contains(trimmedQuery, ignoreCase = true) ||
-                    (wallpaper.sourceName?.contains(trimmedQuery, ignoreCase = true) == true)
+                        (wallpaper.sourceName?.contains(trimmedQuery, ignoreCase = true) == true)
             }
         }
     }
@@ -157,9 +156,7 @@ fun AlbumDetailRoute(
     }
 
     LaunchedEffect(showRenameDialog) {
-        if (showRenameDialog) {
-            renameInput = title
-        }
+        if (showRenameDialog) renameInput = title
     }
 
     LaunchedEffect(uiState.isAlbumDeleted) {
@@ -232,6 +229,7 @@ fun AlbumDetailRoute(
             }
         }
     }
+
     val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
         {
             TopBarSearchField(
@@ -243,9 +241,8 @@ fun AlbumDetailRoute(
                 showClearButton = false
             )
         }
-    } else {
-        null
-    }
+    } else null
+
     val topBarState = TopBarState(
         title = if (isSearchActive) null else title,
         navigationIcon = null,
@@ -307,9 +304,7 @@ fun AlbumDetailRoute(
     if (showRenameDialog) {
         AlertDialog(
             onDismissRequest = {
-                if (!uiState.isRenamingAlbum) {
-                    showRenameDialog = false
-                }
+                if (!uiState.isRenamingAlbum) showRenameDialog = false
             },
             title = { Text(text = "Rename album") },
             text = {
@@ -346,9 +341,7 @@ fun AlbumDetailRoute(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = {
-                if (!uiState.isDeletingAlbum) {
-                    showDeleteDialog = false
-                }
+                if (!uiState.isDeletingAlbum) showDeleteDialog = false
             },
             title = { Text(text = "Delete album?") },
             text = {
@@ -404,9 +397,9 @@ private fun AlbumDetailScreen(
     var showRotationSheet by rememberSaveable { mutableStateOf(false) }
     val canConfigureRotation = state.wallpapers.isNotEmpty()
     val canDownloadAlbum = state.wallpapers.isNotEmpty() &&
-        !state.isDownloading &&
-        !state.isRemovingDownloads &&
-        !state.notFound
+            !state.isDownloading &&
+            !state.isRemovingDownloads &&
+            !state.notFound
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -454,8 +447,8 @@ private fun AlbumDetailScreen(
                 }
             }
         },
-        floatingActionButtonPosition = FabPosition.Center,
-        contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
+        floatingActionButtonPosition = FabPosition.Center
+        // (avoid custom contentWindowInsets constructor that can error across versions)
     ) { innerPadding ->
         when {
             state.isLoading -> {
@@ -491,21 +484,14 @@ private fun AlbumDetailScreen(
                 ) {
                     if (state.isDownloading) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("Downloading…") }
-                        )
+                        AssistChip(onClick = {}, enabled = false, label = { Text("Downloading…") })
                     }
                     if (state.isRemovingDownloads) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        AssistChip(
-                            onClick = {},
-                            enabled = false,
-                            label = { Text("Removing downloads…") }
-                        )
+                        AssistChip(onClick = {}, enabled = false, label = { Text("Removing downloads…") })
                     }
                     Spacer(modifier = Modifier.height(12.dp))
+
                     if (wallpapers.isEmpty()) {
                         val message = when {
                             state.wallpapers.isEmpty() -> "This album doesn't have any wallpapers yet."
@@ -518,23 +504,33 @@ private fun AlbumDetailScreen(
                                 .weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = message,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Text(text = message, style = MaterialTheme.typography.bodyLarge)
                         }
                     } else {
-                        WallpaperGrid(
-                            wallpapers = wallpapers,
-                            onWallpaperSelected = onWallpaperSelected,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth(),
-                            columns = state.wallpaperGridColumns,
-                            layout = state.wallpaperLayout,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
+                        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                            with(sharedTransitionScope) {
+                                WallpaperGrid(
+                                    wallpapers = wallpapers,
+                                    onWallpaperSelected = onWallpaperSelected,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    columns = state.wallpaperGridColumns,
+                                    layout = state.wallpaperLayout,
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            }
+                        } else {
+                            WallpaperGrid(
+                                wallpapers = wallpapers,
+                                onWallpaperSelected = onWallpaperSelected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                columns = state.wallpaperGridColumns,
+                                layout = state.wallpaperLayout
+                            )
+                        }
                     }
                 }
             }
@@ -556,9 +552,7 @@ private fun AlbumDetailScreen(
     if (state.showRemoveDownloadsConfirmation) {
         AlertDialog(
             onDismissRequest = {
-                if (!state.isRemovingDownloads) {
-                    onDismissRemoveDownloads()
-                }
+                if (!state.isRemovingDownloads) onDismissRemoveDownloads()
             },
             title = { Text(text = "Remove downloaded files?") },
             text = {
@@ -568,18 +562,12 @@ private fun AlbumDetailScreen(
                 )
             },
             confirmButton = {
-                TextButton(
-                    onClick = onConfirmRemoveDownloads,
-                    enabled = !state.isRemovingDownloads
-                ) {
+                TextButton(onClick = onConfirmRemoveDownloads, enabled = !state.isRemovingDownloads) {
                     Text(text = "Remove")
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = onDismissRemoveDownloads,
-                    enabled = !state.isRemovingDownloads
-                ) {
+                TextButton(onClick = onDismissRemoveDownloads, enabled = !state.isRemovingDownloads) {
                     Text(text = "Cancel")
                 }
             }
@@ -601,12 +589,8 @@ private fun RotationScheduleBottomSheet(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val intervalUnits = remember { RotationIntervalUnit.entries }
-    var selectedIntervalUnit by rememberSaveable {
-        mutableStateOf(RotationIntervalUnit.fromMinutes(rotationState.intervalMinutes))
-    }
-    var intervalValue by rememberSaveable {
-        mutableStateOf(selectedIntervalUnit.displayValue(rotationState.intervalMinutes))
-    }
+    var selectedIntervalUnit by rememberSaveable { mutableStateOf(RotationIntervalUnit.fromMinutes(rotationState.intervalMinutes)) }
+    var intervalValue by rememberSaveable { mutableStateOf(selectedIntervalUnit.displayValue(rotationState.intervalMinutes)) }
     var intervalError by rememberSaveable { mutableStateOf<String?>(null) }
     var intervalFieldFocused by remember { mutableStateOf(false) }
 
@@ -626,18 +610,17 @@ private fun RotationScheduleBottomSheet(
                 intervalError = "Enter a valid duration."
                 false
             }
-
             minutes < WallpaperRotationDefaults.MIN_INTERVAL_MINUTES -> {
                 intervalError = "Minimum rotation is ${WallpaperRotationDefaults.MIN_INTERVAL_MINUTES} minutes."
                 false
             }
-
             else -> {
                 intervalError = null
                 if (minutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating) {
                     onSelectRotationInterval(minutes)
                 }
-                intervalValue = selectedIntervalUnit.displayValue(minutes)
+                intervalValue = selectedIntervalUnit.displayValue(minute
+                        s)
                 true
             }
         }
@@ -650,10 +633,7 @@ private fun RotationScheduleBottomSheet(
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
-    ) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -685,9 +665,7 @@ private fun RotationScheduleBottomSheet(
                     canConfigure = canConfigure,
                     isBusy = rotationState.isUpdating,
                     onToggle = {
-                        if (!it || commitInterval()) {
-                            onToggleRotation(it)
-                        }
+                        if (!it || commitInterval()) onToggleRotation(it)
                     },
                     onRotateNow = onStartRotationNow
                 )
@@ -700,9 +678,7 @@ private fun RotationScheduleBottomSheet(
                     quickIntervals = quickIntervals,
                     onValueChange = { newValue ->
                         intervalValue = newValue.filter { it.isDigit() }
-                        if (intervalError != null) {
-                            intervalError = null
-                        }
+                        if (intervalError != null) intervalError = null
                     },
                     onCommit = {
                         if (commitInterval()) {
@@ -712,17 +688,15 @@ private fun RotationScheduleBottomSheet(
                     },
                     onUnitSelected = { unit ->
                         if (selectedIntervalUnit != unit) {
-                            val baseMinutes =
-                                parseIntervalMinutes(intervalValue, selectedIntervalUnit)
-                                    ?: rotationState.intervalMinutes
+                            val baseMinutes = parseIntervalMinutes(intervalValue, selectedIntervalUnit)
+                                ?: rotationState.intervalMinutes
                             val newValue = unit.valueFromMinutes(baseMinutes)
                             val newMinutes = unit.toMinutes(newValue)
                             if (newMinutes != null) {
                                 selectedIntervalUnit = unit
                                 intervalValue = newValue.toString()
                                 intervalError = null
-                                if (newMinutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating
-                                ) {
+                                if (newMinutes != rotationState.intervalMinutes && canConfigure && !rotationState.isUpdating) {
                                     onSelectRotationInterval(newMinutes)
                                 }
                             }
@@ -738,9 +712,7 @@ private fun RotationScheduleBottomSheet(
                     },
                     onFocusChanged = { focused ->
                         if (!focused && intervalFieldFocused) {
-                            if (commitInterval()) {
-                                keyboardController?.hide()
-                            }
+                            if (commitInterval()) keyboardController?.hide()
                             intervalFieldFocused = false
                         } else if (focused) {
                             intervalFieldFocused = true
@@ -1001,19 +973,14 @@ private data class RotationTargetOption(
     val label: String,
     val icon: ImageVector
 )
+
 private fun rotationSummary(
     rotation: AlbumDetailViewModel.RotationUiState,
     canConfigure: Boolean
 ): String {
-    if (!canConfigure) {
-        return "Add wallpapers to schedule rotation."
-    }
-    if (!rotation.isConfigured) {
-        return "Rotation isn't configured yet."
-    }
-    if (!rotation.isEnabled) {
-        return "Rotation is turned off."
-    }
+    if (!canConfigure) return "Add wallpapers to schedule rotation."
+    if (!rotation.isConfigured) return "Rotation isn't configured yet."
+    if (!rotation.isEnabled) return "Rotation is turned off."
     val unit = RotationIntervalUnit.fromMinutes(rotation.intervalMinutes)
     val value = unit.valueFromMinutes(rotation.intervalMinutes)
     val intervalText = formatIntervalText(value, unit)

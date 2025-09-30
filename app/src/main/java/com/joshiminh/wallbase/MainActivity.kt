@@ -1,10 +1,12 @@
+@file:Suppress("DEPRECATION", "unused")
+
 package com.joshiminh.wallbase
 
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.KeyguardManager
-import android.net.Uri
 import android.os.Bundle
+import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
@@ -15,114 +17,187 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavOptionsBuilder
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import com.joshiminh.wallbase.R
+import androidx.navigation.compose.*
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
-import com.joshiminh.wallbase.ui.AlbumDetailRoute
-import com.joshiminh.wallbase.ui.BrowseScreen
-import com.joshiminh.wallbase.ui.EditWallpaperRoute
-import com.joshiminh.wallbase.ui.LibraryScreen
-import com.joshiminh.wallbase.ui.SettingsScreen
-import com.joshiminh.wallbase.ui.SourceBrowseRoute
-import com.joshiminh.wallbase.ui.WallpaperDetailRoute
+import com.joshiminh.wallbase.ui.*
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
-import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
-import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
-import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
-import com.joshiminh.wallbase.ui.viewmodel.WallpaperSelectionViewModel
+import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// ────────────────────────────────────────────────────────────────────────────────
+// App lock request types
+// ────────────────────────────────────────────────────────────────────────────────
+private sealed interface AppLockRequest {
+    data object Enable : AppLockRequest
+    data object Unlock : AppLockRequest
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+/** Top-level routes for bottom navigation */
+// ────────────────────────────────────────────────────────────────────────────────
+private enum class RootRoute(
+    val route: String,
+    val label: String,
+    val icon: ImageVector,
+) {
+    Library("library", "Library", Icons.Outlined.Collections),
+    Browse("browse", "Browse", Icons.Outlined.Explore),
+    Settings("settings", "Settings", Icons.Outlined.Settings),
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Top bar state & handle
+// ────────────────────────────────────────────────────────────────────────────────
+data class TopBarState(
+    val title: String? = null,
+    val navigationIcon: NavigationIcon? = null,
+    val actions: (@Composable RowScope.() -> Unit)? = null,
+    val titleContent: (@Composable () -> Unit)? = null,
+) {
+    data class NavigationIcon(
+        val icon: ImageVector,
+        val contentDescription: String?,
+        val onClick: () -> Unit,
+    )
+}
+
+class TopBarHandle internal constructor(
+    private val ownerId: Long,
+    private val setState: (Long, TopBarState) -> Unit,
+    private val clearState: (Long) -> Unit,
+) {
+    fun update(state: TopBarState) = setState(ownerId, state)
+    fun clear() = clearState(ownerId)
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Navigation helpers
+// ────────────────────────────────────────────────────────────────────────────────
+private fun NavDestination?.isTopDestination(item: RootRoute): Boolean =
+    this?.hierarchy?.any { it.route == item.route } == true
+
+private fun NavController.navigateSingleTop(
+    route: String,
+    builder: NavOptionsBuilder.() -> Unit = {},
+) = navigate(route) {
+    launchSingleTop = true
+    builder()
+}
+
+fun currentTitle(dest: NavDestination?): String = when {
+    dest.isTopDestination(RootRoute.Library) -> "Library"
+    dest.isTopDestination(RootRoute.Browse) -> "Browse"
+    dest.isTopDestination(RootRoute.Settings) -> "Settings"
+    dest?.route == "wallpaperDetail" -> "Wallpaper"
+    dest?.route == "photosAlbums"   -> "Photos albums"
+    dest?.route == "album/{albumId}" -> "Album"
+    else -> "WallBase"
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Lock overlay
+// ────────────────────────────────────────────────────────────────────────────────
+@Composable
+fun AppLockOverlay(
+    modifier: Modifier = Modifier,
+    onUnlock: () -> Unit,
+) {
+    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Lock,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+            )
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "Unlock WallBase",
+                style = MaterialTheme.typography.titleLarge,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Use your device credentials to continue.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(24.dp))
+            FilledTonalButton(onClick = onUnlock) {
+                Text("Unlock")
+            }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Activity
+// ────────────────────────────────────────────────────────────────────────────────
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ServiceLocator.initialize(applicationContext)
         enableEdgeToEdge()
+
         setContent {
             val sourcesViewModel: SourcesViewModel = viewModel(factory = SourcesViewModel.Factory)
-            val sourcesUiState by sourcesViewModel.uiState.collectAsStateWithLifecycle()
             val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)
+
+            val sourcesUiState by sourcesViewModel.uiState.collectAsStateWithLifecycle()
             val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()
-            val darkTheme = settingsUiState.darkTheme
 
             var pendingIncludeSources by remember { mutableStateOf(true) }
 
             val backupExporter = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
-                onResult = { uri ->
-                    if (uri != null) settingsViewModel.exportBackup(uri, pendingIncludeSources)
-                }
-            )
+            ) { uri ->
+                if (uri != null) settingsViewModel.exportBackup(uri, pendingIncludeSources)
+            }
 
             val backupImporter = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.OpenDocument(),
-                onResult = { uri ->
-                    if (uri != null) settingsViewModel.importBackup(uri)
-                }
-            )
-
-            val backupFileFormatter = remember {
-                SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US)
+            ) { uri ->
+                if (uri != null) settingsViewModel.importBackup(uri)
             }
 
-            WallBaseTheme(darkTheme = darkTheme) {
+            val backupFileFormatter = remember { SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US) }
+
+            WallBaseTheme(darkTheme = settingsUiState.darkTheme) {
                 WallBaseApp(
                     sourcesUiState = sourcesUiState,
                     settingsUiState = settingsUiState,
@@ -147,8 +222,8 @@ class MainActivity : ComponentActivity() {
                                 "application/zip",
                                 "application/octet-stream",
                                 "application/x-sqlite3",
-                                "application/vnd.sqlite3"
-                            )
+                                "application/vnd.sqlite3",
+                            ),
                         )
                     },
                     onSettingsMessageShown = settingsViewModel::consumeMessage,
@@ -162,51 +237,16 @@ class MainActivity : ComponentActivity() {
                     onCheckForUpdates = settingsViewModel::checkForUpdates,
                     onOpenUpdateUrl = settingsViewModel::onUpdateUrlOpened,
                     onDismissUpdate = settingsViewModel::dismissAvailableUpdate,
-                    onClearUpdateStatus = settingsViewModel::clearUpdateStatus
+                    onClearUpdateStatus = settingsViewModel::clearUpdateStatus,
                 )
             }
         }
     }
 }
 
-/** Top-level routes for bottom navigation */
-private enum class RootRoute(
-    val route: String,
-    val label: String,
-    val icon: ImageVector
-) {
-    Library("library", "Library", Icons.Outlined.Collections),
-    Browse("browse", "Browse", Icons.Outlined.Explore),
-    Settings("settings", "Settings", Icons.Outlined.Settings)
-}
-
-data class TopBarState(
-    val title: String? = null,
-    val navigationIcon: NavigationIcon? = null,
-    val actions: (@Composable RowScope.() -> Unit)? = null,
-    val titleContent: (@Composable () -> Unit)? = null
-) {
-    data class NavigationIcon(
-        val icon: ImageVector,
-        val contentDescription: String?,
-        val onClick: () -> Unit
-    )
-}
-
-class TopBarHandle internal constructor(
-    private val ownerId: Long,
-    private val setState: (Long, TopBarState) -> Unit,
-    private val clearState: (Long) -> Unit
-) {
-    fun update(state: TopBarState) {
-        setState(ownerId, state)
-    }
-
-    fun clear() {
-        clearState(ownerId)
-    }
-}
-
+// ────────────────────────────────────────────────────────────────────────────────
+// App root
+// ────────────────────────────────────────────────────────────────────────────────
 @SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -236,28 +276,32 @@ fun WallBaseApp(
     onCheckForUpdates: () -> Unit,
     onOpenUpdateUrl: (String) -> Unit,
     onDismissUpdate: () -> Unit,
-    onClearUpdateStatus: () -> Unit
+    onClearUpdateStatus: () -> Unit,
 ) {
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
+    val currentDestination = navController.currentBackStackEntryAsState().value?.destination
     val wallpaperSelectionViewModel: WallpaperSelectionViewModel = viewModel()
+
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
+
     var topBarState by remember { mutableStateOf<TopBarState?>(null) }
     var topBarOwnerId by remember { mutableStateOf<Long?>(null) }
     var nextTopBarOwnerId by remember { mutableLongStateOf(0L) }
+
     val activity = LocalActivity.current as? ComponentActivity
     val lifecycleOwner = LocalLifecycleOwner.current
-    val keyguardManager = remember(activity) {
-        activity?.getSystemService(KeyguardManager::class.java)
-    }
+    val keyguardManager = remember(activity) { activity?.getSystemService(KeyguardManager::class.java) }
+
     var isAppUnlocked by rememberSaveable(settingsUiState.appLockEnabled) {
         mutableStateOf(!settingsUiState.appLockEnabled)
     }
     var pendingAppLockRequest by remember { mutableStateOf<AppLockRequest?>(null) }
     var activeAppLockRequest by remember { mutableStateOf<AppLockRequest?>(null) }
     var skipNextResume by remember { mutableStateOf(false) }
-    val appLockLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+
+    val appLockLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
         when (activeAppLockRequest) {
             AppLockRequest.Enable -> {
                 if (result.resultCode == Activity.RESULT_OK) {
@@ -285,10 +329,12 @@ fun WallBaseApp(
     LaunchedEffect(pendingAppLockRequest, keyguardManager, activity) {
         val request = pendingAppLockRequest ?: return@LaunchedEffect
         if (activeAppLockRequest != null) return@LaunchedEffect
+
         val currentActivity = activity ?: run {
             pendingAppLockRequest = null
             return@LaunchedEffect
         }
+
         val keyguard = keyguardManager
         if (keyguard == null || !keyguard.isDeviceSecure) {
             if (request == AppLockRequest.Enable) {
@@ -299,10 +345,12 @@ fun WallBaseApp(
             pendingAppLockRequest = null
             return@LaunchedEffect
         }
+
         val description = when (request) {
             AppLockRequest.Enable -> "Confirm your screen lock to enable app lock."
             AppLockRequest.Unlock -> "Unlock to continue using WallBase."
         }
+
         val title = currentActivity.getString(R.string.app_name)
         val intent = keyguard.createConfirmDeviceCredentialIntent(title, description)
         if (intent == null) {
@@ -310,6 +358,7 @@ fun WallBaseApp(
             pendingAppLockRequest = null
             return@LaunchedEffect
         }
+
         activeAppLockRequest = request
         skipNextResume = true
         appLockLauncher.launch(intent)
@@ -321,16 +370,17 @@ fun WallBaseApp(
                 Lifecycle.Event.ON_RESUME -> {
                     if (skipNextResume) {
                         skipNextResume = false
-                    } else if (settingsUiState.appLockEnabled && !isAppUnlocked &&
-                        pendingAppLockRequest == null && activeAppLockRequest == null
+                    } else if (
+                        settingsUiState.appLockEnabled &&
+                        !isAppUnlocked &&
+                        pendingAppLockRequest == null &&
+                        activeAppLockRequest == null
                     ) {
                         pendingAppLockRequest = AppLockRequest.Unlock
                     }
                 }
-                Lifecycle.Event.ON_PAUSE -> {
-                    if (settingsUiState.appLockEnabled) {
-                        isAppUnlocked = false
-                    }
+                Lifecycle.Event.ON_PAUSE -> if (settingsUiState.appLockEnabled) {
+                    isAppUnlocked = false
                 }
                 else -> Unit
             }
@@ -352,14 +402,13 @@ fun WallBaseApp(
             if (pendingAppLockRequest == null && activeAppLockRequest == null) {
                 pendingAppLockRequest = AppLockRequest.Enable
             }
-        } else {
-            if (settingsUiState.appLockEnabled) {
-                onSetAppLockEnabled(false)
-                isAppUnlocked = true
-                onShowSettingsMessage("App lock disabled")
-            }
+        } else if (settingsUiState.appLockEnabled) {
+            onSetAppLockEnabled(false)
+            isAppUnlocked = true
+            onShowSettingsMessage("App lock disabled")
         }
     }
+
     val acquireTopBar: (TopBarState) -> TopBarHandle = remember {
         { state ->
             val ownerId = nextTopBarOwnerId
@@ -368,25 +417,22 @@ fun WallBaseApp(
             topBarState = state
             TopBarHandle(
                 ownerId = ownerId,
-                setState = { id, updated ->
-                    if (topBarOwnerId == id) {
-                        topBarState = updated
-                    }
-                },
+                setState = { id, updated -> if (topBarOwnerId == id) topBarState = updated },
                 clearState = { id ->
                     if (topBarOwnerId == id) {
                         topBarOwnerId = null
                         topBarState = null
                     }
-                }
+                },
             )
         }
     }
-    val canNavigateBack = navController.previousBackStackEntry != null &&
-            currentDestination?.route !in topLevelRoutes
+
+    val canNavigateBack =
+        navController.previousBackStackEntry != null && currentDestination?.route !in topLevelRoutes
     val showTopBar = currentDestination?.route != "wallpaperDetail"
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
@@ -397,62 +443,49 @@ fun WallBaseApp(
                             val customTitle = overrideState?.titleContent
                             when {
                                 customTitle != null -> customTitle()
-                                else -> {
-                                    Text(
-                                        text = overrideState?.title ?: currentTitle(currentDestination),
-                                        style = MaterialTheme.typography.titleLarge
-                                    )
-                                }
+                                else -> Text(
+                                    text = overrideState?.title ?: currentTitle(currentDestination),
+                                    style = MaterialTheme.typography.titleLarge,
+                                )
                             }
                         },
                         navigationIcon = {
                             val overrideState = topBarState
                             val overrideNav = overrideState?.navigationIcon
                             when {
-                                overrideNav != null -> {
-                                    IconButton(onClick = overrideNav.onClick) {
-                                        Icon(
-                                            imageVector = overrideNav.icon,
-                                            contentDescription = overrideNav.contentDescription,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
+                                overrideNav != null -> IconButton(onClick = overrideNav.onClick) {
+                                    Icon(
+                                        imageVector = overrideNav.icon,
+                                        contentDescription = overrideNav.contentDescription,
+                                        modifier = Modifier.size(24.dp),
+                                    )
                                 }
-                                overrideState != null -> {
-                                    // Explicitly no navigation icon when a top bar state is provided.
+                                overrideState != null -> Unit // no nav icon when state provided
+                                canNavigateBack -> IconButton(onClick = { navController.navigateUp() }) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        modifier = Modifier.size(24.dp),
+                                    )
                                 }
-                                canNavigateBack -> {
-                                    IconButton(onClick = { navController.navigateUp() }) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Back",
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
-                                else -> { /* no nav icon on top-level */ }
+                                else -> Unit
                             }
                         },
-                        actions = {
-                            topBarState?.actions?.invoke(this)
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors()
+                        actions = { topBarState?.actions?.invoke(this) },
+                        colors = TopAppBarDefaults.topAppBarColors(),
                     )
                 }
             },
             bottomBar = {
                 if (currentDestination?.route in topLevelRoutes) {
                     NavigationBar {
-                        val items = RootRoute.entries.toList()
-                        items.forEach { item ->
+                        RootRoute.entries.forEach { item ->
                             NavigationBarItem(
                                 selected = currentDestination.isTopDestination(item),
                                 onClick = {
                                     if (!currentDestination.isTopDestination(item)) {
                                         navController.navigate(item.route) {
-                                            popUpTo(navController.graph.startDestinationId) {
-                                                saveState = true
-                                            }
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
                                             launchSingleTop = true
                                             restoreState = true
                                         }
@@ -462,26 +495,26 @@ fun WallBaseApp(
                                     Icon(
                                         imageVector = item.icon,
                                         contentDescription = item.label,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(24.dp),
                                     )
                                 },
-                                label = { Text(item.label) }
+                                label = { Text(item.label) },
                             )
                         }
                     }
                 }
-            }
+            },
         ) { innerPadding ->
             SharedTransitionLayout(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
-                    .padding(innerPadding)
+                    .padding(innerPadding),
             ) {
                 val sharedScope = this
                 NavHost(
                     navController = navController,
-                    startDestination = RootRoute.Library.route
+                    startDestination = RootRoute.Library.route,
                 ) {
                     composable(RootRoute.Library.route) {
                         LibraryScreen(
@@ -496,9 +529,10 @@ fun WallBaseApp(
                             },
                             onConfigureTopBar = acquireTopBar,
                             sharedTransitionScope = sharedScope,
-                            animatedVisibilityScope = this
+                            animatedVisibilityScope = this,
                         )
                     }
+
                     composable(RootRoute.Browse.route) {
                         BrowseScreen(
                             uiState = sourcesUiState,
@@ -509,13 +543,16 @@ fun WallBaseApp(
                             onAddRedditCommunity = onAddRedditCommunity,
                             onClearSearchResults = onClearRedditSearch,
                             onOpenSource = { source ->
-                                navController.navigateSingleTop("sourceBrowse/${Uri.encode(source.key)}")
+                                navController.navigateSingleTop(
+                                    "sourceBrowse/${Uri.encode(source.key)}",
+                                )
                             },
                             onRemoveSource = onRemoveSource,
                             onMessageShown = onSourcesMessageShown,
-                            onSourceUrlCopied = onSourceUrlCopied
+                            onSourceUrlCopied = onSourceUrlCopied,
                         )
                     }
+
                     composable("sourceBrowse/{sourceKey}") { backStackEntry ->
                         val key = backStackEntry.arguments?.getString("sourceKey")
                         if (key.isNullOrBlank()) {
@@ -531,118 +568,115 @@ fun WallBaseApp(
                                 },
                                 onConfigureTopBar = acquireTopBar,
                                 sharedTransitionScope = sharedScope,
-                                animatedVisibilityScope = this
+                                animatedVisibilityScope = this,
                             )
                         }
                     }
+
                     composable("album/{albumId}") { backStackEntry ->
-                val id = backStackEntry.arguments?.getString("albumId")?.toLongOrNull()
-                if (id == null) {
-                    LaunchedEffect(Unit) { navController.popBackStack() }
-                } else {
-                    AlbumDetailRoute(
-                        albumId = id,
-                        onWallpaperSelected = { wallpaper ->
-                            wallpaperSelectionViewModel.select(wallpaper)
-                            navController.navigateSingleTop("wallpaperDetail") {
-                                popUpTo("wallpaperDetail") { inclusive = true }
+                        val id = backStackEntry.arguments?.getString("albumId")?.toLongOrNull()
+                        if (id == null) {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                        } else {
+                            AlbumDetailRoute(
+                                albumId = id,
+                                onWallpaperSelected = { wallpaper ->
+                                    wallpaperSelectionViewModel.select(wallpaper)
+                                    navController.navigateSingleTop("wallpaperDetail") {
+                                        popUpTo("wallpaperDetail") { inclusive = true }
+                                    }
+                                },
+                                onAlbumDeleted = { navController.popBackStack() },
+                                onConfigureTopBar = acquireTopBar,
+                                sharedTransitionScope = sharedScope,
+                                animatedVisibilityScope = this,
+                            )
+                        }
+                    }
+
+                    composable("wallpaperDetail") {
+                        val wallpaper by wallpaperSelectionViewModel
+                            .selectedWallpaper.collectAsStateWithLifecycle()
+
+                        if (wallpaper == null) {
+                            topBarState = null
+                            val act = LocalActivity.current
+                            LaunchedEffect(Unit) {
+                                wallpaperSelectionViewModel.clear()
+                                val popped = navController.popBackStack()
+                                if (!popped) act?.finish()
                             }
-                        },
-                        onAlbumDeleted = {
-                            navController.popBackStack()
-                        },
-                        onConfigureTopBar = acquireTopBar,
-                        sharedTransitionScope = sharedScope,
-                        animatedVisibilityScope = this
-                    )
-                }
-            }
-            composable("wallpaperDetail") {
-                val wallpaper by wallpaperSelectionViewModel.selectedWallpaper.collectAsStateWithLifecycle()
-                if (wallpaper == null) {
-                    topBarState = null
-                    val activity = LocalActivity.current
-                    LaunchedEffect(Unit) {
-                        wallpaperSelectionViewModel.clear()
-                        val popped = navController.popBackStack()
-                        if (!popped) {
-                            activity?.finish()
-                        }
-                    }
-                } else {
-                    val activity = LocalActivity.current
-                    val navigateBack: () -> Unit = {
-                        wallpaperSelectionViewModel.clear()
-                        val popped = navController.popBackStack()
-                        if (!popped) {
-                            activity?.finish()
+                        } else {
+                            val act = LocalActivity.current
+                            val navigateBack: () -> Unit = {
+                                wallpaperSelectionViewModel.clear()
+                                val popped = navController.popBackStack()
+                                if (!popped) act?.finish()
+                            }
+
+                            BackHandler(onBack = navigateBack)
+
+                            val viewModel: WallpaperDetailViewModel =
+                                viewModel(factory = WallpaperDetailViewModel.Factory)
+
+                            WallpaperDetailRoute(
+                                wallpaper = wallpaper!!,
+                                onNavigateBack = navigateBack,
+                                onEditWallpaper = {
+                                    viewModel.prepareEditor()
+                                    navController.navigate("wallpaperDetail/edit")
+                                },
+                                sharedTransitionScope = sharedScope,
+                                animatedVisibilityScope = this,
+                                viewModel = viewModel,
+                            )
+
+                            LaunchedEffect(wallpaper!!.id) { topBarState = null }
                         }
                     }
 
-                    BackHandler(onBack = navigateBack)
+                    composable("wallpaperDetail/edit") {
+                        val parentEntry = remember(navController) {
+                            navController.getBackStackEntry("wallpaperDetail")
+                        }
+                        val viewModel: WallpaperDetailViewModel =
+                            viewModel(parentEntry, factory = WallpaperDetailViewModel.Factory)
 
-                    val viewModel: WallpaperDetailViewModel = viewModel(
-                        factory = WallpaperDetailViewModel.Factory
-                    )
+                        val navigateBack: () -> Unit = { navController.popBackStack() }
 
-                    WallpaperDetailRoute(
-                        wallpaper = wallpaper!!,
-                        onNavigateBack = navigateBack,
-                        onEditWallpaper = {
-                            viewModel.prepareEditor()
-                            navController.navigate("wallpaperDetail/edit")
-                        },
-                        sharedTransitionScope = sharedScope,
-                        animatedVisibilityScope = this,
-                        viewModel = viewModel
-                    )
+                        BackHandler(onBack = navigateBack)
 
-                    LaunchedEffect(wallpaper!!.id) {
-                        topBarState = null
+                        EditWallpaperRoute(
+                            onNavigateBack = navigateBack,
+                            viewModel = viewModel,
+                        )
+
+                        LaunchedEffect(Unit) { topBarState = null }
+                    }
+
+                    composable(RootRoute.Settings.route) {
+                        SettingsScreen(
+                            uiState = settingsUiState,
+                            onToggleDarkTheme = onToggleDarkTheme,
+                            onExportBackup = onExportBackup,
+                            onImportBackup = onImportBackup,
+                            onMessageShown = onSettingsMessageShown,
+                            onToggleAutoDownload = onToggleAutoDownload,
+                            onUpdateStorageLimit = onUpdateStorageLimit,
+                            onClearPreviewCache = onClearPreviewCache,
+                            onClearOriginals = onClearOriginals,
+                            onToggleIncludeSourcesInBackup = onToggleIncludeSourcesInBackup,
+                            onRequestAppLockChange = handleAppLockToggle,
+                            onCheckForUpdates = onCheckForUpdates,
+                            onOpenUpdateUrl = onOpenUpdateUrl,
+                            onDismissUpdate = onDismissUpdate,
+                            onClearUpdateStatus = onClearUpdateStatus,
+                        )
                     }
                 }
-            }
-            composable("wallpaperDetail/edit") {
-                val parentEntry = remember(navController) { navController.getBackStackEntry("wallpaperDetail") }
-                val viewModel: WallpaperDetailViewModel = viewModel(
-                    parentEntry,
-                    factory = WallpaperDetailViewModel.Factory
-                )
-                val navigateBack: () -> Unit = {
-                    navController.popBackStack()
-                }
-
-                BackHandler(onBack = navigateBack)
-
-                EditWallpaperRoute(
-                    onNavigateBack = navigateBack,
-                    viewModel = viewModel
-                )
-
-                LaunchedEffect(Unit) {
-                    topBarState = null
-                }
-            }
-            composable(RootRoute.Settings.route) {
-                SettingsScreen(
-                    uiState = settingsUiState,
-                    onToggleDarkTheme = onToggleDarkTheme,
-                    onExportBackup = onExportBackup,
-                    onImportBackup = onImportBackup,
-                    onMessageShown = onSettingsMessageShown,
-                    onToggleAutoDownload = onToggleAutoDownload,
-                    onUpdateStorageLimit = onUpdateStorageLimit,
-                    onClearPreviewCache = onClearPreviewCache,
-                    onClearOriginals = onClearOriginals,
-                    onToggleIncludeSourcesInBackup = onToggleIncludeSourcesInBackup,
-                    onRequestAppLockChange = handleAppLockToggle,
-                    onCheckForUpdates = onCheckForUpdates,
-                    onOpenUpdateUrl = onOpenUpdateUrl,
-                    onDismissUpdate = onDismissUpdate,
-                    onClearUpdateStatus = onClearUpdateStatus
-                )
             }
         }
+
         if (settingsUiState.appLockEnabled && !isAppUnlocked) {
             AppLockOverlay(
                 modifier = Modifier.fillMaxSize(),
@@ -650,76 +684,8 @@ fun WallBaseApp(
                     if (pendingAppLockRequest == null && activeAppLockRequest == null) {
                         pendingAppLockRequest = AppLockRequest.Unlock
                     }
-                }
+                },
             )
         }
     }
 }
-
-private fun currentTitle(dest: NavDestination?): String = when {
-    dest.isTopDestination(RootRoute.Library) -> "Library"
-    dest.isTopDestination(RootRoute.Browse) -> "Browse"
-    dest.isTopDestination(RootRoute.Settings) -> "Settings"
-    dest?.route == "wallpaperDetail" -> "Wallpaper"
-    dest?.route == "photosAlbums" -> "Photos albums"
-    dest?.route == "album/{albumId}" -> "Album"
-    else -> "WallBase"
-}
-
-private fun NavDestination?.isTopDestination(item: RootRoute): Boolean {
-    return this?.hierarchy?.any { it.route == item.route } == true
-}
-
-private fun NavController.navigateSingleTop(
-    route: String,
-    builder: NavOptionsBuilder.() -> Unit = {}
-) {
-    this.navigate(route) {
-        launchSingleTop = true
-        builder()
-    }
-}
-
-private sealed interface AppLockRequest {
-    data object Enable : AppLockRequest
-    data object Unlock : AppLockRequest
-}
-
-@Composable
-private fun AppLockOverlay(
-    modifier: Modifier = Modifier,
-    onUnlock: () -> Unit
-) {
-    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surface) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Lock,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Unlock WallBase",
-                style = MaterialTheme.typography.titleLarge,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Use your device credentials to continue.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            FilledTonalButton(onClick = onUnlock) {
-                Text("Unlock")
-            }
-        }
-    }
-}}}
