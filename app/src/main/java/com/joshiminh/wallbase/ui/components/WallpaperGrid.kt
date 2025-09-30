@@ -198,7 +198,7 @@ fun WallpaperGrid(
                         savedRemoteIdsByProvider = savedRemoteIdsByProvider,
                         savedImageUrls = savedImageUrls
                     )
-                    val sharedModifier = sharedWallpaperTransitionModifier(
+                    val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
                         wallpaper = wallpaper,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope
@@ -308,7 +308,7 @@ fun WallpaperGrid(
                                     savedRemoteIdsByProvider = savedRemoteIdsByProvider,
                                     savedImageUrls = savedImageUrls
                                 )
-                                val sharedModifier = sharedWallpaperTransitionModifier(
+                                val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
                                     wallpaper = wallpaper,
                                     sharedTransitionScope = sharedTransitionScope,
                                     animatedVisibilityScope = animatedVisibilityScope
@@ -379,7 +379,7 @@ fun WallpaperGrid(
                         savedRemoteIdsByProvider = savedRemoteIdsByProvider,
                         savedImageUrls = savedImageUrls
                     )
-                    val sharedModifier = sharedWallpaperTransitionModifier(
+                    val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
                         wallpaper = wallpaper,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope

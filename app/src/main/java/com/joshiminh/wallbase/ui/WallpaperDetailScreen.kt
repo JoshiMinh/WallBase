@@ -182,7 +182,7 @@ private fun WallpaperDetailScreen(
     var showTargetDialog by remember { mutableStateOf(false) }
     var showAlbumPicker by remember { mutableStateOf(false) }
     val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
-    val sharedModifier = sharedWallpaperTransitionModifier(
+    val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
         wallpaper = wallpaper,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope

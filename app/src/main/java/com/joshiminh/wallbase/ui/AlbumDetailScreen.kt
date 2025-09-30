@@ -45,6 +45,7 @@ import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -79,6 +80,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarHandle
@@ -400,6 +403,10 @@ private fun AlbumDetailScreen(
             !state.isDownloading &&
             !state.isRemovingDownloads &&
             !state.notFound
+    val defaultFabContainerColor = FloatingActionButtonDefaults.containerColor()
+    val defaultFabContentColor = FloatingActionButtonDefaults.contentColor()
+    val disabledFabContainerColor = MaterialTheme.colorScheme.surfaceVariant
+    val disabledFabContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -413,14 +420,27 @@ private fun AlbumDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     FloatingActionButton(
+                        modifier = Modifier
+                            .semantics { if (!canDownloadAlbum) disabled() },
+                        containerColor = if (canDownloadAlbum) {
+                            defaultFabContainerColor
+                        } else {
+                            disabledFabContainerColor
+                        },
+                        contentColor = if (canDownloadAlbum) {
+                            defaultFabContentColor
+                        } else {
+                            disabledFabContentColor
+                        },
                         onClick = {
+                            if (!canDownloadAlbum) return@FloatingActionButton
+
                             if (state.isAlbumDownloaded) {
                                 onPromptRemoveDownloads()
                             } else {
                                 onDownloadAlbum()
                             }
-                        },
-                        enabled = canDownloadAlbum
+                        }
                     ) {
                         Icon(
                             imageVector = if (state.isAlbumDownloaded) {
@@ -436,8 +456,23 @@ private fun AlbumDetailScreen(
                         )
                     }
                     FloatingActionButton(
-                        onClick = { showRotationSheet = true },
-                        enabled = canConfigureRotation
+                        modifier = Modifier
+                            .semantics { if (!canConfigureRotation) disabled() },
+                        containerColor = if (canConfigureRotation) {
+                            defaultFabContainerColor
+                        } else {
+                            disabledFabContainerColor
+                        },
+                        contentColor = if (canConfigureRotation) {
+                            defaultFabContentColor
+                        } else {
+                            disabledFabContentColor
+                        },
+                        onClick = {
+                            if (!canConfigureRotation) return@FloatingActionButton
+
+                            showRotationSheet = true
+                        }
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Schedule,
