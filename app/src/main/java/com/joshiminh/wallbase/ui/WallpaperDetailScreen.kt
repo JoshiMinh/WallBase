@@ -241,7 +241,7 @@ private fun WallpaperDetailScreen(
                         val previewBitmap = uiState.editedPreview
                         val previewShape = RoundedCornerShape(24.dp)
                         val previewModifier = sharedModifier.then(
-                            comparator = Modifier
+                            Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(aspectRatio)
                         )

@@ -515,7 +515,7 @@ private fun CropOverlay(
     handleRadius: Float,
     overlayColor: Color,
 ) {
-    Canvas(Canvas(Modifier.fillMaxSize())) {
+    Canvas(modifier = Modifier.fillMaxSize()) {
         if (size.width <= 0f || size.height <= 0f) return@Canvas
         val left = crop.left.coerceIn(0f, 1f) * size.width
         val top = crop.top.coerceIn(0f, 1f) * size.height
