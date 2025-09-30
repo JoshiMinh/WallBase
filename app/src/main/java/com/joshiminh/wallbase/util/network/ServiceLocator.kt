@@ -49,6 +49,12 @@ object ServiceLocator {
             "ServiceLocator.initialize(context) must be called before accessing repositories."
         }
 
+    fun ensureInitialized(context: Context) {
+        if (appContext == null) {
+            initialize(context)
+        }
+    }
+
     private val moshi: Moshi by lazy {
         Moshi.Builder()
             .add(KotlinJsonAdapterFactory())

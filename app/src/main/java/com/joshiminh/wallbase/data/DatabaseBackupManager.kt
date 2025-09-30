@@ -6,12 +6,10 @@ package com.joshiminh.wallbase.data
 
 import android.content.ContentResolver
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import android.net.Uri
 import androidx.core.net.toFile
 import androidx.documentfile.provider.DocumentFile
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.joshiminh.wallbase.data.entity.source.DefaultSources
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
@@ -66,8 +64,6 @@ class DatabaseBackupManager(
                         }
                     }
                 }
-
-                sanitizeDatabaseForExport(tempFile)
 
                 val wallpapersWithMedia = if (includeSources) {
                     database.wallpaperDao().getWallpapersWithLocalMedia()
@@ -339,27 +335,6 @@ class DatabaseBackupManager(
                 ?: sourceKey.substringBefore(':', sourceKey)
             val sanitizedFolder = localStorage.sanitizeFolderName(rawFolder)
             FolderInfo(sanitizedFolder, null)
-        }
-    }
-
-    private fun sanitizeDatabaseForExport(databaseFile: File) {
-        val excludedKeys = DefaultSources.map { it.key }.toSet()
-        if (excludedKeys.isEmpty()) return
-
-        SQLiteDatabase.openDatabase(
-            databaseFile.absolutePath,
-            null,
-            SQLiteDatabase.OPEN_READWRITE
-        ).use { db ->
-            db.beginTransaction()
-            try {
-                excludedKeys.forEach { key ->
-                    db.delete("sources", "key = ?", arrayOf(key))
-                }
-                db.setTransactionSuccessful()
-            } finally {
-                db.endTransaction()
-            }
         }
     }
 

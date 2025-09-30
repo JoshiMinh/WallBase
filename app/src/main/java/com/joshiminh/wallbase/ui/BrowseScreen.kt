@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Public
@@ -35,6 +36,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -78,10 +80,12 @@ fun BrowseScreen(
     onClearSearchResults: () -> Unit,
     onOpenSource: (Source) -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
+    onEditSource: (Source, String) -> Unit,
     onMessageShown: () -> Unit,
     onSourceUrlCopied: (String) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    var pendingEdit by remember { mutableStateOf<Source?>(null) }
     var pendingRemoval by remember { mutableStateOf<Source?>(null) }
 
     LaunchedEffect(uiState.snackbarMessage) {
@@ -133,6 +137,7 @@ fun BrowseScreen(
                     SourceCard(
                         source = source,
                         onOpenSource = onOpenSource,
+                        onRequestEdit = { pendingEdit = it },
                         onRequestRemove = { pendingRemoval = it },
                         onSourceUrlCopied = onSourceUrlCopied
                     )
@@ -148,6 +153,17 @@ fun BrowseScreen(
             onConfirm = { removeWallpapers ->
                 onRemoveSource(source, removeWallpapers)
                 pendingRemoval = null
+            }
+        )
+    }
+
+    pendingEdit?.let { source ->
+        EditSourceDialog(
+            source = source,
+            onDismiss = { pendingEdit = null },
+            onConfirm = { updatedInput ->
+                onEditSource(source, updatedInput)
+                pendingEdit = null
             }
         )
     }
@@ -375,6 +391,11 @@ private fun SupportedSourcesDialog(
             quickAddInput = "https://unsplash.com/t/wallpapers"
         ),
         SupportedSourceInfo(
+            label = "X (Twitter)",
+            faviconDomain = "x.com",
+            quickAddInput = "https://x.com/Saico556/status/1955938876943687820"
+        ),
+        SupportedSourceInfo(
             label = "AlphaCoders (Wallpaper Abyss)",
             faviconDomain = "wall.alphacoders.com",
             quickAddInput = "https://wall.alphacoders.com/by_category.php?id=3"
@@ -471,6 +492,7 @@ private data class SupportedSourceInfo(
 private fun SourceCard(
     source: Source,
     onOpenSource: (Source) -> Unit,
+    onRequestEdit: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
     onSourceUrlCopied: (String) -> Unit
 ) {
@@ -539,9 +561,25 @@ private fun SourceCard(
                     Text(source.title, style = MaterialTheme.typography.titleMedium)
                     Text(source.description, style = MaterialTheme.typography.bodyMedium)
                 }
-                if (isRemovable) {
-                    IconButton(onClick = { onRequestRemove(source) }) {
-                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Remove ${source.title}")
+                val canEdit = !source.isLocal
+                if (canEdit || isRemovable) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (canEdit) {
+                            IconButton(onClick = { onRequestEdit(source) }) {
+                                Icon(imageVector = Icons.Outlined.Edit, contentDescription = "Edit ${source.title}")
+                            }
+                        }
+                        if (isRemovable) {
+                            IconButton(
+                                onClick = { onRequestRemove(source) },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            ) {
+                                Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Remove ${source.title}")
+                            }
+                        }
                     }
                 }
             }
@@ -556,6 +594,48 @@ private fun SourceCard(
             }
         }
     }
+}
+
+@Composable
+private fun EditSourceDialog(
+    source: Source,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var input by remember(source.id) {
+        mutableStateOf(sourceShareUrl(source) ?: source.config.orEmpty())
+    }
+    val isValid = input.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit ${source.title}") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Update the subreddit or URL for this source.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    label = { Text("Source URL or subreddit") },
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(input) }, enabled = isValid) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 private fun sourceShareUrl(source: Source): String? {

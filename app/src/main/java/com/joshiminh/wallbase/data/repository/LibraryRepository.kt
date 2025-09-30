@@ -18,6 +18,9 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperWithAlbums
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator.CopyResult
+import com.joshiminh.wallbase.sources.twitter.TwitterLinkInfo
+import com.joshiminh.wallbase.sources.twitter.parseTwitterLink
+import com.joshiminh.wallbase.sources.twitter.upgradeTwitterMediaQuality
 import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustmentsJson
@@ -171,7 +174,19 @@ class LibraryRepository(
         val normalized = url.trim()
         require(normalized.isNotEmpty()) { "Wallpaper URL cannot be blank" }
 
-        val parsedUri = normalized.toUri()
+        val twitterInfo = parseTwitterLink(normalized)
+        val requestUrl = when (twitterInfo) {
+            is TwitterLinkInfo.Media -> twitterInfo.imageUrl
+            is TwitterLinkInfo.Tweet -> twitterInfo.scrapeUrl
+            null -> normalized
+        }
+        val canonicalSourceUrl = when (twitterInfo) {
+            is TwitterLinkInfo.Tweet -> twitterInfo.canonicalUrl
+            is TwitterLinkInfo.Media -> twitterInfo.imageUrl
+            null -> normalized
+        }
+
+        val parsedUri = requestUrl.toUri()
         val scheme = parsedUri.scheme?.lowercase(Locale.ROOT)
         if (scheme == null || scheme !in DIRECT_LINK_SCHEMES || parsedUri.host.isNullOrBlank()) {
             return DirectAddResult.Failure(
@@ -180,18 +195,21 @@ class LibraryRepository(
         }
 
         return withContext(Dispatchers.IO) {
-            val existing = wallpaperDao.getBySourceKeyAndSourceUrl(SourceKeys.LOCAL, normalized)
+            val existing = wallpaperDao.getBySourceKeyAndSourceUrl(SourceKeys.LOCAL, canonicalSourceUrl)
             if (existing != null) {
                 return@withContext DirectAddResult.AlreadyExists(existing.toLibraryWallpaperItem())
             }
 
-            val remote = downloadRemoteImage(normalized)
+            val remote = downloadRemoteImage(requestUrl)
                 ?: return@withContext DirectAddResult.Failure(
                     reason = "Unable to download image. Check the link and try again."
                 )
 
             val mimeType = remote.mimeType?.lowercase(Locale.ROOT)
-            if (mimeType != null && !mimeType.startsWith("image/")) {
+            val looksLikeDirectImage = looksLikeImageUrl(requestUrl) ||
+                (canonicalSourceUrl != requestUrl && looksLikeImageUrl(canonicalSourceUrl))
+            val isImageByMime = mimeType?.startsWith("image/") == true
+            if (!isImageByMime && !remote.isLikelyImage && !looksLikeDirectImage) {
                 return@withContext DirectAddResult.Failure(
                     reason = "The provided link does not point to an image."
                 )
@@ -203,7 +221,7 @@ class LibraryRepository(
                 )
             }
 
-            val displayName = displayNameFromUrl(normalized)
+            val displayName = displayNameFromUrl(requestUrl)
             val copy = runCatching {
                 localStorage.writeBytes(
                     data = remote.bytes,
@@ -222,7 +240,7 @@ class LibraryRepository(
                 ?: DIRECT_SOURCE_FOLDER
             val now = System.currentTimeMillis()
             val baseEntity = createLocalWallpaperEntity(copy, now, folderName)
-            val entity = baseEntity.copy(sourceUrl = normalized)
+            val entity = baseEntity.copy(sourceUrl = canonicalSourceUrl)
             val insertedId = wallpaperDao.insertWallpaper(entity)
             if (insertedId == -1L) {
                 runCatching { localStorage.deleteDocument(copy.uri) }
@@ -900,7 +918,11 @@ class LibraryRepository(
             return runCatching {
                 connection.getInputStream().use { stream ->
                     val bytes = stream.readBytes()
-                    RemoteImage(bytes, connection.contentType)
+                    val rawType = connection.contentType
+                    val likelyImage = rawType
+                        ?.lowercase(Locale.ROOT)
+                        ?.startsWith("image/") == true || looksLikeImageUrl(url)
+                    RemoteImage(bytes, rawType, likelyImage)
                 }
             }.getOrNull()
         }
@@ -941,15 +963,15 @@ class LibraryRepository(
 
             if (mimeType != null && mimeType.startsWith("image/")) {
                 disconnect()
-                return RemoteImage(bytes, rawMimeType)
+                return RemoteImage(bytes, rawMimeType, true)
             }
             if (!contentDisposition.isNullOrBlank() && contentDisposition.contains("filename", ignoreCase = true)) {
                 disconnect()
-                return RemoteImage(bytes, rawMimeType)
+                return RemoteImage(bytes, rawMimeType, true)
             }
             if (mimeType == null && looksLikeImageUrl(finalUrl)) {
                 disconnect()
-                return RemoteImage(bytes, rawMimeType)
+                return RemoteImage(bytes, rawMimeType, true)
             }
 
             val effectiveType = mimeType ?: ""
@@ -1057,6 +1079,15 @@ class LibraryRepository(
                 element.resolveImageCandidate("src")?.let { return it }
             }
         }
+        if (host.contains("x.com") ||
+            host.contains("twitter.com") ||
+            host.contains("vxtwitter.com") ||
+            host.contains("fxtwitter.com")
+        ) {
+            document.select("img[src*="twimg.com/"]").forEach { element ->
+                element.resolveImageCandidate("src")?.let { return upgradeTwitterMediaQuality(it) }
+            }
+        }
         if (host.contains("unsplash.com")) {
             document.select("link[rel=preload][as=image]").firstOrNull()?.let { element ->
                 element.absUrl("href").takeIf { it.isNotBlank() }?.let { return it }
@@ -1101,7 +1132,8 @@ class LibraryRepository(
             host.contains("redd.it") ||
             host.contains("redditmedia.com") ||
             host.contains("wallhaven.cc") ||
-            host.contains("alphacoders.com")
+            host.contains("alphacoders.com") ||
+            host.contains("twimg.com")
     }
 
     private fun resolveUrl(baseUrl: String, location: String): String {
@@ -1135,7 +1167,11 @@ class LibraryRepository(
             name.endsWith(".webp")
     }
 
-    private data class RemoteImage(val bytes: ByteArray, val mimeType: String?) {
+    private data class RemoteImage(
+        val bytes: ByteArray,
+        val mimeType: String?,
+        val isLikelyImage: Boolean
+    ) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
@@ -1144,6 +1180,7 @@ class LibraryRepository(
 
             if (!bytes.contentEquals(other.bytes)) return false
             if (mimeType != other.mimeType) return false
+            if (isLikelyImage != other.isLikelyImage) return false
 
             return true
         }
@@ -1151,6 +1188,7 @@ class LibraryRepository(
         override fun hashCode(): Int {
             var result = bytes.contentHashCode()
             result = 31 * result + (mimeType?.hashCode() ?: 0)
+            result = 31 * result + isLikelyImage.hashCode()
             return result
         }
     }

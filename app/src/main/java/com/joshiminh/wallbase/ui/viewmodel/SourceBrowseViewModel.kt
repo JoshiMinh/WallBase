@@ -1,6 +1,8 @@
 package com.joshiminh.wallbase.ui.viewmodel
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -471,6 +473,8 @@ class SourceBrowseViewModel(
 
         fun provideFactory(sourceKey: String) = viewModelFactory {
             initializer {
+                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
+                ServiceLocator.ensureInitialized(application)
                 SourceBrowseViewModel(
                     sourceKey = sourceKey,
                     sourceRepository = ServiceLocator.sourceRepository,

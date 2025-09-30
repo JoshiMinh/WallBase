@@ -1,15 +1,20 @@
 package com.joshiminh.wallbase.util.network
 
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.sources.twitter.TwitterLinkInfo
+import com.joshiminh.wallbase.sources.twitter.parseTwitterLink
+import com.joshiminh.wallbase.sources.twitter.upgradeTwitterMediaQuality
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.LinkedHashSet
 import java.util.Locale
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Connection
 import org.jsoup.Jsoup
+import org.jsoup.HttpStatusException
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.json.JSONArray
@@ -57,6 +62,18 @@ class JsoupWebScraper : WebScraper {
         }.getOrElse { ScrapePage(emptyList(), nextCursor = null) }
     }
 
+    override suspend fun scrapeTwitter(
+        url: String,
+        limit: Int,
+        cursor: String?
+    ): ScrapePage {
+        val info = parseTwitterLink(url) ?: return ScrapePage(emptyList(), nextCursor = null)
+        return when (info) {
+            is TwitterLinkInfo.Media -> scrapeTwitterMedia(info, limit)
+            is TwitterLinkInfo.Tweet -> scrapeTwitterTweet(info, limit, cursor)
+        }
+    }
+
     private suspend fun extractImages(
         pageUrl: String,
         limit: Int,
@@ -100,6 +117,103 @@ class JsoupWebScraper : WebScraper {
         val hasMore = results.size > toIndex
         val nextCursor = if (hasMore) toIndex.toString() else null
         ScrapePage(pageItems, nextCursor)
+    }
+
+    private fun scrapeTwitterMedia(info: TwitterLinkInfo.Media, limit: Int): ScrapePage {
+        if (limit <= 0) return ScrapePage(emptyList(), nextCursor = null)
+        val upgraded = upgradeTwitterMediaQuality(info.imageUrl)
+        val title = info.originalUrl.substringAfterLast('/')
+            .substringBefore('?')
+            .substringBefore('#')
+            .ifBlank { "Tweet image" }
+        val wallpaper = WallpaperItem(
+            id = upgraded.hashCode().toString(),
+            title = title,
+            imageUrl = upgraded,
+            sourceUrl = info.originalUrl
+        )
+        return ScrapePage(listOf(wallpaper), nextCursor = null)
+    }
+
+    private suspend fun scrapeTwitterTweet(
+        info: TwitterLinkInfo.Tweet,
+        limit: Int,
+        cursor: String?
+    ): ScrapePage = withContext(Dispatchers.IO) {
+        if (limit <= 0) return@withContext ScrapePage(emptyList(), nextCursor = null)
+        if (!cursor.isNullOrBlank()) return@withContext ScrapePage(emptyList(), nextCursor = null)
+
+        val documents = mutableListOf<Document>()
+        fetchTwitterDocument(info.scrapeUrl)?.let(documents::add)
+        if (info.scrapeUrl != info.canonicalUrl) {
+            fetchTwitterDocument(info.canonicalUrl)?.let(documents::add)
+        }
+        if (documents.isEmpty()) return@withContext ScrapePage(emptyList(), nextCursor = null)
+
+        val images = LinkedHashSet<String>()
+        var derivedTitle: String? = null
+
+        documents.forEach { document ->
+            if (derivedTitle.isNullOrBlank()) {
+                derivedTitle = document.selectFirst("meta[property=og:title]")?.attr("content")
+                    ?.takeIf { it.isNotBlank() }
+                    ?: document.selectFirst("meta[name=twitter:title]")?.attr("content")
+                        ?.takeIf { it.isNotBlank() }
+            }
+
+            metaImageCandidates(document).forEach { candidate ->
+                if (candidate.isBlank()) return@forEach
+                val normalized = if (candidate.contains("twimg.com")) {
+                    upgradeTwitterMediaQuality(candidate)
+                } else {
+                    candidate
+                }
+                if (normalized.startsWith("http", ignoreCase = true)) {
+                    images += normalized
+                }
+            }
+
+            document.select("img[src*="twimg.com/"]").forEach { element ->
+                val candidate = element.absUrl("src").ifBlank { element.attr("src") }
+                if (candidate.isNotBlank()) {
+                    images += upgradeTwitterMediaQuality(candidate)
+                }
+            }
+        }
+
+        if (images.isEmpty()) return@withContext ScrapePage(emptyList(), nextCursor = null)
+
+        val limited = images.take(limit)
+        val title = derivedTitle?.ifBlank { null }
+            ?: info.username?.let { "@$it on X" }
+            ?: "Tweet image"
+        val wallpapers = limited.mapIndexed { index, imageUrl ->
+            WallpaperItem(
+                id = "${info.statusId}#$index",
+                title = title,
+                imageUrl = imageUrl,
+                sourceUrl = info.canonicalUrl
+            )
+        }
+        ScrapePage(wallpapers, nextCursor = null)
+    }
+
+    private fun fetchTwitterDocument(url: String): Document? {
+        val attempt = runCatching { fetch(url) }
+        if (attempt.isSuccess) {
+            return attempt.getOrNull()
+        }
+        val error = attempt.exceptionOrNull()
+        if (error !is HttpStatusException && error !is IOException) {
+            return null
+        }
+        val fallbackUrl = buildTwitterProxyUrl(url) ?: return null
+        return runCatching { fetch(fallbackUrl) }.getOrNull()
+    }
+
+    private fun buildTwitterProxyUrl(url: String): String? {
+        if (url.startsWith("https://r.jina.ai/")) return null
+        return "https://r.jina.ai/$url"
     }
 
     private fun fetch(url: String): Document =
