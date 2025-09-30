@@ -93,6 +93,11 @@ class WallpaperRepository(
                     nextCursor = scrapePage.nextCursor
                 )
             }
+            SourceKeys.TWITTER -> fetchTwitterWallpapers(
+                config = source.config,
+                query = trimmedQuery,
+                cursor = cursor
+            )
             SourceKeys.WEBSITES -> {
                 val url = source.config ?: customWebsiteUrl
                 val targetUrl = trimmedQuery?.let { buildWebsiteSearchUrl(url, it) } ?: url
@@ -245,6 +250,24 @@ class WallpaperRepository(
                 WallpaperPage(items, nextCursor)
             }
         }
+    }
+
+    private suspend fun fetchTwitterWallpapers(
+        config: String?,
+        query: String?,
+        cursor: String?
+    ): WallpaperPage = withContext(Dispatchers.IO) {
+        val target = when {
+            !query.isNullOrBlank() -> query
+            !config.isNullOrBlank() -> config
+            else -> return@withContext WallpaperPage(emptyList(), nextCursor = null)
+        }
+        val scrapePage = webScraper.scrapeTwitter(
+            url = target,
+            limit = 30,
+            cursor = cursor
+        )
+        WallpaperPage(scrapePage.wallpapers, scrapePage.nextCursor)
     }
 
     suspend fun searchRedditCommunities(query: String, limit: Int = 10): List<RedditCommunity> =

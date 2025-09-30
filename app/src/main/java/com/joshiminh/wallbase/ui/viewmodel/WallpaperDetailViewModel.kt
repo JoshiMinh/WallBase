@@ -818,7 +818,7 @@ class WallpaperDetailViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ServiceLocator.initialize(application)
+                ServiceLocator.ensureInitialized(application)
                 WallpaperDetailViewModel(
                     application = application,
                     applier = WallpaperApplier(application.applicationContext),

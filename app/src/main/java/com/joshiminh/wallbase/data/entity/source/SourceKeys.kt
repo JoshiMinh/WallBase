@@ -7,6 +7,7 @@ object SourceKeys {
     const val DANBOORU = "danbooru"
     const val UNSPLASH = "unsplash"
     const val ALPHA_CODERS = "alpha_coders"
+    const val TWITTER = "twitter"
     const val WEBSITES = "websites"
     const val LOCAL = "local"
 }

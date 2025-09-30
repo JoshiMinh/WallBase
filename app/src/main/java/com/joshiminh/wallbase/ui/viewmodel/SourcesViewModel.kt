@@ -172,6 +172,28 @@ class SourcesViewModel(
         }
     }
 
+    fun editSource(source: Source, input: String) {
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) {
+            _uiState.update { it.copy(snackbarMessage = "Enter a subreddit or wallpaper URL.") }
+            return
+        }
+
+        viewModelScope.launch {
+            val result = runCatching { sourceRepository.updateSource(source, trimmed) }
+            _uiState.update { state ->
+                result.fold(
+                    onSuccess = { updated ->
+                        state.copy(snackbarMessage = "Updated ${updated.title}")
+                    },
+                    onFailure = { error ->
+                        state.copy(snackbarMessage = error.localizedMessage ?: "Unable to update source.")
+                    }
+                )
+            }
+        }
+    }
+
     fun clearSearchResults() {
         _uiState.update {
             it.copy(redditSearchResults = emptyList(), redditSearchError = null)
@@ -276,7 +298,7 @@ class SourcesViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ServiceLocator.initialize(application)
+                ServiceLocator.ensureInitialized(application)
                 SourcesViewModel(
                     application = application,
                     sourceRepository = ServiceLocator.sourceRepository,

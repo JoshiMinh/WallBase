@@ -23,7 +23,7 @@ class WallpaperRotationWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        ServiceLocator.initialize(applicationContext)
+        ServiceLocator.ensureInitialized(applicationContext)
         val rotationRepository = ServiceLocator.rotationRepository
         val schedule = rotationRepository.getActiveSchedule() ?: return Result.success()
         val foregroundInfo = buildForegroundInfo()

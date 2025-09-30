@@ -10,6 +10,8 @@ import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
+import com.joshiminh.wallbase.sources.twitter.TwitterLinkInfo
+import com.joshiminh.wallbase.sources.twitter.parseTwitterLink
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.net.MalformedURLException
@@ -31,6 +33,7 @@ class SourceRepository(
         DANBOORU,
         UNSPLASH,
         ALPHA_CODERS,
+        TWITTER,
         WEBSITE
     }
 
@@ -64,6 +67,7 @@ class SourceRepository(
             is RemoteSourceInput.Danbooru -> addDanbooruSource(parsed.url)
             is RemoteSourceInput.Unsplash -> addUnsplashSource(parsed.url)
             is RemoteSourceInput.AlphaCoders -> addAlphaCodersSource(parsed.url)
+            is RemoteSourceInput.Twitter -> addTwitterSource(parsed.url)
             is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
         }
     }
@@ -96,6 +100,75 @@ class SourceRepository(
         }
 
         return wallpaperDao.deleteBySourceKey(source.key)
+    }
+
+    suspend fun updateSource(source: Source, input: String): Source {
+        val existing = sourceDao.getSourceByKey(source.key)
+            ?: throw IllegalArgumentException("Source not found")
+        if (existing.isLocal) {
+            throw IllegalArgumentException("Local sources can't be edited.")
+        }
+
+        val parsed = parseRemoteSourceInput(input)
+            ?: throw IllegalArgumentException("Enter a supported subreddit or wallpaper URL.")
+
+        val updated = when (existing.providerKey) {
+            SourceKeys.REDDIT -> {
+                val redditInput = parsed as? RemoteSourceInput.Reddit
+                    ?: throw IllegalArgumentException("Enter a subreddit name or URL.")
+                updateRedditSource(existing, redditInput)
+            }
+
+            SourceKeys.PINTEREST -> {
+                val urlInput = parsed as? RemoteSourceInput.Pinterest
+                    ?: throw IllegalArgumentException("Enter a Pinterest board or URL.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.PINTEREST, SourceKeys.PINTEREST)
+            }
+
+            SourceKeys.WALLHAVEN -> {
+                val urlInput = parsed as? RemoteSourceInput.Wallhaven
+                    ?: throw IllegalArgumentException("Enter a Wallhaven search or collection URL.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.WALLHAVEN, SourceKeys.WALLHAVEN)
+            }
+
+            SourceKeys.DANBOORU -> {
+                val urlInput = parsed as? RemoteSourceInput.Danbooru
+                    ?: throw IllegalArgumentException("Enter a Danbooru tag or URL.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.DANBOORU, SourceKeys.DANBOORU)
+            }
+
+            SourceKeys.UNSPLASH -> {
+                val urlInput = parsed as? RemoteSourceInput.Unsplash
+                    ?: throw IllegalArgumentException("Enter an Unsplash collection or URL.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.UNSPLASH, SourceKeys.UNSPLASH)
+            }
+
+            SourceKeys.ALPHA_CODERS -> {
+                val urlInput = parsed as? RemoteSourceInput.AlphaCoders
+                    ?: throw IllegalArgumentException("Enter an AlphaCoders category or URL.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.ALPHA_CODERS, SourceKeys.ALPHA_CODERS)
+            }
+
+            SourceKeys.TWITTER -> {
+                val urlInput = parsed as? RemoteSourceInput.Twitter
+                    ?: throw IllegalArgumentException("Enter an X (Twitter) post or media link.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.TWITTER, SourceKeys.TWITTER)
+            }
+
+            SourceKeys.WEBSITES -> {
+                val urlInput = parsed as? RemoteSourceInput.Website
+                    ?: throw IllegalArgumentException("Enter a website URL.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.WEBSITE, SourceKeys.WEBSITES)
+            }
+
+            else -> throw IllegalArgumentException("This source can't be edited.")
+        }
+
+        sourceDao.updateSource(updated)
+        if (updated.key != existing.key) {
+            wallpaperDao.updateSourceKey(existing.key, updated.key)
+        }
+        return updated.toDomain()
     }
 
     private suspend fun addRedditSource(
@@ -241,6 +314,29 @@ class SourceRepository(
         return entity.copy(id = id).sanitized().toDomain()
     }
 
+    private suspend fun addTwitterSource(url: NormalizedUrl): Source {
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.TWITTER, url.value)
+        if (existing != null) {
+            throw IllegalStateException("Source already added")
+        }
+
+        val metadata = buildWebsiteMetadata(url, RemoteSourceType.TWITTER)
+        val entity = SourceEntity(
+            key = buildWebsiteKey(SourceKeys.TWITTER, url),
+            providerKey = SourceKeys.TWITTER,
+            title = metadata.title,
+            description = metadata.description,
+            iconRes = metadata.fallbackIcon,
+            iconUrl = metadata.iconUrl,
+            showInExplore = true,
+            isEnabled = true,
+            isLocal = false,
+            config = url.value
+        )
+        val id = sourceDao.insertSource(entity)
+        return entity.copy(id = id).sanitized().toDomain()
+    }
+
     private suspend fun addWebsiteSource(url: NormalizedUrl): Source {
         val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.WEBSITES, url.value)
         if (existing != null) {
@@ -262,6 +358,51 @@ class SourceRepository(
         )
         val id = sourceDao.insertSource(entity)
         return entity.copy(id = id).sanitized().toDomain()
+    }
+
+    private suspend fun updateRedditSource(
+        existing: SourceEntity,
+        redditInput: RemoteSourceInput.Reddit
+    ): SourceEntity {
+        val normalized = redditInput.slug.tryNormalizeSubreddit()
+            ?: throw IllegalArgumentException("Enter a subreddit name")
+        val duplicate = sourceDao.findSourceByProviderAndConfig(SourceKeys.REDDIT, normalized)
+        if (duplicate != null && duplicate.id != existing.id) {
+            throw IllegalStateException("Subreddit already added")
+        }
+
+        val updated = existing.copy(
+            key = buildRedditKey(normalized),
+            title = redditInput.displayName.ifBlank { "r/$normalized" },
+            description = "r/$normalized",
+            iconRes = null,
+            iconUrl = buildFaviconUrl("reddit.com"),
+            config = normalized
+        )
+        return updated.sanitized()
+    }
+
+    private suspend fun updateWebsiteSource(
+        existing: SourceEntity,
+        url: NormalizedUrl,
+        type: RemoteSourceType,
+        providerKey: String
+    ): SourceEntity {
+        val duplicate = sourceDao.findSourceByProviderAndConfig(providerKey, url.value)
+        if (duplicate != null && duplicate.id != existing.id) {
+            throw IllegalStateException("Source already added")
+        }
+
+        val metadata = buildWebsiteMetadata(url, type)
+        val updated = existing.copy(
+            key = buildWebsiteKey(providerKey, url),
+            title = metadata.title,
+            description = metadata.description,
+            iconRes = metadata.fallbackIcon,
+            iconUrl = metadata.iconUrl,
+            config = url.value
+        )
+        return updated.sanitized()
     }
 
     private fun SourceEntity.sanitized(): SourceEntity {
@@ -304,6 +445,7 @@ class SourceRepository(
                 }
                 buildFaviconUrl(domain)
             }
+            SourceKeys.TWITTER -> buildFaviconUrl("x.com")
             SourceKeys.WALLHAVEN,
             SourceKeys.DANBOORU,
             SourceKeys.UNSPLASH,
@@ -363,6 +505,21 @@ class SourceRepository(
                 RemoteSourceInput.AlphaCoders(normalizedUrl)
             }
 
+            host.contains("twitter", ignoreCase = true) ||
+                host.endsWith("x.com", ignoreCase = true) ||
+                host.contains("twimg.com", ignoreCase = true) ||
+                host.contains("vxtwitter.com", ignoreCase = true) ||
+                host.contains("fxtwitter.com", ignoreCase = true) -> {
+                val twitterInfo = parseTwitterLink(normalizedUrl.value)
+                val canonicalValue = when (twitterInfo) {
+                    is TwitterLinkInfo.Tweet -> twitterInfo.canonicalUrl
+                    is TwitterLinkInfo.Media -> twitterInfo.imageUrl
+                    null -> normalizedUrl.value
+                }
+                val canonicalUrl = canonicalValue.tryNormalizeUrl() ?: normalizedUrl
+                RemoteSourceInput.Twitter(canonicalUrl)
+            }
+
             else -> RemoteSourceInput.Website(normalizedUrl)
         }
     }
@@ -419,6 +576,10 @@ class SourceRepository(
                 .joinToString(" - ")
                 .ifBlank { "AlphaCoders" }
 
+            RemoteSourceType.TWITTER -> listOfNotNull("X (Twitter)", queryLabel ?: pathSegment)
+                .joinToString(" - ")
+                .ifBlank { "X (Twitter)" }
+
             RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
                 .joinToString(" - ")
                 .ifBlank { hostName }
@@ -432,6 +593,7 @@ class SourceRepository(
                 "pin.it" -> "pinterest.com"
                 else -> host
             }
+            RemoteSourceType.TWITTER -> "x.com"
             else -> url.host
         }
         val iconUrl = buildFaviconUrl(iconDomain)
@@ -570,6 +732,8 @@ class SourceRepository(
         class Unsplash(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.UNSPLASH)
 
         class AlphaCoders(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.ALPHA_CODERS)
+
+        class Twitter(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.TWITTER)
 
         class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
     }

@@ -369,6 +369,7 @@ class SettingsViewModel(
             initializer {
                 val application =
                     this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
+                ServiceLocator.ensureInitialized(application)
                 SettingsViewModel(
                     application = application,
                     backupManager = DatabaseBackupManager(

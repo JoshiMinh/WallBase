@@ -171,7 +171,7 @@ fun AppLockOverlay(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        ServiceLocator.initialize(applicationContext)
+        ServiceLocator.ensureInitialized(applicationContext)
         enableEdgeToEdge()
 
         setContent {
@@ -209,6 +209,7 @@ class MainActivity : ComponentActivity() {
                     onAddRedditCommunity = sourcesViewModel::addRedditCommunity,
                     onClearRedditSearch = sourcesViewModel::clearSearchResults,
                     onRemoveSource = sourcesViewModel::removeSource,
+                    onEditSource = sourcesViewModel::editSource,
                     onSourcesMessageShown = sourcesViewModel::consumeMessage,
                     onSourceUrlCopied = sourcesViewModel::onSourceUrlCopied,
                     onExportBackup = { includeSources ->
@@ -261,6 +262,7 @@ fun WallBaseApp(
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
+    onEditSource: (Source, String) -> Unit,
     onSourcesMessageShown: () -> Unit,
     onSourceUrlCopied: (String) -> Unit,
     onExportBackup: (Boolean) -> Unit,
@@ -548,6 +550,7 @@ fun WallBaseApp(
                                 )
                             },
                             onRemoveSource = onRemoveSource,
+                            onEditSource = onEditSource,
                             onMessageShown = onSourcesMessageShown,
                             onSourceUrlCopied = onSourceUrlCopied,
                         )

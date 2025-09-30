@@ -10,7 +10,7 @@ import okio.Path.Companion.toOkioPath
 class WallBaseApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        ServiceLocator.initialize(this)
+        ServiceLocator.ensureInitialized(this)
         SingletonImageLoader.setSafe { context ->
             ImageLoader.Builder(context)
                 .diskCache {

@@ -70,6 +70,9 @@ interface WallpaperDao {
     @Query("SELECT * FROM wallpapers WHERE wallpaper_id = :id LIMIT 1")
     suspend fun getById(id: Long): WallpaperEntity?
 
+    @Query("UPDATE wallpapers SET source_key = :newKey WHERE source_key = :oldKey")
+    suspend fun updateSourceKey(oldKey: String, newKey: String)
+
     @Query(
         "UPDATE wallpapers SET local_uri = :localUri, is_downloaded = :isDownloaded, " +
             "file_size_bytes = :fileSize, updated_at = :updatedAt WHERE wallpaper_id = :id"

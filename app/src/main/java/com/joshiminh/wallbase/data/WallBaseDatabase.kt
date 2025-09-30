@@ -8,15 +8,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.joshiminh.wallbase.data.dao.AlbumDao
-import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.RotationScheduleDao
+import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.album.AlbumEntity
 import com.joshiminh.wallbase.data.entity.album.AlbumWallpaperCrossRef
+import com.joshiminh.wallbase.data.entity.source.SourceEntity.Companion.fromSeed
 import com.joshiminh.wallbase.data.entity.source.DefaultSources
 import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.SourceSeed
-import com.joshiminh.wallbase.data.entity.source.SourceEntity.Companion.fromSeed
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.entity.rotation.RotationScheduleEntity
@@ -24,11 +24,6 @@ import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustmentsJson
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.net.URI
 import java.util.Locale
 
@@ -60,10 +55,8 @@ abstract class WallBaseDatabase : RoomDatabase() {
             }
         }
 
-        private val databaseScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
         private fun buildDatabase(context: Context): WallBaseDatabase {
-            val callback = DefaultSourcesCallback(DefaultSources, databaseScope)
+            val callback = DefaultSourcesCallback(DefaultSources)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
                 .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .addCallback(callback)
@@ -71,7 +64,6 @@ abstract class WallBaseDatabase : RoomDatabase() {
                 .build()
                 .also { database ->
                     INSTANCE = database
-                    callback.attach(database)
                 }
         }
 
@@ -239,51 +231,11 @@ abstract class WallBaseDatabase : RoomDatabase() {
 
     private class DefaultSourcesCallback(
         private val seeds: List<SourceSeed>,
-        private val scope: CoroutineScope,
     ) : Callback() {
-
-        @Volatile
-        private var database: WallBaseDatabase? = null
-
-        fun attach(database: WallBaseDatabase) {
-            this.database = database
-        }
 
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             preloadSources(db, seeds)
-        }
-
-        override fun onOpen(db: SupportSQLiteDatabase) {
-            super.onOpen(db)
-            scope.launch {
-                ensureDefaultSources()
-            }
-        }
-
-        private suspend fun ensureDefaultSources() {
-            val database = awaitDatabase()
-            val sourceDao = database.sourceDao()
-            val existingKeys = sourceDao.getSourceKeys().toSet()
-            val missingSources = seeds
-                .asSequence()
-                .filter { it.key !in existingKeys }
-                .map(::fromSeed)
-                .toList()
-
-            if (missingSources.isNotEmpty()) {
-                sourceDao.insertSourcesIfMissing(missingSources)
-            }
-        }
-
-        private suspend fun awaitDatabase(): WallBaseDatabase {
-            while (true) {
-                val current = database
-                if (current != null) {
-                    return current
-                }
-                delay(10)
-            }
         }
     }
 }

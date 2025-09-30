@@ -2,7 +2,9 @@
 
 package com.joshiminh.wallbase.ui.viewmodel
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -370,6 +372,8 @@ class LibraryViewModel(
     companion object {
         val Factory = viewModelFactory {
             initializer {
+                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
+                ServiceLocator.ensureInitialized(application)
                 LibraryViewModel(
                     repository = ServiceLocator.libraryRepository,
                     settingsRepository = ServiceLocator.settingsRepository

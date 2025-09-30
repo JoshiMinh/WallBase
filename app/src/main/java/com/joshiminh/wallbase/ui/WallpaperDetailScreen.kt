@@ -3,6 +3,8 @@
 package com.joshiminh.wallbase.ui
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -36,6 +38,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Home
@@ -61,6 +64,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +74,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,6 +88,7 @@ import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.ui.components.sharedWallpaperTransitionModifier
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -174,6 +180,7 @@ private fun WallpaperDetailScreen(
     animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
     val wallpaper = uiState.wallpaper ?: return
+    val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
     val hasSourceUrl = wallpaper.sourceUrl.isNotBlank()
     val canAddToLibrary = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
@@ -181,6 +188,7 @@ private fun WallpaperDetailScreen(
     val canDownload = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     var showTargetDialog by remember { mutableStateOf(false) }
     var showAlbumPicker by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
     val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
     val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
         wallpaper = wallpaper,
@@ -308,11 +316,47 @@ private fun WallpaperDetailScreen(
                     tonalElevation = 4.dp,
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 ) {
-                    IconButton(onClick = onEditWallpaper) {
-                        Icon(
-                            imageVector = Icons.Outlined.Edit,
-                            contentDescription = "Edit wallpaper"
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        IconButton(
+                            onClick = {
+                                val shareUrl = wallpaper.sourceUrl
+                                    .takeIf { it.isNotBlank() }
+                                    ?: wallpaper.imageUrl.takeIf { it.isNotBlank() }
+                                if (shareUrl.isNullOrBlank()) {
+                                    coroutineScope.launch {
+                                        snackbarHostState.showSnackbar("No link available to share")
+                                    }
+                                } else {
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, shareUrl)
+                                    }
+                                    if (context !is Activity) {
+                                        shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    val chooser = Intent.createChooser(shareIntent, "Share wallpaper")
+                                    runCatching { context.startActivity(chooser) }
+                                        .onFailure { error ->
+                                            coroutineScope.launch {
+                                                snackbarHostState.showSnackbar(
+                                                    error.localizedMessage ?: "Unable to share wallpaper"
+                                                )
+                                            }
+                                        }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Share,
+                                contentDescription = "Share wallpaper"
+                            )
+                        }
+                        IconButton(onClick = onEditWallpaper) {
+                            Icon(
+                                imageVector = Icons.Outlined.Edit,
+                                contentDescription = "Edit wallpaper"
+                            )
+                        }
                     }
                 }
 
@@ -429,7 +473,10 @@ private fun WallpaperDetailScreen(
                         uiState.isDownloaded -> {
                             Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(text = "Downloaded")
+                            Text(
+                                text = "Downloaded",
+                                style = MaterialTheme.typography.labelMedium
+                            )
                         }
 
                         else -> {
