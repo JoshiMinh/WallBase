@@ -5,11 +5,11 @@
 agp = "8.13.0"                                  # Android Gradle Plugin :contentReference[oaicite:0]{index=0}
 androidx-core-ktx = "1.17.0"
 animation = "1.9.2"
-compose-bom-version = "2025.09.01"
+compose-bom-version = "2024.12.01"
 kotlin = "2.2.20"                              # Kotlin Gradle plugin :contentReference[oaicite:1]{index=1}
 
 # Compose
-compose-bom = "2025.09.01"                     # Latest production BOM (1.9 core) :contentReference[oaicite:3]{index=3}
+compose-bom = "2024.12.01"                     # Latest production BOM (1.9 core) :contentReference[oaicite:3]{index=3}
 
 # AndroidX core
 core-ktx = "1.17.0"                            # Stable core-ktx :contentReference[oaicite:4]{index=4}
@@ -24,7 +24,7 @@ anggrayudi-storage = "2.2.0"                   # SimpleStorage from Maven Centra
 coil3 = "3.3.0"                                # Coil v3 line (Compose 1.9 compatible) :contentReference[oaicite:14]{index=14}
 lifecycle-runtime-compose = "2.9.4"
 material = "1.9.2"
-material3 = "1.4.0"
+material3 = "1.5.0"
 okhttp = "4.12.0"
 moshi = "1.15.2"
 jsoup = "1.21.2"
