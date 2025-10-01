@@ -441,7 +441,7 @@ fun WallBaseApp(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(TopAppBarDefaults.TopAppBarCollapsedHeight),
+                        .height(TopAppBarDefaults.TopAppBarExpandedHeight),
                 ) {
                     if (showTopBar) {
                         TopAppBar(
