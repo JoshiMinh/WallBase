@@ -16,6 +16,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -235,10 +237,7 @@ class MainActivity : ComponentActivity() {
                     onToggleIncludeSourcesInBackup = settingsViewModel::setIncludeSourcesInBackup,
                     onSetAppLockEnabled = settingsViewModel::setAppLockEnabled,
                     onShowSettingsMessage = settingsViewModel::showMessage,
-                    onCheckForUpdates = settingsViewModel::checkForUpdates,
-                    onOpenUpdateUrl = settingsViewModel::onUpdateUrlOpened,
-                    onDismissUpdate = settingsViewModel::dismissAvailableUpdate,
-                    onClearUpdateStatus = settingsViewModel::clearUpdateStatus,
+                    onCompleteOnboarding = settingsViewModel::markOnboardingComplete,
                 )
             }
         }
@@ -275,14 +274,15 @@ fun WallBaseApp(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onSetAppLockEnabled: (Boolean) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
-    onCheckForUpdates: () -> Unit,
-    onOpenUpdateUrl: (String) -> Unit,
-    onDismissUpdate: () -> Unit,
-    onClearUpdateStatus: () -> Unit,
+    onCompleteOnboarding: () -> Unit,
 ) {
     val navController = rememberNavController()
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
     val wallpaperSelectionViewModel: WallpaperSelectionViewModel = viewModel()
+    val selectedWallpaperState by wallpaperSelectionViewModel
+        .selectedWallpaper
+        .collectAsStateWithLifecycle()
+    val sharedTransitionsEnabled = selectedWallpaperState?.enableSharedTransition != false
 
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
 
@@ -514,21 +514,24 @@ fun WallBaseApp(
                 }
             },
         ) { innerPadding ->
-            SharedTransitionLayout(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .padding(innerPadding),
-            ) {
-                val sharedScope = this
+            val navContainerModifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(innerPadding)
+
+            val renderNavHost: @Composable (SharedTransitionScope?) -> Unit = { sharedScope ->
                 NavHost(
                     navController = navController,
                     startDestination = RootRoute.Library.route,
                 ) {
                     composable(RootRoute.Library.route) {
+                        val animatedScope = if (sharedScope != null) this else null
                         LibraryScreen(
-                            onWallpaperSelected = { wallpaper ->
-                                wallpaperSelectionViewModel.select(wallpaper)
+                            onWallpaperSelected = { wallpaper, enableSharedTransition ->
+                                wallpaperSelectionViewModel.select(
+                                    wallpaper,
+                                    enableSharedTransition,
+                                )
                                 navController.navigateSingleTop("wallpaperDetail") {
                                     popUpTo("wallpaperDetail") { inclusive = true }
                                 }
@@ -538,7 +541,7 @@ fun WallBaseApp(
                             },
                             onConfigureTopBar = acquireTopBar,
                             sharedTransitionScope = sharedScope,
-                            animatedVisibilityScope = this,
+                            animatedVisibilityScope = animatedScope,
                         )
                     }
 
@@ -568,17 +571,21 @@ fun WallBaseApp(
                         if (key.isNullOrBlank()) {
                             LaunchedEffect(Unit) { navController.popBackStack() }
                         } else {
+                            val animatedScope = if (sharedScope != null) this else null
                             SourceBrowseRoute(
                                 sourceKey = key,
-                                onWallpaperSelected = { wallpaper ->
-                                    wallpaperSelectionViewModel.select(wallpaper)
+                                onWallpaperSelected = { wallpaper, enableSharedTransition ->
+                                    wallpaperSelectionViewModel.select(
+                                        wallpaper,
+                                        enableSharedTransition,
+                                    )
                                     navController.navigateSingleTop("wallpaperDetail") {
                                         popUpTo("wallpaperDetail") { inclusive = true }
                                     }
                                 },
                                 onConfigureTopBar = acquireTopBar,
                                 sharedTransitionScope = sharedScope,
-                                animatedVisibilityScope = this,
+                                animatedVisibilityScope = animatedScope,
                             )
                         }
                     }
@@ -588,10 +595,14 @@ fun WallBaseApp(
                         if (id == null) {
                             LaunchedEffect(Unit) { navController.popBackStack() }
                         } else {
+                            val animatedScope = if (sharedScope != null) this else null
                             AlbumDetailRoute(
                                 albumId = id,
-                                onWallpaperSelected = { wallpaper ->
-                                    wallpaperSelectionViewModel.select(wallpaper)
+                                onWallpaperSelected = { wallpaper, enableSharedTransition ->
+                                    wallpaperSelectionViewModel.select(
+                                        wallpaper,
+                                        enableSharedTransition,
+                                    )
                                     navController.navigateSingleTop("wallpaperDetail") {
                                         popUpTo("wallpaperDetail") { inclusive = true }
                                     }
@@ -599,14 +610,18 @@ fun WallBaseApp(
                                 onAlbumDeleted = { navController.popBackStack() },
                                 onConfigureTopBar = acquireTopBar,
                                 sharedTransitionScope = sharedScope,
-                                animatedVisibilityScope = this,
+                                animatedVisibilityScope = animatedScope,
                             )
                         }
                     }
 
                     composable("wallpaperDetail") {
-                        val wallpaper by wallpaperSelectionViewModel
+                        val selectedWallpaperState by wallpaperSelectionViewModel
                             .selectedWallpaper.collectAsStateWithLifecycle()
+
+                        val wallpaper = selectedWallpaperState?.wallpaper
+                        val enableSharedTransition =
+                            selectedWallpaperState?.enableSharedTransition == true
 
                         if (wallpaper == null) {
                             topBarState = null
@@ -629,19 +644,24 @@ fun WallBaseApp(
                             val viewModel: WallpaperDetailViewModel =
                                 viewModel(factory = WallpaperDetailViewModel.Factory)
 
+                            val detailSharedScope =
+                                sharedScope.takeIf { enableSharedTransition }
+                            val detailVisibilityScope =
+                                if (detailSharedScope != null) this else null
+
                             WallpaperDetailRoute(
-                                wallpaper = wallpaper!!,
+                                wallpaper = wallpaper,
                                 onNavigateBack = navigateBack,
                                 onEditWallpaper = {
                                     viewModel.prepareEditor()
                                     navController.navigate("wallpaperDetail/edit")
                                 },
-                                sharedTransitionScope = sharedScope,
-                                animatedVisibilityScope = this,
+                                sharedTransitionScope = detailSharedScope,
+                                animatedVisibilityScope = detailVisibilityScope,
                                 viewModel = viewModel,
                             )
 
-                            LaunchedEffect(wallpaper!!.id) { topBarState = null }
+                            LaunchedEffect(wallpaper.id) { topBarState = null }
                         }
                     }
 
@@ -677,25 +697,42 @@ fun WallBaseApp(
                             onClearOriginals = onClearOriginals,
                             onToggleIncludeSourcesInBackup = onToggleIncludeSourcesInBackup,
                             onRequestAppLockChange = handleAppLockToggle,
-                            onCheckForUpdates = onCheckForUpdates,
-                            onOpenUpdateUrl = onOpenUpdateUrl,
-                            onDismissUpdate = onDismissUpdate,
-                            onClearUpdateStatus = onClearUpdateStatus,
                         )
                     }
                 }
             }
+
+            if (sharedTransitionsEnabled) {
+                SharedTransitionLayout(modifier = navContainerModifier) {
+                    renderNavHost(this)
+                }
+            } else {
+                Box(modifier = navContainerModifier) {
+                    renderNavHost(null)
+                }
+            }
         }
 
-        if (settingsUiState.appLockEnabled && !isAppUnlocked) {
-            AppLockOverlay(
-                modifier = Modifier.fillMaxSize(),
-                onUnlock = {
-                    if (pendingAppLockRequest == null && activeAppLockRequest == null) {
-                        pendingAppLockRequest = AppLockRequest.Unlock
-                    }
-                },
-            )
+        when {
+            !settingsUiState.hasCompletedOnboarding -> {
+                LandingScreen(
+                    onFinished = onCompleteOnboarding,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(1f),
+                )
+            }
+
+            settingsUiState.appLockEnabled && !isAppUnlocked -> {
+                AppLockOverlay(
+                    modifier = Modifier.fillMaxSize(),
+                    onUnlock = {
+                        if (pendingAppLockRequest == null && activeAppLockRequest == null) {
+                            pendingAppLockRequest = AppLockRequest.Unlock
+                        }
+                    },
+                )
+            }
         }
     }
 }

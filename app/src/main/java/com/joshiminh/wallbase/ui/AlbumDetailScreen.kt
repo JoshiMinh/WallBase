@@ -88,6 +88,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
@@ -104,7 +105,7 @@ import java.util.Date
 @Composable
 fun AlbumDetailRoute(
     albumId: Long,
-    onWallpaperSelected: (WallpaperItem) -> Unit,
+    onWallpaperSelected: (WallpaperItem, Boolean) -> Unit,
     onAlbumDeleted: () -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     viewModel: AlbumDetailViewModel = viewModel(factory = AlbumDetailViewModel.provideFactory(albumId)),
@@ -275,12 +276,19 @@ fun AlbumDetailRoute(
         viewModel.consumeMessage()
     }
 
+    val onWallpaperClick: (WallpaperItem) -> Unit = { wallpaper ->
+        onWallpaperSelected(
+            wallpaper,
+            uiState.wallpaperLayout != WallpaperLayout.GRID,
+        )
+    }
+
     AlbumDetailScreen(
         state = uiState,
         wallpapers = displayedWallpapers,
         isSearching = isSearchActive,
         searchQuery = trimmedQuery,
-        onWallpaperSelected = onWallpaperSelected,
+        onWallpaperSelected = onWallpaperClick,
         snackbarHostState = snackbarHostState,
         onDownloadAlbum = viewModel::downloadAlbum,
         onPromptRemoveDownloads = viewModel::promptRemoveDownloads,

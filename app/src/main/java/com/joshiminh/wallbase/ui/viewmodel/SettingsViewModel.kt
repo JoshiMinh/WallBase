@@ -51,7 +51,8 @@ class SettingsViewModel(
                         autoDownload = preferences.autoDownload,
                         storageLimitBytes = preferences.storageLimitBytes,
                         dismissedUpdateVersion = preferences.dismissedUpdateVersion,
-                        appLockEnabled = preferences.appLockEnabled
+                        appLockEnabled = preferences.appLockEnabled,
+                        hasCompletedOnboarding = preferences.onboardingCompleted,
                     )
                 }
             }
@@ -111,6 +112,14 @@ class SettingsViewModel(
     fun setIncludeSourcesInBackup(include: Boolean) {
         if (_uiState.value.includeSourcesInBackup == include) return
         _uiState.update { it.copy(includeSourcesInBackup = include) }
+    }
+
+    fun markOnboardingComplete() {
+        if (_uiState.value.hasCompletedOnboarding) return
+        _uiState.update { it.copy(hasCompletedOnboarding = true) }
+        viewModelScope.launch {
+            settingsRepository.setOnboardingCompleted(true)
+        }
     }
 
     fun checkForUpdates() {
@@ -308,6 +317,7 @@ class SettingsViewModel(
         val isClearingOriginals: Boolean = false,
         val includeSourcesInBackup: Boolean = true,
         val appLockEnabled: Boolean = false,
+        val hasCompletedOnboarding: Boolean = false,
         val isCheckingForUpdates: Boolean = false,
         val availableUpdateVersion: String? = null,
         val updateNotes: String? = null,

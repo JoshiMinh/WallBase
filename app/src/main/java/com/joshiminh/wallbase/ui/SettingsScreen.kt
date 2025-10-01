@@ -2,7 +2,6 @@ package com.joshiminh.wallbase.ui
 
 import android.content.Context
 import android.text.format.Formatter
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -27,7 +26,6 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -68,7 +66,6 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 import kotlin.math.roundToInt
 
@@ -86,10 +83,6 @@ fun SettingsScreen(
     onClearOriginals: () -> Unit,
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onRequestAppLockChange: (Boolean) -> Unit,
-    onCheckForUpdates: () -> Unit,
-    onOpenUpdateUrl: (String) -> Unit,
-    onDismissUpdate: () -> Unit,
-    onClearUpdateStatus: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -107,12 +100,6 @@ fun SettingsScreen(
         val message = uiState.message ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         onMessageShown()
-    }
-
-    LaunchedEffect(uiState.updateError) {
-        val error = uiState.updateError ?: return@LaunchedEffect
-        snackbarHostState.showSnackbar(error)
-        onClearUpdateStatus()
     }
 
     Scaffold(
@@ -505,23 +492,6 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    AppUpdateCard(
-                        uiState = uiState,
-                        onCheckForUpdates = onCheckForUpdates,
-                        onDownloadUpdate = { url ->
-                            onOpenUpdateUrl(url)
-                            uriHandler.openUri(url)
-                        },
-                        onDismissUpdate = onDismissUpdate
-                    )
-
-                    SettingsLinkCard(
-                        title = "GitHub",
-                        description = "Explore the project repository.",
-                        iconUrl = "https://github.githubassets.com/favicons/favicon.png",
-                        onClick = { uriHandler.openUri("https://github.com/JoshiMinh/WallBase") }
-                    )
-
                     SettingsLinkCard(
                         title = "Ko-fi",
                         description = "Support future development.",
@@ -545,194 +515,6 @@ private fun SettingsSection(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(spacing), content = content)
-}
-
-@Composable
-private fun AppUpdateCard(
-    uiState: SettingsViewModel.SettingsUiState,
-    onCheckForUpdates: () -> Unit,
-    onDownloadUpdate: (String) -> Unit,
-    onDismissUpdate: () -> Unit
-) {
-    val updateAvailable = uiState.availableUpdateVersion != null
-    val isChecking = uiState.isCheckingForUpdates
-    val statusLabel = when {
-        updateAvailable -> "Update available"
-        isChecking -> "Checking…"
-        uiState.hasCheckedForUpdates -> "Up to date"
-        else -> null
-    }
-    val statusColor = when {
-        updateAvailable -> MaterialTheme.colorScheme.primary
-        isChecking -> MaterialTheme.colorScheme.tertiary
-        uiState.hasCheckedForUpdates -> MaterialTheme.colorScheme.secondary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    SettingsCard {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-                .animateContentSize(),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.SystemUpdate,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .padding(12.dp)
-                            .size(24.dp)
-                    )
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Check for updates",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "Current version ${BuildConfig.VERSION_NAME}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                statusLabel?.let {
-                    Surface(
-                        color = statusColor.copy(alpha = 0.18f),
-                        contentColor = statusColor,
-                        shape = RoundedCornerShape(100.dp)
-                    ) {
-                        Text(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            text = it,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
-                }
-            }
-
-            HorizontalDivider(color = DividerDefaults.color.copy(alpha = 0.3f))
-
-            when {
-                isChecking -> {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Text(
-                            text = "We're checking for a new release…",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-
-                updateAvailable -> {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Version ${uiState.availableUpdateVersion} is ready to install.",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-
-                        uiState.updateNotes?.takeIf { it.isNotBlank() }?.let { notes ->
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text(
-                                    modifier = Modifier.padding(12.dp),
-                                    text = notes.trim(),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-
-                uiState.hasCheckedForUpdates -> {
-                    Text(
-                        text = "You're already running the latest build.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                else -> {
-                    Text(
-                        text = "Stay current with new wallpapers and fixes by checking for updates.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            if (updateAvailable) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    val updateUrl = uiState.updateUrl
-                    Button(
-                        enabled = updateUrl != null,
-                        onClick = {
-                            val url = updateUrl ?: return@Button
-                            onDownloadUpdate(url)
-                        }
-                    ) {
-                        Text(text = "Download update")
-                        Icon(
-                            imageVector = Icons.Outlined.OpenInNew,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .size(18.dp)
-                        )
-                    }
-
-                    TextButton(onClick = onDismissUpdate) {
-                        Text(text = "Remind me later")
-                    }
-                }
-            } else {
-                FilledTonalButton(
-                    onClick = onCheckForUpdates,
-                    enabled = !isChecking
-                ) {
-                    if (isChecking) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .padding(end = 8.dp),
-                            strokeWidth = 2.dp
-                        )
-                    }
-                    Text(text = if (isChecking) "Checking…" else "Check now")
-                }
-            }
-        }
-    }
 }
 
 @Composable

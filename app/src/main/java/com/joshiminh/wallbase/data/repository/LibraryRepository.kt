@@ -554,22 +554,25 @@ class LibraryRepository(
             ?: throw IllegalArgumentException("Wallpaper is missing a source key")
 
         return withContext(Dispatchers.IO) {
-            when (sourceKey) {
+            val entity = when (sourceKey) {
                 SourceKeys.LOCAL -> {
                     val localId = wallpaper.remoteIdentifierWithinSource()?.toLongOrNull()
-                    if (localId != null) {
-                        wallpaperDao.deleteById(localId) > 0
-                    } else {
-                        false
-                    }
+                    if (localId != null) wallpaperDao.getById(localId) else null
                 }
 
                 else -> {
                     val remoteId = wallpaper.remoteIdentifierWithinSource()
-                        ?: return@withContext false
-                    wallpaperDao.deleteBySourceKeyAndRemoteId(sourceKey, remoteId) > 0
+                    when {
+                        remoteId != null -> wallpaperDao.getBySourceKeyAndRemoteId(sourceKey, remoteId)
+                        wallpaper.imageUrl.isNotBlank() ->
+                            wallpaperDao.getBySourceKeyAndImageUrl(sourceKey, wallpaper.imageUrl)
+
+                        else -> null
+                    }
                 }
             }
+
+            entity?.let { deleteWallpaperEntity(it) } ?: false
         }
     }
 
@@ -591,21 +594,25 @@ class LibraryRepository(
 
             var removed = 0
             entities.forEach { entity ->
-                val localUri = entity.localUri
-                if (!localUri.isNullOrBlank() && (entity.isDownloaded || entity.sourceKey == SourceKeys.LOCAL)) {
-                    runCatching { localStorage.deleteDocument(localUri.toUri()) }
-                        .onFailure { error ->
-                            if (error is IllegalStateException) throw error
-                        }
-                }
-
-                if (wallpaperDao.deleteById(entity.id) > 0) {
+                if (deleteWallpaperEntity(entity)) {
                     removed++
                 }
             }
 
             removed
         }
+    }
+
+    private suspend fun deleteWallpaperEntity(entity: WallpaperEntity): Boolean {
+        val localUri = entity.localUri
+        if (!localUri.isNullOrBlank() && (entity.isDownloaded || entity.sourceKey == SourceKeys.LOCAL)) {
+            runCatching { localStorage.deleteDocument(localUri.toUri()) }
+                .onFailure { error ->
+                    if (error is IllegalStateException) throw error
+                }
+        }
+
+        return wallpaperDao.deleteById(entity.id) > 0
     }
 
     suspend fun isWallpaperInLibrary(wallpaper: WallpaperItem): Boolean {

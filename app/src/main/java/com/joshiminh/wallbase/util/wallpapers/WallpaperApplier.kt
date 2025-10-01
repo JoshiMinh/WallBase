@@ -88,11 +88,18 @@ class WallpaperApplier(
     @SuppressLint("MissingPermission") // Safe: we performed a runtime permission check in apply()
     private fun applyWithWallpaperManager(bitmap: Bitmap, target: WallpaperTarget) {
         val manager = WallpaperManager.getInstance(context)
-        val flags = when (target) {
-            WallpaperTarget.HOME -> WallpaperManager.FLAG_SYSTEM
-            WallpaperTarget.LOCK -> WallpaperManager.FLAG_LOCK
-            WallpaperTarget.BOTH -> WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
-        }
+        val hasLockPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.SET_WALLPAPER_HINTS
+        ) == PackageManager.PERMISSION_GRANTED
+
+        val includeLock = hasLockPermission &&
+            (target == WallpaperTarget.LOCK || target == WallpaperTarget.BOTH)
+        val includeSystem = target == WallpaperTarget.HOME || target == WallpaperTarget.BOTH ||
+            (!hasLockPermission && target == WallpaperTarget.LOCK)
+
+        val flags = (if (includeSystem) WallpaperManager.FLAG_SYSTEM else 0) or
+            (if (includeLock) WallpaperManager.FLAG_LOCK else 0)
         manager.setBitmap(bitmap, null, true, flags)
     }
 
