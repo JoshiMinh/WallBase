@@ -438,44 +438,51 @@ fun WallBaseApp(
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             topBar = {
-                if (showTopBar) {
-                    TopAppBar(
-                        title = {
-                            val overrideState = topBarState
-                            val customTitle = overrideState?.titleContent
-                            when {
-                                customTitle != null -> customTitle()
-                                else -> Text(
-                                    text = overrideState?.title ?: currentTitle(currentDestination),
-                                    style = MaterialTheme.typography.titleLarge,
-                                )
-                            }
-                        },
-                        navigationIcon = {
-                            val overrideState = topBarState
-                            val overrideNav = overrideState?.navigationIcon
-                            when {
-                                overrideNav != null -> IconButton(onClick = overrideNav.onClick) {
-                                    Icon(
-                                        imageVector = overrideNav.icon,
-                                        contentDescription = overrideNav.contentDescription,
-                                        modifier = Modifier.size(24.dp),
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(TopAppBarDefaults.TopAppBarCollapsedHeight),
+                ) {
+                    if (showTopBar) {
+                        TopAppBar(
+                            modifier = Modifier.fillMaxSize(),
+                            title = {
+                                val overrideState = topBarState
+                                val customTitle = overrideState?.titleContent
+                                when {
+                                    customTitle != null -> customTitle()
+                                    else -> Text(
+                                        text = overrideState?.title ?: currentTitle(currentDestination),
+                                        style = MaterialTheme.typography.titleLarge,
                                     )
                                 }
-                                overrideState != null -> Unit // no nav icon when state provided
-                                canNavigateBack -> IconButton(onClick = { navController.navigateUp() }) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back",
-                                        modifier = Modifier.size(24.dp),
-                                    )
+                            },
+                            navigationIcon = {
+                                val overrideState = topBarState
+                                val overrideNav = overrideState?.navigationIcon
+                                when {
+                                    overrideNav != null -> IconButton(onClick = overrideNav.onClick) {
+                                        Icon(
+                                            imageVector = overrideNav.icon,
+                                            contentDescription = overrideNav.contentDescription,
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                    }
+                                    overrideState != null -> Unit // no nav icon when state provided
+                                    canNavigateBack -> IconButton(onClick = { navController.navigateUp() }) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Back",
+                                            modifier = Modifier.size(24.dp),
+                                        )
+                                    }
+                                    else -> Unit
                                 }
-                                else -> Unit
-                            }
-                        },
-                        actions = { topBarState?.actions?.invoke(this) },
-                        colors = TopAppBarDefaults.topAppBarColors(),
-                    )
+                            },
+                            actions = { topBarState?.actions?.invoke(this) },
+                            colors = TopAppBarDefaults.topAppBarColors(),
+                        )
+                    }
                 }
             },
             bottomBar = {
