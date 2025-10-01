@@ -125,7 +125,7 @@ import androidx.compose.foundation.lazy.grid.items as gridItems
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun LibraryScreen(
-    onWallpaperSelected: (WallpaperItem) -> Unit,
+    onWallpaperSelected: (WallpaperItem, Boolean) -> Unit,
     onAlbumSelected: (AlbumItem) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     libraryViewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
@@ -500,7 +500,10 @@ fun LibraryScreen(
 
             isAlbumSelection -> Unit
 
-            else -> onWallpaperSelected(wallpaper)
+            else -> onWallpaperSelected(
+                wallpaper,
+                wallpaperLayout != WallpaperLayout.GRID,
+            )
         }
     }
 

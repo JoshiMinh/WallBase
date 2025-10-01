@@ -36,7 +36,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -571,11 +570,7 @@ private fun SourceCard(
                         }
                         if (isRemovable) {
                             IconButton(
-                                onClick = { onRequestRemove(source) },
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                )
+                                onClick = { onRequestRemove(source) }
                             ) {
                                 Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Remove ${source.title}")
                             }

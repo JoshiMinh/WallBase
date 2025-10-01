@@ -71,7 +71,7 @@ import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
 @Composable
 fun SourceBrowseRoute(
     sourceKey: String,
-    onWallpaperSelected: (WallpaperItem) -> Unit,
+    onWallpaperSelected: (WallpaperItem, Boolean) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     viewModel: SourceBrowseViewModel = viewModel(factory = SourceBrowseViewModel.provideFactory(sourceKey)),
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -235,7 +235,10 @@ fun SourceBrowseRoute(
         if (uiState.isSelectionMode) {
             viewModel.toggleSelection(wallpaper)
         } else {
-            onWallpaperSelected(wallpaper)
+            onWallpaperSelected(
+                wallpaper,
+                wallpaperLayout != WallpaperLayout.GRID,
+            )
         }
     }
 
