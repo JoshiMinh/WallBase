@@ -48,6 +48,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -443,11 +444,6 @@ fun LibraryScreen(
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                     }
                 } else {
-                    if (selectedTab == 0) {
-                        IconButton(onClick = { showDirectAddDialog = true }) {
-                            Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add wallpaper")
-                        }
-                    }
                     IconButton(onClick = { isSearchActive = true }) {
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                     }
@@ -563,28 +559,36 @@ fun LibraryScreen(
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             floatingActionButton = {
-                if (selectedTab == 1) {
-                    val creating = uiState.isCreatingAlbum
-                    ExtendedFloatingActionButton(
-                        onClick = { if (!creating) showAlbumDialog = true },
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Outlined.Add,
-                                contentDescription = "Add album"
+                when {
+                    selectedTab == 0 && !selectionMode -> {
+                        FloatingActionButton(onClick = { showDirectAddDialog = true }) {
+                            Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add wallpaper")
+                        }
+                    }
+
+                    selectedTab == 1 -> {
+                        val creating = uiState.isCreatingAlbum
+                        ExtendedFloatingActionButton(
+                            onClick = { if (!creating) showAlbumDialog = true },
+                            icon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Add,
+                                    contentDescription = "Add album"
+                                )
+                            },
+                            text = { Text(text = "Add album") },
+                            expanded = true,
+                            modifier = Modifier.then(
+                                if (creating) {
+                                    Modifier
+                                        .alpha(0.6f)
+                                        .semantics { disabled() }
+                                } else {
+                                    Modifier
+                                }
                             )
-                        },
-                        text = { Text(text = "Add album") },
-                        expanded = true,
-                        modifier = Modifier.then(
-                            if (creating) {
-                                Modifier
-                                    .alpha(0.6f)
-                                    .semantics { disabled() }
-                            } else {
-                                Modifier
-                            }
                         )
-                    )
+                    }
                 }
             },
             contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
