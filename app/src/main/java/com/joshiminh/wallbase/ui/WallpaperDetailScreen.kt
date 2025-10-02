@@ -95,6 +95,7 @@ import kotlinx.coroutines.launch
 fun WallpaperDetailRoute(
     wallpaper: WallpaperItem,
     onNavigateBack: () -> Unit,
+    onEditWallpaper: () -> Unit, // <-- add this
     viewModel: WallpaperDetailViewModel = viewModel(factory = WallpaperDetailViewModel.Factory),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null

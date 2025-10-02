@@ -13,6 +13,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -32,7 +33,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -61,8 +61,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -138,7 +138,7 @@ private fun EditWallpaperScreen(
     Scaffold(
         topBar = {
             EditorTopBar(
-                title = wallpaper.title.orEmpty().ifBlank { "Edit wallpaper" },
+                title = wallpaper.title.ifBlank { "Edit wallpaper" },
                 onBack = onNavigateBack,
                 onReset = onResetAdjustments,
                 resetEnabled = !uiState.adjustments.isIdentity,
@@ -164,20 +164,25 @@ private fun EditWallpaperScreen(
             Spacer(Modifier.height(12.dp))
 
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                AdjustmentCard(
-                    title = "Brightness",
-                    subtitle = "Fine-tune the exposure",
+                @Composable
+                fun AdjustmentCard(
+                    title: String,
+                    subtitle: String,
+                    content: @Composable ColumnScope.() -> Unit,  // <- ColumnScope, not Column
                 ) {
-                    AdjustmentSlider(
-                        value = uiState.adjustments.brightness,
-                        valueRange = -0.5f..0.5f,
-                        enabled = uiState.isEditorReady,
-                        onValueChange = onAdjustBrightness,
-                        valueFormatter = { value ->
-                            val percent = (value * 100).roundToInt()
-                            "${if (percent >= 0) "+" else ""}$percent%"
+                    Card {
+                        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                            Text(text = title, style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = subtitle,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            content() // now resolves with ColumnScope receiver
                         }
-                    )
+                    }
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -363,11 +368,13 @@ private fun LoadingOverlay(aspectRatio: Float, message: String) {
 private fun AdjustmentCard(
     title: String,
     subtitle: String,
-    content: @Composable Column.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
+        ),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
@@ -379,7 +386,7 @@ private fun AdjustmentCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(12.dp))
-            content()
+            content() // IMPORTANT: call the composable lambda
         }
     }
 }
