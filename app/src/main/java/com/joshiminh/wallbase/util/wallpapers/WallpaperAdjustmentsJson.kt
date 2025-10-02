@@ -35,6 +35,7 @@ object WallpaperAdjustmentsJson {
 
         val stored = StoredAdjustments(
             brightness = normalized.brightness,
+            hue = normalized.hue,
             filter = normalized.filter.name,
             crop = storedCrop
         )
@@ -46,6 +47,7 @@ object WallpaperAdjustmentsJson {
         if (value.isNullOrBlank()) return null
         val stored = runCatching { adapter.fromJson(value) }.getOrNull() ?: return null
         val brightness = stored.brightness?.coerceIn(-0.5f, 0.5f) ?: 0f
+        val hue = stored.hue?.coerceIn(-180f, 180f) ?: 0f
         val filter = stored.filter?.let { name ->
             runCatching { WallpaperFilter.valueOf(name) }.getOrNull()
         } ?: WallpaperFilter.NONE
@@ -74,6 +76,7 @@ object WallpaperAdjustmentsJson {
 
         return WallpaperAdjustments(
             brightness = brightness,
+            hue = hue,
             filter = filter,
             crop = crop
         ).sanitized()
@@ -81,19 +84,20 @@ object WallpaperAdjustmentsJson {
 
     private data class StoredAdjustments(
         val brightness: Float?,
+        val hue: Float?,
         val filter: String?,
-        val crop: StoredCrop?
+        val crop: StoredCrop?,
     )
 
     private data class StoredCrop(
         val mode: String?,
-        val settings: StoredCropSettings?
+        val settings: StoredCropSettings?,
     )
 
     private data class StoredCropSettings(
         val left: Float,
         val top: Float,
         val right: Float,
-        val bottom: Float
+        val bottom: Float,
     )
 }

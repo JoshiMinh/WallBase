@@ -11,12 +11,14 @@ import kotlin.math.abs
  */
 data class WallpaperAdjustments(
     val brightness: Float = 0f,
+    val hue: Float = 0f,
     val filter: WallpaperFilter = WallpaperFilter.NONE,
     val crop: WallpaperCrop = WallpaperCrop.Auto,
 ) {
     val isIdentity: Boolean
         get() =
             brightness == 0f &&
+                hue == 0f &&
                 filter == WallpaperFilter.NONE &&
                 crop == WallpaperCrop.Auto
 
@@ -25,12 +27,14 @@ data class WallpaperAdjustments(
 
     fun sanitized(): WallpaperAdjustments {
         val clippedBrightness = brightness.coerceIn(-0.5f, 0.5f)
+        val clippedHue = hue.coerceIn(-180f, 180f)
         val sanitizedCrop = when (val current = crop) {
             is WallpaperCrop.Custom -> WallpaperCrop.Custom(current.settings.sanitized())
             else -> current
         }
         return copy(
             brightness = clippedBrightness,
+            hue = clippedHue,
             crop = sanitizedCrop
         )
     }

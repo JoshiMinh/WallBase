@@ -417,6 +417,16 @@ class WallpaperDetailViewModel(
         schedulePersistAdjustments()
     }
 
+    fun updateHue(value: Float) {
+        val clipped = value.coerceIn(-180f, 180f)
+        val current = _uiState.value.adjustments
+        if (current.hue == clipped) return
+        _uiState.update { it.copy(adjustments = current.copy(hue = clipped)) }
+        cachedAdjustments = null
+        generatePreviewForAdjustments(_uiState.value.adjustments)
+        schedulePersistAdjustments()
+    }
+
     fun updateFilter(filter: WallpaperFilter) {
         val current = _uiState.value.adjustments
         if (current.filter == filter) return
