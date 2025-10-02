@@ -89,9 +89,9 @@ import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
-import com.joshiminh.wallbase.ui.components.SortBottomSheet
-import com.joshiminh.wallbase.ui.components.TopBarSearchField
-import com.joshiminh.wallbase.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.core.ui.components.SortBottomSheet
+import com.joshiminh.wallbase.core.ui.components.TopBarSearchField
+import com.joshiminh.wallbase.core.ui.components.WallpaperGrid
 import com.joshiminh.wallbase.ui.sort.SortField
 import com.joshiminh.wallbase.ui.sort.toSelection
 import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption

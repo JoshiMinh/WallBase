@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.theme
+package com.joshiminh.wallbase.core.designsystem.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme

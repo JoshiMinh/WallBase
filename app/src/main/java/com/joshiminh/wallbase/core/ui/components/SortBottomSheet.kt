@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.components
+package com.joshiminh.wallbase.core.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

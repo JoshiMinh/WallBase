@@ -46,9 +46,11 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.*
 import com.joshiminh.wallbase.data.entity.source.Source
+import com.joshiminh.wallbase.feature.wallpaper.detail.WallpaperDetailRoute
+import com.joshiminh.wallbase.feature.wallpaper.detail.WallpaperDetailViewModel
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.ui.*
-import com.joshiminh.wallbase.ui.theme.WallBaseTheme
+import com.joshiminh.wallbase.core.designsystem.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import java.text.SimpleDateFormat

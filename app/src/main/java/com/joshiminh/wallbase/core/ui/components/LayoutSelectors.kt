@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.components
+package com.joshiminh.wallbase.core.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement

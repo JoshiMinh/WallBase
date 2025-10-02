@@ -1,6 +1,6 @@
 @file:Suppress("unused", "UnusedVariable")
 
-package com.joshiminh.wallbase.ui
+package com.joshiminh.wallbase.feature.wallpaper.detail
 
 import android.Manifest
 import android.app.Activity
@@ -11,7 +11,6 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -48,7 +47,6 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,7 +69,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -84,11 +81,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
-import com.joshiminh.wallbase.ui.components.sharedWallpaperTransitionModifier
-import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
-import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
-import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
+import com.joshiminh.wallbase.core.ui.components.WallpaperPreviewImage
+import com.joshiminh.wallbase.core.ui.components.sharedWallpaperTransitionModifier
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
 import kotlinx.coroutines.launch
 
@@ -150,12 +144,6 @@ fun WallpaperDetailRoute(
         onRequestRemoveDownload = viewModel::promptRemoveDownload,
         onConfirmRemoveDownload = viewModel::removeDownload,
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
-        onPrepareEditor = viewModel::prepareEditor,
-        onUpdateBrightness = viewModel::updateBrightness,
-        onUpdateHue = viewModel::updateHue,
-        onUpdateFilter = viewModel::updateFilter,
-        onUpdateCrop = viewModel::updateCrop,
-        onResetAdjustments = viewModel::resetAdjustments,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
@@ -178,12 +166,6 @@ private fun WallpaperDetailScreen(
     onRequestRemoveDownload: () -> Unit,
     onConfirmRemoveDownload: () -> Unit,
     onDismissRemoveDownload: () -> Unit,
-    onPrepareEditor: () -> Unit,
-    onUpdateBrightness: (Float) -> Unit,
-    onUpdateHue: (Float) -> Unit,
-    onUpdateFilter: (WallpaperFilter) -> Unit,
-    onUpdateCrop: (WallpaperCrop) -> Unit,
-    onResetAdjustments: () -> Unit,
     onRequestPermission: () -> Unit,
     onNavigateBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -200,13 +182,6 @@ private fun WallpaperDetailScreen(
     var showTargetDialog by remember { mutableStateOf(false) }
     var showAlbumPicker by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    var showEditor by remember { mutableStateOf(false) }
-    LaunchedEffect(wallpaper.id) { showEditor = false }
-    LaunchedEffect(showEditor) {
-        if (showEditor) {
-            onPrepareEditor()
-        }
-    }
     val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
     val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
         wallpaper = wallpaper,
@@ -264,7 +239,6 @@ private fun WallpaperDetailScreen(
                             .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        val previewBitmap = uiState.editedPreview
                         val previewShape = RoundedCornerShape(24.dp)
                         val previewModifier = sharedModifier.then(
                             Modifier
@@ -288,24 +262,13 @@ private fun WallpaperDetailScreen(
                                         )
                                     )
                             )
-                            if (previewBitmap != null) {
-                                Image(
-                                    bitmap = previewBitmap.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .clip(previewShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                WallpaperPreviewImage(
-                                    model = wallpaper.previewModel(),
-                                    contentDescription = wallpaper.title,
-                                    modifier = Modifier.matchParentSize(),
-                                    contentScale = ContentScale.Crop,
-                                    clipShape = previewShape
-                                )
-                            }
+                            WallpaperPreviewImage(
+                                model = wallpaper.previewModel(),
+                                contentDescription = wallpaper.title,
+                                modifier = Modifier.matchParentSize(),
+                                contentScale = ContentScale.Crop,
+                                clipShape = previewShape
+                            )
                         }
                     }
                 }
@@ -372,25 +335,6 @@ private fun WallpaperDetailScreen(
 
                 // Library action now lives beside the title
             }
-
-            ElevatedButton(
-                onClick = { showEditor = !showEditor },
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text(text = if (showEditor) "Hide edits" else "Edit wallpaper")
-            }
-
-            if (showEditor) {
-                WallpaperEditSection(
-                    uiState = uiState,
-                    onUpdateBrightness = onUpdateBrightness,
-                    onUpdateHue = onUpdateHue,
-                    onUpdateFilter = onUpdateFilter,
-                    onUpdateCrop = onUpdateCrop,
-                    onResetAdjustments = onResetAdjustments
-                )
-            }
-
             if (statusMessages.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     statusMessages.forEach { status ->

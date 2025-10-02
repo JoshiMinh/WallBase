@@ -56,11 +56,11 @@ import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.album.AlbumItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
-import com.joshiminh.wallbase.ui.components.GridColumnPicker
-import com.joshiminh.wallbase.ui.components.SortBottomSheet
-import com.joshiminh.wallbase.ui.components.TopBarSearchField
-import com.joshiminh.wallbase.ui.components.WallpaperGrid
-import com.joshiminh.wallbase.ui.components.WallpaperLayoutPicker
+import com.joshiminh.wallbase.core.ui.components.GridColumnPicker
+import com.joshiminh.wallbase.core.ui.components.SortBottomSheet
+import com.joshiminh.wallbase.core.ui.components.TopBarSearchField
+import com.joshiminh.wallbase.core.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.core.ui.components.WallpaperLayoutPicker
 import com.joshiminh.wallbase.ui.sort.SortField
 import com.joshiminh.wallbase.ui.sort.SortSelection
 import com.joshiminh.wallbase.ui.sort.toSelection
