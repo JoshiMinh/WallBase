@@ -48,6 +48,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -86,6 +87,8 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.ui.components.WallpaperPreviewImage
 import com.joshiminh.wallbase.ui.components.sharedWallpaperTransitionModifier
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
+import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
 import kotlinx.coroutines.launch
 
@@ -147,6 +150,12 @@ fun WallpaperDetailRoute(
         onRequestRemoveDownload = viewModel::promptRemoveDownload,
         onConfirmRemoveDownload = viewModel::removeDownload,
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
+        onPrepareEditor = viewModel::prepareEditor,
+        onUpdateBrightness = viewModel::updateBrightness,
+        onUpdateHue = viewModel::updateHue,
+        onUpdateFilter = viewModel::updateFilter,
+        onUpdateCrop = viewModel::updateCrop,
+        onResetAdjustments = viewModel::resetAdjustments,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
@@ -169,6 +178,12 @@ private fun WallpaperDetailScreen(
     onRequestRemoveDownload: () -> Unit,
     onConfirmRemoveDownload: () -> Unit,
     onDismissRemoveDownload: () -> Unit,
+    onPrepareEditor: () -> Unit,
+    onUpdateBrightness: (Float) -> Unit,
+    onUpdateHue: (Float) -> Unit,
+    onUpdateFilter: (WallpaperFilter) -> Unit,
+    onUpdateCrop: (WallpaperCrop) -> Unit,
+    onResetAdjustments: () -> Unit,
     onRequestPermission: () -> Unit,
     onNavigateBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -185,6 +200,13 @@ private fun WallpaperDetailScreen(
     var showTargetDialog by remember { mutableStateOf(false) }
     var showAlbumPicker by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    var showEditor by remember { mutableStateOf(false) }
+    LaunchedEffect(wallpaper.id) { showEditor = false }
+    LaunchedEffect(showEditor) {
+        if (showEditor) {
+            onPrepareEditor()
+        }
+    }
     val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
     val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
         wallpaper = wallpaper,
@@ -349,6 +371,24 @@ private fun WallpaperDetailScreen(
                 }
 
                 // Library action now lives beside the title
+            }
+
+            ElevatedButton(
+                onClick = { showEditor = !showEditor },
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(text = if (showEditor) "Hide edits" else "Edit wallpaper")
+            }
+
+            if (showEditor) {
+                WallpaperEditSection(
+                    uiState = uiState,
+                    onUpdateBrightness = onUpdateBrightness,
+                    onUpdateHue = onUpdateHue,
+                    onUpdateFilter = onUpdateFilter,
+                    onUpdateCrop = onUpdateCrop,
+                    onResetAdjustments = onResetAdjustments
+                )
             }
 
             if (statusMessages.isNotEmpty()) {
