@@ -1,11 +1,11 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
-@file:Suppress("unused", "RemoveRedundantQualifierName")
+@file:Suppress("unused")
 
 package com.joshiminh.wallbase.ui
 
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -13,7 +13,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -27,20 +26,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -60,11 +61,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -92,9 +94,7 @@ fun EditWallpaperRoute(
         return
     }
 
-    LaunchedEffect(wallpaper.id) {
-        viewModel.prepareEditor()
-    }
+    LaunchedEffect(wallpaper.id) { viewModel.prepareEditor() }
 
     LaunchedEffect(uiState.message) {
         val message = uiState.message ?: return@LaunchedEffect
@@ -110,6 +110,7 @@ fun EditWallpaperRoute(
         snackbarHostState = snackbarHostState,
         onNavigateBack = onNavigateBack,
         onAdjustBrightness = viewModel::updateBrightness,
+        onAdjustHue = viewModel::updateHue,
         onSelectFilter = viewModel::updateFilter,
         onSelectCrop = viewModel::updateCrop,
         onResetAdjustments = viewModel::resetAdjustments,
@@ -123,6 +124,7 @@ private fun EditWallpaperScreen(
     snackbarHostState: SnackbarHostState,
     onNavigateBack: () -> Unit,
     onAdjustBrightness: (Float) -> Unit,
+    onAdjustHue: (Float) -> Unit,
     onSelectFilter: (WallpaperFilter) -> Unit,
     onSelectCrop: (WallpaperCrop) -> Unit,
     onResetAdjustments: () -> Unit,
@@ -134,49 +136,71 @@ private fun EditWallpaperScreen(
     val defaultCropSettings = wallpaper.cropSettings ?: WallpaperCropSettings.Full
 
     Scaffold(
+        topBar = {
+            EditorTopBar(
+                title = wallpaper.title.orEmpty().ifBlank { "Edit wallpaper" },
+                onBack = onNavigateBack,
+                onReset = onResetAdjustments,
+                resetEnabled = !uiState.adjustments.isIdentity,
+            )
+        },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
-    ) { innerPadding ->
+        contentWindowInsets = WindowInsets(0.dp)
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
+                .padding(padding)
+                .verticalScroll(rememberScrollState()),
         ) {
             WallpaperPreview(
                 wallpaper = wallpaper,
                 editedPreview = uiState.editedPreview,
                 aspectRatio = aspectRatio,
+                isReady = uiState.isEditorReady,
                 isProcessing = uiState.isProcessingEdits,
-                isReady = uiState.isEditorReady
             )
 
-            Column(
-                modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                AdjustmentSection(
+            Spacer(Modifier.height(12.dp))
+
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                AdjustmentCard(
                     title = "Brightness",
                     subtitle = "Fine-tune the exposure",
                 ) {
-                    Slider(
+                    AdjustmentSlider(
                         value = uiState.adjustments.brightness,
-                        onValueChange = onAdjustBrightness,
                         valueRange = -0.5f..0.5f,
                         enabled = uiState.isEditorReady,
-                        colors = SliderDefaults.colors()
-                    )
-                    val brightnessPercent = (uiState.adjustments.brightness * 100).roundToInt()
-                    Text(
-                        text = "${if (brightnessPercent >= 0) "+" else ""}$brightnessPercent%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        onValueChange = onAdjustBrightness,
+                        valueFormatter = { value ->
+                            val percent = (value * 100).roundToInt()
+                            "${if (percent >= 0) "+" else ""}$percent%"
+                        }
                     )
                 }
 
                 Spacer(Modifier.height(16.dp))
 
-                AdjustmentSection(
+                AdjustmentCard(
+                    title = "Hue",
+                    subtitle = "Shift the overall colour tone",
+                ) {
+                    AdjustmentSlider(
+                        value = uiState.adjustments.hue,
+                        valueRange = -180f..180f,
+                        enabled = uiState.isEditorReady,
+                        onValueChange = onAdjustHue,
+                        valueFormatter = { value ->
+                            val degrees = value.roundToInt()
+                            "${if (degrees >= 0) "+" else ""}$degrees°"
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                AdjustmentCard(
                     title = "Filters",
                     subtitle = "Change the overall mood",
                 ) {
@@ -194,7 +218,7 @@ private fun EditWallpaperScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                AdjustmentSection(
+                AdjustmentCard(
                     title = "Crop",
                     subtitle = "Select how the wallpaper is framed",
                 ) {
@@ -211,12 +235,9 @@ private fun EditWallpaperScreen(
                             selected = currentCrop is WallpaperCrop.Custom,
                             onClick = { showCropDialog = true },
                             enabled = uiState.isEditorReady,
-                            label = { Text(text = if (currentCrop is WallpaperCrop.Custom) "Custom crop" else "Custom…") },
+                            label = { Text(if (currentCrop is WallpaperCrop.Custom) "Custom crop" else "Custom…") },
                             leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Crop,
-                                    contentDescription = null
-                                )
+                                Icon(imageVector = Icons.Outlined.Crop, contentDescription = null)
                             }
                         )
                     }
@@ -224,22 +245,13 @@ private fun EditWallpaperScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                OutlinedButton(
-                    onClick = onResetAdjustments,
-                    enabled = !uiState.adjustments.isIdentity
-                ) {
-                    Text(text = "Reset adjustments")
-                }
-
                 if (!uiState.isEditorReady) {
-                    Spacer(Modifier.height(16.dp))
                     EditorStatusCard(isProcessing = uiState.isProcessingEdits)
                 } else if (uiState.isProcessingEdits) {
-                    Spacer(Modifier.height(16.dp))
                     AssistChip(
                         onClick = {},
-                        label = { Text(text = "Updating preview…") },
-                        enabled = false
+                        label = { Text("Updating preview…") },
+                        enabled = false,
                     )
                 }
             }
@@ -262,64 +274,68 @@ private fun EditWallpaperScreen(
 }
 
 @Composable
+private fun EditorTopBar(
+    title: String,
+    onBack: () -> Unit,
+    onReset: () -> Unit,
+    resetEnabled: Boolean,
+) {
+    CenterAlignedTopAppBar(
+        title = { Text(text = title) },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(imageVector = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null)
+            }
+        },
+        actions = {
+            TextButton(onClick = onReset, enabled = resetEnabled) {
+                Text(text = "Reset")
+            }
+        }
+    )
+}
+
+@Composable
 private fun WallpaperPreview(
     wallpaper: WallpaperItem,
-    editedPreview: android.graphics.Bitmap?,
+    editedPreview: Bitmap?,
     aspectRatio: Float,
-    isProcessing: Boolean,
     isReady: Boolean,
+    isProcessing: Boolean,
 ) {
-    Box(
-        modifier = Modifier
-            .padding(horizontal = 12.dp, vertical = 12.dp)
-    ) {
+    Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
             tonalElevation = 6.dp,
             color = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
         ) {
             Box {
-                if (editedPreview != null) {
-                    Image(
-                        bitmap = editedPreview.asImageBitmap(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(aspectRatio),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    WallpaperPreviewImage(
-                        model = wallpaper.previewModel(),
-                        contentDescription = wallpaper.title,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(aspectRatio),
-                        contentScale = ContentScale.Crop,
-                        clipShape = RoundedCornerShape(28.dp)
-                    )
+                Crossfade(targetState = editedPreview, label = "preview") { bitmap ->
+                    if (bitmap != null) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(aspectRatio),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        WallpaperPreviewImage(
+                            model = wallpaper.previewModel(),
+                            contentDescription = wallpaper.title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(aspectRatio),
+                            contentScale = ContentScale.Crop,
+                            clipShape = RoundedCornerShape(24.dp)
+                        )
+                    }
                 }
 
                 if (!isReady) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(aspectRatio)
-                            .background(Color.Black.copy(alpha = 0.35f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.6f))
-                            Spacer(Modifier.height(12.dp))
-                            Text(
-                                text = if (isProcessing) "Preparing full resolution…" else "Starting editor…",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White
-                            )
-                        }
-                    }
+                    LoadingOverlay(aspectRatio = aspectRatio, message = if (isProcessing) "Preparing full resolution…" else "Starting editor…")
                 }
             }
         }
@@ -327,10 +343,27 @@ private fun WallpaperPreview(
 }
 
 @Composable
-private fun AdjustmentSection(
+private fun LoadingOverlay(aspectRatio: Float, message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(aspectRatio)
+            .background(Color.Black.copy(alpha = 0.4f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth(0.6f))
+            Spacer(Modifier.height(12.dp))
+            Text(text = message, color = Color.White, style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun AdjustmentCard(
     title: String,
     subtitle: String,
-    content: @Composable ColumnScope.() -> Unit,
+    content: @Composable Column.() -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -339,7 +372,7 @@ private fun AdjustmentSection(
     ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
             Text(text = title, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -347,6 +380,60 @@ private fun AdjustmentSection(
             )
             Spacer(Modifier.height(12.dp))
             content()
+        }
+    }
+}
+
+@Composable
+private fun AdjustmentSlider(
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    enabled: Boolean,
+    onValueChange: (Float) -> Unit,
+    valueFormatter: (Float) -> String,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = valueFormatter(value),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun FlowingChipRow(content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun EditorStatusCard(isProcessing: Boolean) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = if (isProcessing) "Preparing editor…" else "Fetching full-quality image…",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -364,7 +451,7 @@ private fun AdvancedCropDialog(
     val aspectRatio = remember(previewBitmap, wallpaper) {
         previewBitmap?.let { bitmap ->
             val ratio = bitmap.width.toFloat() / bitmap.height.toFloat()
-            if (ratio > 0f) ratio else null
+            ratio.takeIf { it > 0f }
         } ?: wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
     }
     val widthPercent = (crop.widthFraction() * 100).roundToInt().coerceIn(0, 100)
@@ -419,7 +506,7 @@ private fun CropPreview(
     crop: WallpaperCropSettings,
     onCropChange: (WallpaperCropSettings) -> Unit,
 ) {
-    val density = androidx.compose.ui.platform.LocalDensity.current
+    val density = LocalDensity.current
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var activeHandle by remember { mutableStateOf<CropHandle?>(null) }
     val handleRadius = with(density) { 14.dp.toPx() }
@@ -515,7 +602,7 @@ private fun CropOverlay(
     handleRadius: Float,
     overlayColor: Color,
 ) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
         if (size.width <= 0f || size.height <= 0f) return@Canvas
         val left = crop.left.coerceIn(0f, 1f) * size.width
         val top = crop.top.coerceIn(0f, 1f) * size.height
@@ -592,35 +679,6 @@ private enum class CropHandle {
     BottomLeft,
     BottomRight,
     Center,
-}
-
-@Composable
-private fun FlowingChipRow(content: @Composable RowScope.() -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            content = content
-        )
-    }
-}
-
-@Composable
-private fun EditorStatusCard(isProcessing: Boolean) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = if (isProcessing) "Preparing editor…" else "Fetching full-quality image…",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(8.dp))
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-        }
-    }
 }
 
 private const val DEFAULT_DETAIL_ASPECT_RATIO = 9f / 16f

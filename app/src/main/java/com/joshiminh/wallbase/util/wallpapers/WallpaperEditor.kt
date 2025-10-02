@@ -47,7 +47,8 @@ class WallpaperEditor(
 
         val cropped = applyCrop(working, adjustments.crop)
         val filtered = applyFilter(cropped, adjustments.filter)
-        val adjusted = applyBrightness(filtered, adjustments.brightness)
+        val hued = applyHue(filtered, adjustments.hue)
+        val adjusted = applyBrightness(hued, adjustments.brightness)
         return EditedWallpaper(adjusted)
     }
 
@@ -111,6 +112,16 @@ class WallpaperEditor(
             )
         }
         return bitmap.copyWithMatrix(matrix)
+    }
+
+    private fun applyHue(bitmap: Bitmap, hue: Float): Bitmap {
+        if (hue == 0f) return bitmap
+        val rotation = ColorMatrix().apply { setRotate(0, hue) }
+        val temp = ColorMatrix().apply { setRotate(1, hue) }
+        rotation.postConcat(temp)
+        temp.setRotate(2, hue)
+        rotation.postConcat(temp)
+        return bitmap.copyWithMatrix(rotation)
     }
 
     private fun applyBrightness(bitmap: Bitmap, brightness: Float): Bitmap {
