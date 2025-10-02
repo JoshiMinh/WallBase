@@ -30,6 +30,7 @@ import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
+import com.joshiminh.wallbase.util.wallpapers.displayName
 import kotlin.math.roundToInt
 
 @Composable
