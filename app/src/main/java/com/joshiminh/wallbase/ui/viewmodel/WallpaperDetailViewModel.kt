@@ -231,9 +231,16 @@ class WallpaperDetailViewModel(
     }
 
     private fun recycleProcessedWallpaper() {
-        processedWallpaper?.bitmap?.takeIf { !it.isRecycled }?.recycle()
+        processedWallpaper?.bitmap.recycleIfNotReferencedBy(originalBitmap)
         processedWallpaper = null
         cachedAdjustments = null
+    }
+
+    private fun Bitmap?.recycleIfNotReferencedBy(vararg keep: Bitmap?) {
+        val candidate = this ?: return
+        if (candidate.isRecycled) return
+        if (keep.any { it === candidate }) return
+        candidate.recycle()
     }
 
     private fun schedulePersistAdjustments(immediate: Boolean = false) {
@@ -284,7 +291,7 @@ class WallpaperDetailViewModel(
     }
 
     private fun updateProcessedWallpaper(result: EditedWallpaper, adjustments: WallpaperAdjustments) {
-        processedWallpaper?.bitmap?.takeIf { it !== result.bitmap && !it.isRecycled }?.recycle()
+        processedWallpaper?.bitmap.recycleIfNotReferencedBy(result.bitmap, originalBitmap)
         processedWallpaper = result
         cachedAdjustments = adjustments
     }
@@ -839,8 +846,7 @@ class WallpaperDetailViewModel(
     override fun onCleared() {
         super.onCleared()
         previewJob?.cancel()
-        processedWallpaper?.bitmap?.takeIf { !it.isRecycled }?.recycle()
-        processedWallpaper = null
+        recycleProcessedWallpaper()
         originalBitmap?.takeIf { !it.isRecycled }?.recycle()
         originalBitmap = null
     }
