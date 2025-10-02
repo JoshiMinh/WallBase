@@ -1,6 +1,7 @@
 package com.joshiminh.wallbase.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -24,7 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
@@ -164,19 +168,37 @@ private fun FilterSelection(
     enabled: Boolean,
     onFilterSelected: (WallpaperFilter) -> Unit,
 ) {
+    val filters = WallpaperFilter.values()
+    val maxItemsPerRow = 3
+    val maxLines = ((filters.size + maxItemsPerRow - 1) / maxItemsPerRow).coerceAtLeast(1)
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = "Filter", style = MaterialTheme.typography.titleSmall)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            WallpaperFilter.values().forEach { filter ->
-                FilterChip(
-                    selected = selected == filter,
-                    onClick = { if (enabled) onFilterSelected(filter) },
-                    enabled = enabled,
-                    label = { Text(text = filter.displayName()) }
-                )
+        BoxWithConstraints {
+            val density = LocalDensity.current
+            val boundedWidth: Dp = if (constraints.hasBoundedWidth) {
+                with(density) { constraints.maxWidth.toDp() }
+            } else {
+                Dp.Infinity
+            }
+
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = boundedWidth),
+                maxItemsInEachRow = maxItemsPerRow,
+                maxLines = maxLines,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                filters.forEach { filter ->
+                    FilterChip(
+                        selected = selected == filter,
+                        onClick = { if (enabled) onFilterSelected(filter) },
+                        enabled = enabled,
+                        label = { Text(text = filter.displayName()) }
+                    )
+                }
             }
         }
     }
@@ -189,35 +211,56 @@ private fun CropSelection(
     enabled: Boolean,
     onUpdateCrop: (WallpaperCrop) -> Unit,
 ) {
+    val cropPresets = WallpaperCrop.presets
+    val cropChipsCount = cropPresets.size + 1 // include "Custom"
+    val maxItemsPerRow = 3
+    val maxLines = ((cropChipsCount + maxItemsPerRow - 1) / maxItemsPerRow).coerceAtLeast(1)
+    val isCustomSelected = adjustments.crop is WallpaperCrop.Custom
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = "Crop", style = MaterialTheme.typography.titleSmall)
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            WallpaperCrop.presets.forEach { crop ->
-                FilterChip(
-                    selected = adjustments.crop == crop,
-                    onClick = { if (enabled) onUpdateCrop(crop) },
-                    enabled = enabled,
-                    label = { Text(text = crop.displayName()) }
-                )
+        BoxWithConstraints {
+            val density = LocalDensity.current
+            val boundedWidth: Dp = if (constraints.hasBoundedWidth) {
+                with(density) { constraints.maxWidth.toDp() }
+            } else {
+                Dp.Infinity
             }
+
             val currentSettings = when (val crop = adjustments.crop) {
                 is WallpaperCrop.Custom -> crop.settings
                 else -> adjustments.cropSettings ?: WallpaperCropSettings()
             }
-            FilterChip(
-                selected = adjustments.crop is WallpaperCrop.Custom,
-                onClick = {
-                    if (enabled) onUpdateCrop(WallpaperCrop.Custom(currentSettings))
-                },
-                enabled = enabled,
-                label = { Text(text = "Custom") }
-            )
+
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = boundedWidth),
+                maxItemsInEachRow = maxItemsPerRow,
+                maxLines = maxLines,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                cropPresets.forEach { crop ->
+                    FilterChip(
+                        selected = adjustments.crop == crop,
+                        onClick = { if (enabled) onUpdateCrop(crop) },
+                        enabled = enabled,
+                        label = { Text(text = crop.displayName()) }
+                    )
+                }
+                FilterChip(
+                    selected = isCustomSelected,
+                    onClick = {
+                        if (enabled) onUpdateCrop(WallpaperCrop.Custom(currentSettings))
+                    },
+                    enabled = enabled,
+                    label = { Text(text = "Custom") }
+                )
+            }
         }
 
-        if (adjustments.crop is WallpaperCrop.Custom) {
+        if (isCustomSelected) {
             CustomCropControls(
                 settings = adjustments.crop.settings,
                 enabled = enabled,
