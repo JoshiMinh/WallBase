@@ -1,3 +1,5 @@
+@file:Suppress("SameParameterValue")
+
 package com.joshiminh.wallbase.ui
 
 import androidx.compose.foundation.layout.Arrangement
@@ -27,8 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.viewmodel.WallpaperDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
@@ -137,6 +139,8 @@ private fun AdjustmentSlider(
     onValueChange: (Float) -> Unit,
     formatter: (Float) -> String,
 ) {
+    val safeValue = if (value.isFinite()) value.coerceIn(valueRange.start, valueRange.endInclusive) else 0f
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -145,13 +149,13 @@ private fun AdjustmentSlider(
         ) {
             Text(text = label, style = MaterialTheme.typography.titleSmall)
             Text(
-                text = formatter(value),
+                text = formatter(safeValue),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Slider(
-            value = value,
+            value = safeValue,
             onValueChange = onValueChange,
             valueRange = valueRange,
             steps = steps,
@@ -168,24 +172,27 @@ private fun FilterSelection(
     enabled: Boolean,
     onFilterSelected: (WallpaperFilter) -> Unit,
 ) {
-    val filters = WallpaperFilter.values()
+    val filters = WallpaperFilter.entries.toTypedArray()
     val maxItemsPerRow = 3
     val maxLines = ((filters.size + maxItemsPerRow - 1) / maxItemsPerRow).coerceAtLeast(1)
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = "Filter", style = MaterialTheme.typography.titleSmall)
+
         BoxWithConstraints {
             val density = LocalDensity.current
-            val boundedWidth: Dp = if (constraints.hasBoundedWidth) {
+            val boundedWidth: Dp? = if (constraints.hasBoundedWidth) {
                 with(density) { constraints.maxWidth.toDp() }
             } else {
-                Dp.Infinity
+                null // No widthIn when unbounded
             }
 
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = boundedWidth),
+                    .then(
+                        if (boundedWidth != null) Modifier.widthIn(max = boundedWidth) else Modifier
+                    ),
                 maxItemsInEachRow = maxItemsPerRow,
                 maxLines = maxLines,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -219,12 +226,13 @@ private fun CropSelection(
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = "Crop", style = MaterialTheme.typography.titleSmall)
+
         BoxWithConstraints {
             val density = LocalDensity.current
-            val boundedWidth: Dp = if (constraints.hasBoundedWidth) {
+            val boundedWidth: Dp? = if (constraints.hasBoundedWidth) {
                 with(density) { constraints.maxWidth.toDp() }
             } else {
-                Dp.Infinity
+                null // No widthIn when unbounded
             }
 
             val currentSettings = when (val crop = adjustments.crop) {
@@ -235,7 +243,9 @@ private fun CropSelection(
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .widthIn(max = boundedWidth),
+                    .then(
+                        if (boundedWidth != null) Modifier.widthIn(max = boundedWidth) else Modifier
+                    ),
                 maxItemsInEachRow = maxItemsPerRow,
                 maxLines = maxLines,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -251,9 +261,7 @@ private fun CropSelection(
                 }
                 FilterChip(
                     selected = isCustomSelected,
-                    onClick = {
-                        if (enabled) onUpdateCrop(WallpaperCrop.Custom(currentSettings))
-                    },
+                    onClick = { if (enabled) onUpdateCrop(WallpaperCrop.Custom(currentSettings)) },
                     enabled = enabled,
                     label = { Text(text = "Custom") }
                 )
@@ -298,11 +306,12 @@ private fun CustomCropControls(
             right = horizontalRange.endInclusive,
             bottom = verticalRange.endInclusive
         ).sanitized()
+
         val sanitizedHorizontal = sanitized.left..sanitized.right
         val sanitizedVertical = sanitized.top..sanitized.bottom
-        if (horizontal == sanitizedHorizontal && vertical == sanitizedVertical) {
-            return
-        }
+
+        if (horizontal == sanitizedHorizontal && vertical == sanitizedVertical) return
+
         horizontal = sanitizedHorizontal
         vertical = sanitizedVertical
         onUpdateCrop(WallpaperCrop.Custom(sanitized))
@@ -318,31 +327,31 @@ private fun CustomCropControls(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = "Horizontal", style = MaterialTheme.typography.labelLarge)
             RangeSlider(
-                value = horizontal,
+                value = horizontal.coerceToFiniteIn(0f..1f),
                 onValueChange = { range ->
                     if (!enabled) return@RangeSlider
-                    applyCrop(range, vertical)
+                    if (range.isFiniteIn(0f..1f)) applyCrop(range, vertical)
                 },
                 valueRange = 0f..1f,
                 steps = 0,
                 enabled = enabled
             )
-            RangeLabel(range = horizontal)
+            RangeLabel(range = horizontal.coerceToFiniteIn(0f..1f))
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = "Vertical", style = MaterialTheme.typography.labelLarge)
             RangeSlider(
-                value = vertical,
+                value = vertical.coerceToFiniteIn(0f..1f),
                 onValueChange = { range ->
                     if (!enabled) return@RangeSlider
-                    applyCrop(horizontal, range)
+                    if (range.isFiniteIn(0f..1f)) applyCrop(horizontal, range)
                 },
                 valueRange = 0f..1f,
                 steps = 0,
                 enabled = enabled
             )
-            RangeLabel(range = vertical)
+            RangeLabel(range = vertical.coerceToFiniteIn(0f..1f))
         }
     }
 }
@@ -372,4 +381,23 @@ private fun WallpaperFilter.displayName(): String = when (this) {
     WallpaperFilter.SEPIA -> "Sepia"
 }
 
-private fun formatPercentage(value: Float): String = "${(value * 100).roundToInt()}%"
+/* ---------- Small safety helpers ---------- */
+
+private fun Float.isFinite(): Boolean = !(isNaN() || this == Float.POSITIVE_INFINITY || this == Float.NEGATIVE_INFINITY)
+
+private fun ClosedFloatingPointRange<Float>.isFiniteIn(
+    range: ClosedFloatingPointRange<Float>
+): Boolean =
+    start.isFinite() && endInclusive.isFinite() &&
+            start >= range.start && endInclusive <= range.endInclusive && start <= endInclusive
+
+private fun ClosedFloatingPointRange<Float>.coerceToFiniteIn(
+    range: ClosedFloatingPointRange<Float>
+): ClosedFloatingPointRange<Float> {
+    val s = if (start.isFinite()) start.coerceIn(range.start, range.endInclusive) else range.start
+    val e = if (endInclusive.isFinite()) endInclusive.coerceIn(range.start, range.endInclusive) else range.endInclusive
+    return if (s <= e) s..e else range.start..range.endInclusive
+}
+
+private fun formatPercentage(value: Float): String =
+    if (value.isFinite()) "${(value * 100).roundToInt()}%" else "—"
