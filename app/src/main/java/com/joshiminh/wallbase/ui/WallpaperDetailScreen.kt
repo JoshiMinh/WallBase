@@ -37,7 +37,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.CloudDownload
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallpaper
@@ -95,7 +94,6 @@ import kotlinx.coroutines.launch
 fun WallpaperDetailRoute(
     wallpaper: WallpaperItem,
     onNavigateBack: () -> Unit,
-    onEditWallpaper: () -> Unit, // <-- add this
     viewModel: WallpaperDetailViewModel = viewModel(factory = WallpaperDetailViewModel.Factory),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -151,7 +149,6 @@ fun WallpaperDetailRoute(
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         onNavigateBack = onNavigateBack,
-        onEditWallpaper = onEditWallpaper,
         snackbarHostState = snackbarHostState,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope
@@ -174,7 +171,6 @@ private fun WallpaperDetailScreen(
     onDismissRemoveDownload: () -> Unit,
     onRequestPermission: () -> Unit,
     onNavigateBack: () -> Unit,
-    onEditWallpaper: () -> Unit,
     snackbarHostState: SnackbarHostState,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?
@@ -316,47 +312,39 @@ private fun WallpaperDetailScreen(
                     tonalElevation = 4.dp,
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        IconButton(
-                            onClick = {
-                                val shareUrl = wallpaper.sourceUrl
-                                    .takeIf { it.isNotBlank() }
-                                    ?: wallpaper.imageUrl.takeIf { it.isNotBlank() }
-                                if (shareUrl.isNullOrBlank()) {
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("No link available to share")
-                                    }
-                                } else {
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, shareUrl)
-                                    }
-                                    if (context !is Activity) {
-                                        shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                    }
-                                    val chooser = Intent.createChooser(shareIntent, "Share wallpaper")
-                                    runCatching { context.startActivity(chooser) }
-                                        .onFailure { error ->
-                                            coroutineScope.launch {
-                                                snackbarHostState.showSnackbar(
-                                                    error.localizedMessage ?: "Unable to share wallpaper"
-                                                )
-                                            }
-                                        }
+                    IconButton(
+                        onClick = {
+                            val shareUrl = wallpaper.sourceUrl
+                                .takeIf { it.isNotBlank() }
+                                ?: wallpaper.imageUrl.takeIf { it.isNotBlank() }
+                            if (shareUrl.isNullOrBlank()) {
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("No link available to share")
                                 }
+                            } else {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, shareUrl)
+                                }
+                                if (context !is Activity) {
+                                    shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                val chooser = Intent.createChooser(shareIntent, "Share wallpaper")
+                                runCatching { context.startActivity(chooser) }
+                                    .onFailure { error ->
+                                        coroutineScope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                error.localizedMessage ?: "Unable to share wallpaper"
+                                            )
+                                        }
+                                    }
                             }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Share,
-                                contentDescription = "Share wallpaper"
-                            )
                         }
-                        IconButton(onClick = onEditWallpaper) {
-                            Icon(
-                                imageVector = Icons.Outlined.Edit,
-                                contentDescription = "Edit wallpaper"
-                            )
-                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Share,
+                            contentDescription = "Share wallpaper"
+                        )
                     }
                 }
 

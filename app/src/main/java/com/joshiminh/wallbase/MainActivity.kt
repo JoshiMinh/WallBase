@@ -652,10 +652,6 @@ fun WallBaseApp(
                             WallpaperDetailRoute(
                                 wallpaper = wallpaper,
                                 onNavigateBack = navigateBack,
-                                onEditWallpaper = {
-                                    viewModel.prepareEditor()
-                                    navController.navigate("wallpaperDetail/edit")
-                                },
                                 sharedTransitionScope = detailSharedScope,
                                 animatedVisibilityScope = detailVisibilityScope,
                                 viewModel = viewModel,
@@ -663,25 +659,6 @@ fun WallBaseApp(
 
                             LaunchedEffect(wallpaper.id) { topBarState = null }
                         }
-                    }
-
-                    composable("wallpaperDetail/edit") {
-                        val parentEntry = remember(navController) {
-                            navController.getBackStackEntry("wallpaperDetail")
-                        }
-                        val viewModel: WallpaperDetailViewModel =
-                            viewModel(parentEntry, factory = WallpaperDetailViewModel.Factory)
-
-                        val navigateBack: () -> Unit = { navController.popBackStack() }
-
-                        BackHandler(onBack = navigateBack)
-
-                        EditWallpaperRoute(
-                            onNavigateBack = navigateBack,
-                            viewModel = viewModel,
-                        )
-
-                        LaunchedEffect(Unit) { topBarState = null }
                     }
 
                     composable(RootRoute.Settings.route) {

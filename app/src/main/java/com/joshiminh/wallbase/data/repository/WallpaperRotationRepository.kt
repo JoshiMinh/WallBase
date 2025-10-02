@@ -52,7 +52,7 @@ class WallpaperRotationRepository(
                 updated
             }
         }
-        enqueuePeriodicWork(entity.intervalMinutes)
+        enqueuePeriodicWork(entity.intervalMinutes, entity.lastAppliedAt)
         return entity.toSchedule()
     }
 
@@ -82,7 +82,7 @@ class WallpaperRotationRepository(
             if (entity.id == 0L) entity.copy(id = id) else entity
         }
         if (schedule.isEnabled) {
-            enqueuePeriodicWork(schedule.intervalMinutes)
+            enqueuePeriodicWork(schedule.intervalMinutes, schedule.lastAppliedAt)
         }
     }
 
@@ -121,13 +121,22 @@ class WallpaperRotationRepository(
 
     suspend fun fetchAlbumWallpapers(albumId: Long) = wallpaperDao.getWallpapersForAlbum(albumId)
 
-    private fun enqueuePeriodicWork(intervalMinutes: Long) {
+    private fun enqueuePeriodicWork(intervalMinutes: Long, lastAppliedAt: Long?) {
         val sanitized = intervalMinutes.coerceAtLeast(WallpaperRotationDefaults.MIN_INTERVAL_MINUTES)
-        val request = PeriodicWorkRequestBuilder<WallpaperRotationWorker>(sanitized, TimeUnit.MINUTES)
-            .build()
+        val builder = PeriodicWorkRequestBuilder<WallpaperRotationWorker>(sanitized, TimeUnit.MINUTES)
+        val intervalMillis = TimeUnit.MINUTES.toMillis(sanitized)
+        if (lastAppliedAt != null) {
+            val elapsed = System.currentTimeMillis() - lastAppliedAt
+            val remaining = intervalMillis - elapsed
+            if (remaining > 0) {
+                val initialDelay = remaining.coerceAtMost(intervalMillis)
+                builder.setInitialDelay(initialDelay, TimeUnit.MILLISECONDS)
+            }
+        }
+        val request = builder.build()
         workManager.enqueueUniquePeriodicWork(
             WallpaperRotationWorker.PERIODIC_WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
+            ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
             request
         )
     }
