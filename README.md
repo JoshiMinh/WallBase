@@ -11,12 +11,11 @@ It fetches wallpapers from popular sources and lets you keep everything stored l
 - **Simple Backup**: Export or restore your collection and settings in one package.
 
 ---
-
-## Preview
-<img src="preview.png" alt="Preview of WallBase" width="600" />
+<div align="center">
+<img src="preview.png" alt="Preview of WallBase" width="350" />
+</div>
 
 ---
 
 ## About
 WallBase is built for wallpaper enthusiasts who want a fast, private, and offline-friendly way to enjoy, organize, and safeguard their wallpaper collection.
-
