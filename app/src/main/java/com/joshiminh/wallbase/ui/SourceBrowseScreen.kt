@@ -231,13 +231,15 @@ fun SourceBrowseRoute(
         }
     }
 
+    val supportsSharedTransitions = sharedTransitionScope != null && animatedVisibilityScope != null
+
     val onCardClick: (WallpaperItem) -> Unit = { wallpaper ->
         if (uiState.isSelectionMode) {
             viewModel.toggleSelection(wallpaper)
         } else {
             onWallpaperSelected(
                 wallpaper,
-                wallpaperLayout != WallpaperLayout.GRID,
+                supportsSharedTransitions,
             )
         }
     }

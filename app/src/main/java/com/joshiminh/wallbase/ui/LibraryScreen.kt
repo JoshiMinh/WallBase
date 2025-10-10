@@ -492,6 +492,8 @@ fun LibraryScreen(
         }
     }
 
+    val supportsSharedTransitions = sharedTransitionScope != null && animatedVisibilityScope != null
+
     val onWallpaperClick: (WallpaperItem) -> Unit = { wallpaper ->
         when {
             isWallpaperSelection -> {
@@ -502,7 +504,7 @@ fun LibraryScreen(
 
             else -> onWallpaperSelected(
                 wallpaper,
-                wallpaperLayout != WallpaperLayout.GRID,
+                supportsSharedTransitions,
             )
         }
     }

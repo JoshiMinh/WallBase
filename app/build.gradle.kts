@@ -18,8 +18,8 @@ android {
         applicationId = "com.joshiminh.wallbase"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "4.0"
+        versionCode = 5
+        versionName = "5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

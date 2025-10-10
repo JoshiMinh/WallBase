@@ -276,10 +276,12 @@ fun AlbumDetailRoute(
         viewModel.consumeMessage()
     }
 
+    val supportsSharedTransitions = sharedTransitionScope != null && animatedVisibilityScope != null
+
     val onWallpaperClick: (WallpaperItem) -> Unit = { wallpaper ->
         onWallpaperSelected(
             wallpaper,
-            uiState.wallpaperLayout != WallpaperLayout.GRID,
+            supportsSharedTransitions,
         )
     }
 

@@ -198,7 +198,11 @@ fun WallpaperGrid(
                         savedRemoteIdsByProvider = savedRemoteIdsByProvider,
                         savedImageUrls = savedImageUrls
                     )
-                    val sharedModifier = Modifier
+                    val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
+                        wallpaper = wallpaper,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
                     WallpaperCard(
                         item = wallpaper,
                         isSelected = isSelected,
