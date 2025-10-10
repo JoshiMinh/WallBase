@@ -285,20 +285,27 @@ fun WallBaseApp(
     val selectedWallpaperState by wallpaperSelectionViewModel
         .selectedWallpaper
         .collectAsStateWithLifecycle()
-    val sharedTransitionsEnabled =
-        settingsUiState.animationsEnabled &&
-            selectedWallpaperState?.enableSharedTransition != false
+    val sharedTransitionsEnabled by remember(
+        settingsUiState.animationsEnabled,
+        selectedWallpaperState,
+    ) {
+        derivedStateOf {
+            settingsUiState.animationsEnabled &&
+                selectedWallpaperState?.enableSharedTransition != false
+        }
+    }
 
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
+
+    val animationsEnabledState = rememberUpdatedState(settingsUiState.animationsEnabled)
 
     val navigateToWallpaperDetail = remember(
         navController,
         wallpaperSelectionViewModel,
-        settingsUiState.animationsEnabled,
     ) {
         { wallpaper: WallpaperItem, enableSharedTransition: Boolean ->
             val useSharedTransition =
-                settingsUiState.animationsEnabled && enableSharedTransition
+                animationsEnabledState.value && enableSharedTransition
             wallpaperSelectionViewModel.select(wallpaper, useSharedTransition)
             navController.navigateSingleTop("wallpaperDetail") {
                 popUpTo("wallpaperDetail") { inclusive = true }
@@ -671,15 +678,11 @@ fun WallBaseApp(
                 }
             }
 
-            if (sharedTransitionsEnabled) {
-                SharedTransitionLayout(modifier = navContainerModifier) {
-                    renderNavHost(this)
-                }
-            } else {
-                Box(modifier = navContainerModifier) {
-                    renderNavHost(null)
-                }
-            }
+            SharedTransitionHost(
+                enabled = sharedTransitionsEnabled,
+                modifier = navContainerModifier,
+                content = renderNavHost,
+            )
         }
 
         when {
@@ -702,6 +705,24 @@ fun WallBaseApp(
                     },
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun SharedTransitionHost(
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable (SharedTransitionScope?) -> Unit,
+) {
+    if (enabled) {
+        SharedTransitionLayout(modifier = modifier) {
+            content(this)
+        }
+    } else {
+        Box(modifier = modifier) {
+            content(null)
         }
     }
 }
