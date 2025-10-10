@@ -39,6 +39,7 @@ class SettingsRepository(
             val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES
             SettingsPreferences(
                 darkTheme = prefs[Keys.DARK_THEME] ?: false,
+                animationsEnabled = prefs[Keys.ANIMATIONS_ENABLED] ?: true,
                 wallpaperGridColumns = wallpaperColumns,
                 albumLayout = albumLayout,
                 wallpaperLayout = wallpaperLayout,
@@ -81,6 +82,12 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setAnimationsEnabled(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.ANIMATIONS_ENABLED] = enabled
+        }
+    }
+
     suspend fun setStorageLimitBytes(limitBytes: Long) {
         val clamped = limitBytes.coerceIn(0L, MAX_STORAGE_LIMIT_BYTES)
         dataStore.edit { prefs ->
@@ -115,6 +122,7 @@ class SettingsRepository(
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
         val ALBUM_LAYOUT = stringPreferencesKey("album_layout")
         val WALLPAPER_LAYOUT = stringPreferencesKey("wallpaper_layout")
+        val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
         val STORAGE_LIMIT_BYTES = longPreferencesKey("storage_limit_bytes")
         val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
@@ -133,6 +141,7 @@ class SettingsRepository(
 
 data class SettingsPreferences(
     val darkTheme: Boolean,
+    val animationsEnabled: Boolean,
     val wallpaperGridColumns: Int,
     val albumLayout: AlbumLayout,
     val wallpaperLayout: WallpaperLayout,

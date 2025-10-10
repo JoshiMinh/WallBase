@@ -46,6 +46,7 @@ class SettingsViewModel(
                 _uiState.update {
                     it.copy(
                         darkTheme = preferences.darkTheme,
+                        animationsEnabled = preferences.animationsEnabled,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
                         albumLayout = preferences.albumLayout,
                         autoDownload = preferences.autoDownload,
@@ -226,6 +227,14 @@ class SettingsViewModel(
         }
     }
 
+    fun setAnimationsEnabled(enabled: Boolean) {
+        if (_uiState.value.animationsEnabled == enabled) return
+        _uiState.update { it.copy(animationsEnabled = enabled) }
+        viewModelScope.launch {
+            settingsRepository.setAnimationsEnabled(enabled)
+        }
+    }
+
     fun setStorageLimit(limitBytes: Long) {
         if (_uiState.value.storageLimitBytes == limitBytes) return
         _uiState.update { it.copy(storageLimitBytes = limitBytes, isStorageLoading = true) }
@@ -304,6 +313,7 @@ class SettingsViewModel(
         val isRestoring: Boolean = false,
         val message: String? = null,
         val darkTheme: Boolean = false,
+        val animationsEnabled: Boolean = true,
         val wallpaperGridColumns: Int = 2,
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
         val storageBytes: Long? = null,
