@@ -554,18 +554,17 @@ private fun AlbumDetailScreen(
                         }
                     } else {
                         if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                            with(sharedTransitionScope) {
-                                WallpaperGrid(
-                                    wallpapers = wallpapers,
-                                    onWallpaperSelected = onWallpaperSelected,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxWidth(),
-                                    columns = state.wallpaperGridColumns,
-                                    layout = state.wallpaperLayout,
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
-                            }
+                            WallpaperGrid(
+                                wallpapers = wallpapers,
+                                onWallpaperSelected = onWallpaperSelected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                columns = state.wallpaperGridColumns,
+                                layout = state.wallpaperLayout,
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
                         } else {
                             WallpaperGrid(
                                 wallpapers = wallpapers,
