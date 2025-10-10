@@ -46,6 +46,7 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.*
 import com.joshiminh.wallbase.data.entity.source.Source
+import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.sources.reddit.RedditCommunity
 import com.joshiminh.wallbase.ui.*
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
@@ -204,6 +205,7 @@ class MainActivity : ComponentActivity() {
                     sourcesUiState = sourcesUiState,
                     settingsUiState = settingsUiState,
                     onToggleDarkTheme = settingsViewModel::setDarkTheme,
+                    onToggleAnimations = settingsViewModel::setAnimationsEnabled,
                     onUpdateSourceInput = sourcesViewModel::updateSourceInput,
                     onSearchReddit = sourcesViewModel::searchRedditCommunities,
                     onAddSourceFromInput = sourcesViewModel::addSourceFromInput,
@@ -254,6 +256,7 @@ fun WallBaseApp(
     sourcesUiState: SourcesViewModel.SourcesUiState,
     settingsUiState: SettingsViewModel.SettingsUiState,
     onToggleDarkTheme: (Boolean) -> Unit,
+    onToggleAnimations: (Boolean) -> Unit,
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
@@ -282,9 +285,33 @@ fun WallBaseApp(
     val selectedWallpaperState by wallpaperSelectionViewModel
         .selectedWallpaper
         .collectAsStateWithLifecycle()
-    val sharedTransitionsEnabled = selectedWallpaperState?.enableSharedTransition != false
+    val sharedTransitionsEnabled by remember(
+        settingsUiState.animationsEnabled,
+        selectedWallpaperState,
+    ) {
+        derivedStateOf {
+            settingsUiState.animationsEnabled &&
+                selectedWallpaperState?.enableSharedTransition != false
+        }
+    }
 
     val topLevelRoutes = remember { RootRoute.entries.map(RootRoute::route) }
+
+    val animationsEnabledState = rememberUpdatedState(settingsUiState.animationsEnabled)
+
+    val navigateToWallpaperDetail = remember(
+        navController,
+        wallpaperSelectionViewModel,
+    ) {
+        { wallpaper: WallpaperItem, enableSharedTransition: Boolean ->
+            val useSharedTransition =
+                animationsEnabledState.value && enableSharedTransition
+            wallpaperSelectionViewModel.select(wallpaper, useSharedTransition)
+            navController.navigateSingleTop("wallpaperDetail") {
+                popUpTo("wallpaperDetail") { inclusive = true }
+            }
+        }
+    }
 
     var topBarState by remember { mutableStateOf<TopBarState?>(null) }
     var topBarOwnerId by remember { mutableStateOf<Long?>(null) }
@@ -520,17 +547,9 @@ fun WallBaseApp(
                     startDestination = RootRoute.Library.route,
                 ) {
                     composable(RootRoute.Library.route) {
-                        val animatedScope = if (sharedScope != null) this else null
+                        val animatedScope = this.takeIf { sharedScope != null }
                         LibraryScreen(
-                            onWallpaperSelected = { wallpaper, enableSharedTransition ->
-                                wallpaperSelectionViewModel.select(
-                                    wallpaper,
-                                    enableSharedTransition,
-                                )
-                                navController.navigateSingleTop("wallpaperDetail") {
-                                    popUpTo("wallpaperDetail") { inclusive = true }
-                                }
-                            },
+                            onWallpaperSelected = navigateToWallpaperDetail,
                             onAlbumSelected = { album ->
                                 navController.navigateSingleTop("album/${album.id}")
                             },
@@ -566,18 +585,10 @@ fun WallBaseApp(
                         if (key.isNullOrBlank()) {
                             LaunchedEffect(Unit) { navController.popBackStack() }
                         } else {
-                            val animatedScope = if (sharedScope != null) this else null
+                            val animatedScope = this.takeIf { sharedScope != null }
                             SourceBrowseRoute(
                                 sourceKey = key,
-                                onWallpaperSelected = { wallpaper, enableSharedTransition ->
-                                    wallpaperSelectionViewModel.select(
-                                        wallpaper,
-                                        enableSharedTransition,
-                                    )
-                                    navController.navigateSingleTop("wallpaperDetail") {
-                                        popUpTo("wallpaperDetail") { inclusive = true }
-                                    }
-                                },
+                                onWallpaperSelected = navigateToWallpaperDetail,
                                 onConfigureTopBar = acquireTopBar,
                                 sharedTransitionScope = sharedScope,
                                 animatedVisibilityScope = animatedScope,
@@ -590,18 +601,10 @@ fun WallBaseApp(
                         if (id == null) {
                             LaunchedEffect(Unit) { navController.popBackStack() }
                         } else {
-                            val animatedScope = if (sharedScope != null) this else null
+                            val animatedScope = this.takeIf { sharedScope != null }
                             AlbumDetailRoute(
                                 albumId = id,
-                                onWallpaperSelected = { wallpaper, enableSharedTransition ->
-                                    wallpaperSelectionViewModel.select(
-                                        wallpaper,
-                                        enableSharedTransition,
-                                    )
-                                    navController.navigateSingleTop("wallpaperDetail") {
-                                        popUpTo("wallpaperDetail") { inclusive = true }
-                                    }
-                                },
+                                onWallpaperSelected = navigateToWallpaperDetail,
                                 onAlbumDeleted = { navController.popBackStack() },
                                 onConfigureTopBar = acquireTopBar,
                                 sharedTransitionScope = sharedScope,
@@ -660,6 +663,7 @@ fun WallBaseApp(
                         SettingsScreen(
                             uiState = settingsUiState,
                             onToggleDarkTheme = onToggleDarkTheme,
+                            onToggleAnimations = onToggleAnimations,
                             onExportBackup = onExportBackup,
                             onImportBackup = onImportBackup,
                             onMessageShown = onSettingsMessageShown,
@@ -674,15 +678,11 @@ fun WallBaseApp(
                 }
             }
 
-            if (sharedTransitionsEnabled) {
-                SharedTransitionLayout(modifier = navContainerModifier) {
-                    renderNavHost(this)
-                }
-            } else {
-                Box(modifier = navContainerModifier) {
-                    renderNavHost(null)
-                }
-            }
+            SharedTransitionHost(
+                enabled = sharedTransitionsEnabled,
+                modifier = navContainerModifier,
+                content = renderNavHost,
+            )
         }
 
         when {
@@ -705,6 +705,24 @@ fun WallBaseApp(
                     },
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun SharedTransitionHost(
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable (SharedTransitionScope?) -> Unit,
+) {
+    if (enabled) {
+        SharedTransitionLayout(modifier = modifier) {
+            content(this)
+        }
+    } else {
+        Box(modifier = modifier) {
+            content(null)
         }
     }
 }
