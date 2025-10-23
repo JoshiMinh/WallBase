@@ -50,6 +50,7 @@ class SettingsViewModel(
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
                         albumLayout = preferences.albumLayout,
                         autoDownload = preferences.autoDownload,
+                        includeSourcesInBackup = preferences.includeSourcesInBackup,
                         storageLimitBytes = preferences.storageLimitBytes,
                         dismissedUpdateVersion = preferences.dismissedUpdateVersion,
                         appLockEnabled = preferences.appLockEnabled,
@@ -113,6 +114,9 @@ class SettingsViewModel(
     fun setIncludeSourcesInBackup(include: Boolean) {
         if (_uiState.value.includeSourcesInBackup == include) return
         _uiState.update { it.copy(includeSourcesInBackup = include) }
+        viewModelScope.launch {
+            settingsRepository.setIncludeSourcesInBackup(include)
+        }
     }
 
     fun markOnboardingComplete() {

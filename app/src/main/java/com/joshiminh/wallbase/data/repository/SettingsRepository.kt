@@ -44,6 +44,8 @@ class SettingsRepository(
                 albumLayout = albumLayout,
                 wallpaperLayout = wallpaperLayout,
                 autoDownload = prefs[Keys.AUTO_DOWNLOAD_ENABLED] ?: false,
+                includeSourcesInBackup =
+                    prefs[Keys.INCLUDE_SOURCES_IN_BACKUP] ?: DEFAULT_INCLUDE_SOURCES,
                 storageLimitBytes = storageLimit.coerceIn(0L, MAX_STORAGE_LIMIT_BYTES),
                 dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION],
                 appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: false,
@@ -117,6 +119,12 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setIncludeSourcesInBackup(include: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.INCLUDE_SOURCES_IN_BACKUP] = include
+        }
+    }
+
     private object Keys {
         val DARK_THEME = booleanPreferencesKey("dark_theme")
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
@@ -124,6 +132,7 @@ class SettingsRepository(
         val WALLPAPER_LAYOUT = stringPreferencesKey("wallpaper_layout")
         val ANIMATIONS_ENABLED = booleanPreferencesKey("animations_enabled")
         val AUTO_DOWNLOAD_ENABLED = booleanPreferencesKey("auto_download_enabled")
+        val INCLUDE_SOURCES_IN_BACKUP = booleanPreferencesKey("include_sources_in_backup")
         val STORAGE_LIMIT_BYTES = longPreferencesKey("storage_limit_bytes")
         val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
@@ -136,6 +145,7 @@ class SettingsRepository(
         private const val MAX_WALLPAPER_COLUMNS = 3
         private const val MAX_STORAGE_LIMIT_BYTES = 10L * 1024 * 1024 * 1024 // 10 GB
         private const val DEFAULT_STORAGE_LIMIT_BYTES = 2L * 1024 * 1024 * 1024 // 2 GB
+        private const val DEFAULT_INCLUDE_SOURCES = true
     }
 }
 
@@ -146,6 +156,7 @@ data class SettingsPreferences(
     val albumLayout: AlbumLayout,
     val wallpaperLayout: WallpaperLayout,
     val autoDownload: Boolean,
+    val includeSourcesInBackup: Boolean,
     val storageLimitBytes: Long,
     val dismissedUpdateVersion: String?,
     val appLockEnabled: Boolean,
