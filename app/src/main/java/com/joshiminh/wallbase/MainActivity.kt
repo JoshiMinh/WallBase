@@ -232,6 +232,7 @@ class MainActivity : ComponentActivity() {
                         )
                     },
                     onSettingsMessageShown = settingsViewModel::consumeMessage,
+                    onSettingsRestartConsumed = settingsViewModel::consumeRestartRequest,
                     onToggleAutoDownload = settingsViewModel::setAutoDownload,
                     onUpdateStorageLimit = settingsViewModel::setStorageLimit,
                     onClearPreviewCache = settingsViewModel::clearPreviewCache,
@@ -270,6 +271,7 @@ fun WallBaseApp(
     onExportBackup: (Boolean) -> Unit,
     onImportBackup: () -> Unit,
     onSettingsMessageShown: () -> Unit,
+    onSettingsRestartConsumed: () -> Unit,
     onToggleAutoDownload: (Boolean) -> Unit,
     onUpdateStorageLimit: (Long) -> Unit,
     onClearPreviewCache: () -> Unit,
@@ -667,6 +669,7 @@ fun WallBaseApp(
                             onExportBackup = onExportBackup,
                             onImportBackup = onImportBackup,
                             onMessageShown = onSettingsMessageShown,
+                            onRestartConsumed = onSettingsRestartConsumed,
                             onToggleAutoDownload = onToggleAutoDownload,
                             onUpdateStorageLimit = onUpdateStorageLimit,
                             onClearPreviewCache = onClearPreviewCache,

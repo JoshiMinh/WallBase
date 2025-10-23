@@ -1,6 +1,9 @@
 package com.joshiminh.wallbase.ui
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
 import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,6 +71,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 import kotlin.math.roundToInt
+import kotlin.system.exitProcess
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -78,6 +82,7 @@ fun SettingsScreen(
     onExportBackup: (Boolean) -> Unit,
     onImportBackup: () -> Unit,
     onMessageShown: () -> Unit,
+    onRestartConsumed: () -> Unit,
     onToggleAutoDownload: (Boolean) -> Unit,
     onUpdateStorageLimit: (Long) -> Unit,
     onClearPreviewCache: () -> Unit,
@@ -101,6 +106,16 @@ fun SettingsScreen(
         val message = uiState.message ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         onMessageShown()
+    }
+
+    LaunchedEffect(uiState.shouldRestartAfterImport) {
+        if (!uiState.shouldRestartAfterImport) return@LaunchedEffect
+        val activity = context.findActivity()
+        if (activity == null) {
+            onRestartConsumed()
+            return@LaunchedEffect
+        }
+        restartApplication(activity, onRestartConsumed)
     }
 
     Scaffold(
@@ -789,4 +804,17 @@ private fun SettingsActionButton(
         }
         Text(text = text)
     }
+}
+
+private fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun restartApplication(activity: Activity, onRestartConsumed: () -> Unit) {
+    val restartIntent = Intent.makeRestartActivityTask(activity.componentName)
+    activity.startActivity(restartIntent)
+    onRestartConsumed()
+    exitProcess(0)
 }

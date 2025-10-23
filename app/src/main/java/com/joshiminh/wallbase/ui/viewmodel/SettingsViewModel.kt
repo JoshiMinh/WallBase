@@ -90,20 +90,31 @@ class SettingsViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isRestoring = true, message = null) }
             val result = backupManager.importBackup(source)
-            val message = result.fold(
+            result.fold(
                 onSuccess = {
-                    "Backup imported. Please restart the app to continue."
+                    _uiState.update {
+                        it.copy(
+                            isRestoring = false,
+                            message = "Backup imported. Restarting…",
+                            shouldRestartAfterImport = true
+                        )
+                    }
                 },
                 onFailure = { error ->
                     val detail = error.localizedMessage
-                    if (detail.isNullOrBlank()) {
+                    val message = if (detail.isNullOrBlank()) {
                         "Unable to import backup."
                     } else {
                         "Unable to import backup ($detail)."
                     }
+                    _uiState.update {
+                        it.copy(
+                            isRestoring = false,
+                            message = message
+                        )
+                    }
                 }
             )
-            _uiState.update { it.copy(isRestoring = false, message = message) }
         }
     }
 
@@ -260,6 +271,11 @@ class SettingsViewModel(
         _uiState.update { it.copy(message = message) }
     }
 
+    fun consumeRestartRequest() {
+        if (!_uiState.value.shouldRestartAfterImport) return
+        _uiState.update { it.copy(shouldRestartAfterImport = false) }
+    }
+
     fun clearPreviewCache() {
         if (_uiState.value.isClearingPreviews) return
         viewModelScope.launch {
@@ -338,7 +354,8 @@ class SettingsViewModel(
         val updateUrl: String? = null,
         val updateError: String? = null,
         val hasCheckedForUpdates: Boolean = false,
-        val dismissedUpdateVersion: String? = null
+        val dismissedUpdateVersion: String? = null,
+        val shouldRestartAfterImport: Boolean = false,
     )
 
     private data class StorageUsage(
