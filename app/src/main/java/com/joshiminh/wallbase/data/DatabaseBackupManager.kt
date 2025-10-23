@@ -275,9 +275,8 @@ class DatabaseBackupManager(
 
         entries.forEach { entry ->
             val media = extractedMedia[entry.id] ?: return@forEach
-            val bytes = media.file.readBytes()
-            val copy = localStorage.writeBytes(
-                data = bytes,
+            val copy = localStorage.writeStream(
+                input = media.file.inputStream(),
                 sourceFolder = entry.sourceFolder,
                 subFolder = entry.subFolder,
                 displayName = entry.fileName,
@@ -289,6 +288,9 @@ class DatabaseBackupManager(
                     "is_downloaded = 1, file_size_bytes = ?, updated_at = ? WHERE wallpaper_id = ?",
                 arrayOf(uriString, uriString, uriString, copy.sizeBytes, now, entry.id)
             )
+            if (!media.file.delete()) {
+                media.file.deleteOnExit()
+            }
         }
     }
 

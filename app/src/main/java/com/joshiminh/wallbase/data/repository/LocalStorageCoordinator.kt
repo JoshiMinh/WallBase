@@ -11,6 +11,7 @@ import androidx.documentfile.provider.DocumentFile
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -75,17 +76,27 @@ class LocalStorageCoordinator(
         displayName: String,
         mimeTypeHint: String? = null
     ): CopyResult = withContext(Dispatchers.IO) {
-        val base = ensureBaseDirectory()
-        val targetFolder = ensureTargetFolder(base, sourceFolder, subFolder)
-        val mimeType = mimeTypeHint ?: guessMimeType(displayName)
-        val sanitized = sanitizeFileName(displayName, DEFAULT_FILE_NAME)
-        val named = ensureExtension(sanitized, mimeType)
-        val fileName = ensureUniqueFileName(targetFolder, named)
-        val destination = File(targetFolder, fileName)
-        FileOutputStream(destination).use { output ->
+        val destination = prepareDestination(sourceFolder, subFolder, displayName, mimeTypeHint)
+        FileOutputStream(destination.file).use { output ->
             output.write(data)
         }
-        CopyResult(destination.toUri(), destination.name ?: fileName, destination.length())
+        destination.toCopyResult()
+    }
+
+    suspend fun writeStream(
+        input: InputStream,
+        sourceFolder: String,
+        subFolder: String? = null,
+        displayName: String,
+        mimeTypeHint: String? = null
+    ): CopyResult = withContext(Dispatchers.IO) {
+        val destination = prepareDestination(sourceFolder, subFolder, displayName, mimeTypeHint)
+        input.use { stream ->
+            FileOutputStream(destination.file).use { output ->
+                stream.copyTo(output)
+            }
+        }
+        destination.toCopyResult()
     }
 
     fun documentFromTree(uri: Uri): DocumentFile? {
@@ -267,6 +278,32 @@ class LocalStorageCoordinator(
         val displayName: String,
         val sizeBytes: Long
     )
+
+    private data class Destination(
+        val file: File
+    ) {
+        fun toCopyResult(): CopyResult = CopyResult(
+            uri = file.toUri(),
+            displayName = file.name,
+            sizeBytes = file.length()
+        )
+    }
+
+    private fun prepareDestination(
+        sourceFolder: String,
+        subFolder: String?,
+        displayName: String,
+        mimeTypeHint: String?
+    ): Destination {
+        val base = ensureBaseDirectory()
+        val targetFolder = ensureTargetFolder(base, sourceFolder, subFolder)
+        val mimeType = mimeTypeHint ?: guessMimeType(displayName)
+        val sanitized = sanitizeFileName(displayName, DEFAULT_FILE_NAME)
+        val named = ensureExtension(sanitized, mimeType)
+        val fileName = ensureUniqueFileName(targetFolder, named)
+        val destination = File(targetFolder, fileName)
+        return Destination(destination)
+    }
 
     private companion object {
         private const val BASE_DIRECTORY_NAME = "wallpapers"

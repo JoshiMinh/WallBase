@@ -50,6 +50,7 @@ class SettingsViewModel(
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
                         albumLayout = preferences.albumLayout,
                         autoDownload = preferences.autoDownload,
+                        includeSourcesInBackup = preferences.includeSourcesInBackup,
                         storageLimitBytes = preferences.storageLimitBytes,
                         dismissedUpdateVersion = preferences.dismissedUpdateVersion,
                         appLockEnabled = preferences.appLockEnabled,
@@ -89,20 +90,31 @@ class SettingsViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isRestoring = true, message = null) }
             val result = backupManager.importBackup(source)
-            val message = result.fold(
+            result.fold(
                 onSuccess = {
-                    "Backup imported. Please restart the app to continue."
+                    _uiState.update {
+                        it.copy(
+                            isRestoring = false,
+                            message = "Backup imported. Restarting…",
+                            shouldRestartAfterImport = true
+                        )
+                    }
                 },
                 onFailure = { error ->
                     val detail = error.localizedMessage
-                    if (detail.isNullOrBlank()) {
+                    val message = if (detail.isNullOrBlank()) {
                         "Unable to import backup."
                     } else {
                         "Unable to import backup ($detail)."
                     }
+                    _uiState.update {
+                        it.copy(
+                            isRestoring = false,
+                            message = message
+                        )
+                    }
                 }
             )
-            _uiState.update { it.copy(isRestoring = false, message = message) }
         }
     }
 
@@ -113,6 +125,9 @@ class SettingsViewModel(
     fun setIncludeSourcesInBackup(include: Boolean) {
         if (_uiState.value.includeSourcesInBackup == include) return
         _uiState.update { it.copy(includeSourcesInBackup = include) }
+        viewModelScope.launch {
+            settingsRepository.setIncludeSourcesInBackup(include)
+        }
     }
 
     fun markOnboardingComplete() {
@@ -256,6 +271,11 @@ class SettingsViewModel(
         _uiState.update { it.copy(message = message) }
     }
 
+    fun consumeRestartRequest() {
+        if (!_uiState.value.shouldRestartAfterImport) return
+        _uiState.update { it.copy(shouldRestartAfterImport = false) }
+    }
+
     fun clearPreviewCache() {
         if (_uiState.value.isClearingPreviews) return
         viewModelScope.launch {
@@ -334,7 +354,8 @@ class SettingsViewModel(
         val updateUrl: String? = null,
         val updateError: String? = null,
         val hasCheckedForUpdates: Boolean = false,
-        val dismissedUpdateVersion: String? = null
+        val dismissedUpdateVersion: String? = null,
+        val shouldRestartAfterImport: Boolean = false,
     )
 
     private data class StorageUsage(

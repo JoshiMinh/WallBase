@@ -10,7 +10,6 @@ plugins {
 
 android {
     namespace = "com.joshiminh.wallbase"
-    //noinspection GradleDependency
     compileSdk = 36
     buildFeatures { buildConfig = true }
 
@@ -18,8 +17,8 @@ android {
         applicationId = "com.joshiminh.wallbase"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "5.0"
+        versionCode = 6
+        versionName = "6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,10 +38,8 @@ android {
     }
 
     compileOptions {
-        // Using Java 21 toolchain with Android
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
-        // coreLibraryDesugaringEnabled not needed for minSdk 26 unless you use newer java.util APIs that require it
     }
 
     kotlinOptions {
@@ -50,10 +47,9 @@ android {
         jvmTarget = "21"
     }
 
-    // No need to pin kotlinCompilerExtensionVersion when using recent AGP + Compose BOM.
     composeOptions {
         @Suppress("DEPRECATION")
-        useLiveLiterals = false // NOTE: Deprecated and will be removed in AGP 9.0
+        useLiveLiterals = false
     }
 
     packaging {
@@ -62,7 +58,6 @@ android {
 }
 
 dependencies {
-    // ---------------- Compose (BOM aligns all androidx.compose.* versions) ----------------
     implementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(platform(libs.androidx.compose.bom))
     debugImplementation(platform(libs.androidx.compose.bom))
@@ -76,14 +71,11 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
 
-    // Tooling (debug-only)
     debugImplementation(libs.androidx.ui.tooling)
 
-    // Compose UI tests
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // ---------------- AndroidX Core ----------------
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
@@ -92,11 +84,9 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.datastore.preferences)
 
-    // Optional
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.compose.animation)
 
-    // ---------------- Networking / JSON ----------------
     implementation(libs.retrofit)
     implementation(libs.retrofit.moshi)
     implementation(libs.okhttp.logging)
@@ -104,24 +94,17 @@ dependencies {
     implementation(libs.moshi.kotlin)
     implementation(libs.jsoup)
 
-    // ---------------- Image Loading ----------------
     implementation(libs.coil3.compose)
     implementation(libs.coil3.network.okhttp)
 
-    // ---------------- Room (annotation processing) ----------------
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    //noinspection KaptUsageInsteadOfKsp
     kapt(libs.androidx.room.compiler)
 
-    // ---------------- WorkManager ----------------
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.work.runtime.ktx)
 
-    // ---------------- Testing ----------------
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-
-    // Additional Compose utilities are already aligned by the BOM above.
 }
