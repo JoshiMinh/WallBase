@@ -1,4 +1,4 @@
-@file:Suppress("UnstableApiUsage")
+@file:Suppress("UnstableApiUsage", "DEPRECATION")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -43,11 +43,6 @@ android {
     kotlinOptions {
         @Suppress("DEPRECATION")
         jvmTarget = "21"
-    }
-
-    composeOptions {
-        @Suppress("DEPRECATION")
-        useLiveLiterals = false
     }
 
     packaging {
