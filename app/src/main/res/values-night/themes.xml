@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base app theme; used as postSplashScreenTheme after the splash -->
-    <style name="Theme.WallBase" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/white</item>
+    <!-- Dark variant of the base app theme -->
+    <style name="Theme.WallBase" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/black</item>
     </style>
 
-    <!-- Splash screen theme applied to MainActivity; switches to Theme.WallBase on first draw -->
+    <!-- Dark splash screen: deep-dark background so the first frame is never white -->
     <style name="Theme.WallBase.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/white</item>
+        <item name="windowSplashScreenBackground">@color/black</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
         <item name="windowSplashScreenIconBackgroundColor">@color/splash_icon_background</item>
         <item name="postSplashScreenTheme">@style/Theme.WallBase</item>

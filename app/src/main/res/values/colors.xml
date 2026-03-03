@@ -7,4 +7,6 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Background circle behind the app icon on the splash screen (light mode) -->
+    <color name="splash_icon_background">#FF6650A4</color>
 </resources>

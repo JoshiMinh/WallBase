@@ -52,6 +52,7 @@ import com.joshiminh.wallbase.ui.*
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.util.network.ServiceLocator
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -173,6 +174,7 @@ fun AppLockOverlay(
 // ────────────────────────────────────────────────────────────────────────────────
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         ServiceLocator.ensureInitialized(applicationContext)
         enableEdgeToEdge()

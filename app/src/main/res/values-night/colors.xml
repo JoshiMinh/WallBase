@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash icon background in dark mode uses the dark primary colour -->
+    <color name="splash_icon_background">#FFD0BCFF</color>
+</resources>

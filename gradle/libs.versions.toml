@@ -4,6 +4,7 @@
 # Tooling
 agp = "9.0.0"                                  # Android Gradle Plugin :contentReference[oaicite:0]{index=0}
 androidx-core-ktx = "1.17.0"
+core-splashscreen = "1.0.1"
 animation = "1.9.2"
 compose-bom-version = "2025.10.01"
 kotlin = "2.2.21"                              # Kotlin Gradle plugin :contentReference[oaicite:1]{index=1}
@@ -41,6 +42,7 @@ work-runtime-ktx = "2.9.0"
 
 [libraries]
 # AndroidX core
+androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "core-splashscreen" }
 androidx-compose-animation = { module = "androidx.compose.animation:animation", version.ref = "animation" }
 #noinspection SimilarGradleDependency
 androidx-compose-bom-vcurrent = { module = "androidx.compose:compose-bom", version.ref = "compose-bom-version" }
