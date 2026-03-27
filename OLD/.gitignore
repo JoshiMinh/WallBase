@@ -1,3 +1,6 @@
+# Dot folders
+.*/
+
 *.iml
 .gradle
 /local.properties

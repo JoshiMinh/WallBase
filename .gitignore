@@ -1,3 +1,6 @@
+# https://dart.dev/guides/libraries/private-files
+# Created by `flutter create` template
+
 # Miscellaneous
 *.class
 *.log
@@ -5,12 +8,9 @@
 *.swp
 .DS_Store
 .atom/
-.build/
 .buildlog/
 .history
 .svn/
-.swiftpm/
-migrate_working_dir/
 
 # IntelliJ related
 *.iml
@@ -27,11 +27,11 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
-/coverage/
 
 # Symbolication related
 app.*.symbols
@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Additional generated files from previous steps
+analysis_output.txt
+analysis_results.txt
+build_output*.txt

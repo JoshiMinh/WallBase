@@ -16,7 +16,49 @@
 <div align="center">
   <img src="preview.png" alt="Preview of WallBase" width="400">
 </div>
- 
+  
+---
+
+## 🛠️ Development
+
+### Prerequisites
+
+- [Flutter SDK](https://docs.flutter.dev/get-started/install)
+- [Android Studio](https://developer.android.com/studio) or VS Code with Flutter extension
+- Android Emulator or physical device
+
+### Running on Android Emulator
+
+1. **List available emulators (AVDs):**
+
+   ```bash
+   flutter emulators
+   ```
+
+   OR using the Android SDK tool directly:
+
+   ```bash
+   emulator -list-avds
+   ```
+
+2. **Launch an emulator:**
+
+   ```bash
+   flutter emulators --launch <emulator_id>
+   ```
+
+3. **Run the app:**
+
+   ```bash
+   flutter run
+   ```
+
+   If you have multiple devices/emulators connected, specify the target:
+
+   ```bash
+   flutter run -d <device_id>
+   ```
+
 ---
 
 ## 💖 Support The Project
@@ -32,3 +74,4 @@ If you find this app useful, please consider supporting its development. Your su
     <img src="https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support on Ko-fi">
   </a>
 </p>
+
