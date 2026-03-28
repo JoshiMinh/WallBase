@@ -18,17 +18,3 @@
 </div>
  
 ---
-
-## 💖 Support The Project
-
-If you find this app useful, please consider supporting its development. Your support helps in maintaining and improving the project.
-
-<p align="center">
-  <a href="https://patreon.com/u16604577" target="_blank">
-    <img src="https://img.shields.io/badge/Patreon-F96854?style=for-the-badge&logo=patreon&logoColor=white" alt="Support on Patreon">
-  </a>
-  &nbsp;
-  <a href="https://ko-fi.com/joshiminh" target="_blank">
-    <img src="https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support on Ko-fi">
-  </a>
-</p>
