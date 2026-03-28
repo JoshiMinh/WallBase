@@ -1,5 +1,5 @@
 name: wallbase
-description: "A new Flutter project."
+description: "A premium wallpaper application for Android."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -71,6 +71,8 @@ flutter_launcher_icons:
   ios: false
   image_path: "icon.png"
   min_sdk_android: 21
+  adaptive_icon_background: "icon.png"
+  adaptive_icon_foreground: "icon.png"
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

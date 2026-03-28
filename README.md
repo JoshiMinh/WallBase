@@ -1,77 +1,69 @@
 <div align="center">
-  <img src="app_icon.ico" alt="Logo" width="80">
-  <h1 style="border-bottom: none">WallBase</h1>
-  <p>An Android app for collecting, organizing, and backing up a personal wallpaper library.</p> 
+   <img src="icon.png" alt="WallBase Icon" width="80"/>
+
+<h1>WallBase</h1>
+
+An open-source wallpaper discovery and management application for Android.<br>
+Built with Flutter, it provides a seamless experience for finding, saving, and rotating high-quality wallpapers from multiple curated sources.
 </div>
-
-<br>
-
-## Features
-
-- **Browse & Discover**: Find and save wallpapers from various online sources.
-- **Local Organization**: Create custom albums with different layouts and sorting options to manage your collection.
-- **Simple Backup & Restore**: Easily export or import your entire library and settings with a single file.
-- **Privacy-Focused**: Your collection is stored locally on your device.
- 
-<div align="center">
-  <img src="preview.png" alt="Preview of WallBase" width="400">
-</div>
-  
----
-
-## 🛠️ Development
-
-### Prerequisites
-
-- [Flutter SDK](https://docs.flutter.dev/get-started/install)
-- [Android Studio](https://developer.android.com/studio) or VS Code with Flutter extension
-- Android Emulator or physical device
-
-### Running on Android Emulator
-
-1. **List available emulators (AVDs):**
-
-   ```bash
-   flutter emulators
-   ```
-
-   OR using the Android SDK tool directly:
-
-   ```bash
-   emulator -list-avds
-   ```
-
-2. **Launch an emulator:**
-
-   ```bash
-   flutter emulators --launch <emulator_id>
-   ```
-
-3. **Run the app:**
-
-   ```bash
-   flutter run
-   ```
-
-   If you have multiple devices/emulators connected, specify the target:
-
-   ```bash
-   flutter run -d <device_id>
-   ```
 
 ---
 
-## 💖 Support The Project
+## ✨ Features
 
-If you find this app useful, please consider supporting its development. Your support helps in maintaining and improving the project.
+- 🖼️ **Multiple Sources:** Browse wallpapers from Reddit, Pinterest, Wallhaven, Danbooru, and more.
+- 🎨 **Dynamic Theming:** Choose from Light, Dark, or AMOLED Black themes.
+- ✨ **Custom Accents:** Personalize your UI with Pink, Blue, Red, Green, Purple, or Yellow accents.
+- 🔒 **Privacy First:** Secure your library with biometric app lock.
+- 🔄 **Auto Rotation:** Automatically change your wallpaper at set intervals.
+- 🚀 **Android Optimized:** Lightweight, fast, and designed specifically for the Android ecosystem.
 
-<p align="center">
-  <a href="https://patreon.com/u16604577" target="_blank">
-    <img src="https://img.shields.io/badge/Patreon-F96854?style=for-the-badge&logo=patreon&logoColor=white" alt="Support on Patreon">
-  </a>
-  &nbsp;
-  <a href="https://ko-fi.com/joshiminh" target="_blank">
-    <img src="https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Support on Ko-fi">
-  </a>
-</p>
+## 🛠️ Technology
 
+<div align="center" style="display: flex; flex-direction: row; justify-content: center; gap: 50px;">
+   <div>
+      <img src="https://yt3.googleusercontent.com/ytc/AIdro_nqx_sCd8ZIeIcodS0sfeMKJ8rVTslmQHUe_udwGNH2Pg=s900-c-k-c0x00ffffff-no-rj" alt="Flutter" width="100"/><br>
+      <b>Flutter</b><br>
+      Framework
+   </div>
+   <div>
+      <img src="https://pbs.twimg.com/profile_images/2001450248942858240/PlkdmK0p_400x400.jpg" alt="Android" width="100"/><br>
+      <b>Android</b><br>
+      Supported OS
+   </div>
+   <div>
+      <img src="https://pbs.twimg.com/profile_images/1990585614279049216/-Zz6T2nk_400x400.png" alt="Google Antigravity" width="100"/><br>
+      <b>Google Antigravity</b><br>
+      IDE Used
+   </div>
+</div>
+
+## 🚀 Installation
+
+1. **Clone the repository:**
+    ```bash
+    git clone https://github.com/yourusername/wallbase.git
+    ```
+
+2. **Navigate to the project directory:**
+    ```bash
+    cd wallbase
+    ```
+
+3. **Install dependencies:**
+    ```bash
+    flutter pub get
+    ```
+
+4. **Run the application:**
+    ```bash
+    flutter run
+    ```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a pull request.
+
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

@@ -1,4 +1,4 @@
-package com.example.wallbase
+package com.joshiminh.wallbase
 
 import io.flutter.embedding.android.FlutterActivity
 

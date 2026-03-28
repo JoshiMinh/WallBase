@@ -12,10 +12,6 @@ class SourceRepository {
     return await _sourceDao.getSourceByKey(key);
   }
 
-  Future<void> toggleSource(Source source) async {
-    await _sourceDao.setEnabled(source.key, !source.enabled);
-  }
-
   Future<Source> addRedditSource(String subreddit) async {
     final normalized = subreddit.trim().toLowerCase();
     final key = 'reddit:$normalized';
@@ -44,5 +40,9 @@ class SourceRepository {
     if (source.id != 0) {
       await _sourceDao.deleteSource(source.id);
     }
+  }
+
+  Future<void> updateSourceIcon(String key, String iconUrl) async {
+    await _sourceDao.updateIcon(key, iconUrl);
   }
 }

@@ -26,11 +26,6 @@ class SourceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleSource(Source source) async {
-    await _repository.toggleSource(source);
-    await loadSources();
-  }
-
   Future<void> addRedditSource(String subreddit) async {
     await _repository.addRedditSource(subreddit);
     await loadSources();
@@ -38,6 +33,18 @@ class SourceProvider extends ChangeNotifier {
 
   Future<void> removeSource(Source source) async {
     await _repository.removeSource(source);
+    await loadSources();
+  }
+
+  Future<void> refetchFavicon(Source source) async {
+    String? newIcon;
+    if (source.providerKey == 'reddit') {
+      newIcon = 'https://www.google.com/s2/favicons?sz=128&domain=reddit.com';
+    } else {
+      // Use the generic logic if needed, for now just reset to default or re-fetch from google
+      newIcon = 'https://www.google.com/s2/favicons?sz=128&domain=${source.key.split(':').last}.com';
+    }
+    await _repository.updateSourceIcon(source.key, newIcon);
     await loadSources();
   }
 }

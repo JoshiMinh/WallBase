@@ -8,12 +8,10 @@ import 'package:wallbase/providers/source_provider.dart';
 import 'package:wallbase/providers/browse_provider.dart';
 import 'package:wallbase/providers/library_provider.dart';
 import 'package:wallbase/providers/settings_provider.dart';
-import 'package:wallbase/services/rotation_manager.dart';
 import 'package:wallbase/services/app_lock_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await RotationManager.initialize();
   
   runApp(
     MultiProvider(
@@ -38,18 +36,10 @@ class WallBaseApp extends StatelessWidget {
       listenable: themeNotifier,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Wallbase',
+          title: 'WallBase',
           themeMode: themeNotifier.themeMode,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.blue,
-              brightness: Brightness.dark,
-            ),
-          ),
+          theme: themeNotifier.getTheme(Brightness.light),
+          darkTheme: themeNotifier.getTheme(Brightness.dark),
           home: const AuthWrapper(),
         );
       },
@@ -158,7 +148,9 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_selectedIndex]),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
       ),
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
@@ -177,7 +169,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
+        selectedItemColor: themeNotifier.accentColor,
         onTap: _onItemTapped,
       ),
     );

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:wallbase/theme_notifier.dart';
 import '../providers/settings_provider.dart';
-import '../services/rotation_manager.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -14,7 +13,8 @@ class SettingsScreen extends StatelessWidget {
         return ListView(
           children: [
             _buildSectionHeader('Appearance'),
-            _buildDarkModeTile(),
+            _buildThemeSelector(),
+            _buildAccentColorSelector(),
             const Divider(),
             
             _buildSectionHeader('Privacy & Security'),
@@ -27,35 +27,11 @@ class SettingsScreen extends StatelessWidget {
             ),
             const Divider(),
             
-            _buildSectionHeader('Wallpaper Rotation'),
-            SwitchListTile(
-              title: const Text('Periodic Rotation'),
-              subtitle: const Text('Automatically change wallpaper'),
-              secondary: const Icon(Icons.sync),
-              value: settings.rotationEnabled,
-              onChanged: (value) async {
-                await settings.setRotationEnabled(value);
-                if (value) {
-                  await RotationManager.scheduleRotation(settings.rotationInterval);
-                } else {
-                  await RotationManager.cancelRotation();
-                }
-              },
-            ),
-            if (settings.rotationEnabled)
-              ListTile(
-                title: const Text('Rotation Interval'),
-                subtitle: Text('${settings.rotationInterval} minutes'),
-                leading: const Icon(Icons.timer),
-                onTap: () => _showIntervalPicker(context, settings),
-              ),
-            const Divider(),
-            
             _buildSectionHeader('About'),
             const ListTile(
               leading: Icon(Icons.info_outline),
-              title: Text('WallBase (Flutter Migration)'),
-              subtitle: Text('Version 1.0.0'),
+              title: Text('WallBase'),
+              subtitle: Text('Version 1.2'),
             ),
           ],
         );
@@ -65,49 +41,137 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: Colors.blue,
+          color: themeNotifier.accentColor,
         ),
       ),
     );
   }
 
-  Widget _buildDarkModeTile() {
+  Widget _buildThemeSelector() {
     return ListenableBuilder(
       listenable: themeNotifier,
       builder: (context, _) {
-        return SwitchListTile(
-          title: const Text('Dark Mode'),
-          subtitle: const Text('Enable dark theme'),
-          secondary: const Icon(Icons.dark_mode),
-          value: themeNotifier.isDarkMode,
-          onChanged: (value) => themeNotifier.toggleTheme(value),
+        return ListTile(
+          leading: const Icon(Icons.palette),
+          title: const Text('App Theme'),
+          subtitle: Text(_themeName(themeNotifier.theme)),
+          onTap: () => _showThemePicker(context),
         );
       },
     );
   }
 
-  void _showIntervalPicker(BuildContext context, SettingsProvider settings) {
+  String _themeName(AppTheme theme) {
+    switch (theme) {
+      case AppTheme.system: return 'System Default';
+      case AppTheme.light: return 'Light';
+      case AppTheme.dark: return 'Dark';
+      case AppTheme.amoled: return 'AMOLED Black';
+    }
+  }
+
+  void _showThemePicker(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Select Interval'),
-        children: [15, 30, 60, 120, 240, 480, 1440].map((mins) {
+        title: const Text('Select Theme'),
+        children: AppTheme.values.map((theme) {
           return SimpleDialogOption(
-            onPressed: () async {
-              await settings.setRotationInterval(mins);
-              await RotationManager.scheduleRotation(mins);
-              if (context.mounted) Navigator.pop(context);
+            onPressed: () {
+              themeNotifier.setTheme(theme);
+              Navigator.pop(context);
             },
-            child: Text(mins < 60 ? '$mins minutes' : '${mins ~/ 60} hours'),
+            child: Row(
+              children: [
+                _themeIcon(theme),
+                const SizedBox(width: 12),
+                Text(_themeName(theme)),
+              ],
+            ),
           );
         }).toList(),
       ),
     );
   }
+
+  Widget _themeIcon(AppTheme theme) {
+    switch (theme) {
+      case AppTheme.system: return const Icon(Icons.brightness_auto);
+      case AppTheme.light: return const Icon(Icons.light_mode);
+      case AppTheme.dark: return const Icon(Icons.dark_mode);
+      case AppTheme.amoled: return const Icon(Icons.nightlight_round);
+    }
+  }
+
+  Widget _buildAccentColorSelector() {
+    final colors = [
+      const Color(0xFFED1E69), // Pink
+      Colors.blue,
+      Colors.red,
+      Colors.green,
+      Colors.purple,
+      Colors.yellow,
+    ];
+
+    return ListenableBuilder(
+      listenable: themeNotifier,
+      builder: (context, _) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Text('Accent Color', style: TextStyle(fontSize: 16)),
+            ),
+            SizedBox(
+              height: 60,
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                scrollDirection: Axis.horizontal,
+                itemCount: colors.length,
+                itemBuilder: (context, index) {
+                  final color = colors[index];
+                  final isSelected = themeNotifier.accentColor == color;
+                  return GestureDetector(
+                    onTap: () => themeNotifier.setAccentColor(color),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? Colors.white : Colors.transparent,
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          if (isSelected)
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            ),
+                        ],
+                      ),
+                      child: isSelected
+                          ? const Icon(Icons.check, color: Colors.white)
+                          : null,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 }

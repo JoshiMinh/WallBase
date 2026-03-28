@@ -32,11 +32,11 @@ class SourceDao {
     return await db.delete('sources', where: 'source_id = ?', whereArgs: [id]);
   }
 
-  Future<void> setEnabled(String key, bool enabled) async {
+  Future<void> updateIcon(String key, String iconUrl) async {
     final db = await _db;
     await db.update(
       'sources',
-      {'is_enabled': enabled ? 1 : 0},
+      {'icon_url': iconUrl},
       where: 'key = ?',
       whereArgs: [key],
     );
