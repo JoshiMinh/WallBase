@@ -1,19 +1,36 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+# Custom Ignore Rules
+# Ignore all folders starting with '.' except '.github'
+.*
+!.github/
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-/app/release/app-release.aab
-app/release/baselineProfiles/1/app-release.dm
-*.apk
-app/release/baselineProfiles/0/app-release.dm
+
+# Flutter/Dart related
+**/doc/api/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+
+# IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Generated files
+analysis_output.txt
+analysis_results.txt
+build_output*.txt
