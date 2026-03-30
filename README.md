@@ -1,85 +1,107 @@
 <div align="center">
-   <img src="icon.png" alt="WallBase Icon" width="80"/>
+  <img src="icon.png" alt="WallBase Icon" width="96"/>
 
-<h1>WallBase</h1>
+  <h1>WallBase</h1>
 
-An open-source wallpaper discovery and management application for Android.<br>
-Built with Flutter, it provides a seamless experience for finding, saving, and rotating high-quality wallpapers from multiple curated sources.
+  <p><strong>Elevate your Android aesthetic.</strong></p>
+  <p>An open-source wallpaper discovery and management engine built for the modern Android ecosystem. Find, save, and automate high-quality wallpapers from the web's most curated sources.</p>
+
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84.svg?logo=android)](https://www.android.com)
+  [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-7F52FF.svg?logo=kotlin)](https://kotlinlang.org)
 </div>
 
 ---
 
 ## ✨ Features
 
-- 🖼️ **Multiple Sources:** Browse wallpapers from Reddit, Pinterest, Wallhaven, Danbooru, and more.
-- 🎨 **Dynamic Theming:** Choose from Light, Dark, or AMOLED Black themes.
-- ✨ **Custom Accents:** Personalize your UI with Pink, Blue, Red, Green, Purple, or Yellow accents.
-- 🔒 **Privacy First:** Secure your library with biometric app lock.
-- 🔄 **Auto Rotation:** Automatically change your wallpaper at set intervals.
-- 🚀 **Android Optimized:** Lightweight, fast, and designed specifically for the Android ecosystem.
+- 🖼️ **Curated Sources:** Seamlessly browse wallpapers from Reddit, Pinterest, Wallhaven, and Danbooru.
+- 🎨 **Advanced Theming:** Choose between Light, Dark, and true **AMOLED Black** modes.
+- 🌈 **Custom Accents:** Personalize your experience with a curated spectrum of UI accent colors.
+- 🔄 **Auto-Refresh:** Keep your home screen fresh with automated wallpaper rotation at set intervals.
+- 🚀 **Modern Stack:** Built with **Jetpack Compose**, **Kotlin**, and **Material 3** for fluid performance.
+- 🔒 **Privacy Focused:** Secure your personal library with integrated biometric authentication.
 
-## 🛠️ Technology
+## 🛠️ Tech Stack
 
-<div align="center" style="display: flex; flex-direction: row; justify-content: center; gap: 40px;">
-   <div>
-      <img src="https://yt3.googleusercontent.com/ytc/AIdro_nqx_sCd8ZIeIcodS0sfeMKJ8rVTslmQHUe_udwGNH2Pg=s900-c-k-c0x00ffffff-no-rj" alt="Flutter" width="100"/><br>
-      <b>Flutter</b><br>
-      Framework
-   </div>
-   <div>
-      <img src="https://pbs.twimg.com/profile_images/2001450248942858240/PlkdmK0p_400x400.jpg" alt="Android" width="100"/><br>
-      <b>Android</b><br>
-      Supported OS
-   </div>
-   <div>
-      <img src="https://pbs.twimg.com/profile_images/1990585614279049216/-Zz6T2nk_400x400.png" alt="Google Antigravity" width="100"/><br>
-      <b>Google Antigravity</b><br>
-      IDE Used
-   </div>
-</div>
+| **Category** | **Technology** |
+| :--- | :--- |
+| **Language** | Kotlin |
+| **UI Framework** | Jetpack Compose (Material 3) |
+| **Architecture** | MVVM + Clean Architecture |
+| **Data Storage** | Jetpack DataStore & Room |
+| **Image Loading** | Coil |
 
-## 🚀 Installation
+---
 
-1. **Clone the repository:**
+## 🚀 Getting Started
 
-   ```bash
-   git clone https://github.com/yourusername/wallbase.git
+Follow these steps to build and run the application using the automated script or manual commands.
+
+### Quick Start (Windows)
+
+The project includes an automated script and environment configuration for Windows users.
+
+1. **Configure Environment:**
+   Review and edit the [.env](.env) file to ensure `DEVICE_ID` and SDK paths match your local setup.
+
+2. **Run the Script:**
+   Execute the [run.bat](run.bat) file from the root directory:
+
+   ```cmd
+   run.bat
    ```
 
-2. **Navigate to the project directory:**
+   Choose from the options to build, install, or launch the app.
 
-   ```bash
-   cd wallbase
-   ```
+---
 
-3. **Install dependencies:**
+### Manual Installation Steps (Cross-Platform)
 
-   ```bash
-   flutter pub get
-   ```
+#### 1. Prepare the Device
 
-4. **Set up an emulator (optional):**
+Launch an emulator or connect a physical device via USB:
 
-   - List available emulators:
-     ```bash
-     flutter emulators
-     ```
-   - Launch an emulator:
-     ```bash
-     flutter emulators --launch <emulator_id>
-     ```
+```powershell
+# Verify device connection
+adb devices
+```
 
-5. **Run the application:**
+#### 2. Build and Install the App
 
-   ```bash
-   flutter run
-   ```
-   Or specify a device:
-   ```bash
-   flutter run -d <device_id>
-   ```
+Use the Gradle Wrapper (`gradlew`) to build and install the debug version:
 
+```powershell
+./gradlew.bat installDebug
+```
 
+*Note: On macOS/Linux, use `./gradlew installDebug`.*
+
+#### 3. Launch the Application
+
+Once installed, the app won't start automatically. Use `adb` to start the main activity:
+
+```powershell
+# Standard command (if adb is in your PATH)
+adb shell am start -n com.joshiminh.wallbase/com.joshiminh.wallbase.MainActivity
+
+# If adb is NOT in your PATH, use the full path to the Android SDK
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" shell am start -n com.joshiminh.wallbase/com.joshiminh.wallbase.MainActivity
+```
+
+## Troubleshooting
+
+### ADB Path
+
+If `adb` is not recognized, it is typically located at:
+
+- **Windows:** `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`
+- **macOS/Linux:** `~/Library/Android/sdk/platform-tools/adb`
+
+### Build Failures
+
+- Ensure your `JAVA_HOME` points to a compatible JDK.
+- Running `./gradlew.bat clean` can often resolve transient build issues.
 
 ## 🤝 Contributing
 

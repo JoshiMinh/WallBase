@@ -1,36 +1,59 @@
-# Custom Ignore Rules
-# Ignore all folders starting with '.' except '.github'
-.*
-!.github/
-
-# Miscellaneous
+# --- Build Artifacts ---
+.gradle/
+.gradle
+build/
+app/build/
+captures/
+*.apk
+*.aab
+*.bundle
 *.class
 *.log
 *.pyc
-*.swp
-.DS_Store
 
-# Flutter/Dart related
-**/doc/api/
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-
-# IDEs
+# --- Android Studio / IntelliJ IDEA ---
 .idea/
 *.iml
-*.ipr
 *.iws
+*.ipr
+.externalNativeBuild/
+.cxx/
+local.properties
+cmake-build-*/
+.navigation/
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# --- Kotlin / Java ---
+.kotlin/
+kotlin-daemon-embeddable-*.jar
 
-# Generated files
+# --- Jetpack Compose / UI Testing ---
+**/screenshots/*.png
+!**/screenshots/goldens/*.png
+
+# --- OS Generated ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# --- Analysis & Logs ---
 analysis_output.txt
 analysis_results.txt
 build_output*.txt
+lint-results.xml
+lint-results-debug.html
+target/
+
+# --- Secrets & Keystores ---
+google-services.json
+*.keystore
+!debug.keystore
+*.jks
+signing.properties
+
+# --- Crashlytics / Firebase ---
+com_google_firebase_crashlytics_config.json
