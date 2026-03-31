@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.share
+package com.joshiminh.wallbase.ui.share
 
 import android.content.ClipData
 import android.content.Intent

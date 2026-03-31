@@ -33,7 +33,7 @@
         </activity>
 
         <activity
-            android:name=".share.ShareReceiverActivity"
+            android:name=".ui.share.ShareReceiverActivity"
             android:exported="true"
             android:excludeFromRecents="true"
             android:finishOnTaskLaunch="true"

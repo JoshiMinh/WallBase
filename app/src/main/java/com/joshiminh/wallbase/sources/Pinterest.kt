@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.sources.pinterest
+package com.joshiminh.wallbase.sources
 
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.source.SourceSeed

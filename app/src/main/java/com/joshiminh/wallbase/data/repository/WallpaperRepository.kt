@@ -1,23 +1,23 @@
 package com.joshiminh.wallbase.data.repository
 
 import android.net.Uri
-import com.joshiminh.wallbase.sources.reddit.RedditCommunity
+import com.joshiminh.wallbase.sources.RedditCommunity
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.sources.reddit.RedditListingResponse
-import com.joshiminh.wallbase.sources.reddit.RedditPost
-import com.joshiminh.wallbase.sources.reddit.RedditService
-import com.joshiminh.wallbase.sources.reddit.RedditSubredditChild
-import com.joshiminh.wallbase.sources.reddit.RedditSubredditListingResponse
-import com.joshiminh.wallbase.sources.danbooru.DanbooruPost
-import com.joshiminh.wallbase.sources.danbooru.DanbooruService
-import com.joshiminh.wallbase.sources.unsplash.UnsplashPhoto
-import com.joshiminh.wallbase.sources.unsplash.UnsplashSearchResponse
-import com.joshiminh.wallbase.sources.unsplash.UnsplashService
-import com.joshiminh.wallbase.sources.wallhaven.WallhavenResponse
-import com.joshiminh.wallbase.sources.wallhaven.WallhavenService
-import com.joshiminh.wallbase.sources.wallhaven.WallhavenWallpaper
+import com.joshiminh.wallbase.sources.RedditListingResponse
+import com.joshiminh.wallbase.sources.RedditPost
+import com.joshiminh.wallbase.sources.RedditService
+import com.joshiminh.wallbase.sources.RedditSubredditChild
+import com.joshiminh.wallbase.sources.RedditSubredditListingResponse
+import com.joshiminh.wallbase.sources.DanbooruPost
+import com.joshiminh.wallbase.sources.DanbooruService
+import com.joshiminh.wallbase.sources.UnsplashPhoto
+import com.joshiminh.wallbase.sources.UnsplashSearchResponse
+import com.joshiminh.wallbase.sources.UnsplashService
+import com.joshiminh.wallbase.sources.WallhavenResponse
+import com.joshiminh.wallbase.sources.WallhavenService
+import com.joshiminh.wallbase.sources.WallhavenWallpaper
 import com.joshiminh.wallbase.util.network.WebScraper
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -93,7 +93,7 @@ class WallpaperRepository(
                     nextCursor = scrapePage.nextCursor
                 )
             }
-            SourceKeys.TWITTER -> fetchTwitterWallpapers(
+            SourceKeys.PIXIV -> fetchPixivWallpapers(
                 config = source.config,
                 query = trimmedQuery,
                 cursor = cursor
@@ -252,7 +252,7 @@ class WallpaperRepository(
         }
     }
 
-    private suspend fun fetchTwitterWallpapers(
+    private suspend fun fetchPixivWallpapers(
         config: String?,
         query: String?,
         cursor: String?
@@ -262,7 +262,7 @@ class WallpaperRepository(
             !config.isNullOrBlank() -> config
             else -> return@withContext WallpaperPage(emptyList(), nextCursor = null)
         }
-        val scrapePage = webScraper.scrapeTwitter(
+        val scrapePage = webScraper.scrapePixiv(
             url = target,
             limit = 30,
             cursor = cursor

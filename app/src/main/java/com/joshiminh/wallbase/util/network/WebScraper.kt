@@ -20,7 +20,7 @@ interface WebScraper {
         cursor: String? = null
     ): ScrapePage
 
-    suspend fun scrapeTwitter(
+    suspend fun scrapePixiv(
         url: String,
         limit: Int = 30,
         cursor: String? = null

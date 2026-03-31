@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.sources.wallhaven
+package com.joshiminh.wallbase.sources
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass

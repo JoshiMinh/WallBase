@@ -9,9 +9,7 @@ import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceEntity
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.sources.reddit.RedditCommunity
-import com.joshiminh.wallbase.sources.twitter.TwitterLinkInfo
-import com.joshiminh.wallbase.sources.twitter.parseTwitterLink
+import com.joshiminh.wallbase.sources.RedditCommunity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.net.MalformedURLException
@@ -33,7 +31,7 @@ class SourceRepository(
         DANBOORU,
         UNSPLASH,
         ALPHA_CODERS,
-        TWITTER,
+        PIXIV,
         WEBSITE
     }
 
@@ -67,7 +65,7 @@ class SourceRepository(
             is RemoteSourceInput.Danbooru -> addDanbooruSource(parsed.url)
             is RemoteSourceInput.Unsplash -> addUnsplashSource(parsed.url)
             is RemoteSourceInput.AlphaCoders -> addAlphaCodersSource(parsed.url)
-            is RemoteSourceInput.Twitter -> addTwitterSource(parsed.url)
+            is RemoteSourceInput.Pixiv -> addPixivSource(parsed.url)
             is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
         }
     }
@@ -149,10 +147,10 @@ class SourceRepository(
                 updateWebsiteSource(existing, urlInput.url, RemoteSourceType.ALPHA_CODERS, SourceKeys.ALPHA_CODERS)
             }
 
-            SourceKeys.TWITTER -> {
-                val urlInput = parsed as? RemoteSourceInput.Twitter
-                    ?: throw IllegalArgumentException("Enter an X (Twitter) post or media link.")
-                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.TWITTER, SourceKeys.TWITTER)
+            SourceKeys.PIXIV -> {
+                val urlInput = parsed as? RemoteSourceInput.Pixiv
+                    ?: throw IllegalArgumentException("Enter a Pixiv artwork or user link.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.PIXIV, SourceKeys.PIXIV)
             }
 
             SourceKeys.WEBSITES -> {
@@ -314,16 +312,16 @@ class SourceRepository(
         return entity.copy(id = id).sanitized().toDomain()
     }
 
-    private suspend fun addTwitterSource(url: NormalizedUrl): Source {
-        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.TWITTER, url.value)
+    private suspend fun addPixivSource(url: NormalizedUrl): Source {
+        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.PIXIV, url.value)
         if (existing != null) {
             throw IllegalStateException("Source already added")
         }
 
-        val metadata = buildWebsiteMetadata(url, RemoteSourceType.TWITTER)
+        val metadata = buildWebsiteMetadata(url, RemoteSourceType.PIXIV)
         val entity = SourceEntity(
-            key = buildWebsiteKey(SourceKeys.TWITTER, url),
-            providerKey = SourceKeys.TWITTER,
+            key = buildWebsiteKey(SourceKeys.PIXIV, url),
+            providerKey = SourceKeys.PIXIV,
             title = metadata.title,
             description = metadata.description,
             iconRes = metadata.fallbackIcon,
@@ -445,7 +443,7 @@ class SourceRepository(
                 }
                 buildFaviconUrl(domain)
             }
-            SourceKeys.TWITTER -> buildFaviconUrl("x.com")
+            SourceKeys.PIXIV -> buildFaviconUrl("pixiv.net")
             SourceKeys.WALLHAVEN,
             SourceKeys.DANBOORU,
             SourceKeys.UNSPLASH,
@@ -505,19 +503,8 @@ class SourceRepository(
                 RemoteSourceInput.AlphaCoders(normalizedUrl)
             }
 
-            host.contains("twitter", ignoreCase = true) ||
-                host.endsWith("x.com", ignoreCase = true) ||
-                host.contains("twimg.com", ignoreCase = true) ||
-                host.contains("vxtwitter.com", ignoreCase = true) ||
-                host.contains("fxtwitter.com", ignoreCase = true) -> {
-                val twitterInfo = parseTwitterLink(normalizedUrl.value)
-                val canonicalValue = when (twitterInfo) {
-                    is TwitterLinkInfo.Tweet -> twitterInfo.canonicalUrl
-                    is TwitterLinkInfo.Media -> twitterInfo.imageUrl
-                    null -> normalizedUrl.value
-                }
-                val canonicalUrl = canonicalValue.tryNormalizeUrl() ?: normalizedUrl
-                RemoteSourceInput.Twitter(canonicalUrl)
+            host.contains("pixiv", ignoreCase = true) -> {
+                RemoteSourceInput.Pixiv(normalizedUrl)
             }
 
             else -> RemoteSourceInput.Website(normalizedUrl)
@@ -576,9 +563,9 @@ class SourceRepository(
                 .joinToString(" - ")
                 .ifBlank { "AlphaCoders" }
 
-            RemoteSourceType.TWITTER -> listOfNotNull("X (Twitter)", queryLabel ?: pathSegment)
+            RemoteSourceType.PIXIV -> listOfNotNull("Pixiv", queryLabel ?: pathSegment)
                 .joinToString(" - ")
-                .ifBlank { "X (Twitter)" }
+                .ifBlank { "Pixiv" }
 
             RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
                 .joinToString(" - ")
@@ -593,7 +580,7 @@ class SourceRepository(
                 "pin.it" -> "pinterest.com"
                 else -> host
             }
-            RemoteSourceType.TWITTER -> "x.com"
+            RemoteSourceType.PIXIV -> "pixiv.net"
             else -> url.host
         }
         val iconUrl = buildFaviconUrl(iconDomain)
@@ -733,7 +720,7 @@ class SourceRepository(
 
         class AlphaCoders(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.ALPHA_CODERS)
 
-        class Twitter(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.TWITTER)
+        class Pixiv(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.PIXIV)
 
         class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
     }

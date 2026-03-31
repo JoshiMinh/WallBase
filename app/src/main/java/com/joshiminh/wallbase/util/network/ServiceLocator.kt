@@ -12,10 +12,10 @@ import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRotationRepository
 import com.joshiminh.wallbase.data.repository.settingsDataStore
-import com.joshiminh.wallbase.sources.danbooru.DanbooruService
-import com.joshiminh.wallbase.sources.reddit.RedditService
-import com.joshiminh.wallbase.sources.unsplash.UnsplashService
-import com.joshiminh.wallbase.sources.wallhaven.WallhavenService
+import com.joshiminh.wallbase.sources.DanbooruService
+import com.joshiminh.wallbase.sources.RedditService
+import com.joshiminh.wallbase.sources.UnsplashService
+import com.joshiminh.wallbase.sources.WallhavenService
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlin.jvm.Volatile

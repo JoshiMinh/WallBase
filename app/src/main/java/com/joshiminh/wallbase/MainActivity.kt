@@ -47,8 +47,10 @@ import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.*
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.sources.reddit.RedditCommunity
+import com.joshiminh.wallbase.sources.RedditCommunity
 import com.joshiminh.wallbase.ui.*
+import com.joshiminh.wallbase.ui.library.LibraryScreen
+import com.joshiminh.wallbase.ui.album.AlbumDetailRoute
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.data.repository.AppTheme
@@ -57,6 +59,12 @@ import com.joshiminh.wallbase.util.network.ServiceLocator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+import android.app.Application
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import okio.Path.Companion.toOkioPath
 
 // ────────────────────────────────────────────────────────────────────────────────
 // App lock request types
@@ -737,3 +745,20 @@ private fun SharedTransitionHost(
         }
     }
 }
+
+class WallBaseApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        ServiceLocator.ensureInitialized(this)
+        SingletonImageLoader.setSafe { context ->
+            ImageLoader.Builder(context)
+                .diskCache {
+                    DiskCache.Builder()
+                        .directory(context.cacheDir.resolve("coil_previews").toOkioPath())
+                        .maxSizeBytes(50L * 1024 * 1024)
+                        .build()
+                }
+                .build()
+        }
+    }
+}

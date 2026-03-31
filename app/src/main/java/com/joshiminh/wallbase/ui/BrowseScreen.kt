@@ -64,7 +64,7 @@ import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.source.Source
 import com.joshiminh.wallbase.data.entity.source.SourceKeys
 import com.joshiminh.wallbase.data.repository.SourceRepository
-import com.joshiminh.wallbase.sources.reddit.RedditCommunity
+import com.joshiminh.wallbase.sources.RedditCommunity
 import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
 import java.util.Locale
 

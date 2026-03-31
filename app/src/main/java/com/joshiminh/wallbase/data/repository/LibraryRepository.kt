@@ -18,9 +18,6 @@ import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
 import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperWithAlbums
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator.CopyResult
-import com.joshiminh.wallbase.sources.twitter.TwitterLinkInfo
-import com.joshiminh.wallbase.sources.twitter.parseTwitterLink
-import com.joshiminh.wallbase.sources.twitter.upgradeTwitterMediaQuality
 import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustmentsJson
@@ -174,17 +171,8 @@ class LibraryRepository(
         val normalized = url.trim()
         require(normalized.isNotEmpty()) { "Wallpaper URL cannot be blank" }
 
-        val twitterInfo = parseTwitterLink(normalized)
-        val requestUrl = when (twitterInfo) {
-            is TwitterLinkInfo.Media -> twitterInfo.imageUrl
-            is TwitterLinkInfo.Tweet -> twitterInfo.scrapeUrl
-            null -> normalized
-        }
-        val canonicalSourceUrl = when (twitterInfo) {
-            is TwitterLinkInfo.Tweet -> twitterInfo.canonicalUrl
-            is TwitterLinkInfo.Media -> twitterInfo.imageUrl
-            null -> normalized
-        }
+        val requestUrl = normalized
+        val canonicalSourceUrl = normalized
 
         val parsedUri = requestUrl.toUri()
         val scheme = parsedUri.scheme?.lowercase(Locale.ROOT)
@@ -1086,13 +1074,11 @@ class LibraryRepository(
                 element.resolveImageCandidate("src")?.let { return it }
             }
         }
-        if (host.contains("x.com") ||
-            host.contains("twitter.com") ||
-            host.contains("vxtwitter.com") ||
-            host.contains("fxtwitter.com")
-        ) {
-            document.select("img[src*=\"twimg.com\"]").forEach { element ->
-                element.resolveImageCandidate("src")?.let { return upgradeTwitterMediaQuality(it) }
+        if (host.contains("pixiv.net")) {
+            document.select("img").firstOrNull { element ->
+                element.absUrl("src").contains("pximg.net")
+            }?.let { element ->
+                element.resolveImageCandidate("src")?.let { return it }
             }
         }
         if (host.contains("unsplash.com")) {
