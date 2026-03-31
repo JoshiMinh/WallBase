@@ -101,3 +101,4 @@ object WallpaperAdjustmentsJson {
         val bottom: Float,
     )
 }
+

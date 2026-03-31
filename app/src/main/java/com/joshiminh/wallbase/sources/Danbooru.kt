@@ -22,3 +22,4 @@ data class DanbooruPost(
     @Json(name = "image_height") val imageHeight: Int?,
     @Json(name = "tag_string_general") val tagStringGeneral: String?
 )
+

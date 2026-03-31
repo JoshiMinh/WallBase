@@ -1,6 +1,6 @@
 package com.joshiminh.wallbase.util.network
 
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import java.net.URI
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -410,3 +410,4 @@ class JsoupWebScraper : WebScraper {
         }
     }
 }
+

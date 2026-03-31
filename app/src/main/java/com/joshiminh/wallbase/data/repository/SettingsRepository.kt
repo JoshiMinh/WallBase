@@ -283,3 +283,4 @@ enum class AppAccentColor {
         }
     }
 }
+

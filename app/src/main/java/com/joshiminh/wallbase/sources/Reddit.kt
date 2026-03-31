@@ -4,8 +4,8 @@ import com.squareup.moshi.Json
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.data.entity.source.SourceSeed
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.SourceSeed
 
 /**
  * Lightweight representation of a subreddit returned from Reddit's search endpoint.
@@ -114,3 +114,5 @@ val RedditSource = SourceSeed(
     enabledByDefault = true,
     config = "wallpapers"
 )
+
+

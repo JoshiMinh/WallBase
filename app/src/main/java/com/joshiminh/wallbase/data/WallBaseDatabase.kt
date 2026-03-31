@@ -11,15 +11,15 @@ import com.joshiminh.wallbase.data.dao.AlbumDao
 import com.joshiminh.wallbase.data.dao.RotationScheduleDao
 import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
-import com.joshiminh.wallbase.data.entity.album.AlbumEntity
-import com.joshiminh.wallbase.data.entity.album.AlbumWallpaperCrossRef
-import com.joshiminh.wallbase.data.entity.source.SourceEntity.Companion.fromSeed
-import com.joshiminh.wallbase.data.entity.source.DefaultSources
-import com.joshiminh.wallbase.data.entity.source.SourceEntity
-import com.joshiminh.wallbase.data.entity.source.SourceSeed
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
-import com.joshiminh.wallbase.data.entity.rotation.RotationScheduleEntity
+import com.joshiminh.wallbase.data.entity.AlbumEntity
+import com.joshiminh.wallbase.data.entity.AlbumWallpaperCrossRef
+import com.joshiminh.wallbase.data.entity.SourceEntity.Companion.fromSeed
+import com.joshiminh.wallbase.data.entity.DefaultSources
+import com.joshiminh.wallbase.data.entity.SourceEntity
+import com.joshiminh.wallbase.data.entity.SourceSeed
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.WallpaperEntity
+import com.joshiminh.wallbase.data.entity.RotationScheduleEntity
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustmentsJson
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
@@ -239,3 +239,4 @@ abstract class WallBaseDatabase : RoomDatabase() {
         }
     }
 }
+

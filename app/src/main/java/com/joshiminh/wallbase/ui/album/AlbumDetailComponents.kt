@@ -1,5 +1,9 @@
 package com.joshiminh.wallbase.ui.album
 
+import com.joshiminh.wallbase.RotationIntervalUnit
+import com.joshiminh.wallbase.formatIntervalText
+import com.joshiminh.wallbase.RotationTargetOption
+
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -87,17 +91,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
-import com.joshiminh.wallbase.ui.sort.SortField
-import com.joshiminh.wallbase.ui.sort.toSelection
-import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
+import com.joshiminh.wallbase.util.SortField
+import com.joshiminh.wallbase.util.toSelection
+import com.joshiminh.wallbase.util.toWallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
-import com.joshiminh.wallbase.util.wallpapers.rotation.WallpaperRotationDefaults
+import com.joshiminh.wallbase.util.wallpapers.WallpaperRotationDefaults
 import java.text.DateFormat
 import java.util.Date
 
@@ -511,3 +515,6 @@ fun rotationSummary(
     val intervalText = formatIntervalText(value, unit)
     return "Rotates every $intervalText on the ${rotation.target.label}."
 }
+
+
+

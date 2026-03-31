@@ -10,8 +10,8 @@ import android.net.Uri
 import androidx.core.net.toFile
 import androidx.documentfile.provider.DocumentFile
 import androidx.sqlite.db.SupportSQLiteDatabase
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.WallpaperEntity
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -377,3 +377,5 @@ class DatabaseBackupManager(
         val mimeType: String?
     )
 }
+
+

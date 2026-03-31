@@ -6,3 +6,4 @@ interface UpdateService {
     @GET("releases/latest")
     suspend fun fetchLatestRelease(): UpdateReleaseDto
 }
+

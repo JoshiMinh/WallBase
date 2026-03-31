@@ -43,3 +43,4 @@ data class WallhavenMeta(
     @Json(name = "current_page") val currentPage: Int?,
     @Json(name = "last_page") val lastPage: Int?
 )
+

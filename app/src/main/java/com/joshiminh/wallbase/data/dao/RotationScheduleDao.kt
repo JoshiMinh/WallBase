@@ -4,7 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.joshiminh.wallbase.data.entity.rotation.RotationScheduleEntity
+import com.joshiminh.wallbase.data.entity.RotationScheduleEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -36,3 +36,5 @@ interface RotationScheduleDao {
     @Query("SELECT * FROM rotation_schedules WHERE is_enabled = 1 LIMIT 1")
     suspend fun getActiveSchedule(): RotationScheduleEntity?
 }
+
+

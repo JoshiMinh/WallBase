@@ -10,3 +10,4 @@ data class UpdateReleaseDto(
     @Json(name = "html_url") val downloadUrl: String? = null
 )
 
+

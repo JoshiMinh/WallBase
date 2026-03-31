@@ -202,3 +202,4 @@ data class WallpaperCropSettings(
 data class EditedWallpaper(
     val bitmap: Bitmap,
 )
+

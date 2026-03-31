@@ -1,7 +1,7 @@
 package com.joshiminh.wallbase.sources
 
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.data.entity.source.SourceSeed
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.SourceSeed
 
 val PinterestSource = SourceSeed(
     key = "${SourceKeys.PINTEREST}:wallpaper_board",
@@ -13,3 +13,4 @@ val PinterestSource = SourceSeed(
     enabledByDefault = true,
     config = "https://www.pinterest.com/wallpapercollec/wallpapers"
 )
+

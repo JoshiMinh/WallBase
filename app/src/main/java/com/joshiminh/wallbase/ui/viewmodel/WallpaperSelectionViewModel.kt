@@ -1,7 +1,7 @@
 package com.joshiminh.wallbase.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,3 +26,5 @@ class WallpaperSelectionViewModel : ViewModel() {
         _selectedWallpaper.value = null
     }
 }
+
+

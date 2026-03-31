@@ -6,19 +6,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.joshiminh.wallbase.data.entity.album.AlbumDetail
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.AlbumDetail
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.repository.WallpaperRotationRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRotationSchedule
-import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
-import com.joshiminh.wallbase.ui.sort.sortedWith
+import com.joshiminh.wallbase.util.WallpaperSortOption
+import com.joshiminh.wallbase.util.sortedWith
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
-import com.joshiminh.wallbase.util.wallpapers.rotation.WallpaperRotationDefaults
+import com.joshiminh.wallbase.util.wallpapers.WallpaperRotationDefaults
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -400,3 +400,4 @@ private fun List<WallpaperItem>.isAlbumFullyDownloaded(): Boolean {
         }
     }
 }
+

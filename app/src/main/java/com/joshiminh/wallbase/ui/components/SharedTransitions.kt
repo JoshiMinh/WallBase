@@ -10,7 +10,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 
 private const val SHARED_TRANSITION_DURATION_MILLIS = 350
 
@@ -37,3 +37,4 @@ fun Modifier.sharedWallpaperTransitionModifier(
         )
     }
 }
+

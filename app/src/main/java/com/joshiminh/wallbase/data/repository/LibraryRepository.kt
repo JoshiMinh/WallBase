@@ -8,15 +8,15 @@ import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import com.joshiminh.wallbase.data.dao.AlbumDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
-import com.joshiminh.wallbase.data.entity.album.AlbumDetail
-import com.joshiminh.wallbase.data.entity.album.AlbumEntity
-import com.joshiminh.wallbase.data.entity.album.AlbumItem
-import com.joshiminh.wallbase.data.entity.album.AlbumWallpaperCrossRef
-import com.joshiminh.wallbase.data.entity.album.AlbumWithWallpapers
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperWithAlbums
+import com.joshiminh.wallbase.data.entity.AlbumDetail
+import com.joshiminh.wallbase.data.entity.AlbumEntity
+import com.joshiminh.wallbase.data.entity.AlbumItem
+import com.joshiminh.wallbase.data.entity.AlbumWallpaperCrossRef
+import com.joshiminh.wallbase.data.entity.AlbumWithWallpapers
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.WallpaperEntity
+import com.joshiminh.wallbase.data.entity.WallpaperItem
+import com.joshiminh.wallbase.data.entity.WallpaperWithAlbums
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator.CopyResult
 import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
@@ -1268,3 +1268,4 @@ private fun AlbumWithWallpapers.toAlbumDetail(): AlbumDetail {
         wallpapers = wallpapers.map { it.toLibraryWallpaperItem() }
     )
 }
+

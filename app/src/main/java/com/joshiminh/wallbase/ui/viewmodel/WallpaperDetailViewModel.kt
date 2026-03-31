@@ -15,9 +15,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.joshiminh.wallbase.data.entity.album.AlbumItem
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.AlbumItem
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
@@ -861,3 +861,4 @@ class WallpaperDetailViewModel(
         originalBitmap = null
     }
 }
+

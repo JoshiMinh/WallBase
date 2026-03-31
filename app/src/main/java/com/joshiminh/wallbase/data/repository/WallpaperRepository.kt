@@ -2,9 +2,9 @@ package com.joshiminh.wallbase.data.repository
 
 import android.net.Uri
 import com.joshiminh.wallbase.sources.RedditCommunity
-import com.joshiminh.wallbase.data.entity.source.Source
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.Source
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.sources.RedditListingResponse
 import com.joshiminh.wallbase.sources.RedditPost
 import com.joshiminh.wallbase.sources.RedditService
@@ -587,3 +587,4 @@ class WallpaperRepository(
         private val WHITESPACE_REGEX = Regex("\\s+")
     }
 }
+

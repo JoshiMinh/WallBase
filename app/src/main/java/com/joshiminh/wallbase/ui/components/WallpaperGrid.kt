@@ -55,7 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -702,3 +702,4 @@ fun WallpaperListRow(
 }
 
 private const val DEFAULT_ASPECT_RATIO = 9f / 16f
+

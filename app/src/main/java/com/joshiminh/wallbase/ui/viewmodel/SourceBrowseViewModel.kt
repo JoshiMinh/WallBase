@@ -6,17 +6,17 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import com.joshiminh.wallbase.data.entity.album.AlbumItem
-import com.joshiminh.wallbase.data.entity.source.Source
+import com.joshiminh.wallbase.data.entity.AlbumItem
+import com.joshiminh.wallbase.data.entity.Source
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.repository.SourceRepository
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
-import com.joshiminh.wallbase.ui.sort.AlbumSortOption
-import com.joshiminh.wallbase.ui.sort.WallpaperSortOption
-import com.joshiminh.wallbase.ui.sort.sortedWith
+import com.joshiminh.wallbase.util.AlbumSortOption
+import com.joshiminh.wallbase.util.WallpaperSortOption
+import com.joshiminh.wallbase.util.sortedWith
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -486,3 +486,5 @@ class SourceBrowseViewModel(
         }
     }
 }
+
+

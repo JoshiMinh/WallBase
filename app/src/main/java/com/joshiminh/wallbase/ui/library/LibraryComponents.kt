@@ -104,8 +104,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.TopBarHandle
 import com.joshiminh.wallbase.TopBarState
-import com.joshiminh.wallbase.data.entity.album.AlbumItem
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.AlbumItem
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.components.AlbumLayoutPicker
@@ -114,11 +114,11 @@ import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
 import com.joshiminh.wallbase.ui.components.WallpaperLayoutPicker
-import com.joshiminh.wallbase.ui.sort.SortField
-import com.joshiminh.wallbase.ui.sort.SortSelection
-import com.joshiminh.wallbase.ui.sort.toAlbumSortOption
-import com.joshiminh.wallbase.ui.sort.toSelection
-import com.joshiminh.wallbase.ui.sort.toWallpaperSortOption
+import com.joshiminh.wallbase.util.SortField
+import com.joshiminh.wallbase.util.SortSelection
+import com.joshiminh.wallbase.util.toAlbumSortOption
+import com.joshiminh.wallbase.util.toSelection
+import com.joshiminh.wallbase.util.toWallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.LibraryViewModel
 import androidx.compose.foundation.lazy.grid.items as gridItems
 
@@ -547,3 +547,5 @@ fun SelectionCheckmark(selected: Boolean, modifier: Modifier = Modifier) {
         )
     }
 }
+
+

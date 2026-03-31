@@ -5,7 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.joshiminh.wallbase.data.entity.source.SourceEntity
+import com.joshiminh.wallbase.data.entity.SourceEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -43,3 +43,4 @@ interface SourceDao {
     @Query("DELETE FROM sources WHERE source_id = :id")
     suspend fun deleteSourceById(id: Long)
 }
+

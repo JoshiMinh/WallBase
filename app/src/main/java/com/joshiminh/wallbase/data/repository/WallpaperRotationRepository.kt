@@ -10,10 +10,10 @@ import androidx.work.WorkManager
 import com.joshiminh.wallbase.data.WallBaseDatabase
 import com.joshiminh.wallbase.data.dao.RotationScheduleDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
-import com.joshiminh.wallbase.data.entity.rotation.RotationScheduleEntity
+import com.joshiminh.wallbase.data.entity.RotationScheduleEntity
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
-import com.joshiminh.wallbase.util.wallpapers.rotation.WallpaperRotationDefaults
-import com.joshiminh.wallbase.util.wallpapers.rotation.WallpaperRotationWorker
+import com.joshiminh.wallbase.util.wallpapers.WallpaperRotationDefaults
+import com.joshiminh.wallbase.util.wallpapers.WallpaperRotationWorker
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -163,3 +163,4 @@ private fun RotationScheduleEntity.toSchedule(): WallpaperRotationSchedule {
         lastWallpaperId = lastWallpaperId
     )
 }
+

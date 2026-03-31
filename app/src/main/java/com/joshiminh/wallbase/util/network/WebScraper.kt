@@ -1,6 +1,6 @@
 package com.joshiminh.wallbase.util.network
 
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperItem
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 
 data class ScrapePage(
     val wallpapers: List<WallpaperItem>,
@@ -26,3 +26,5 @@ interface WebScraper {
         cursor: String? = null
     ): ScrapePage
 }
+
+

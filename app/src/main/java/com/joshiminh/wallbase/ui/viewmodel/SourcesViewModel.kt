@@ -9,8 +9,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.sources.RedditCommunity
-import com.joshiminh.wallbase.data.entity.source.Source
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.data.entity.Source
+import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
@@ -309,3 +309,5 @@ class SourcesViewModel(
         }
     }
 }
+
+

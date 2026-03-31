@@ -5,9 +5,9 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
-import com.joshiminh.wallbase.data.entity.album.AlbumEntity
-import com.joshiminh.wallbase.data.entity.album.AlbumWallpaperCrossRef
-import com.joshiminh.wallbase.data.entity.album.AlbumWithWallpapers
+import com.joshiminh.wallbase.data.entity.AlbumEntity
+import com.joshiminh.wallbase.data.entity.AlbumWallpaperCrossRef
+import com.joshiminh.wallbase.data.entity.AlbumWithWallpapers
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -45,3 +45,4 @@ interface AlbumDao {
     @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
     fun observeAlbumWithWallpapers(albumId: Long): Flow<AlbumWithWallpapers?>
 }
+

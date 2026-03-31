@@ -12,9 +12,9 @@ import android.graphics.Bitmap
 import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import com.joshiminh.wallbase.util.wallpapers.platform.PixelWallpaperHandler
-import com.joshiminh.wallbase.util.wallpapers.platform.SamsungWallpaperHandler
-import com.joshiminh.wallbase.util.wallpapers.platform.WallpaperPlatformHandler
+import com.joshiminh.wallbase.util.wallpapers.PixelWallpaperHandler
+import com.joshiminh.wallbase.util.wallpapers.SamsungWallpaperHandler
+import com.joshiminh.wallbase.util.wallpapers.WallpaperPlatformHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -168,3 +168,5 @@ private fun WallpaperApplier.createPreviewFile(bitmap: Bitmap): File {
     }
     return file
 }
+
+

@@ -5,8 +5,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperEntity
-import com.joshiminh.wallbase.data.entity.wallpaper.WallpaperWithAlbums
+import com.joshiminh.wallbase.data.entity.WallpaperEntity
+import com.joshiminh.wallbase.data.entity.WallpaperWithAlbums
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -99,3 +99,5 @@ interface WallpaperDao {
         updatedAt: Long
     )
 }
+
+

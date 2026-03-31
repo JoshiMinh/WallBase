@@ -6,9 +6,9 @@ import androidx.core.net.toUri
 import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
-import com.joshiminh.wallbase.data.entity.source.Source
-import com.joshiminh.wallbase.data.entity.source.SourceEntity
-import com.joshiminh.wallbase.data.entity.source.SourceKeys
+import com.joshiminh.wallbase.data.entity.Source
+import com.joshiminh.wallbase.data.entity.SourceEntity
+import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.sources.RedditCommunity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -729,3 +729,4 @@ class SourceRepository(
         private val SUBREDDIT_PATTERN = Regex("[a-z0-9_]+")
     }
 }
+

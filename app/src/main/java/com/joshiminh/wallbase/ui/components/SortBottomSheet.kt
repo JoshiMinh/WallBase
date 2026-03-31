@@ -26,12 +26,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.joshiminh.wallbase.ui.sort.SortDirection
-import com.joshiminh.wallbase.ui.sort.SortField
-import com.joshiminh.wallbase.ui.sort.SortSelection
-import com.joshiminh.wallbase.ui.sort.defaultDirection
-import com.joshiminh.wallbase.ui.sort.displayName
-import com.joshiminh.wallbase.ui.sort.toggle
+import com.joshiminh.wallbase.util.SortDirection
+import com.joshiminh.wallbase.util.SortField
+import com.joshiminh.wallbase.util.SortSelection
+import com.joshiminh.wallbase.util.defaultDirection
+import com.joshiminh.wallbase.util.displayName
+import com.joshiminh.wallbase.util.toggle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -169,3 +169,4 @@ private fun SortDirection.icon() = if (this == SortDirection.Ascending) {
 } else {
     Icons.Outlined.ArrowDownward
 }
+
