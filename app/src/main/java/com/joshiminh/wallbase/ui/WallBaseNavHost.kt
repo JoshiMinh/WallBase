@@ -55,8 +55,8 @@ import com.joshiminh.wallbase.data.entity.Source
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.sources.RedditCommunity
 import com.joshiminh.wallbase.ui.*
-import com.joshiminh.wallbase.LibraryScreen
-import com.joshiminh.wallbase.AlbumRoute
+import com.joshiminh.wallbase.screens.LibraryScreen
+import com.joshiminh.wallbase.screens.AlbumRoute
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.data.repository.AppTheme

@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-private sealed interface AppLockRequest {
+internal sealed interface AppLockRequest {
     data object Enable : AppLockRequest
     data object Unlock : AppLockRequest
 }

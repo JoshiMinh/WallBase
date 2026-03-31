@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.screens
 
 import com.joshiminh.wallbase.navigation.*
 import com.joshiminh.wallbase.ui.album.RotationScheduleBottomSheet
+import com.joshiminh.wallbase.util.*
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -30,12 +31,9 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TaskAlt
-import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -88,8 +86,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.joshiminh.wallbase.TopBarHandle
-import com.joshiminh.wallbase.TopBarState
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
@@ -624,67 +620,3 @@ fun AlbumScreen(
         )
     }
 }
-
-
-
-
-
-
-
-
-
-data class RotationTargetOption(
-    val target: WallpaperTarget,
-    val label: String,
-    val icon: ImageVector
-)
-
-
-
-fun formatIntervalText(value: Long, unit: RotationIntervalUnit): String {
-    val unitLabel = when (unit) {
-        RotationIntervalUnit.MINUTES -> if (value == 1L) "minute" else "minutes"
-        RotationIntervalUnit.HOURS -> if (value == 1L) "hour" else "hours"
-        RotationIntervalUnit.DAYS -> if (value == 1L) "day" else "days"
-        RotationIntervalUnit.WEEKS -> if (value == 1L) "week" else "weeks"
-    }
-    return "$value $unitLabel"
-}
-
-enum class RotationIntervalUnit(val displayName: String, val minutesPerUnit: Long) {
-    MINUTES("Minutes", 1),
-    HOURS("Hours", 60),
-    DAYS("Days", 1440),
-    WEEKS("Weeks", 10080);
-
-    fun toMinutes(value: Long): Long? {
-        if (value <= 0) return null
-        if (value > Long.MAX_VALUE / minutesPerUnit) return null
-        return value * minutesPerUnit
-    }
-
-    fun valueFromMinutes(minutes: Long): Long {
-        return when (this) {
-            MINUTES -> minutes.coerceAtLeast(1)
-            else -> ((minutes + minutesPerUnit - 1) / minutesPerUnit).coerceAtLeast(1)
-        }
-    }
-
-    fun displayValue(minutes: Long): String = valueFromMinutes(minutes).toString()
-
-    companion object {
-        fun fromMinutes(minutes: Long): RotationIntervalUnit {
-            return when {
-                minutes % WEEKS.minutesPerUnit == 0L -> WEEKS
-                minutes % DAYS.minutesPerUnit == 0L -> DAYS
-                minutes % HOURS.minutesPerUnit == 0L -> HOURS
-                else -> MINUTES
-            }
-        }
-    }
-}
-
-
-
-
-

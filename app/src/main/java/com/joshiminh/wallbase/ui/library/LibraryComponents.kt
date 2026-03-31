@@ -102,8 +102,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import coil3.compose.AsyncImage
-import com.joshiminh.wallbase.TopBarHandle
-import com.joshiminh.wallbase.TopBarState
+import com.joshiminh.wallbase.navigation.TopBarHandle
+import com.joshiminh.wallbase.navigation.TopBarState
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.AlbumLayout

@@ -52,8 +52,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.joshiminh.wallbase.TopBarHandle
-import com.joshiminh.wallbase.TopBarState
+import com.joshiminh.wallbase.navigation.TopBarHandle
+import com.joshiminh.wallbase.navigation.TopBarState
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
