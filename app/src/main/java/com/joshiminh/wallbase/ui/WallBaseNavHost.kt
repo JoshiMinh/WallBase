@@ -88,7 +88,6 @@ fun WallBaseApp(
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
-    onEditSource: (Source, String) -> Unit,
     onSourcesMessageShown: () -> Unit,
     onSourceUrlCopied: (String) -> Unit,
     onExportBackup: (Boolean) -> Unit,
@@ -399,7 +398,6 @@ fun WallBaseApp(
                                 )
                             },
                             onRemoveSource = onRemoveSource,
-                            onEditSource = onEditSource,
                             onMessageShown = onSourcesMessageShown,
                             onSourceUrlCopied = onSourceUrlCopied,
                         )

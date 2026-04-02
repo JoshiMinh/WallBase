@@ -88,7 +88,6 @@ import com.joshiminh.wallbase.ui.theme.AccentRed
 import com.joshiminh.wallbase.ui.theme.AccentBlue
 import com.joshiminh.wallbase.ui.theme.AccentGreen
 import com.joshiminh.wallbase.ui.theme.AccentPurple
-import com.joshiminh.wallbase.ui.theme.AccentYellow
 import android.content.pm.PackageManager
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
@@ -539,16 +538,21 @@ fun SettingsScreen(
                         "Unknown"
                     }
 
-                    SettingsCard(onClick = null) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "WallBase",
+                            style = MaterialTheme.typography.titleLarge
+                        )
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "App Version",
+                                text = "Version",
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
@@ -676,8 +680,7 @@ private fun SettingsColorRow(
                 AppAccentColor.RED to AccentRed,
                 AppAccentColor.BLUE to AccentBlue,
                 AppAccentColor.GREEN to AccentGreen,
-                AppAccentColor.PURPLE to AccentPurple,
-                AppAccentColor.YELLOW to AccentYellow
+                AppAccentColor.PURPLE to AccentPurple
             )
 
             colorOptions.forEach { (accent, colorValue) ->

@@ -31,8 +31,9 @@ import java.io.InputStream
 class DatabaseBackupManager(
     private val context: Context,
     private val localStorage: LocalStorageCoordinator,
-    private val database: WallBaseDatabase = WallBaseDatabase.getInstance(context)
 ) {
+
+    private val database: WallBaseDatabase by lazy { WallBaseDatabase.getInstance(context) }
 
     suspend fun exportBackup(destination: Uri, includeSources: Boolean): Result<Unit> =
         withContext(Dispatchers.IO) {

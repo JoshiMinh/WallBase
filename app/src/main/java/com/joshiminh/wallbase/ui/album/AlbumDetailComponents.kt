@@ -1,5 +1,8 @@
 package com.joshiminh.wallbase.ui.album
 
+import com.joshiminh.wallbase.util.RotationIntervalUnit
+import com.joshiminh.wallbase.util.formatIntervalText
+import com.joshiminh.wallbase.util.RotationTargetOption
 import com.joshiminh.wallbase.util.*
 
 import androidx.compose.animation.AnimatedVisibilityScope

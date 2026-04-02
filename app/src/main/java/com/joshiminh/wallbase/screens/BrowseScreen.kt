@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,11 +23,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -38,13 +33,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,13 +76,12 @@ fun BrowseScreen(
     onClearSearchResults: () -> Unit,
     onOpenSource: (Source) -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
-    onEditSource: (Source, String) -> Unit,
     onMessageShown: () -> Unit,
     onSourceUrlCopied: (String) -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
-    var pendingEdit by remember { mutableStateOf<Source?>(null) }
     var pendingRemoval by remember { mutableStateOf<Source?>(null) }
+    var showAddSourceModal by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage ?: return@LaunchedEffect
@@ -106,21 +101,24 @@ fun BrowseScreen(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item("add_remote_source") {
-                AddSourceFromUrlCard(
-                    input = uiState.urlInput,
-                    detectedType = uiState.detectedType,
-                    isSearching = uiState.isSearchingReddit,
-                    results = uiState.redditSearchResults,
-                    searchError = uiState.redditSearchError,
-                    existingConfigs = uiState.existingRedditConfigs,
-                    onInputChange = onUpdateSourceInput,
-                    onSearch = onSearchReddit,
-                    onAddSource = onAddSourceFromInput,
-                    onQuickAddSource = onQuickAddSource,
-                    onAddResult = onAddRedditCommunity,
-                    onClearResults = onClearSearchResults
-                )
+            item("browse_header") {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Browse",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { showAddSourceModal = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = "Add source"
+                        )
+                    }
+                }
             }
 
             if (uiState.sources.isEmpty()) {
@@ -137,13 +135,30 @@ fun BrowseScreen(
                     SourceCard(
                         source = source,
                         onOpenSource = onOpenSource,
-                        onRequestEdit = { pendingEdit = it },
                         onRequestRemove = { pendingRemoval = it },
                         onSourceUrlCopied = onSourceUrlCopied
                     )
                 }
             }
         }
+    }
+
+    if (showAddSourceModal) {
+        AddSourceBottomSheet(
+            input = uiState.urlInput,
+            detectedType = uiState.detectedType,
+            isSearching = uiState.isSearchingReddit,
+            results = uiState.redditSearchResults,
+            searchError = uiState.redditSearchError,
+            existingConfigs = uiState.existingRedditConfigs,
+            onInputChange = onUpdateSourceInput,
+            onSearch = onSearchReddit,
+            onAddSource = onAddSourceFromInput,
+            onQuickAddSource = onQuickAddSource,
+            onAddResult = onAddRedditCommunity,
+            onClearResults = onClearSearchResults,
+            onDismiss = { showAddSourceModal = false }
+        )
     }
 
     pendingRemoval?.let { source ->
@@ -156,21 +171,11 @@ fun BrowseScreen(
             }
         )
     }
-
-    pendingEdit?.let { source ->
-        EditSourceDialog(
-            source = source,
-            onDismiss = { pendingEdit = null },
-            onConfirm = { updatedInput ->
-                onEditSource(source, updatedInput)
-                pendingEdit = null
-            }
-        )
-    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddSourceFromUrlCard(
+private fun AddSourceBottomSheet(
     input: String,
     detectedType: SourceRepository.RemoteSourceType?,
     isSearching: Boolean,
@@ -182,136 +187,200 @@ private fun AddSourceFromUrlCard(
     onAddSource: () -> Unit,
     onQuickAddSource: (String) -> Unit,
     onAddResult: (RedditCommunity) -> Unit,
-    onClearResults: () -> Unit
+    onClearResults: () -> Unit,
+    onDismiss: () -> Unit
 ) {
     val isReddit = detectedType == SourceRepository.RemoteSourceType.REDDIT
     val canSearch = isReddit && input.trim().length >= 2 && !isSearching
     val canAdd = detectedType != null && input.isNotBlank() && !isSearching
-    var showSupportedSources by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            if (showSupportedSources) {
-                SupportedSourcesDialog(
-                    onDismiss = { showSupportedSources = false },
-                    onSelectSource = { suggestion ->
-                        showSupportedSources = false
-                        onQuickAddSource(suggestion)
-                    }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        LazyColumn(
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item("title") {
+                Text(text = "Add Source", style = MaterialTheme.typography.titleLarge)
+            }
+            item("subtitle") {
+                Text(
+                    text = "Paste a subreddit or supported wallpaper link.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Add from URL",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
+            item("input") {
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = onInputChange,
+                    label = { Text("Subreddit or URL") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {
+                        if (isReddit) {
+                            if (canSearch) onSearch()
+                        } else if (canAdd) {
+                            onAddSource()
+                        }
+                    })
                 )
-                IconButton(onClick = { showSupportedSources = true }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Info,
-                        contentDescription = "Supported sources"
-                    )
+            }
+            item("supported_sources") {
+                SupportedSourcesList(onQuickAddSource = onQuickAddSource)
+            }
+            item("add_action") {
+                Button(
+                    onClick = onAddSource,
+                    enabled = canAdd,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Add Source")
                 }
             }
-            Text(
-                text = "Paste a subreddit or supported wallpaper link to create a new source.",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 2.dp)
-            )
 
-            OutlinedTextField(
-                value = input,
-                onValueChange = onInputChange,
-                label = { Text("Subreddit or URL") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = {
-                    if (isReddit) {
-                        if (canSearch) onSearch()
-                    } else if (canAdd) {
-                        onAddSource()
-                    }
-                })
-            )
-
-            if (input.isNotBlank() && detectedType == null) {
-                Text(
-                    text = "Enter a supported link from the sites above.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isReddit) {
-                    Button(onClick = onSearch, enabled = canSearch) {
-                        Text("Search")
-                    }
-                    TextButton(onClick = onAddSource, enabled = canAdd) {
-                        Text("Add directly")
-                    }
-                    if (results.isNotEmpty()) {
-                        TextButton(onClick = onClearResults, enabled = !isSearching) {
-                            Text("Clear")
+            if (isReddit) {
+                item("reddit_actions") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = onSearch, enabled = canSearch) {
+                            Text("Search communities")
+                        }
+                        if (results.isNotEmpty()) {
+                            TextButton(onClick = onClearResults, enabled = !isSearching) {
+                                Text("Clear")
+                            }
                         }
                     }
-                } else {
-                    Button(onClick = onAddSource, enabled = canAdd) {
-                        Text("Add source")
-                    }
+                }
+            }
+
+            if (input.isNotBlank() && detectedType == null) {
+                item("invalid_hint") {
+                    Text(
+                        text = "Enter a supported source from the list below.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
 
             when {
                 isSearching -> {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                    item("searching") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(28.dp))
+                        }
                     }
                 }
 
                 searchError != null -> {
-                    Text(
-                        text = searchError,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 12.dp)
-                    )
+                    item("search_error") {
+                        Text(
+                            text = searchError,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
 
                 results.isNotEmpty() -> {
-                    Column(
-                        modifier = Modifier.padding(top = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        results.forEach { community ->
-                            RedditSearchResult(
-                                community = community,
-                                alreadyAdded = existingConfigs.contains(community.name.lowercase(Locale.ROOT)),
-                                onAdd = onAddResult
-                            )
-                        }
+                    items(results, key = RedditCommunity::name) { community ->
+                        RedditSearchResult(
+                            community = community,
+                            alreadyAdded = existingConfigs.contains(community.name.lowercase(Locale.ROOT)),
+                            onAdd = onAddResult
+                        )
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SupportedSourcesList(
+    onQuickAddSource: (String) -> Unit
+) {
+    val sources = listOf(
+        SupportedSourceInfo(
+            label = "Reddit",
+            faviconDomain = "reddit.com",
+            quickAddInput = "https://www.reddit.com/r/wallpapers/"
+        ),
+        SupportedSourceInfo(
+            label = "Pinterest",
+            faviconDomain = "pinterest.com",
+            quickAddInput = "https://www.pinterest.com/wallpapercollec/wallpapers"
+        ),
+        SupportedSourceInfo(
+            label = "Wallhaven",
+            faviconDomain = "wallhaven.cc",
+            quickAddInput = "https://wallhaven.cc"
+        ),
+        SupportedSourceInfo(
+            label = "Unsplash",
+            faviconDomain = "unsplash.com",
+            quickAddInput = "https://unsplash.com/t/wallpapers"
+        ),
+        SupportedSourceInfo(
+            label = "AlphaCoders (Wallpaper Abyss)",
+            faviconDomain = "wall.alphacoders.com",
+            quickAddInput = "https://wall.alphacoders.com/by_category.php?id=3"
+        ),
+        SupportedSourceInfo(
+            label = "Pixiv",
+            faviconDomain = "pixiv.net",
+            quickAddInput = "https://www.pixiv.net/en/tags/wallpaper/artworks"
+        )
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Supported sources",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        sources.forEach { source ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                onClick = { source.quickAddInput?.let(onQuickAddSource) },
+                enabled = source.quickAddInput != null
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (source.faviconUrl != null) {
+                        AsyncImage(
+                            model = source.faviconUrl,
+                            contentDescription = source.label,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Public,
+                            contentDescription = source.label,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Text(
+                        text = source.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "Quick add ${source.label}"
+                    )
                 }
             }
         }
@@ -363,124 +432,9 @@ private fun RedditSearchResult(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SupportedSourcesDialog(
-    onDismiss: () -> Unit,
-    onSelectSource: (String) -> Unit
-) {
-    val sources = listOf(
-        SupportedSourceInfo(
-            label = "Reddit",
-            faviconDomain = "reddit.com",
-            quickAddInput = "https://www.reddit.com/r/wallpapers/"
-        ),
-        SupportedSourceInfo(
-            label = "Wallhaven",
-            faviconDomain = "wallhaven.cc",
-            quickAddInput = "https://wallhaven.cc"
-        ),
-        SupportedSourceInfo(
-            label = "Danbooru",
-            faviconDomain = "danbooru.donmai.us",
-            quickAddInput = "https://danbooru.donmai.us/posts"
-        ),
-        SupportedSourceInfo(
-            label = "Unsplash",
-            faviconDomain = "unsplash.com",
-            quickAddInput = "https://unsplash.com/t/wallpapers"
-        ),
-        SupportedSourceInfo(
-            label = "X (Twitter)",
-            faviconDomain = "x.com",
-            quickAddInput = "https://x.com/Saico556/status/1955938876943687820"
-        ),
-        SupportedSourceInfo(
-            label = "AlphaCoders (Wallpaper Abyss)",
-            faviconDomain = "wall.alphacoders.com",
-            quickAddInput = "https://wall.alphacoders.com/by_category.php?id=3"
-        ),
-        SupportedSourceInfo("… (limited)", staticIcon = Icons.Outlined.MoreHoriz)
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Supported URL sources") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                sources.forEach { source ->
-                    val isEnabled = source.quickAddInput != null
-                    val backgroundColor = if (isEnabled) {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    }
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = backgroundColor,
-                        tonalElevation = if (isEnabled) 4.dp else 0.dp,
-                        onClick = {
-                            source.quickAddInput?.let(onSelectSource)
-                        },
-                        enabled = isEnabled
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            when {
-                                source.staticIcon != null -> {
-                                    Icon(
-                                        imageVector = source.staticIcon,
-                                        contentDescription = source.label,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-
-                                source.faviconUrl != null -> {
-                                    AsyncImage(
-                                        model = source.faviconUrl,
-                                        contentDescription = source.label,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-
-                                else -> {
-                                    Box(modifier = Modifier.size(24.dp))
-                                }
-                            }
-                            Text(
-                                text = source.label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isEnabled) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Add,
-                                    contentDescription = "Quick add ${source.label}"
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        }
-    )
-}
-
 private data class SupportedSourceInfo(
     val label: String,
     val faviconDomain: String? = null,
-    val staticIcon: ImageVector? = null,
     val quickAddInput: String? = null
 ) {
     val faviconUrl: String? = faviconDomain?.let { domain ->
@@ -492,7 +446,6 @@ private data class SupportedSourceInfo(
 private fun SourceCard(
     source: Source,
     onOpenSource: (Source) -> Unit,
-    onRequestEdit: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
     onSourceUrlCopied: (String) -> Unit
 ) {
@@ -503,9 +456,9 @@ private fun SourceCard(
         SourceKeys.PINTEREST,
         SourceKeys.WEBSITES,
         SourceKeys.WALLHAVEN,
-        SourceKeys.DANBOORU,
         SourceKeys.UNSPLASH,
-        SourceKeys.ALPHA_CODERS
+        SourceKeys.ALPHA_CODERS,
+        SourceKeys.PIXIV
     )
 
     Card(
@@ -561,21 +514,11 @@ private fun SourceCard(
                     Text(source.title, style = MaterialTheme.typography.titleMedium)
                     Text(source.description, style = MaterialTheme.typography.bodyMedium)
                 }
-                val canEdit = !source.isLocal
-                if (canEdit || isRemovable) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (canEdit) {
-                            IconButton(onClick = { onRequestEdit(source) }) {
-                                Icon(imageVector = Icons.Outlined.Edit, contentDescription = "Edit ${source.title}")
-                            }
-                        }
-                        if (isRemovable) {
-                            IconButton(
-                                onClick = { onRequestRemove(source) }
-                            ) {
-                                Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Remove ${source.title}")
-                            }
-                        }
+                if (isRemovable) {
+                    IconButton(
+                        onClick = { onRequestRemove(source) }
+                    ) {
+                        Icon(imageVector = Icons.Outlined.Delete, contentDescription = "Remove ${source.title}")
                     }
                 }
             }
@@ -592,48 +535,6 @@ private fun SourceCard(
     }
 }
 
-@Composable
-private fun EditSourceDialog(
-    source: Source,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
-) {
-    var input by remember(source.id) {
-        mutableStateOf(sourceShareUrl(source) ?: source.config.orEmpty())
-    }
-    val isValid = input.isNotBlank()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit ${source.title}") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Update the subreddit or URL for this source.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = { input = it },
-                    label = { Text("Source URL or subreddit") },
-                    singleLine = true
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(input) }, enabled = isValid) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
 private fun sourceShareUrl(source: Source): String? {
     val config = source.config?.takeIf { it.isNotBlank() } ?: return null
     return when (source.providerKey) {
@@ -644,9 +545,9 @@ private fun sourceShareUrl(source: Source): String? {
 
         SourceKeys.PINTEREST,
         SourceKeys.WALLHAVEN,
-        SourceKeys.DANBOORU,
         SourceKeys.UNSPLASH,
         SourceKeys.ALPHA_CODERS,
+        SourceKeys.PIXIV,
         SourceKeys.WEBSITES -> config
 
         else -> null
@@ -658,13 +559,9 @@ private fun sourceShareUrl(source: Source): String? {
 fun safePainterResource(@DrawableRes resId: Int?): Painter? {
     if (resId == null || resId == 0) return null
     val context = androidx.compose.ui.platform.LocalContext.current
-
-    // Do the risky check off the composable path
     val isValid = remember(resId, context) {
         runCatching { context.resources.getResourceName(resId) }.isSuccess
     }
-
-    // Only invoke the composable if valid (no try/catch around it)
     return if (isValid) painterResource(resId) else null
 }
 
@@ -676,7 +573,7 @@ private fun RemoveSourceDialog(
 ) {
     var removeWallpapers by remember(source.id) { mutableStateOf(false) }
 
-    AlertDialog(
+    androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Remove ${source.title}?") },
         text = {
@@ -705,6 +602,3 @@ private fun RemoveSourceDialog(
         }
     )
 }
-
-
-

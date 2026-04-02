@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -147,43 +148,30 @@ fun DirectAddDialog(
                 onDismiss()
             }
         },
-        title = { Text(text = "Add wallpaper") },
+        title = { Text(text = "New Album/Wallpaper") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Paste a direct image link to save it in your library.",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                OutlinedTextField(
-                    value = url,
-                    onValueChange = onUrlChange,
-                    label = { Text("Image link") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Uri,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = {
-                            if (canSubmit) {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                onConfirm()
-                            }
+            OutlinedTextField(
+                value = url,
+                onValueChange = onUrlChange,
+                placeholder = { Text("Paste wallpaper URL") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        if (canSubmit) {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            onConfirm()
                         }
-                    )
+                    }
                 )
-                Text(
-                    text = "Example: https://www.reddit.com/media?url=https%3A%2F%2Fpreview.redd.it%2Fshare-your-wallpapers-high-quality-is-appreciated-v0-mfolekrpzsnf1.jpeg%3Fwidth%3D1170%26auto%3Dwebp%26s%3D7f528b4d58a0d35285312494e5a9279fbb5bc9bc",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            )
         },
         confirmButton = {
             TextButton(
@@ -194,14 +182,7 @@ fun DirectAddDialog(
                 },
                 enabled = canSubmit
             ) {
-                if (isBusy) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(text = "Add")
-                }
+                Text(text = if (isBusy) "Creating..." else "Create")
             }
         },
         dismissButton = {
@@ -226,33 +207,31 @@ fun CreateAlbumDialog(
     onDismiss: () -> Unit
 ) {
     var title by rememberSaveable { mutableStateOf("") }
+    val trimmedTitle = title.trim()
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "New album") },
+        title = { Text(text = "New Album/Wallpaper") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                TextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text(text = "Album name") },
-                    enabled = !isCreating
-                )
-                if (isCreating) {
-                    Text(text = "Creating album…")
-                }
-            }
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                placeholder = { Text("Enter album name") },
+                enabled = !isCreating,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
         },
         confirmButton = {
             TextButton(
-                onClick = { onCreate(title) },
-                enabled = !isCreating && title.isNotBlank()
+                onClick = { onCreate(trimmedTitle) },
+                enabled = !isCreating && trimmedTitle.isNotBlank()
             ) {
-                Text(text = "Create")
+                Text(text = if (isCreating) "Creating..." else "Create")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isCreating) {
                 Text(text = "Cancel")
             }
         }

@@ -28,7 +28,6 @@ class SourceRepository(
         REDDIT,
         PINTEREST,
         WALLHAVEN,
-        DANBOORU,
         UNSPLASH,
         ALPHA_CODERS,
         PIXIV,
@@ -62,7 +61,6 @@ class SourceRepository(
 
             is RemoteSourceInput.Pinterest -> addPinterestSource(parsed.url)
             is RemoteSourceInput.Wallhaven -> addWallhavenSource(parsed.url)
-            is RemoteSourceInput.Danbooru -> addDanbooruSource(parsed.url)
             is RemoteSourceInput.Unsplash -> addUnsplashSource(parsed.url)
             is RemoteSourceInput.AlphaCoders -> addAlphaCodersSource(parsed.url)
             is RemoteSourceInput.Pixiv -> addPixivSource(parsed.url)
@@ -127,12 +125,6 @@ class SourceRepository(
                 val urlInput = parsed as? RemoteSourceInput.Wallhaven
                     ?: throw IllegalArgumentException("Enter a Wallhaven search or collection URL.")
                 updateWebsiteSource(existing, urlInput.url, RemoteSourceType.WALLHAVEN, SourceKeys.WALLHAVEN)
-            }
-
-            SourceKeys.DANBOORU -> {
-                val urlInput = parsed as? RemoteSourceInput.Danbooru
-                    ?: throw IllegalArgumentException("Enter a Danbooru tag or URL.")
-                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.DANBOORU, SourceKeys.DANBOORU)
             }
 
             SourceKeys.UNSPLASH -> {
@@ -230,29 +222,6 @@ class SourceRepository(
         val entity = SourceEntity(
             key = buildWebsiteKey(SourceKeys.WALLHAVEN, url),
             providerKey = SourceKeys.WALLHAVEN,
-            title = metadata.title,
-            description = metadata.description,
-            iconRes = metadata.fallbackIcon,
-            iconUrl = metadata.iconUrl,
-            showInExplore = true,
-            isEnabled = true,
-            isLocal = false,
-            config = url.value
-        )
-        val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).sanitized().toDomain()
-    }
-
-    private suspend fun addDanbooruSource(url: NormalizedUrl): Source {
-        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.DANBOORU, url.value)
-        if (existing != null) {
-            throw IllegalStateException("Source already added")
-        }
-
-        val metadata = buildWebsiteMetadata(url, RemoteSourceType.DANBOORU)
-        val entity = SourceEntity(
-            key = buildWebsiteKey(SourceKeys.DANBOORU, url),
-            providerKey = SourceKeys.DANBOORU,
             title = metadata.title,
             description = metadata.description,
             iconRes = metadata.fallbackIcon,
@@ -445,7 +414,6 @@ class SourceRepository(
             }
             SourceKeys.PIXIV -> buildFaviconUrl("pixiv.net")
             SourceKeys.WALLHAVEN,
-            SourceKeys.DANBOORU,
             SourceKeys.UNSPLASH,
             SourceKeys.ALPHA_CODERS,
             SourceKeys.WEBSITES -> {
@@ -473,6 +441,12 @@ class SourceRepository(
         val normalizedUrl = trimmed.tryNormalizeUrl() ?: return null
         val host = normalizedUrl.host
 
+        if (host == "x.com" || host.endsWith(".x.com") ||
+            host == "twitter.com" || host.endsWith(".twitter.com")
+        ) {
+            return null
+        }
+
         return when {
             host.contains("reddit", ignoreCase = true) -> {
                 val slugFromUrl = normalizedUrl.value.tryNormalizeSubreddit()
@@ -489,10 +463,6 @@ class SourceRepository(
 
             host.contains("wallhaven", ignoreCase = true) || host == "whvn.cc" -> {
                 RemoteSourceInput.Wallhaven(normalizedUrl)
-            }
-
-            host.contains("danbooru", ignoreCase = true) -> {
-                RemoteSourceInput.Danbooru(normalizedUrl)
             }
 
             host.contains("unsplash", ignoreCase = true) -> {
@@ -550,10 +520,6 @@ class SourceRepository(
             RemoteSourceType.WALLHAVEN -> listOfNotNull("Wallhaven", queryLabel ?: pathSegment)
                 .joinToString(" - ")
                 .ifBlank { "Wallhaven" }
-
-            RemoteSourceType.DANBOORU -> listOfNotNull("Danbooru", queryLabel ?: pathSegment)
-                .joinToString(" - ")
-                .ifBlank { "Danbooru" }
 
             RemoteSourceType.UNSPLASH -> listOfNotNull("Unsplash", queryLabel ?: pathSegment)
                 .joinToString(" - ")
@@ -714,7 +680,6 @@ class SourceRepository(
 
         class Wallhaven(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WALLHAVEN)
 
-        class Danbooru(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.DANBOORU)
 
         class Unsplash(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.UNSPLASH)
 

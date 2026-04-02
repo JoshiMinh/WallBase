@@ -12,7 +12,6 @@ import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRotationRepository
 import com.joshiminh.wallbase.data.repository.settingsDataStore
-import com.joshiminh.wallbase.sources.DanbooruService
 import com.joshiminh.wallbase.sources.RedditService
 import com.joshiminh.wallbase.sources.UnsplashService
 import com.joshiminh.wallbase.sources.WallhavenService
@@ -38,7 +37,6 @@ object ServiceLocator {
                 if (appContext == null) {
                     val applicationContext = context.applicationContext
                     appContext = applicationContext
-                    WallBaseDatabase.getInstance(applicationContext)
                 }
             }
         }
@@ -106,18 +104,6 @@ object ServiceLocator {
         wallhavenRetrofit.create(WallhavenService::class.java)
     }
 
-    private val danbooruRetrofit: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl("https://danbooru.donmai.us/")
-            .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-    }
-
-    private val danbooruService: DanbooruService by lazy {
-        danbooruRetrofit.create(DanbooruService::class.java)
-    }
-
     private val unsplashRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl("https://unsplash.com/")
@@ -145,7 +131,7 @@ object ServiceLocator {
     private val scraper: WebScraper by lazy { JsoupWebScraper() }
 
     private val database: WallBaseDatabase by lazy {
-        WallBaseDatabase.Companion.getInstance(context)
+        WallBaseDatabase.getInstance(context)
     }
 
     val wallpaperRepository: WallpaperRepository by lazy {
@@ -153,7 +139,6 @@ object ServiceLocator {
             redditService = redditService,
             webScraper = scraper,
             wallhavenService = wallhavenService,
-            danbooruService = danbooruService,
             unsplashService = unsplashService
         )
     }

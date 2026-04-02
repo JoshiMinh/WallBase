@@ -17,7 +17,7 @@ data class TopBarState(
     )
 }
 
-class TopBarHandle internal constructor(
+class TopBarHandle(
     private val ownerId: Long,
     private val setState: (Long, TopBarState) -> Unit,
     private val clearState: (Long) -> Unit,

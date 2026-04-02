@@ -1,39 +1,18 @@
 package com.joshiminh.wallbase.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import com.joshiminh.wallbase.data.repository.AppTheme
 import com.joshiminh.wallbase.data.repository.AppAccentColor
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+private val DarkColorScheme = darkColorScheme()
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
-)
+private val LightColorScheme = lightColorScheme()
 
 @Composable
 fun WallBaseTheme(
@@ -48,13 +27,8 @@ fun WallBaseTheme(
     }
 
     val baseColorScheme = when {
-        // Use dynamic color only if the default Pink color is selected
-        appAccentColor == AppAccentColor.PINK && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        isDark -> darkColorScheme()
-        else -> lightColorScheme()
+        isDark -> DarkColorScheme
+        else -> LightColorScheme
     }
 
     val primaryColor = when (appAccentColor) {
@@ -63,18 +37,22 @@ fun WallBaseTheme(
         AppAccentColor.BLUE -> AccentBlue
         AppAccentColor.GREEN -> AccentGreen
         AppAccentColor.PURPLE -> AccentPurple
-        AppAccentColor.YELLOW -> AccentYellow
     }
 
-    val colorScheme = if (appAccentColor != AppAccentColor.PINK || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-        baseColorScheme.copy(
-            primary = primaryColor,
-            secondary = primaryColor,
-            tertiary = primaryColor
-        )
-    } else {
-        baseColorScheme
-    }
+    val containerColor = lerp(
+        baseColorScheme.surface,
+        primaryColor,
+        if (isDark) 0.32f else 0.22f
+    )
+
+    val colorScheme = baseColorScheme.copy(
+        primary = primaryColor,
+        secondary = primaryColor,
+        tertiary = primaryColor,
+        primaryContainer = containerColor,
+        secondaryContainer = containerColor,
+        tertiaryContainer = containerColor
+    )
 
     val finalColorScheme = if (appTheme == AppTheme.AMOLED) {
         colorScheme.copy(

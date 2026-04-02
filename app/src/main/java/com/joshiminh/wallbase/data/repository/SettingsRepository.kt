@@ -259,8 +259,7 @@ enum class AppAccentColor {
     RED,
     BLUE,
     GREEN,
-    PURPLE,
-    YELLOW;
+    PURPLE;
 
     val storageValue: String
         get() = when (this) {
@@ -269,7 +268,6 @@ enum class AppAccentColor {
             BLUE -> "blue"
             GREEN -> "green"
             PURPLE -> "purple"
-            YELLOW -> "yellow"
         }
 
     companion object {
@@ -278,7 +276,6 @@ enum class AppAccentColor {
             "blue" -> BLUE
             "green" -> GREEN
             "purple" -> PURPLE
-            "yellow" -> YELLOW
             else -> PINK
         }
     }

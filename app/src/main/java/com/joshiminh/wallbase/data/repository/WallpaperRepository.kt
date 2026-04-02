@@ -10,8 +10,6 @@ import com.joshiminh.wallbase.sources.RedditPost
 import com.joshiminh.wallbase.sources.RedditService
 import com.joshiminh.wallbase.sources.RedditSubredditChild
 import com.joshiminh.wallbase.sources.RedditSubredditListingResponse
-import com.joshiminh.wallbase.sources.DanbooruPost
-import com.joshiminh.wallbase.sources.DanbooruService
 import com.joshiminh.wallbase.sources.UnsplashPhoto
 import com.joshiminh.wallbase.sources.UnsplashSearchResponse
 import com.joshiminh.wallbase.sources.UnsplashService
@@ -32,7 +30,6 @@ class WallpaperRepository(
     private val redditService: RedditService,
     private val webScraper: WebScraper,
     private val wallhavenService: WallhavenService,
-    private val danbooruService: DanbooruService,
     private val unsplashService: UnsplashService,
     private val pinterestQuery: String = DEFAULT_PINTEREST_QUERY,
     private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
@@ -66,11 +63,6 @@ class WallpaperRepository(
                 WallpaperPage(wallpapers = scrapePage.wallpapers, nextCursor = scrapePage.nextCursor)
             }
             SourceKeys.WALLHAVEN -> fetchWallhavenWallpapers(
-                config = source.config,
-                query = trimmedQuery,
-                cursor = cursor
-            )
-            SourceKeys.DANBOORU -> fetchDanbooruWallpapers(
                 config = source.config,
                 query = trimmedQuery,
                 cursor = cursor
@@ -162,23 +154,6 @@ class WallpaperRepository(
                     .getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
             }
         }
-    }
-
-    private suspend fun fetchDanbooruWallpapers(
-        config: String?,
-        query: String?,
-        cursor: String?
-    ): WallpaperPage = withContext(Dispatchers.IO) {
-        val pageNumber = cursor?.toIntOrNull()?.takeIf { it > 0 } ?: 1
-        val params = parseQueryParameters(config).toMutableMap()
-        val combinedTags = combineDanbooruTags(params["tags"], query)
-        params["tags"] = combinedTags ?: DEFAULT_DANBOORU_TAGS
-        params["page"] = pageNumber.toString()
-        params["limit"] = DANBOORU_PAGE_LIMIT.toString()
-        val posts = runCatching { danbooruService.getPosts(params) }.getOrElse { emptyList() }
-        val items = posts.mapNotNull { it.toWallpaperItem() }
-        val nextCursor = if (posts.size < DANBOORU_PAGE_LIMIT) null else (pageNumber + 1).toString()
-        WallpaperPage(items, nextCursor)
     }
 
     private suspend fun fetchUnsplashWallpapers(
@@ -404,18 +379,6 @@ class WallpaperRepository(
         }.filterValues { it.isNotBlank() }
     }
 
-    private fun combineDanbooruTags(base: String?, query: String?): String? {
-        val tags = mutableListOf<String>()
-        if (!base.isNullOrBlank()) {
-            tags += base.trim().split(WHITESPACE_REGEX).filter { it.isNotBlank() }
-        }
-        if (!query.isNullOrBlank()) {
-            tags += query.trim().split(WHITESPACE_REGEX).filter { it.isNotBlank() }
-        }
-        if (tags.isEmpty()) return null
-        return tags.joinToString(" ") { it.replace(' ', '_') }
-    }
-
     private fun parseWallhavenConfig(config: String?): WallhavenConfig {
         if (config.isNullOrBlank()) {
             return WallhavenConfig(mode = WallhavenMode.SEARCH)
@@ -515,27 +478,6 @@ class WallpaperRepository(
         )
     }
 
-    private fun DanbooruPost.toWallpaperItem(): WallpaperItem? {
-        val imageUrl = largeFileUrl ?: fileUrl ?: return null
-        val idValue = id?.toString() ?: imageUrl.hashCode().toString()
-        val titleValue = tagStringGeneral
-            ?.split('_', ' ')
-            ?.filter { it.isNotBlank() }
-            ?.joinToString(" ")
-            ?.replaceFirstChar { it.titlecase(Locale.ROOT) }
-            ?.takeIf { it.isNotBlank() }
-            ?: "Danbooru wallpaper"
-        val sourceUrl = id?.let { "https://danbooru.donmai.us/posts/$it" } ?: imageUrl
-        return WallpaperItem(
-            id = "danbooru_$idValue",
-            title = titleValue,
-            imageUrl = imageUrl,
-            sourceUrl = sourceUrl,
-            width = imageWidth,
-            height = imageHeight
-        )
-    }
-
     private fun UnsplashPhoto.toWallpaperItem(): WallpaperItem? {
         val imageUrl = urls?.full ?: urls?.raw ?: urls?.regular ?: return null
         val idValue = id?.takeIf { it.isNotBlank() } ?: imageUrl.hashCode().toString()
@@ -576,15 +518,12 @@ class WallpaperRepository(
         private const val DEFAULT_CUSTOM_WEBSITE =
             "https://www.pixelstalk.net/category/wallpapers/4k-wallpapers/"
         private const val DEFAULT_WALLHAVEN_QUERY = "wallpapers"
-        private const val DEFAULT_DANBOORU_TAGS = "wallpaper rating:s"
         private const val DEFAULT_UNSPLASH_QUERY = "wallpapers"
         private const val DEFAULT_ALPHA_CODERS_URL =
             "https://wall.alphacoders.com/search.php?search=wallpaper"
         private const val REDDIT_PAGE_LIMIT = 30
         private const val WALLHAVEN_PAGE_LIMIT = 30
-        private const val DANBOORU_PAGE_LIMIT = 30
         private const val UNSPLASH_PAGE_LIMIT = 30
-        private val WHITESPACE_REGEX = Regex("\\s+")
     }
 }
 

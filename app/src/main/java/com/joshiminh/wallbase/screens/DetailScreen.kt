@@ -75,7 +75,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -178,8 +177,6 @@ private fun DetailScreen(
 ) {
     val wallpaper = uiState.wallpaper ?: return
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
-    val hasSourceUrl = wallpaper.sourceUrl.isNotBlank()
     val canAddToLibrary = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     val canRemoveFromLibrary = uiState.isInLibrary && wallpaper.sourceKey != null
     val canDownload = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
@@ -498,21 +495,6 @@ private fun DetailScreen(
                 }
             }
 
-            if (hasSourceUrl) {
-                TextButton(
-                    onClick = { wallpaper.sourceUrl.let(uriHandler::openUri) },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
-                    modifier = Modifier.align(Alignment.Start)
-                ) {
-                    Text(
-                        text = "Open original",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
         }
     }
     if (uiState.showRemoveDownloadConfirmation) {
