@@ -6,6 +6,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.lerp
 import com.joshiminh.wallbase.data.repository.AppTheme
 import com.joshiminh.wallbase.data.repository.AppAccentColor
@@ -44,14 +45,22 @@ fun WallBaseTheme(
         primaryColor,
         if (isDark) 0.32f else 0.22f
     )
+    val onPrimaryColor = if (primaryColor.luminance() > 0.5f) Color.Black else Color.White
+    val onContainerColor = if (containerColor.luminance() > 0.5f) Color.Black else Color.White
 
     val colorScheme = baseColorScheme.copy(
         primary = primaryColor,
         secondary = primaryColor,
         tertiary = primaryColor,
+        onPrimary = onPrimaryColor,
+        onSecondary = onPrimaryColor,
+        onTertiary = onPrimaryColor,
         primaryContainer = containerColor,
         secondaryContainer = containerColor,
-        tertiaryContainer = containerColor
+        tertiaryContainer = containerColor,
+        onPrimaryContainer = onContainerColor,
+        onSecondaryContainer = onContainerColor,
+        onTertiaryContainer = onContainerColor
     )
 
     val finalColorScheme = if (appTheme == AppTheme.AMOLED) {

@@ -148,7 +148,7 @@ fun DirectAddDialog(
                 onDismiss()
             }
         },
-        title = { Text(text = "New Album/Wallpaper") },
+        title = { Text(text = "New Wallpaper") },
         text = {
             OutlinedTextField(
                 value = url,
@@ -182,7 +182,7 @@ fun DirectAddDialog(
                 },
                 enabled = canSubmit
             ) {
-                Text(text = if (isBusy) "Creating..." else "Create")
+                Text(text = if (isBusy) "Adding..." else "Add")
             }
         },
         dismissButton = {
@@ -211,7 +211,7 @@ fun CreateAlbumDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "New Album/Wallpaper") },
+        title = { Text(text = "New Album") },
         text = {
             OutlinedTextField(
                 value = title,

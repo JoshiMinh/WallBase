@@ -400,6 +400,7 @@ fun WallBaseApp(
                             onRemoveSource = onRemoveSource,
                             onMessageShown = onSourcesMessageShown,
                             onSourceUrlCopied = onSourceUrlCopied,
+                            onConfigureTopBar = acquireTopBar,
                         )
                     }
 

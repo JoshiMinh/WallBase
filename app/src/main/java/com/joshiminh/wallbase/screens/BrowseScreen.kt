@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +44,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,11 +80,40 @@ fun BrowseScreen(
     onOpenSource: (Source) -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
     onMessageShown: () -> Unit,
-    onSourceUrlCopied: (String) -> Unit
+    onSourceUrlCopied: (String) -> Unit,
+    onConfigureTopBar: (TopBarState) -> TopBarHandle
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingRemoval by remember { mutableStateOf<Source?>(null) }
     var showAddSourceModal by remember { mutableStateOf(false) }
+
+    // Configure TopBar with Add Source button
+    val topBarState = TopBarState(
+        title = "Browse",
+        actions = {
+            IconButton(onClick = { showAddSourceModal = true }) {
+                Icon(
+                    imageVector = Icons.Outlined.Add,
+                    contentDescription = "Add source"
+                )
+            }
+        }
+    )
+    val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
+    SideEffect {
+        val handle = topBarHandleState.value
+        if (handle == null) {
+            topBarHandleState.value = onConfigureTopBar(topBarState)
+        } else {
+            handle.update(topBarState)
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            topBarHandleState.value?.clear()
+            topBarHandleState.value = null
+        }
+    }
 
     LaunchedEffect(uiState.snackbarMessage) {
         val message = uiState.snackbarMessage ?: return@LaunchedEffect
@@ -101,25 +133,6 @@ fun BrowseScreen(
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item("browse_header") {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "Browse",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = { showAddSourceModal = true }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = "Add source"
-                        )
-                    }
-                }
-            }
 
             if (uiState.sources.isEmpty()) {
                 item("empty_sources") {
@@ -376,10 +389,6 @@ private fun SupportedSourcesList(
                         text = source.label,
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = "Quick add ${source.label}"
                     )
                 }
             }
