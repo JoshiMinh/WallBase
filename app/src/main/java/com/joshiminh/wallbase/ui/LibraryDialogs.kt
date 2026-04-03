@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.library
+package com.joshiminh.wallbase.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -433,5 +433,6 @@ fun AlbumSelectionRow(
         )
     }
 }
+
 
 

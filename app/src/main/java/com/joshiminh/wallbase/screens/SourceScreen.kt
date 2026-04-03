@@ -363,7 +363,7 @@ private fun SourceScreen(
                                     ErrorMessage(message = state.errorMessage, onRetry = onRefresh)
                                 } else {
                                     Text(
-                                        text = "No wallpapers found.",
+                                        text = "No wallpaper, try search or refresh",
                                         style = MaterialTheme.typography.bodyLarge
                                     )
                                 }

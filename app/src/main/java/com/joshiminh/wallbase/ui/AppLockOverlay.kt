@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.applock
+package com.joshiminh.wallbase.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -49,3 +49,4 @@ fun AppLockOverlay(
         }
     }
 }
+

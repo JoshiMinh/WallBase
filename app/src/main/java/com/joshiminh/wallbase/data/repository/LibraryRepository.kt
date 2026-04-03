@@ -1074,13 +1074,6 @@ class LibraryRepository(
                 element.resolveImageCandidate("src")?.let { return it }
             }
         }
-        if (host.contains("pixiv.net")) {
-            document.select("img").firstOrNull { element ->
-                element.absUrl("src").contains("pximg.net")
-            }?.let { element ->
-                element.resolveImageCandidate("src")?.let { return it }
-            }
-        }
         if (host.contains("unsplash.com")) {
             document.select("link[rel=preload][as=image]").firstOrNull()?.let { element ->
                 element.absUrl("href").takeIf { it.isNotBlank() }?.let { return it }

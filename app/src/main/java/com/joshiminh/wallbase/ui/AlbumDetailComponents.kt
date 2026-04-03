@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.album
+package com.joshiminh.wallbase.ui
 
 import com.joshiminh.wallbase.util.RotationIntervalUnit
 import com.joshiminh.wallbase.util.formatIntervalText
@@ -516,6 +516,7 @@ fun rotationSummary(
     val intervalText = formatIntervalText(value, unit)
     return "Rotates every $intervalText on the ${rotation.target.label}."
 }
+
 
 
 

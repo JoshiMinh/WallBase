@@ -114,5 +114,3 @@ val RedditSource = SourceSeed(
     enabledByDefault = true,
     config = "wallpapers"
 )
-
-

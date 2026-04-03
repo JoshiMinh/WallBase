@@ -11,7 +11,6 @@
         tools:targetApi="34" />
 
     <application
-        android:name=".WallBaseApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -33,7 +32,7 @@
         </activity>
 
         <activity
-            android:name=".ui.share.ShareReceiverActivity"
+            android:name=".ui.ShareReceiverActivity"
             android:exported="true"
             android:excludeFromRecents="true"
             android:finishOnTaskLaunch="true"

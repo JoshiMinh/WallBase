@@ -30,7 +30,6 @@ class SourceRepository(
         WALLHAVEN,
         UNSPLASH,
         ALPHA_CODERS,
-        PIXIV,
         WEBSITE
     }
 
@@ -63,7 +62,6 @@ class SourceRepository(
             is RemoteSourceInput.Wallhaven -> addWallhavenSource(parsed.url)
             is RemoteSourceInput.Unsplash -> addUnsplashSource(parsed.url)
             is RemoteSourceInput.AlphaCoders -> addAlphaCodersSource(parsed.url)
-            is RemoteSourceInput.Pixiv -> addPixivSource(parsed.url)
             is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
         }
     }
@@ -137,12 +135,6 @@ class SourceRepository(
                 val urlInput = parsed as? RemoteSourceInput.AlphaCoders
                     ?: throw IllegalArgumentException("Enter an AlphaCoders category or URL.")
                 updateWebsiteSource(existing, urlInput.url, RemoteSourceType.ALPHA_CODERS, SourceKeys.ALPHA_CODERS)
-            }
-
-            SourceKeys.PIXIV -> {
-                val urlInput = parsed as? RemoteSourceInput.Pixiv
-                    ?: throw IllegalArgumentException("Enter a Pixiv artwork or user link.")
-                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.PIXIV, SourceKeys.PIXIV)
             }
 
             SourceKeys.WEBSITES -> {
@@ -281,29 +273,6 @@ class SourceRepository(
         return entity.copy(id = id).sanitized().toDomain()
     }
 
-    private suspend fun addPixivSource(url: NormalizedUrl): Source {
-        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.PIXIV, url.value)
-        if (existing != null) {
-            throw IllegalStateException("Source already added")
-        }
-
-        val metadata = buildWebsiteMetadata(url, RemoteSourceType.PIXIV)
-        val entity = SourceEntity(
-            key = buildWebsiteKey(SourceKeys.PIXIV, url),
-            providerKey = SourceKeys.PIXIV,
-            title = metadata.title,
-            description = metadata.description,
-            iconRes = metadata.fallbackIcon,
-            iconUrl = metadata.iconUrl,
-            showInExplore = true,
-            isEnabled = true,
-            isLocal = false,
-            config = url.value
-        )
-        val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).sanitized().toDomain()
-    }
-
     private suspend fun addWebsiteSource(url: NormalizedUrl): Source {
         val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.WEBSITES, url.value)
         if (existing != null) {
@@ -412,7 +381,6 @@ class SourceRepository(
                 }
                 buildFaviconUrl(domain)
             }
-            SourceKeys.PIXIV -> buildFaviconUrl("pixiv.net")
             SourceKeys.WALLHAVEN,
             SourceKeys.UNSPLASH,
             SourceKeys.ALPHA_CODERS,
@@ -473,9 +441,6 @@ class SourceRepository(
                 RemoteSourceInput.AlphaCoders(normalizedUrl)
             }
 
-            host.contains("pixiv", ignoreCase = true) -> {
-                RemoteSourceInput.Pixiv(normalizedUrl)
-            }
 
             else -> RemoteSourceInput.Website(normalizedUrl)
         }
@@ -529,10 +494,6 @@ class SourceRepository(
                 .joinToString(" - ")
                 .ifBlank { "AlphaCoders" }
 
-            RemoteSourceType.PIXIV -> listOfNotNull("Pixiv", queryLabel ?: pathSegment)
-                .joinToString(" - ")
-                .ifBlank { "Pixiv" }
-
             RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
                 .joinToString(" - ")
                 .ifBlank { hostName }
@@ -546,7 +507,6 @@ class SourceRepository(
                 "pin.it" -> "pinterest.com"
                 else -> host
             }
-            RemoteSourceType.PIXIV -> "pixiv.net"
             else -> url.host
         }
         val iconUrl = buildFaviconUrl(iconDomain)
@@ -685,7 +645,6 @@ class SourceRepository(
 
         class AlphaCoders(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.ALPHA_CODERS)
 
-        class Pixiv(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.PIXIV)
 
         class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
     }

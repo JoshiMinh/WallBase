@@ -6,11 +6,9 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
@@ -74,7 +71,6 @@ fun BrowseScreen(
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
-    onQuickAddSource: (String) -> Unit,
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearSearchResults: () -> Unit,
     onOpenSource: (Source) -> Unit,
@@ -167,7 +163,6 @@ fun BrowseScreen(
             onInputChange = onUpdateSourceInput,
             onSearch = onSearchReddit,
             onAddSource = onAddSourceFromInput,
-            onQuickAddSource = onQuickAddSource,
             onAddResult = onAddRedditCommunity,
             onClearResults = onClearSearchResults,
             onDismiss = { showAddSourceModal = false }
@@ -198,7 +193,6 @@ private fun AddSourceBottomSheet(
     onInputChange: (String) -> Unit,
     onSearch: () -> Unit,
     onAddSource: () -> Unit,
-    onQuickAddSource: (String) -> Unit,
     onAddResult: (RedditCommunity) -> Unit,
     onClearResults: () -> Unit,
     onDismiss: () -> Unit
@@ -240,7 +234,7 @@ private fun AddSourceBottomSheet(
                 )
             }
             item("supported_sources") {
-                SupportedSourcesList(onQuickAddSource = onQuickAddSource)
+                SupportedSourcesList(onSelectSourceInput = onInputChange)
             }
             item("add_action") {
                 Button(
@@ -316,7 +310,7 @@ private fun AddSourceBottomSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SupportedSourcesList(
-    onQuickAddSource: (String) -> Unit
+    onSelectSourceInput: (String) -> Unit
 ) {
     val sources = listOf(
         SupportedSourceInfo(
@@ -343,11 +337,6 @@ private fun SupportedSourcesList(
             label = "AlphaCoders (Wallpaper Abyss)",
             faviconDomain = "wall.alphacoders.com",
             quickAddInput = "https://wall.alphacoders.com/by_category.php?id=3"
-        ),
-        SupportedSourceInfo(
-            label = "Pixiv",
-            faviconDomain = "pixiv.net",
-            quickAddInput = "https://www.pixiv.net/en/tags/wallpaper/artworks"
         )
     )
 
@@ -362,7 +351,7 @@ private fun SupportedSourcesList(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                onClick = { source.quickAddInput?.let(onQuickAddSource) },
+                onClick = { source.quickAddInput?.let(onSelectSourceInput) },
                 enabled = source.quickAddInput != null
             ) {
                 Row(
@@ -466,8 +455,7 @@ private fun SourceCard(
         SourceKeys.WEBSITES,
         SourceKeys.WALLHAVEN,
         SourceKeys.UNSPLASH,
-        SourceKeys.ALPHA_CODERS,
-        SourceKeys.PIXIV
+        SourceKeys.ALPHA_CODERS
     )
 
     Card(
@@ -556,7 +544,6 @@ private fun sourceShareUrl(source: Source): String? {
         SourceKeys.WALLHAVEN,
         SourceKeys.UNSPLASH,
         SourceKeys.ALPHA_CODERS,
-        SourceKeys.PIXIV,
         SourceKeys.WEBSITES -> config
 
         else -> null

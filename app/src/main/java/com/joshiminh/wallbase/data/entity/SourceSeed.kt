@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.data.entity
 
 import com.joshiminh.wallbase.sources.PinterestSource
 import com.joshiminh.wallbase.sources.RedditSource
+import com.joshiminh.wallbase.sources.AlphaCodersSource
 
 /**
  * Describes a built-in source that should be preloaded into the local database on first launch.
@@ -23,6 +24,7 @@ data class SourceSeed(
 val DefaultSources: List<SourceSeed> = listOf(
     RedditSource,
     PinterestSource,
+    AlphaCodersSource,
 )
 
 

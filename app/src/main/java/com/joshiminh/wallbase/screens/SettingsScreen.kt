@@ -199,7 +199,7 @@ fun SettingsScreen(
             item {
                 SettingsSection(spacing = 8.dp) {
                     Text(
-                        text = "Data & backup",
+                        text = "Download",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -382,6 +382,16 @@ fun SettingsScreen(
                             }
                         }
                     }
+                }
+            }
+
+            item {
+                SettingsSection(spacing = 8.dp) {
+                    Text(
+                        text = "Backup",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
                     SettingsCard {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -488,7 +498,7 @@ fun SettingsScreen(
             item {
                 SettingsSection(spacing = 8.dp) {
                     Text(
-                        text = "Privacy & security",
+                        text = "Lock",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

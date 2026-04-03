@@ -232,13 +232,10 @@ class WallpaperRepository(
         query: String?,
         cursor: String?
     ): WallpaperPage = withContext(Dispatchers.IO) {
-        val target = when {
-            !query.isNullOrBlank() -> query
-            !config.isNullOrBlank() -> config
-            else -> return@withContext WallpaperPage(emptyList(), nextCursor = null)
-        }
-        val scrapePage = webScraper.scrapePixiv(
-            url = target,
+        val defaultUrl = config ?: DEFAULT_PIXIV_URL
+        val targetUrl = query?.let { buildPixivSearchUrl(it) } ?: defaultUrl
+        val scrapePage = webScraper.scrapeImagesFromUrl(
+            url = targetUrl,
             limit = 30,
             cursor = cursor
         )
@@ -369,6 +366,11 @@ class WallpaperRepository(
     private fun buildAlphaCodersSearchUrl(query: String): String {
         val encoded = Uri.encode(query)
         return "https://wall.alphacoders.com/search.php?search=$encoded"
+    }
+
+    private fun buildPixivSearchUrl(query: String): String {
+        val encoded = Uri.encode(query.replace(' ', '_'))
+        return "https://www.pixiv.net/en/tags/$encoded/artworks"
     }
 
     private fun parseQueryParameters(config: String?): Map<String, String> {
@@ -521,9 +523,10 @@ class WallpaperRepository(
         private const val DEFAULT_UNSPLASH_QUERY = "wallpapers"
         private const val DEFAULT_ALPHA_CODERS_URL =
             "https://wall.alphacoders.com/search.php?search=wallpaper"
+        private const val DEFAULT_PIXIV_URL =
+            "https://www.pixiv.net/en/tags/wallpaper/artworks"
         private const val REDDIT_PAGE_LIMIT = 30
         private const val WALLHAVEN_PAGE_LIMIT = 30
         private const val UNSPLASH_PAGE_LIMIT = 30
     }
 }
-

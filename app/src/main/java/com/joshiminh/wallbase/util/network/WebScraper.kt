@@ -19,12 +19,6 @@ interface WebScraper {
         limit: Int = 30,
         cursor: String? = null
     ): ScrapePage
-
-    suspend fun scrapePixiv(
-        url: String,
-        limit: Int = 30,
-        cursor: String? = null
-    ): ScrapePage
 }
 
 

@@ -76,4 +76,3 @@ data class UnsplashPhotoLinks(
 data class UnsplashUser(
     @Json(name = "name") val name: String?
 )
-

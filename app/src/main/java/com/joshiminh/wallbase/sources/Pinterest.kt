@@ -13,4 +13,3 @@ val PinterestSource = SourceSeed(
     enabledByDefault = true,
     config = "https://www.pinterest.com/wallpapercollec/wallpapers"
 )
-

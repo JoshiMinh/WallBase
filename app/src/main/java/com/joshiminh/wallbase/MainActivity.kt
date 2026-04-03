@@ -11,17 +11,40 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.lifecycleScope
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import com.joshiminh.wallbase.data.WallBaseDatabase
+import com.joshiminh.wallbase.ui.WallBaseApp
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.*
+import com.joshiminh.wallbase.util.network.ServiceLocator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.joshiminh.wallbase.ui.WallBaseApp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import okio.Path.Companion.toOkioPath
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        ServiceLocator.ensureInitialized(this)
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { WallBaseDatabase.getInstance(applicationContext) }
+        }
+        SingletonImageLoader.setSafe { context ->
+            ImageLoader.Builder(context)
+                .diskCache {
+                    DiskCache.Builder()
+                        .directory(context.cacheDir.resolve("coil_previews").toOkioPath())
+                        .maxSizeBytes(50L * 1024 * 1024)
+                        .build()
+                }
+                .build()
+        }
 
         setContent {
             val sourcesViewModel: SourcesViewModel = viewModel(factory = SourcesViewModel.Factory)
@@ -59,7 +82,6 @@ class MainActivity : ComponentActivity() {
                     onUpdateSourceInput = sourcesViewModel::updateSourceInput,
                     onSearchReddit = sourcesViewModel::searchRedditCommunities,
                     onAddSourceFromInput = sourcesViewModel::addSourceFromInput,
-                    onQuickAddSource = sourcesViewModel::quickAddSource,
                     onAddRedditCommunity = sourcesViewModel::addRedditCommunity,
                     onClearRedditSearch = sourcesViewModel::clearSearchResults,
                     onRemoveSource = sourcesViewModel::removeSource,
@@ -95,4 +117,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-

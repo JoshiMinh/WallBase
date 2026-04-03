@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.share
+package com.joshiminh.wallbase.ui
 
 import android.content.ClipData
 import android.content.Intent
@@ -149,3 +149,4 @@ class ShareReceiverActivity : ComponentActivity() {
     private fun Intent.getParcelableArrayListExtraCompat(name: String): ArrayList<Uri>? =
         getParcelableArrayListExtra(name)
 }
+

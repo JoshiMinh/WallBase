@@ -3,7 +3,6 @@
 package com.joshiminh.wallbase.ui
 
 import com.joshiminh.wallbase.navigation.*
-import com.joshiminh.wallbase.ui.applock.*
 import com.joshiminh.wallbase.MainActivity
 import com.joshiminh.wallbase.screens.*
 import com.joshiminh.wallbase.R
@@ -84,7 +83,6 @@ fun WallBaseApp(
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
-    onQuickAddSource: (String) -> Unit,
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
@@ -389,7 +387,6 @@ fun WallBaseApp(
                             onUpdateSourceInput = onUpdateSourceInput,
                             onSearchReddit = onSearchReddit,
                             onAddSourceFromInput = onAddSourceFromInput,
-                            onQuickAddSource = onQuickAddSource,
                             onAddRedditCommunity = onAddRedditCommunity,
                             onClearSearchResults = onClearRedditSearch,
                             onOpenSource = { source ->

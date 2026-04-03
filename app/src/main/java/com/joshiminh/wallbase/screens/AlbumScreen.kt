@@ -1,7 +1,7 @@
 package com.joshiminh.wallbase.screens
 
 import com.joshiminh.wallbase.navigation.*
-import com.joshiminh.wallbase.ui.album.RotationScheduleBottomSheet
+import com.joshiminh.wallbase.ui.RotationScheduleBottomSheet
 import com.joshiminh.wallbase.util.*
 
 import androidx.compose.animation.AnimatedVisibilityScope

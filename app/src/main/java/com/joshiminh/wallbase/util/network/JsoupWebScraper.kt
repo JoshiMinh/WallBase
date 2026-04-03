@@ -6,12 +6,10 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.LinkedHashSet
 import java.util.Locale
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jsoup.Connection
 import org.jsoup.Jsoup
-import org.jsoup.HttpStatusException
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.json.JSONArray
@@ -57,15 +55,6 @@ class JsoupWebScraper : WebScraper {
                 element.attr("alt").ifBlank { element.attr("title") }
             }
         }.getOrElse { ScrapePage(emptyList(), nextCursor = null) }
-    }
-
-    override suspend fun scrapePixiv(
-        url: String,
-        limit: Int,
-        cursor: String?
-    ): ScrapePage {
-        // Implement Pixiv scraping here
-        return ScrapePage(emptyList(), nextCursor = null)
     }
 
     private suspend fun extractImages(
@@ -408,6 +397,11 @@ class JsoupWebScraper : WebScraper {
         return selectors.mapNotNull { sel ->
             doc.selectFirst(sel)?.attr("content")?.takeIf { it.isNotBlank() }
         }
+    }
+
+    private fun ensureLeadingSlash(path: String): String {
+        if (path.isBlank()) return "/"
+        return if (path.startsWith('/')) path else "/$path"
     }
 }
 

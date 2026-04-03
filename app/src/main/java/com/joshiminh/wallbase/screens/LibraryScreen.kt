@@ -1,10 +1,10 @@
 package com.joshiminh.wallbase.screens
 
 import com.joshiminh.wallbase.navigation.*
-import com.joshiminh.wallbase.ui.library.LibraryContent
-import com.joshiminh.wallbase.ui.library.DownloadProgressToast
-import com.joshiminh.wallbase.ui.library.DirectAddDialog
-import com.joshiminh.wallbase.ui.library.AlbumPickerDialog
+import com.joshiminh.wallbase.ui.LibraryContent
+import com.joshiminh.wallbase.ui.DownloadProgressToast
+import com.joshiminh.wallbase.ui.DirectAddDialog
+import com.joshiminh.wallbase.ui.AlbumPickerDialog
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
