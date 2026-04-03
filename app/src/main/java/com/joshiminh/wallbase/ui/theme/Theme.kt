@@ -13,7 +13,14 @@ import com.joshiminh.wallbase.data.repository.AppAccentColor
 
 private val DarkColorScheme = darkColorScheme()
 
-private val LightColorScheme = lightColorScheme()
+private val LightColorScheme = lightColorScheme(
+    surface = Color(0xFFFAF9F6),
+    onSurface = Color(0xFF1C1B1F),
+    surfaceVariant = Color(0xFFEEEDEB),
+    onSurfaceVariant = Color(0xFF49454E),
+    background = Color(0xFFFFFBFE),
+    onBackground = Color(0xFF1C1B1F)
+)
 
 @Composable
 fun WallBaseTheme(
@@ -24,7 +31,7 @@ fun WallBaseTheme(
     val isDark = when (appTheme) {
         AppTheme.SYSTEM -> isSystemInDarkTheme()
         AppTheme.LIGHT -> false
-        AppTheme.DARK, AppTheme.AMOLED -> true
+        AppTheme.DARK -> true
     }
 
     val baseColorScheme = when {
@@ -63,7 +70,7 @@ fun WallBaseTheme(
         onTertiaryContainer = onContainerColor
     )
 
-    val finalColorScheme = if (appTheme == AppTheme.AMOLED) {
+    val finalColorScheme = if (appTheme == AppTheme.DARK && isDark) {
         colorScheme.copy(
             background = Color.Black,
             surface = Color.Black,

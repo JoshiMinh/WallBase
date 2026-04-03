@@ -341,6 +341,24 @@ class LibraryRepository(
         }
     }
 
+    suspend fun downloadAlbums(
+        albumIds: Collection<Long>,
+        storageLimitBytes: Long? = null
+    ): DownloadResult {
+        if (albumIds.isEmpty()) return DownloadResult(0, 0, 0, 0, 0)
+
+        return withContext(Dispatchers.IO) {
+            val wallpapers = mutableListOf<WallpaperItem>()
+            for (albumId in albumIds) {
+                val album = albumDao.getAlbumWithWallpapers(albumId)
+                if (album != null) {
+                    wallpapers.addAll(album.wallpapers.map { it.toLibraryWallpaperItem() })
+                }
+            }
+            downloadWallpapers(wallpapers, storageLimitBytes)
+        }
+    }
+
     suspend fun updateAdjustments(
         wallpaper: WallpaperItem,
         adjustments: WallpaperAdjustments?

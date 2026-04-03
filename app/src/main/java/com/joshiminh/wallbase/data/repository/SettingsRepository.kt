@@ -233,22 +233,20 @@ enum class WallpaperLayout {
 enum class AppTheme {
     SYSTEM,
     LIGHT,
-    DARK,
-    AMOLED;
+    DARK;
 
     val storageValue: String
         get() = when (this) {
             SYSTEM -> "system"
             LIGHT -> "light"
             DARK -> "dark"
-            AMOLED -> "amoled"
         }
 
     companion object {
         fun fromStorage(value: String?): AppTheme = when (value) {
             "light" -> LIGHT
             "dark" -> DARK
-            "amoled" -> AMOLED
+            "amoled" -> DARK // Migrate legacy amoled value to dark
             else -> SYSTEM
         }
     }

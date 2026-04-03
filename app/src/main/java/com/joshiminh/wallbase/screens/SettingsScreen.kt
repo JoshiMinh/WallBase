@@ -596,7 +596,6 @@ private fun SettingsThemeRow(
                 AppTheme.SYSTEM -> "Follow System"
                 AppTheme.LIGHT -> "Light"
                 AppTheme.DARK -> "Dark"
-                AppTheme.AMOLED -> "Amoled Black"
             }
             TextButton(
                 onClick = { expanded = true },
@@ -612,8 +611,7 @@ private fun SettingsThemeRow(
                 listOf(
                     AppTheme.SYSTEM to "Follow System",
                     AppTheme.LIGHT to "Light",
-                    AppTheme.DARK to "Dark",
-                    AppTheme.AMOLED to "Amoled Black"
+                    AppTheme.DARK to "Dark"
                 ).forEach { (theme, textLabel) ->
                     DropdownMenuItem(
                         text = { Text(textLabel) },

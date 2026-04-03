@@ -406,6 +406,17 @@ fun LibraryScreen(
                 IconButton(
                     onClick = {
                         if (selectedAlbumIds.isNotEmpty() && !uiState.isSelectionActionInProgress) {
+                            libraryViewModel.downloadAlbums(selectedAlbumIds)
+                        }
+                        selectedAlbumIds = emptySet()
+                    },
+                    enabled = !uiState.isSelectionActionInProgress
+                ) {
+                    Icon(imageVector = Icons.Outlined.Download, contentDescription = "Download albums")
+                }
+                IconButton(
+                    onClick = {
+                        if (selectedAlbumIds.isNotEmpty() && !uiState.isSelectionActionInProgress) {
                             libraryViewModel.deleteAlbums(selectedAlbumIds)
                         }
                         selectedAlbumIds = emptySet()

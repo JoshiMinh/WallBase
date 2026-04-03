@@ -275,6 +275,39 @@ class LibraryViewModel(
         }
     }
 
+    fun downloadAlbums(albumIds: Collection<Long>) {
+        if (albumIds.isEmpty() || selectionActionInProgress.value) return
+        viewModelScope.launch {
+            selectionAction.value = SelectionAction.DOWNLOAD
+            selectionActionInProgress.value = true
+            val result = runCatching { repository.downloadAlbums(albumIds, storageLimitBytes) }
+            selectionActionInProgress.value = false
+            selectionAction.value = null
+            messageFlow.update {
+                result.fold(
+                    onSuccess = { summary ->
+                        when {
+                            summary.downloaded > 0 && summary.failed > 0 ->
+                                "Downloaded ${summary.downloaded} wallpapers (failed ${summary.failed})"
+                            summary.downloaded > 0 && summary.blocked > 0 ->
+                                "Downloaded ${summary.downloaded} wallpapers (blocked ${summary.blocked} by storage limit)"
+                            summary.downloaded > 0 ->
+                                "Downloaded ${summary.downloaded} wallpapers"
+                            summary.blocked > 0 ->
+                                "Storage limit reached. Download blocked."
+                            summary.skipped > 0 ->
+                                "Selected wallpapers are already saved locally"
+                            else -> "No wallpapers were downloaded"
+                        }
+                    },
+                    onFailure = { throwable ->
+                        throwable.localizedMessage ?: "Unable to download wallpapers"
+                    }
+                )
+            }
+        }
+    }
+
     fun removeDownloads(wallpapers: List<WallpaperItem>) {
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {

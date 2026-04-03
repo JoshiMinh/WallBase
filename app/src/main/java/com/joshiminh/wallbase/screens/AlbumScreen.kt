@@ -424,77 +424,33 @@ fun AlbumScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         floatingActionButton = {
             if (!state.isLoading && !state.notFound) {
-                Row(
+                FloatingActionButton(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .semantics { if (!canConfigureRotation) disabled() },
+                    containerColor = if (canConfigureRotation) {
+                        defaultFabContainerColor
+                    } else {
+                        disabledFabContainerColor
+                    },
+                    contentColor = if (canConfigureRotation) {
+                        defaultFabContentColor
+                    } else {
+                        disabledFabContentColor
+                    },
+                    onClick = {
+                        if (!canConfigureRotation) return@FloatingActionButton
+
+                        showRotationSheet = true
+                    }
                 ) {
-                    FloatingActionButton(
-                        modifier = Modifier
-                            .semantics { if (!canDownloadAlbum) disabled() },
-                        containerColor = if (canDownloadAlbum) {
-                            defaultFabContainerColor
-                        } else {
-                            disabledFabContainerColor
-                        },
-                        contentColor = if (canDownloadAlbum) {
-                            defaultFabContentColor
-                        } else {
-                            disabledFabContentColor
-                        },
-                        onClick = {
-                            if (!canDownloadAlbum) return@FloatingActionButton
-
-                            if (state.isAlbumDownloaded) {
-                                onPromptRemoveDownloads()
-                            } else {
-                                onDownloadAlbum()
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = if (state.isAlbumDownloaded) {
-                                Icons.Outlined.TaskAlt
-                            } else {
-                                Icons.Outlined.Download
-                            },
-                            contentDescription = if (state.isAlbumDownloaded) {
-                                "Remove downloaded files"
-                            } else {
-                                "Download album"
-                            }
-                        )
-                    }
-                    FloatingActionButton(
-                        modifier = Modifier
-                            .semantics { if (!canConfigureRotation) disabled() },
-                        containerColor = if (canConfigureRotation) {
-                            defaultFabContainerColor
-                        } else {
-                            disabledFabContainerColor
-                        },
-                        contentColor = if (canConfigureRotation) {
-                            defaultFabContentColor
-                        } else {
-                            disabledFabContentColor
-                        },
-                        onClick = {
-                            if (!canConfigureRotation) return@FloatingActionButton
-
-                            showRotationSheet = true
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Schedule,
-                            contentDescription = "Schedule rotation"
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.Schedule,
+                        contentDescription = "Schedule rotation"
+                    )
                 }
             }
         },
-        floatingActionButtonPosition = FabPosition.Center
+        floatingActionButtonPosition = FabPosition.End
         // (avoid custom contentWindowInsets constructor that can error across versions)
     ) { innerPadding ->
         when {
