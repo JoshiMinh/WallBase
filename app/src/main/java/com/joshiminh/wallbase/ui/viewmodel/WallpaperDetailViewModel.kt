@@ -394,12 +394,9 @@ class WallpaperDetailViewModel(
 
     fun onPreviewResult(preview: WallpaperPreviewLaunch, resultCode: Int) {
         applier.cleanupPreview(preview.preview)
-        val message = if (resultCode == Activity.RESULT_OK) {
-            "Applied wallpaper to ${preview.target.label}"
-        } else {
-            "Wallpaper preview canceled"
+        if (resultCode == Activity.RESULT_OK) {
+            _uiState.update { it.copy(message = "Applied wallpaper to ${preview.target.label}") }
         }
-        _uiState.update { it.copy(message = message) }
     }
 
     fun onPreviewLaunchFailed(preview: WallpaperPreviewLaunch, throwable: Throwable) {

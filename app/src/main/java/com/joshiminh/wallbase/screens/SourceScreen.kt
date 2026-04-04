@@ -66,6 +66,7 @@ import com.joshiminh.wallbase.util.SortField
 import com.joshiminh.wallbase.util.SortSelection
 import com.joshiminh.wallbase.util.toSelection
 import com.joshiminh.wallbase.util.toWallpaperSortOption
+import com.joshiminh.wallbase.util.filterByHorizontalPreference
 import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -371,8 +372,11 @@ private fun SourceScreen(
                         }
 
                         else -> {
+                            val filteredWallpapers = state.wallpapers.filterByHorizontalPreference(
+                                showHorizontal = state.showHorizontalWallpapers
+                            )
                             WallpaperGrid(
-                                wallpapers = state.wallpapers,
+                                wallpapers = filteredWallpapers,
                                 onWallpaperSelected = onWallpaperClick,
                                 onLongPress = onWallpaperLongPress,
                                 selectedIds = state.selectedIds,

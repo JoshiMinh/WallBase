@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="WallBase - Elevate your Android aesthetic. An open-source wallpaper discovery and management engine for the modern Android ecosystem.">
+    <meta name="theme-color" content="#2596be">
+    <title>WallBase - Wallpaper Discovery & Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f1f5f9;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 20px;
+            background: radial-gradient(circle at 30% 30%, #2596be, #1e88e5);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            box-shadow: 0 10px 40px rgba(37, 150, 190, 0.3);
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #2596be, #1e88e5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 1.25rem;
+            color: #cbd5e1;
+            margin-bottom: 20px;
+            font-weight: 300;
+        }
+
+        .description {
+            font-size: 1rem;
+            color: #94a3b8;
+            margin-bottom: 40px;
+            line-height: 1.8;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+            text-align: left;
+        }
+
+        .feature {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(37, 150, 190, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .feature:hover {
+            border-color: rgba(37, 150, 190, 0.5);
+            background: rgba(30, 41, 59, 0.7);
+        }
+
+        .feature-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .feature h3 {
+            font-size: 1rem;
+            margin-bottom: 8px;
+            color: #f1f5f9;
+        }
+
+        .feature p {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2596be, #1e88e5);
+            color: white;
+            box-shadow: 0 10px 30px rgba(37, 150, 190, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(37, 150, 190, 0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: #2596be;
+            border: 2px solid #2596be;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(37, 150, 190, 0.1);
+        }
+
+        .tech-stack {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(37, 150, 190, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .tech-stack h3 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #f1f5f9;
+        }
+
+        .tech-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            text-align: left;
+        }
+
+        .tech-item {
+            display: flex;
+            align-items: center;
+            color: #cbd5e1;
+            font-size: 0.95rem;
+        }
+
+        .tech-item::before {
+            content: "✓";
+            color: #2596be;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(37, 150, 190, 0.2);
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .social-link {
+            color: #2596be;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .social-link:hover {
+            color: #1e88e5;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .tech-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🖼️</div>
+            <h1>WallBase</h1>
+            <p class="tagline">Elevate your Android aesthetic</p>
+            <p class="description">An open-source wallpaper discovery and management engine built for the modern Android ecosystem. Find, save, and automate high-quality wallpapers from the web's most curated sources.</p>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🎨</div>
+                <h3>Advanced Theming</h3>
+                <p>Switch between Light, Dark, Follow System, and true AMOLED Black modes.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🌈</div>
+                <h3>Custom Accents</h3>
+                <p>Personalize with a curated palette of UI accent colors or define your own custom color.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🖼️</div>
+                <h3>Curated Sources</h3>
+                <p>Browse from Reddit, Pinterest, Wallhaven, Danbooru, and more.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔄</div>
+                <h3>Auto-Refresh</h3>
+                <p>Keep your home screen fresh with automated wallpaper rotation at set intervals.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🚀</div>
+                <h3>Modern Stack</h3>
+                <p>Built with Jetpack Compose, Kotlin, and Material 3 for fluid performance.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <h3>Privacy Focused</h3>
+                <p>Secure your personal library with integrated biometric authentication.</p>
+            </div>
+        </div>
+
+        <div class="tech-stack">
+            <h3>⚙️ Tech Stack</h3>
+            <div class="tech-list">
+                <div class="tech-item">Kotlin</div>
+                <div class="tech-item">Jetpack Compose</div>
+                <div class="tech-item">Material 3</div>
+                <div class="tech-item">Room Database</div>
+                <div class="tech-item">DataStore</div>
+                <div class="tech-item">Coil</div>
+                <div class="tech-item">MVVM Architecture</div>
+                <div class="tech-item">Clean Architecture</div>
+            </div>
+        </div>
+
+        <div class="cta-buttons">
+            <a href="https://github.com/joshiminh/WallBase" class="btn btn-primary">View on GitHub</a>
+            <a href="https://github.com/joshiminh/WallBase/releases" class="btn btn-secondary">Download</a>
+        </div>
+
+        <div class="social-links">
+            <a href="https://github.com/joshiminh/WallBase" class="social-link">GitHub</a>
+            <a href="https://github.com/joshiminh/WallBase/issues" class="social-link">Issues</a>
+            <a href="https://github.com/joshiminh/WallBase/blob/main/LICENSE" class="social-link">License</a>
+        </div>
+
+        <div class="footer">
+            <p>© 2026 WallBase - An open-source project licensed under MIT License</p>
+            <p style="margin-top: 10px; color: #475569;">Made with ❤️ for the Android community</p>
+        </div>
+    </div>
+</body>
+</html>
+

@@ -71,7 +71,8 @@ class MainActivity : ComponentActivity() {
 
             WallBaseTheme(
                 appTheme = settingsUiState.appTheme,
-                appAccentColor = settingsUiState.appAccentColor
+                appAccentColor = settingsUiState.appAccentColor,
+                customAccentColorRgb = settingsUiState.customAccentColorRgb
             ) {
                 WallBaseApp(
                     sourcesUiState = sourcesUiState,
@@ -110,6 +111,7 @@ class MainActivity : ComponentActivity() {
                     onClearOriginals = settingsViewModel::clearOriginalDownloads,
                     onToggleIncludeSourcesInBackup = settingsViewModel::setIncludeSourcesInBackup,
                     onSetAppLockEnabled = settingsViewModel::setAppLockEnabled,
+                    onToggleShowHorizontalWallpapers = settingsViewModel::setShowHorizontalWallpapers,
                     onShowSettingsMessage = settingsViewModel::showMessage,
                     onCompleteOnboarding = settingsViewModel::markOnboardingComplete,
                 )

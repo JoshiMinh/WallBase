@@ -74,6 +74,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -615,39 +616,48 @@ fun LibraryScreen(
             },
             contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
         ) { innerPadding ->
-            LibraryContent(
-                uiState = uiState,
-                wallpapers = displayedWallpapers,
-                albums = displayedAlbums,
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it },
-                onWallpaperClick = onWallpaperClick,
-                onWallpaperLongPress = onWallpaperLongPress,
-                wallpaperSelectionIds = selectedWallpaperIds,
-                albumSelectionIds = selectedAlbumIds,
-                isWallpaperSelectionMode = isWallpaperSelection,
-                isAlbumSelectionMode = isAlbumSelection,
-                selectionMode = selectionMode,
-                onAlbumClick = onAlbumClick,
-                onAlbumLongPress = onAlbumLongPress,
-                onCreateAlbum = {
-                    libraryViewModel.createAlbum(it)
-                    showAlbumDialog = false
+            PullToRefreshBox(
+                isRefreshing = false,
+                onRefresh = {
+                    // Trigger preview refresh if needed
+                    // This is a placeholder for potential cache refresh logic
                 },
-                onRequestCreateAlbum = { showAlbumDialog = true },
-                onDismissCreateAlbum = { showAlbumDialog = false },
-                showAlbumDialog = showAlbumDialog,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
-                isSearching = isSearchActive,
-                searchQuery = trimmedQuery,
-                wallpaperGridColumns = wallpaperGridColumns,
-                wallpaperLayout = wallpaperLayout,
-                albumLayout = albumLayout,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-            )
+            ) {
+                LibraryContent(
+                    uiState = uiState,
+                    wallpapers = displayedWallpapers,
+                    albums = displayedAlbums,
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    onWallpaperClick = onWallpaperClick,
+                    onWallpaperLongPress = onWallpaperLongPress,
+                    wallpaperSelectionIds = selectedWallpaperIds,
+                    albumSelectionIds = selectedAlbumIds,
+                    isWallpaperSelectionMode = isWallpaperSelection,
+                    isAlbumSelectionMode = isAlbumSelection,
+                    selectionMode = selectionMode,
+                    onAlbumClick = onAlbumClick,
+                    onAlbumLongPress = onAlbumLongPress,
+                    onCreateAlbum = {
+                        libraryViewModel.createAlbum(it)
+                        showAlbumDialog = false
+                    },
+                    onRequestCreateAlbum = { showAlbumDialog = true },
+                    onDismissCreateAlbum = { showAlbumDialog = false },
+                    showAlbumDialog = showAlbumDialog,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    isSearching = isSearchActive,
+                    searchQuery = trimmedQuery,
+                    wallpaperGridColumns = wallpaperGridColumns,
+                    wallpaperLayout = wallpaperLayout,
+                    albumLayout = albumLayout,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
         DownloadProgressToast(

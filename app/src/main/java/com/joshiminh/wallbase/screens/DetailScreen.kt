@@ -12,7 +12,11 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -215,6 +219,9 @@ private fun DetailScreen(
     }
 
     val scrollState = rememberScrollState()
+    var zoomScale by remember { mutableFloatStateOf(1f) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -251,6 +258,18 @@ private fun DetailScreen(
                             modifier = previewModifier,
                             contentAlignment = Alignment.Center
                         ) {
+                            val transformState = rememberTransformableState { zoomChange, pan, _ ->
+                                zoomScale = (zoomScale * zoomChange).coerceIn(1f, 3f)
+                                // Allow panning when zoomed in
+                                if (zoomScale > 1f) {
+                                    offsetX += pan.x
+                                    offsetY += pan.y
+                                    // Clamp offsets to prevent panning too far
+                                    val maxOffset = 100f * (zoomScale - 1f)
+                                    offsetX = offsetX.coerceIn(-maxOffset, maxOffset)
+                                    offsetY = offsetY.coerceIn(-maxOffset, maxOffset)
+                                }
+                            }
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
@@ -263,6 +282,7 @@ private fun DetailScreen(
                                             )
                                         )
                                     )
+                                    .transformable(state = transformState)
                             )
                             if (previewBitmap != null) {
                                 Image(
@@ -270,14 +290,29 @@ private fun DetailScreen(
                                     contentDescription = null,
                                     modifier = Modifier
                                         .matchParentSize()
-                                        .clip(previewShape),
+                                        .clip(previewShape)
+                                        .graphicsLayer(
+                                            scaleX = zoomScale,
+                                            scaleY = zoomScale,
+                                            translationX = offsetX,
+                                            translationY = offsetY
+                                        )
+                                        .transformable(state = transformState),
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
                                 WallpaperPreviewImage(
                                     model = wallpaper.previewModel(),
                                     contentDescription = wallpaper.title,
-                                    modifier = Modifier.matchParentSize(),
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .graphicsLayer(
+                                            scaleX = zoomScale,
+                                            scaleY = zoomScale,
+                                            translationX = offsetX,
+                                            translationY = offsetY
+                                        )
+                                        .transformable(state = transformState),
                                     contentScale = ContentScale.Crop,
                                     clipShape = previewShape
                                 )

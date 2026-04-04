@@ -49,6 +49,7 @@ class SettingsViewModel(
                     it.copy(
                         appTheme = preferences.appTheme,
                         appAccentColor = preferences.appAccentColor,
+                        customAccentColorRgb = preferences.customAccentColorRgb,
                         animationsEnabled = preferences.animationsEnabled,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
                         albumLayout = preferences.albumLayout,
@@ -58,6 +59,7 @@ class SettingsViewModel(
                         dismissedUpdateVersion = preferences.dismissedUpdateVersion,
                         appLockEnabled = preferences.appLockEnabled,
                         hasCompletedOnboarding = preferences.onboardingCompleted,
+                        showHorizontalWallpapers = preferences.showHorizontalWallpapers,
                     )
                 }
             }
@@ -130,6 +132,14 @@ class SettingsViewModel(
         _uiState.update { it.copy(includeSourcesInBackup = include) }
         viewModelScope.launch {
             settingsRepository.setIncludeSourcesInBackup(include)
+        }
+    }
+
+    fun setShowHorizontalWallpapers(show: Boolean) {
+        if (_uiState.value.showHorizontalWallpapers == show) return
+        _uiState.update { it.copy(showHorizontalWallpapers = show) }
+        viewModelScope.launch {
+            settingsRepository.setShowHorizontalWallpapers(show)
         }
     }
 
@@ -343,8 +353,9 @@ class SettingsViewModel(
         val isBackingUp: Boolean = false,
         val isRestoring: Boolean = false,
         val message: String? = null,
-        val appTheme: AppTheme = AppTheme.SYSTEM,
+        val appTheme: AppTheme = AppTheme.LIGHT,
         val appAccentColor: AppAccentColor = AppAccentColor.PINK,
+        val customAccentColorRgb: String? = null,
         val animationsEnabled: Boolean = true,
         val wallpaperGridColumns: Int = 2,
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
@@ -368,6 +379,7 @@ class SettingsViewModel(
         val hasCheckedForUpdates: Boolean = false,
         val dismissedUpdateVersion: String? = null,
         val shouldRestartAfterImport: Boolean = false,
+        val showHorizontalWallpapers: Boolean = true,
     )
 
     private data class StorageUsage(

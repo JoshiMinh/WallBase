@@ -21,11 +21,7 @@ data class SourceSeed(
 )
 
 /** List of default sources bundled with the app. */
-val DefaultSources: List<SourceSeed> = listOf(
-    RedditSource,
-    PinterestSource,
-    AlphaCodersSource,
-)
+val DefaultSources: List<SourceSeed> = emptyList()
 
 
 

@@ -449,13 +449,8 @@ private fun SourceCard(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val shareUrl = remember(source) { sourceShareUrl(source) }
-    val isRemovable = source.providerKey in setOf(
-        SourceKeys.REDDIT,
-        SourceKeys.PINTEREST,
-        SourceKeys.WEBSITES,
-        SourceKeys.WALLHAVEN,
-        SourceKeys.UNSPLASH,
-        SourceKeys.ALPHA_CODERS
+    val isRemovable = source.providerKey !in setOf(
+        SourceKeys.LOCAL
     )
 
     Card(

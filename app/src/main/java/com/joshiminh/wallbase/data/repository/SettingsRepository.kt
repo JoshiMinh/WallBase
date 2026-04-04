@@ -43,16 +43,18 @@ class SettingsRepository(
             } else if (legacyDarkTheme) {
                 AppTheme.DARK
             } else {
-                AppTheme.SYSTEM
+                AppTheme.LIGHT
             }
 
             val accentColorStr = prefs[Keys.APP_ACCENT_COLOR]
             val appAccentColor = AppAccentColor.fromStorage(accentColorStr)
+            val customAccentColorRgb = prefs[Keys.CUSTOM_ACCENT_COLOR_RGB]
 
             val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES
             SettingsPreferences(
                 appTheme = appTheme,
                 appAccentColor = appAccentColor,
+                customAccentColorRgb = customAccentColorRgb,
                 animationsEnabled = prefs[Keys.ANIMATIONS_ENABLED] ?: true,
                 wallpaperGridColumns = wallpaperColumns,
                 albumLayout = albumLayout,
@@ -64,6 +66,7 @@ class SettingsRepository(
                 dismissedUpdateVersion = prefs[Keys.DISMISSED_UPDATE_VERSION],
                 appLockEnabled = prefs[Keys.APP_LOCK_ENABLED] ?: false,
                 onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: false,
+                showHorizontalWallpapers = prefs[Keys.SHOW_HORIZONTAL_WALLPAPERS] ?: true,
             )
         }
 
@@ -77,6 +80,16 @@ class SettingsRepository(
     suspend fun setAppAccentColor(color: AppAccentColor) {
         dataStore.edit { prefs ->
             prefs[Keys.APP_ACCENT_COLOR] = color.storageValue
+        }
+    }
+
+    suspend fun setCustomAccentColor(rgbValue: String?) {
+        dataStore.edit { prefs ->
+            if (rgbValue.isNullOrBlank()) {
+                prefs.remove(Keys.CUSTOM_ACCENT_COLOR_RGB)
+            } else {
+                prefs[Keys.CUSTOM_ACCENT_COLOR_RGB] = rgbValue
+            }
         }
     }
 
@@ -146,9 +159,16 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setShowHorizontalWallpapers(show: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.SHOW_HORIZONTAL_WALLPAPERS] = show
+        }
+    }
+
     private object Keys {
         val APP_THEME = stringPreferencesKey("app_theme")
         val APP_ACCENT_COLOR = stringPreferencesKey("app_accent_color")
+        val CUSTOM_ACCENT_COLOR_RGB = stringPreferencesKey("custom_accent_color_rgb")
         val DARK_THEME = booleanPreferencesKey("dark_theme") // legacy
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
         val ALBUM_LAYOUT = stringPreferencesKey("album_layout")
@@ -160,6 +180,7 @@ class SettingsRepository(
         val DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        val SHOW_HORIZONTAL_WALLPAPERS = booleanPreferencesKey("show_horizontal_wallpapers")
     }
 
     companion object {
@@ -175,6 +196,7 @@ class SettingsRepository(
 data class SettingsPreferences(
     val appTheme: AppTheme,
     val appAccentColor: AppAccentColor,
+    val customAccentColorRgb: String?,
     val animationsEnabled: Boolean,
     val wallpaperGridColumns: Int,
     val albumLayout: AlbumLayout,
@@ -185,6 +207,7 @@ data class SettingsPreferences(
     val dismissedUpdateVersion: String?,
     val appLockEnabled: Boolean,
     val onboardingCompleted: Boolean,
+    val showHorizontalWallpapers: Boolean,
 )
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -231,23 +254,23 @@ enum class WallpaperLayout {
 }
 
 enum class AppTheme {
-    SYSTEM,
     LIGHT,
-    DARK;
+    DARK,
+    SYSTEM;
 
     val storageValue: String
         get() = when (this) {
-            SYSTEM -> "system"
             LIGHT -> "light"
             DARK -> "dark"
+            SYSTEM -> "system"
         }
 
     companion object {
         fun fromStorage(value: String?): AppTheme = when (value) {
-            "light" -> LIGHT
             "dark" -> DARK
+            "system" -> SYSTEM
             "amoled" -> DARK // Migrate legacy amoled value to dark
-            else -> SYSTEM
+            else -> LIGHT // Default to LIGHT
         }
     }
 }
@@ -257,7 +280,8 @@ enum class AppAccentColor {
     RED,
     BLUE,
     GREEN,
-    PURPLE;
+    PURPLE,
+    CUSTOM;
 
     val storageValue: String
         get() = when (this) {
@@ -266,6 +290,7 @@ enum class AppAccentColor {
             BLUE -> "blue"
             GREEN -> "green"
             PURPLE -> "purple"
+            CUSTOM -> "custom"
         }
 
     companion object {
@@ -274,6 +299,7 @@ enum class AppAccentColor {
             "blue" -> BLUE
             "green" -> GREEN
             "purple" -> PURPLE
+            "custom" -> CUSTOM
             else -> PINK
         }
     }

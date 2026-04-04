@@ -14,24 +14,30 @@ import com.joshiminh.wallbase.data.repository.AppAccentColor
 private val DarkColorScheme = darkColorScheme()
 
 private val LightColorScheme = lightColorScheme(
-    surface = Color(0xFFFAF9F6),
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFEEEDEB),
-    onSurfaceVariant = Color(0xFF49454E),
-    background = Color(0xFFFFFBFE),
-    onBackground = Color(0xFF1C1B1F)
+    primary = LightPrimary,
+    onPrimary = LightOnPrimary,
+    primaryContainer = LightPrimaryContainer,
+    onPrimaryContainer = LightOnPrimaryContainer,
+    surface = LightSurface,
+    onSurface = LightOnSurface,
+    surfaceVariant = LightSurfaceVariant,
+    onSurfaceVariant = LightOnSurfaceVariant,
+    outline = LightOutline,
+    background = LightBackground,
+    onBackground = LightOnBackground
 )
 
 @Composable
 fun WallBaseTheme(
-    appTheme: AppTheme = AppTheme.SYSTEM,
+    appTheme: AppTheme = AppTheme.LIGHT,
     appAccentColor: AppAccentColor = AppAccentColor.PINK,
+    customAccentColorRgb: String? = null,
     content: @Composable () -> Unit
 ) {
     val isDark = when (appTheme) {
-        AppTheme.SYSTEM -> isSystemInDarkTheme()
         AppTheme.LIGHT -> false
         AppTheme.DARK -> true
+        AppTheme.SYSTEM -> isSystemInDarkTheme()
     }
 
     val baseColorScheme = when {
@@ -45,6 +51,16 @@ fun WallBaseTheme(
         AppAccentColor.BLUE -> AccentBlue
         AppAccentColor.GREEN -> AccentGreen
         AppAccentColor.PURPLE -> AccentPurple
+        AppAccentColor.CUSTOM -> {
+            // Parse custom color from RGB hex string (e.g., "FF5733")
+            customAccentColorRgb?.let {
+                try {
+                    Color(0xFF000000 or it.toLong(16))
+                } catch (e: Exception) {
+                    AccentPink // Fallback to default if parsing fails
+                }
+            } ?: AccentPink
+        }
     }
 
     val containerColor = lerp(

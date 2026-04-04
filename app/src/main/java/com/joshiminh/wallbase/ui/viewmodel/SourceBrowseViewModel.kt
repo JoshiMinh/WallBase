@@ -17,6 +17,7 @@ import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.util.AlbumSortOption
 import com.joshiminh.wallbase.util.WallpaperSortOption
 import com.joshiminh.wallbase.util.sortedWith
+import com.joshiminh.wallbase.util.filterByHorizontalPreference
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +46,7 @@ class SourceBrowseViewModel(
     private var nextPageCursor: String? = null
     private var autoDownloadEnabled: Boolean = false
     private var storageLimitBytes: Long = 0L
+    private var showHorizontalWallpapers: Boolean = true
 
     init {
         viewModelScope.launch {
@@ -121,10 +123,12 @@ class SourceBrowseViewModel(
                     val layout = preferences.wallpaperLayout
                     autoDownloadEnabled = preferences.autoDownload
                     storageLimitBytes = preferences.storageLimitBytes
+                    showHorizontalWallpapers = preferences.showHorizontalWallpapers
                     val needsUpdate = state.wallpaperGridColumns != columns ||
                         state.wallpaperLayout != layout ||
                         state.autoDownloadEnabled != preferences.autoDownload ||
-                        state.storageLimitBytes != preferences.storageLimitBytes
+                        state.storageLimitBytes != preferences.storageLimitBytes ||
+                        state.showHorizontalWallpapers != preferences.showHorizontalWallpapers
                     if (!needsUpdate) {
                         state
                     } else {
@@ -132,7 +136,8 @@ class SourceBrowseViewModel(
                             wallpaperGridColumns = columns,
                             wallpaperLayout = layout,
                             autoDownloadEnabled = preferences.autoDownload,
-                            storageLimitBytes = preferences.storageLimitBytes
+                            storageLimitBytes = preferences.storageLimitBytes,
+                            showHorizontalWallpapers = preferences.showHorizontalWallpapers
                         )
                     }
                 }
@@ -465,7 +470,8 @@ class SourceBrowseViewModel(
         val wallpaperGridColumns: Int = 2,
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
         val autoDownloadEnabled: Boolean = false,
-        val storageLimitBytes: Long = 0L
+        val storageLimitBytes: Long = 0L,
+        val showHorizontalWallpapers: Boolean = true
     )
 
     companion object {

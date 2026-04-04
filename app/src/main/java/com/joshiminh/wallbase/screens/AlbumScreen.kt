@@ -493,7 +493,6 @@ fun AlbumScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         AssistChip(onClick = {}, enabled = false, label = { Text("Removing downloads…") })
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
 
                     if (wallpapers.isEmpty()) {
                         val message = when {

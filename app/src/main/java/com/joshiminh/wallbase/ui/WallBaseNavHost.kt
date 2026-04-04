@@ -98,6 +98,7 @@ fun WallBaseApp(
     onClearOriginals: () -> Unit,
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onSetAppLockEnabled: (Boolean) -> Unit,
+    onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
 ) {
@@ -496,6 +497,7 @@ fun WallBaseApp(
                             onClearOriginals = onClearOriginals,
                             onToggleIncludeSourcesInBackup = onToggleIncludeSourcesInBackup,
                             onRequestAppLockChange = handleAppLockToggle,
+                            onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
                         )
                     }
                 }

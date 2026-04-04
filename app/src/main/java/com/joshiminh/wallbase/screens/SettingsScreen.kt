@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -63,10 +65,12 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -99,6 +103,7 @@ fun SettingsScreen(
     uiState: SettingsViewModel.SettingsUiState,
     onSetAppTheme: (AppTheme) -> Unit,
     onSetAppAccentColor: (AppAccentColor) -> Unit,
+    onSetCustomAccentColor: (String?) -> Unit = {},
     onToggleAnimations: (Boolean) -> Unit,
     onExportBackup: (Boolean) -> Unit,
     onImportBackup: () -> Unit,
@@ -110,6 +115,7 @@ fun SettingsScreen(
     onClearOriginals: () -> Unit,
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onRequestAppLockChange: (Boolean) -> Unit,
+    onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -118,6 +124,7 @@ fun SettingsScreen(
     var storageSliderValue by remember {
         mutableFloatStateOf(uiState.storageLimitBytes.toFloat() / oneGbBytes.toFloat())
     }
+    var showExportConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.storageLimitBytes) {
         storageSliderValue = uiState.storageLimitBytes.toFloat() / oneGbBytes.toFloat()
@@ -180,7 +187,9 @@ fun SettingsScreen(
                                 title = "Accent Color",
                                 subtitle = "Pick an accent color. Overrides Material You.",
                                 selectedColor = uiState.appAccentColor,
-                                onColorSelected = onSetAppAccentColor
+                                customColorRgb = uiState.customAccentColorRgb,
+                                onColorSelected = onSetAppAccentColor,
+                                onCustomColorSelected = onSetCustomAccentColor
                             )
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -191,6 +200,15 @@ fun SettingsScreen(
                                 checked = uiState.animationsEnabled,
                                 onCheckedChange = onToggleAnimations
                             )
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            SettingsToggleRow(
+                                title = "Show horizontal wallpapers",
+                                subtitle = "Display wallpapers that aren't designed for phone screens.",
+                                checked = uiState.showHorizontalWallpapers,
+                                onCheckedChange = onToggleShowHorizontalWallpapers
+                            )
                         }
                     }
                 }
@@ -199,7 +217,7 @@ fun SettingsScreen(
             item {
                 SettingsSection(spacing = 8.dp) {
                     Text(
-                        text = "Download",
+                        text = "Storage",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -220,19 +238,6 @@ fun SettingsScreen(
                                 .padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Downloads & storage",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "Control automatic downloads and cached files.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -372,7 +377,7 @@ fun SettingsScreen(
                                     )
                                     CacheActionButton(
                                         modifier = Modifier.weight(1f),
-                                        text = "Delete originals",
+                                        text = "Delete Downloads",
                                         icon = Icons.Outlined.Storage,
                                         onClick = onClearOriginals,
                                         enabled = !uiState.isClearingOriginals,
@@ -411,8 +416,7 @@ fun SettingsScreen(
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(
-                                        text = "Save your library and albums as a backup file. " +
-                                            "Optionally include downloaded sources.",
+                                        text = "Save your library and albums as a backup file.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -422,35 +426,7 @@ fun SettingsScreen(
                                     text = if (uiState.isBackingUp) "Exporting…" else "Export",
                                     enabled = !uiState.isBackingUp && !uiState.isRestoring,
                                     showProgress = uiState.isBackingUp,
-                                    onClick = { onExportBackup(uiState.includeSourcesInBackup) }
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "Include source files",
-                                        style = MaterialTheme.typography.titleSmall
-                                    )
-                                    Text(
-                                        text = "Attach downloaded wallpapers to the backup file.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = uiState.includeSourcesInBackup,
-                                    onCheckedChange = onToggleIncludeSourcesInBackup,
-                                    enabled = !uiState.isBackingUp && !uiState.isRestoring
+                                    onClick = { showExportConfirmation = true }
                                 )
                             }
 
@@ -543,7 +519,7 @@ fun SettingsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "© 2024 WallBase",
+                        text = "© 2026 WallBase",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -553,6 +529,36 @@ fun SettingsScreen(
 
         } // Closes LazyColumn
     } // Closes Scaffold
+
+    if (showExportConfirmation) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showExportConfirmation = false },
+            title = { Text("Include downloaded wallpapers?") },
+            text = {
+                Text("Would you like to include downloaded wallpapers in the backup file?\n\nThis will make the backup file larger but allow you to restore wallpapers along with your library.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showExportConfirmation = false
+                        onExportBackup(true)
+                    }
+                ) {
+                    Text("Include")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showExportConfirmation = false
+                        onExportBackup(false)
+                    }
+                ) {
+                    Text("Skip")
+                }
+            }
+        )
+    }
 } // Closes SettingsScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -593,9 +599,9 @@ private fun SettingsThemeRow(
             onExpandedChange = { expanded = it }
         ) {
             val label = when (selectedTheme) {
-                AppTheme.SYSTEM -> "Follow System"
                 AppTheme.LIGHT -> "Light"
                 AppTheme.DARK -> "Dark"
+                AppTheme.SYSTEM -> "Follow System"
             }
             TextButton(
                 onClick = { expanded = true },
@@ -609,9 +615,9 @@ private fun SettingsThemeRow(
                 onDismissRequest = { expanded = false }
             ) {
                 listOf(
-                    AppTheme.SYSTEM to "Follow System",
                     AppTheme.LIGHT to "Light",
-                    AppTheme.DARK to "Dark"
+                    AppTheme.DARK to "Dark",
+                    AppTheme.SYSTEM to "Follow System"
                 ).forEach { (theme, textLabel) ->
                     DropdownMenuItem(
                         text = { Text(textLabel) },
@@ -631,8 +637,12 @@ private fun SettingsColorRow(
     title: String,
     subtitle: String,
     selectedColor: AppAccentColor,
-    onColorSelected: (AppAccentColor) -> Unit
+    customColorRgb: String?,
+    onColorSelected: (AppAccentColor) -> Unit,
+    onCustomColorSelected: (String?) -> Unit = {}
 ) {
+    var showCustomColorDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -678,15 +688,60 @@ private fun SettingsColorRow(
                 ) {
                     if (selectedColor == accent) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Outlined.CleaningServices,
+                            imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
                             contentDescription = "Selected",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
             }
+
+            // Custom color option
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(
+                        customColorRgb?.let {
+                            try {
+                                Color(0xFF000000 or it.toLong(16))
+                            } catch (e: Exception) {
+                                MaterialTheme.colorScheme.outlineVariant
+                            }
+                        } ?: MaterialTheme.colorScheme.outlineVariant
+                    )
+                    .clickable { showCustomColorDialog = true },
+                contentAlignment = Alignment.Center
+            ) {
+                if (selectedColor == AppAccentColor.CUSTOM) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
+                        contentDescription = "Selected",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Text(
+                        text = "+",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
+            }
         }
+    }
+
+    if (showCustomColorDialog) {
+        CustomColorPickerDialog(
+            currentColor = customColorRgb,
+            onColorSelected = { newColor ->
+                onColorSelected(AppAccentColor.CUSTOM)
+                onCustomColorSelected(newColor)
+                showCustomColorDialog = false
+            },
+            onDismiss = { showCustomColorDialog = false }
+        )
     }
 }
 
@@ -989,4 +1044,76 @@ private fun restartApplication(activity: Activity, onRestartConsumed: () -> Unit
     exitProcess(0)
 }
 
+@Composable
+private fun CustomColorPickerDialog(
+    currentColor: String?,
+    onColorSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var colorInput by remember { mutableStateOf(currentColor?.uppercase() ?: "FF5733") }
+    var showError by remember { mutableStateOf(false) }
+
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Pick a Custom Color") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "Enter a hex color code (e.g., FF5733 or FF1E88E5):",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = colorInput,
+                    onValueChange = { input ->
+                        colorInput = input.uppercase().take(8)
+                        showError = false
+                    },
+                    label = { Text("Hex Color") },
+                    placeholder = { Text("FF5733") },
+                    isError = showError,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (showError) {
+                    Text(
+                        text = "Invalid hex color format",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                // Color preview
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            try {
+                                Color(0xFF000000 or colorInput.toLong(16))
+                            } catch (e: Exception) {
+                                MaterialTheme.colorScheme.outlineVariant
+                            }
+                        )
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (colorInput.length in 6..8 && colorInput.all { it in '0'..'9' || it in 'A'..'F' }) {
+                        onColorSelected(colorInput.takeLast(6))
+                    } else {
+                        showError = true
+                    }
+                }
+            ) {
+                Text("Apply")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
 
