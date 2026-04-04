@@ -4,307 +4,127 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="WallBase - Elevate your Android aesthetic. An open-source wallpaper discovery and management engine for the modern Android ecosystem.">
-    <meta name="theme-color" content="#2596be">
+    <meta name="theme-color" content="#121214">
+    <link rel="icon" type="image/png" href="../icon.png">
     <title>WallBase - Wallpaper Discovery & Management</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: #f1f5f9;
-            line-height: 1.6;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 800px;
-            text-align: center;
-        }
-
-        .header {
-            margin-bottom: 40px;
-        }
-
-        .logo {
-            width: 96px;
-            height: 96px;
-            margin: 0 auto 20px;
-            background: radial-gradient(circle at 30% 30%, #2596be, #1e88e5);
-            border-radius: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            box-shadow: 0 10px 40px rgba(37, 150, 190, 0.3);
-        }
-
-        h1 {
-            font-size: 3.5rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #2596be, #1e88e5);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .tagline {
-            font-size: 1.25rem;
-            color: #cbd5e1;
-            margin-bottom: 20px;
-            font-weight: 300;
-        }
-
-        .description {
-            font-size: 1rem;
-            color: #94a3b8;
-            margin-bottom: 40px;
-            line-height: 1.8;
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 40px;
-            text-align: left;
-        }
-
-        .feature {
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(37, 150, 190, 0.2);
-            border-radius: 12px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-
-        .feature:hover {
-            border-color: rgba(37, 150, 190, 0.5);
-            background: rgba(30, 41, 59, 0.7);
-        }
-
-        .feature-icon {
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-
-        .feature h3 {
-            font-size: 1rem;
-            margin-bottom: 8px;
-            color: #f1f5f9;
-        }
-
-        .feature p {
-            font-size: 0.9rem;
-            color: #94a3b8;
-        }
-
-        .cta-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 30px;
-        }
-
-        .btn {
-            padding: 12px 30px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #2596be, #1e88e5);
-            color: white;
-            box-shadow: 0 10px 30px rgba(37, 150, 190, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 40px rgba(37, 150, 190, 0.4);
-        }
-
-        .btn-secondary {
-            background: transparent;
-            color: #2596be;
-            border: 2px solid #2596be;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(37, 150, 190, 0.1);
-        }
-
-        .tech-stack {
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(37, 150, 190, 0.2);
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-        }
-
-        .tech-stack h3 {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            color: #f1f5f9;
-        }
-
-        .tech-list {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            text-align: left;
-        }
-
-        .tech-item {
-            display: flex;
-            align-items: center;
-            color: #cbd5e1;
-            font-size: 0.95rem;
-        }
-
-        .tech-item::before {
-            content: "✓";
-            color: #2596be;
-            margin-right: 8px;
-            font-weight: bold;
-        }
-
-        .footer {
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(37, 150, 190, 0.2);
-            color: #64748b;
-            font-size: 0.9rem;
-        }
-
-        .social-links {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            margin: 20px 0;
-        }
-
-        .social-link {
-            color: #2596be;
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-
-        .social-link:hover {
-            color: #1e88e5;
-        }
-
-        @media (max-width: 600px) {
-            h1 {
-                font-size: 2.5rem;
-            }
-
-            .features {
-                grid-template-columns: 1fr;
-            }
-
-            .cta-buttons {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-            }
-
-            .tech-list {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    
+    <!-- Preload Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="index.css">
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <div class="logo">🖼️</div>
-            <h1>WallBase</h1>
+        <!-- Hero Section -->
+        <section class="hero reveal">
+            <div class="logo-container">
+                <img src="../icon.png" alt="WallBase Logo" class="logo">
+            </div>
             <p class="tagline">Elevate your Android aesthetic</p>
-            <p class="description">An open-source wallpaper discovery and management engine built for the modern Android ecosystem. Find, save, and automate high-quality wallpapers from the web's most curated sources.</p>
-        </div>
+            <h1>WallBase</h1>
+            <p class="hero-description">An open-source wallpaper engine built for the modern Android ecosystem. Find, save, and automate high-quality wallpapers from the web's most curated sources.</p>
+            
+            <div class="cta-buttons">
+                <a href="https://github.com/joshiminh/WallBase" class="btn btn-primary" target="_blank">
+                    <span>View on GitHub</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
+                </a>
+                <a href="https://github.com/joshiminh/WallBase/releases" class="btn btn-secondary" target="_blank">
+                    <span>Download APK</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y1="3"></line></svg>
+                </a>
+            </div>
+        </section>
 
-        <div class="features">
-            <div class="feature">
-                <div class="feature-icon">🎨</div>
-                <h3>Advanced Theming</h3>
-                <p>Switch between Light, Dark, Follow System, and true AMOLED Black modes.</p>
+        <!-- Feature Showcase Section -->
+        <section class="showcase">
+            <div class="showcase-item reveal">
+                <div class="showcase-content">
+                    <span class="badge">Dynamic Design</span>
+                    <h2>Advanced Theming & Customization</h2>
+                    <p>Experience true Material 3 implementation. Switch between Light, Dark, Follow System, and AMOLED Black modes. Personalize your experience with a curated palette of UI accent colors or define your own custom shades.</p>
+                </div>
+                <div class="showcase-visual">
+                    <div class="mockup-wrapper">
+                        <img src="../previews/library_preview.jpg" alt="WallBase Theming Preview" class="preview-img">
+                    </div>
+                </div>
             </div>
-            <div class="feature">
-                <div class="feature-icon">🌈</div>
-                <h3>Custom Accents</h3>
-                <p>Personalize with a curated palette of UI accent colors or define your own custom color.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🖼️</div>
-                <h3>Curated Sources</h3>
-                <p>Browse from Reddit, Pinterest, Wallhaven, Danbooru, and more.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🔄</div>
-                <h3>Auto-Refresh</h3>
-                <p>Keep your home screen fresh with automated wallpaper rotation at set intervals.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🚀</div>
-                <h3>Modern Stack</h3>
-                <p>Built with Jetpack Compose, Kotlin, and Material 3 for fluid performance.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🔒</div>
-                <h3>Privacy Focused</h3>
-                <p>Secure your personal library with integrated biometric authentication.</p>
-            </div>
-        </div>
 
-        <div class="tech-stack">
-            <h3>⚙️ Tech Stack</h3>
-            <div class="tech-list">
-                <div class="tech-item">Kotlin</div>
-                <div class="tech-item">Jetpack Compose</div>
-                <div class="tech-item">Material 3</div>
-                <div class="tech-item">Room Database</div>
-                <div class="tech-item">DataStore</div>
-                <div class="tech-item">Coil</div>
-                <div class="tech-item">MVVM Architecture</div>
-                <div class="tech-item">Clean Architecture</div>
+            <div class="showcase-item reveal">
+                <div class="showcase-content">
+                    <span class="badge">Infinite Sources</span>
+                    <h2>Extensive Wallpaper Engines</h2>
+                    <p>Browse through millions of high-resolution images from the most popular sources on the web. From minimalist photography to digital art, WallBase connects you to the best repositories including Wallhaven, Unsplash, Reddit, and more.</p>
+                </div>
+                <div class="showcase-visual">
+                    <div class="mockup-wrapper" style="transform: rotateX(5deg) rotateY(-10deg);">
+                        <img src="../previews/sources_preview.jpg" alt="WallBase Sources Preview" class="preview-img">
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div class="cta-buttons">
-            <a href="https://github.com/joshiminh/WallBase" class="btn btn-primary">View on GitHub</a>
-            <a href="https://github.com/joshiminh/WallBase/releases" class="btn btn-secondary">Download</a>
-        </div>
+            <div class="showcase-item reveal">
+                <div class="showcase-content">
+                    <span class="badge">Smart Automation</span>
+                    <h2>Seamless Background Refresh</h2>
+                    <p>Keep your home screen alive with automated wallpaper rotation. Define your favorite sources, set a refresh interval, and let WallBase handle the rest. Built with efficient background workers to ensure minimal battery impact.</p>
+                </div>
+                <div class="showcase-visual">
+                    <div class="mockup-wrapper" style="transform: rotateX(-5deg) rotateY(10deg);">
+                        <img src="../previews/settings_preview.jpg" alt="WallBase Automation Preview" class="preview-img">
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        <div class="social-links">
-            <a href="https://github.com/joshiminh/WallBase" class="social-link">GitHub</a>
-            <a href="https://github.com/joshiminh/WallBase/issues" class="social-link">Issues</a>
-            <a href="https://github.com/joshiminh/WallBase/blob/main/LICENSE" class="social-link">License</a>
-        </div>
+        <!-- Source Integration Grid -->
+        <section class="sources-section reveal">
+            <h3>Integrated Sources</h3>
+            <div class="sources-grid">
+                <a href="https://reddit.com" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=reddit.com&sz=64" alt="Reddit" class="source-icon">
+                    <span>Reddit</span>
+                </a>
+                <a href="https://wallhaven.cc" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=wallhaven.cc&sz=64" alt="Wallhaven" class="source-icon">
+                    <span>Wallhaven</span>
+                </a>
+                <a href="https://unsplash.com" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=unsplash.com&sz=64" alt="Unsplash" class="source-icon">
+                    <span>Unsplash</span>
+                </a>
+                <a href="https://pinterest.com" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=pinterest.com&sz=64" alt="Pinterest" class="source-icon">
+                    <span>Pinterest</span>
+                </a>
+                <a href="https://wall.alphacoders.com" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=wall.alphacoders.com&sz=64" alt="AlphaCoders" class="source-icon">
+                    <span>AlphaCoders</span>
+                </a>
+                <a href="https://pixiv.net" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=pixiv.net&sz=64" alt="Pixiv" class="source-icon">
+                    <span>Pixiv</span>
+                </a>
+            </div>
+        </section>
 
-        <div class="footer">
-            <p>© 2026 WallBase - An open-source project licensed under MIT License</p>
-            <p style="margin-top: 10px; color: #475569;">Made with ❤️ for the Android community</p>
-        </div>
+        <!-- Footer -->
+        <footer class="footer reveal">
+            <div class="social-links">
+                <a href="https://github.com/joshiminh/WallBase" class="social-link" target="_blank">GitHub</a>
+                <a href="https://github.com/joshiminh/WallBase/issues" class="social-link" target="_blank">Issues</a>
+                <a href="https://github.com/joshiminh/WallBase/blob/main/LICENSE" class="social-link" target="_blank">License</a>
+            </div>
+            <p class="copyright">© 2026 WallBase - Built with Material 3 for Android.</p>
+            <p class="copyright" style="margin-top: 10px; opacity: 0.5;">An open-source project by JoshiMinh.</p>
+        </footer>
     </div>
+
+    <!-- Scripts -->
+    <script src="index.js"></script>
 </body>
 </html>
-

@@ -1,4 +1,3 @@
-_```markdown
 <div align="center">
   <img src="icon.png" alt="WallBase Icon" width="96"/>
 
@@ -12,41 +11,30 @@ _```markdown
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84.svg?logo=android)](https://www.android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-7F52FF.svg?logo=kotlin)](https://kotlinlang.org)
 </div>
-```
 
-```markdown
 ---
 
 ## ✨ Features
 
-- 🖼️ **Curated Sources:** Browse wallpapers from Reddit, Pinterest, Wallhaven, and Danbooru.
+- 🖼️ **Curated Sources:** Browse wallpapers from Reddit, Pinterest, Wallhaven, and more.
 - 🎨 **Advanced Theming:** Switch between Light, Dark, and true **AMOLED Black** modes.
 - 🌈 **Custom Accents:** Personalize your experience with a curated palette of UI accent colors.
 - 🔄 **Auto-Refresh:** Keep your home screen fresh with automated wallpaper rotation.
 - 🚀 **Modern Stack:** Built with **Jetpack Compose**, **Kotlin**, and **Material 3** for smooth performance.
 - 🔒 **Privacy Focused:** Secure your library with integrated biometric authentication.
-```
 
-```markdown
-## 🛠️ Tech Stack
+## 📱 Previews
 
-- **Kotlin** / **Java**
-- **Jetpack Compose**
-- **Material 3**
-- **Gradle**
-- **AndroidX**
-```
-
-```markdown
----
+<div align="center">
+  <img src="previews/library_preview.jpg" alt="Library Preview" width="250"/>
+  <img src="previews/sources_preview.jpg" alt="Sources Preview" width="250"/>
+  <img src="previews/settings_preview.jpg" alt="Settings Preview" width="250"/>
+</div>
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request.
-```
 
-```markdown
 ## 📄 License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-```
