@@ -247,14 +247,13 @@ fun AlbumPickerDialog(
     onCreateNew: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(if (albums.isEmpty()) 1 else 0) }
     var selectedAlbumId by rememberSaveable { mutableStateOf(albums.firstOrNull()?.id) }
     var newAlbumTitle by rememberSaveable { mutableStateOf("") }
 
     val existingTab = "Existing"
     val newTab = "New"
     val addLabel = "Add"
-    val noAlbumsMessage = "Create an album in your library to start organizing wallpapers."
 
     val tabs = listOf(existingTab, newTab)
 
@@ -262,7 +261,10 @@ fun AlbumPickerDialog(
         selectedAlbumId = when {
             albums.isEmpty() -> null
             selectedAlbumId != null && albums.any { it.id == selectedAlbumId } -> selectedAlbumId
-            else -> albums.first().id
+            else -> albums.firstOrNull()?.id
+        }
+        if (albums.isEmpty() && selectedTab == 0) {
+            selectedTab = 1
         }
     }
 
@@ -271,66 +273,39 @@ fun AlbumPickerDialog(
         title = { Text(text = "Add to album") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    tabs.forEachIndexed { index, title ->
-                        SegmentedButton(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            shape = SegmentedButtonDefaults.itemShape(index, tabs.size),
-                            icon = {
-                                val icon = if (index == 0) Icons.Outlined.Album else Icons.Outlined.Add
-                                Icon(imageVector = icon, contentDescription = null)
-                            },
-                            label = { Text(title) }
-                        )
+                // Always show tab row if there are albums
+                if (albums.isNotEmpty()) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        tabs.forEachIndexed { index, title ->
+                            SegmentedButton(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                shape = SegmentedButtonDefaults.itemShape(index, tabs.size),
+                                icon = {
+                                    val icon = if (index == 0) Icons.Outlined.Album else Icons.Outlined.Add
+                                    Icon(imageVector = icon, contentDescription = null)
+                                },
+                                label = { Text(title) }
+                            )
+                        }
                     }
                 }
-                when (selectedTab) {
-                    0 -> {
-                        if (albums.isEmpty()) {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 20.dp, vertical = 24.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Album,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = noAlbumsMessage,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
-                        } else {
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.heightIn(max = 280.dp),
-                                contentPadding = PaddingValues(vertical = 4.dp)
-                            ) {
-                                items(albums, key = AlbumItem::id) { album ->
-                                    AlbumSelectionRow(
-                                        album = album,
-                                        isSelected = album.id == selectedAlbumId,
-                                        onClick = { selectedAlbumId = album.id }
-                                    )
-                                }
+                when {
+                    selectedTab == 0 -> {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.heightIn(max = 280.dp),
+                            contentPadding = PaddingValues(vertical = 4.dp)
+                        ) {
+                            items(albums, key = AlbumItem::id) { album ->
+                                AlbumSelectionRow(
+                                    album = album,
+                                    isSelected = album.id == selectedAlbumId,
+                                    onClick = { selectedAlbumId = album.id }
+                                )
                             }
                         }
                     }
-
                     else -> {
                         Column(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -358,14 +333,14 @@ fun AlbumPickerDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (selectedTab == 0) {
+                    if (selectedTab == 0 && albums.isNotEmpty()) {
                         selectedAlbumId?.let(onAddToExisting)
                     } else {
                         onCreateNew(newAlbumTitle)
                     }
                 },
-                enabled = when (selectedTab) {
-                    0 -> selectedAlbumId != null && !isBusy
+                enabled = when {
+                    selectedTab == 0 -> selectedAlbumId != null && !isBusy
                     else -> newAlbumTitle.isNotBlank() && !isBusy
                 }
             ) {
@@ -373,7 +348,7 @@ fun AlbumPickerDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, enabled = !isBusy) {
                 Text(text = "Cancel")
             }
         }

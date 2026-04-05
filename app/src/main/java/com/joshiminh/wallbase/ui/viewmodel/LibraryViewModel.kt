@@ -19,6 +19,8 @@ import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.util.AlbumSortOption
 import com.joshiminh.wallbase.util.WallpaperSortOption
 import com.joshiminh.wallbase.util.sortedWith
+import com.joshiminh.wallbase.util.DownloadedFilter
+import com.joshiminh.wallbase.util.filterByDownloadStatus
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,6 +44,7 @@ class LibraryViewModel(
     private val directAddStatus = MutableStateFlow<Boolean?>(null)
     private val wallpaperSort = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
     private val albumSort = MutableStateFlow(AlbumSortOption.TITLE_ASCENDING)
+    private val downloadedFilter = MutableStateFlow(DownloadedFilter.SHOW_ALL)
     private var storageLimitBytes: Long = 0L
 
     val uiState: StateFlow<LibraryUiState> =
@@ -56,14 +59,15 @@ class LibraryViewModel(
             albumSort,
             settingsRepository.preferences,
             directAddInProgress,
-            directAddStatus
+            directAddStatus,
+            downloadedFilter
         ) { values ->
             values.toLibraryStateInputs()
         }.map { inputs ->
             storageLimitBytes = inputs.preferences.storageLimitBytes
 
             LibraryUiState(
-                wallpapers = inputs.wallpapers.sortedWith(inputs.wallpaperSortOption),
+                wallpapers = inputs.wallpapers.sortedWith(inputs.wallpaperSortOption).filterByDownloadStatus(inputs.downloadedFilter),
                 albums = inputs.albums.sortedWith(inputs.albumSortOption),
                 isCreatingAlbum = inputs.isCreatingAlbum,
                 isSelectionActionInProgress = inputs.isSelectionActionInProgress,
@@ -75,7 +79,8 @@ class LibraryViewModel(
                 albumLayout = inputs.preferences.albumLayout,
                 wallpaperLayout = inputs.preferences.wallpaperLayout,
                 isDirectAddInProgress = inputs.isDirectAddInProgress,
-                directAddCompleted = inputs.directAddCompleted
+                directAddCompleted = inputs.directAddCompleted,
+                downloadedFilter = inputs.downloadedFilter
             )
         }.stateIn(
             scope = viewModelScope,
@@ -89,6 +94,10 @@ class LibraryViewModel(
 
     fun updateAlbumSort(option: AlbumSortOption) {
         albumSort.value = option
+    }
+
+    fun updateDownloadedFilter(filter: DownloadedFilter) {
+        downloadedFilter.value = filter
     }
 
     fun updateWallpaperGridColumns(columns: Int) {
@@ -391,7 +400,8 @@ class LibraryViewModel(
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
         val isDirectAddInProgress: Boolean = false,
-        val directAddCompleted: Boolean? = null
+        val directAddCompleted: Boolean? = null,
+        val downloadedFilter: DownloadedFilter = DownloadedFilter.SHOW_ALL
     )
 
     enum class SelectionAction {
@@ -427,7 +437,8 @@ private data class LibraryStateInputs(
     val albumSortOption: AlbumSortOption,
     val preferences: SettingsPreferences,
     val isDirectAddInProgress: Boolean,
-    val directAddCompleted: Boolean?
+    val directAddCompleted: Boolean?,
+    val downloadedFilter: DownloadedFilter
 )
 
 private fun Array<Any?>.toLibraryStateInputs(): LibraryStateInputs {
@@ -442,7 +453,8 @@ private fun Array<Any?>.toLibraryStateInputs(): LibraryStateInputs {
         albumSortOption = this[7] as AlbumSortOption,
         preferences = this[8] as SettingsPreferences,
         isDirectAddInProgress = this[9] as Boolean,
-        directAddCompleted = this[10] as Boolean?
+        directAddCompleted = this[10] as Boolean?,
+        downloadedFilter = this[11] as DownloadedFilter
     )
 }
 

@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.text.format.Formatter
+import android.graphics.Color as AndroidColor
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -204,10 +205,10 @@ fun SettingsScreen(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                             SettingsToggleRow(
-                                title = "Show horizontal wallpapers",
-                                subtitle = "Display wallpapers that aren't designed for phone screens.",
-                                checked = uiState.showHorizontalWallpapers,
-                                onCheckedChange = onToggleShowHorizontalWallpapers
+                                title = "Show only phone wallpaper",
+                                subtitle = "Hide wallpapers that aren't designed for phone screens.",
+                                checked = !uiState.showHorizontalWallpapers,
+                                onCheckedChange = { onToggleShowHorizontalWallpapers(!it) }
                             )
                         }
                     }
@@ -351,11 +352,11 @@ fun SettingsScreen(
                                     Icon(imageVector = Icons.Outlined.CleaningServices, contentDescription = null)
                                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text(
-                                            text = "Cache actions",
+                                            text = "Remove",
                                             style = MaterialTheme.typography.titleMedium
                                         )
                                         Text(
-                                            text = "Quickly clear cached wallpaper files.",
+                                            text = "Clear cached wallpaper files.",
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -369,7 +370,7 @@ fun SettingsScreen(
                                 ) {
                                     CacheActionButton(
                                         modifier = Modifier.weight(1f),
-                                        text = "Delete previews",
+                                        text = "Previews",
                                         icon = Icons.Outlined.Image,
                                         onClick = onClearPreviewCache,
                                         enabled = !uiState.isClearingPreviews,
@@ -377,7 +378,7 @@ fun SettingsScreen(
                                     )
                                     CacheActionButton(
                                         modifier = Modifier.weight(1f),
-                                        text = "Delete Downloads",
+                                        text = "Downloads",
                                         icon = Icons.Outlined.Storage,
                                         onClick = onClearOriginals,
                                         enabled = !uiState.isClearingOriginals,
@@ -616,8 +617,7 @@ private fun SettingsThemeRow(
             ) {
                 listOf(
                     AppTheme.LIGHT to "Light",
-                    AppTheme.DARK to "Dark",
-                    AppTheme.SYSTEM to "Follow System"
+                    AppTheme.DARK to "Dark"
                 ).forEach { (theme, textLabel) ->
                     DropdownMenuItem(
                         text = { Text(textLabel) },
@@ -1052,55 +1052,63 @@ private fun CustomColorPickerDialog(
 ) {
     var colorInput by remember { mutableStateOf(currentColor?.uppercase() ?: "FF5733") }
     var showError by remember { mutableStateOf(false) }
+    val fallbackColor = MaterialTheme.colorScheme.outlineVariant
+
+    val getCurrentColor = {
+        try {
+            Color(0xFF000000 or colorInput.toLong(16))
+        } catch (e: Exception) {
+            fallbackColor
+        }
+    }
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Pick a Custom Color") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Enter a hex color code (e.g., FF5733 or FF1E88E5):",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                androidx.compose.material3.OutlinedTextField(
-                    value = colorInput,
-                    onValueChange = { input ->
-                        colorInput = input.uppercase().take(8)
-                        showError = false
-                    },
-                    label = { Text("Hex Color") },
-                    placeholder = { Text("FF5733") },
-                    isError = showError,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (showError) {
-                    Text(
-                        text = "Invalid hex color format",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Color preview
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(
-                            try {
-                                Color(0xFF000000 or colorInput.toLong(16))
-                            } catch (e: Exception) {
-                                MaterialTheme.colorScheme.outlineVariant
-                            }
-                        )
+                        .height(120.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(getCurrentColor.invoke())
                 )
+
+                // Hex input field
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Hex Color",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = colorInput,
+                        onValueChange = { input ->
+                            colorInput = input.uppercase().take(6)
+                            showError = false
+                        },
+                        placeholder = { Text("FF5733") },
+                        isError = showError,
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        prefix = { Text("#") }
+                    )
+                    if (showError) {
+                        Text(
+                            text = "Invalid hex color format (use 6 hex characters)",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (colorInput.length in 6..8 && colorInput.all { it in '0'..'9' || it in 'A'..'F' }) {
-                        onColorSelected(colorInput.takeLast(6))
+                    if (colorInput.length == 6 && colorInput.all { it in '0'..'9' || it in 'A'..'F' }) {
+                        onColorSelected(colorInput)
                     } else {
                         showError = true
                     }

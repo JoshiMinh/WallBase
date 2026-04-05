@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="WallBase - Elevate your Android aesthetic. An open-source wallpaper discovery and management engine for the modern Android ecosystem.">
+    <meta name="theme-color" content="#121214">
+    <link rel="icon" type="image/png" href="icon.png">
+    <title>WallBase - Wallpaper Discovery & Management</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #be185d;
+            --primary-hover: #9d174d;
+            --bg-dark: #121214;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --section-spacing: 80px;
+            /* Reduced from 140px */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 0% 0%, rgba(190, 24, 93, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 100% 100%, rgba(190, 24, 93, 0.08) 0%, transparent 40%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1100px;
+            /* Slightly narrower for better focus */
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            padding: 80px 0 60px;
+            /* Reduced padding */
+        }
+
+        .logo-container {
+            width: 80px;
+            /* Slightly smaller logo */
+            height: 80px;
+            margin: 0 auto 24px;
+        }
+
+        .logo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4));
+        }
+
+        h1 {
+            font-size: clamp(2.5rem, 8vw, 4.2rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff 40%, var(--primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 1.2rem;
+            color: var(--primary);
+            font-weight: 600;
+            margin-bottom: 24px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+
+        .hero-description {
+            font-size: 1.15rem;
+            max-width: 650px;
+            margin: 0 auto 48px;
+            color: var(--text-muted);
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            border-radius: 100px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(190, 24, 93, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 32px rgba(190, 24, 93, 0.4);
+            background: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background: var(--glass-bg);
+            color: #fff;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+            transform: translateY(-4px);
+        }
+
+        .btn-support {
+            background: #29abe0;
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(41, 171, 224, 0.1);
+        }
+
+        .btn-support:hover {
+            background: #1da1f2;
+            transform: translateY(-4px);
+            box-shadow: 0 16px 32px rgba(41, 171, 224, 0.3);
+        }
+
+        /* Showcase */
+        .showcase {
+            padding: 40px 0;
+            /* Reduced top/bottom padding */
+        }
+
+        .showcase-item {
+            display: flex;
+            align-items: center;
+            gap: 60px;
+            margin-bottom: 100px;
+            /* Reduced from 160px */
+        }
+
+        .showcase-item:nth-child(even) {
+            flex-direction: row-reverse;
+        }
+
+        .showcase-content {
+            flex: 1.1;
+        }
+
+        .showcase-content h2 {
+            font-size: 2.4rem;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            color: #fff;
+        }
+
+        .showcase-content p {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        .showcase-visual {
+            flex: 0.9;
+            display: flex;
+            justify-content: center;
+        }
+
+        .mockup-wrapper {
+            width: 280px;
+            /* Slightly smaller mockups to reduce space */
+            border-radius: 40px;
+            padding: 6px;
+            background: #161618;
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--glass-border);
+            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .preview-img {
+            width: 100%;
+            border-radius: 34px;
+            display: block;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(190, 24, 93, 0.1);
+            color: var(--primary);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            letter-spacing: 0.1em;
+        }
+
+        /* Sources Section */
+        .sources-section {
+            text-align: center;
+            padding: 60px 0;
+            /* Reduced padding */
+            margin-bottom: 40px;
+        }
+
+        .sources-section h3 {
+            font-size: 2.1rem;
+            margin-bottom: 40px;
+            color: #fff;
+        }
+
+        .sources-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .source-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            padding: 24px 16px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .source-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            object-fit: contain;
+        }
+
+        .source-item span {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        .source-item:hover {
+            transform: translateY(-6px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--primary);
+        }
+
+        /* Redesigned Minimal Footer */
+        .footer {
+            padding: 40px 0;
+            text-align: center;
+            border-top: 1px solid var(--glass-border);
+            margin-top: 40px;
+        }
+
+        .copyright {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-weight: 500;
+            opacity: 0.7;
+            letter-spacing: 0.02em;
+        }
+
+        /* Reveal Animation */
+        .reveal {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 992px) {
+
+            .showcase-item,
+            .showcase-item:nth-child(even) {
+                flex-direction: column;
+                text-align: center;
+                gap: 40px;
+            }
+
+            .sources-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .cta-buttons {
+                flex-direction: column;
+                max-width: 320px;
+                margin: 0 auto;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .sources-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero {
+                padding-top: 60px;
+            }
+
+            h1 {
+                font-size: 2.8rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <section class="hero reveal">
+            <div class="logo-container">
+                <img src="icon.png" alt="WallBase Logo" class="logo" width="80" height="80">
+            </div>
+            <p class="tagline">Elevate your Android aesthetic</p>
+            <h1>WallBase</h1>
+            <p class="hero-description">An open-source wallpaper engine built for the modern Android ecosystem. Find,
+                save, and automate high-quality wallpapers from the web.</p>
+
+            <div class="cta-buttons">
+                <a href="https://github.com/joshiminh/WallBase" class="btn btn-primary" target="_blank">
+                    <span>View on GitHub</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
+                        </path>
+                    </svg>
+                </a>
+                <a href="https://github.com/joshiminh/WallBase/releases" class="btn btn-secondary" target="_blank">
+                    <span>Download APK</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y1="3"></line>
+                    </svg>
+                </a>
+                <a href="https://ko-fi.com/joshiminh" class="btn btn-support" target="_blank">
+                    <span>Support Project</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                            fill="currentColor"></path>
+                    </svg>
+                </a>
+            </div>
+        </section>
+
+        <section class="showcase">
+            <div class="showcase-item reveal">
+                <div class="showcase-content">
+                    <span class="badge">Your Collection</span>
+                    <h2>Endless Library</h2>
+                    <p>Beautifuully manage your wallpapers in an endless gallery. Download your favorites and organize
+                        them into personal albums with ease.</p>
+                </div>
+                <div class="showcase-visual">
+                    <div class="mockup-wrapper">
+                        <img src="previews/library_preview.jpg" alt="WallBase Library Preview" class="preview-img"
+                            loading="lazy">
+                    </div>
+                </div>
+            </div>
+
+            <div class="showcase-item reveal">
+                <div class="showcase-content">
+                    <span class="badge">Infinite Sources</span>
+                    <h2>Global Curation</h2>
+                    <p>Browse through millions of high-resolution images from Reddit, Pinterest, Wallhaven, and more,
+                        all within a single discovery engine.</p>
+                </div>
+                <div class="showcase-visual">
+                    <div class="mockup-wrapper" style="transform: rotateX(5deg) rotateY(-10deg);">
+                        <img src="previews/sources_preview.jpg" alt="WallBase Sources Preview" class="preview-img"
+                            loading="lazy">
+                    </div>
+                </div>
+            </div>
+
+            <div class="showcase-item reveal">
+                <div class="showcase-content">
+                    <span class="badge">Full Control</span>
+                    <h2>Settings & Privacy</h2>
+                    <p>Personalize every detail with advanced accents and theming. Secure your experience with app
+                        locking and easily export your configuration.</p>
+                </div>
+                <div class="showcase-visual">
+                    <div class="mockup-wrapper" style="transform: rotateX(-5deg) rotateY(10deg);">
+                        <img src="previews/settings_preview.jpg" alt="WallBase Settings Preview" class="preview-img"
+                            loading="lazy">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sources-section reveal">
+            <h3>Integrated Sources</h3>
+            <div class="sources-grid">
+                <a href="https://reddit.com" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=reddit.com&sz=64" alt="Reddit"
+                        class="source-icon" width="40" height="40">
+                    <span>Reddit</span>
+                </a>
+                <a href="https://wallhaven.cc" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=wallhaven.cc&sz=64" alt="Wallhaven"
+                        class="source-icon" width="40" height="40">
+                    <span>Wallhaven</span>
+                </a>
+                <a href="https://unsplash.com" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=unsplash.com&sz=64" alt="Unsplash"
+                        class="source-icon" width="40" height="40">
+                    <span>Unsplash</span>
+                </a>
+                <a href="https://pinterest.com" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=pinterest.com&sz=64" alt="Pinterest"
+                        class="source-icon" width="40" height="40">
+                    <span>Pinterest</span>
+                </a>
+                <a href="https://wall.alphacoders.com" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=wall.alphacoders.com&sz=64" alt="AlphaCoders"
+                        class="source-icon" width="40" height="40">
+                    <span>AlphaCoders</span>
+                </a>
+                <a href="https://pixiv.net" class="source-item" target="_blank">
+                    <img src="https://www.google.com/s2/favicons?domain=pixiv.net&sz=64" alt="Pixiv" class="source-icon"
+                        width="40" height="40">
+                    <span>Pixiv</span>
+                </a>
+            </div>
+        </section>
+
+        <footer class="footer reveal">
+            <p class="copyright">© 2026 WallBase — Open-source Project by JoshiMinh</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+            const mockups = document.querySelectorAll('.mockup-wrapper');
+            mockups.forEach(mockup => {
+                mockup.addEventListener('mousemove', (e) => {
+                    const { left, top, width, height } = mockup.getBoundingClientRect();
+                    const x = (e.clientX - left - width / 2) / 15;
+                    const y = (e.clientY - top - height / 2) / 15;
+                    mockup.style.transform = `perspective(1000px) rotateX(${-y}deg) rotateY(${x}deg) translateY(-8px)`;
+                });
+
+                mockup.addEventListener('mouseleave', () => {
+                    mockup.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0)`;
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

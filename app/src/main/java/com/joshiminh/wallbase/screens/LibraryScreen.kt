@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -53,7 +54,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +74,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.Button
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
@@ -126,6 +127,7 @@ import com.joshiminh.wallbase.util.SortSelection
 import com.joshiminh.wallbase.util.toAlbumSortOption
 import com.joshiminh.wallbase.util.toSelection
 import com.joshiminh.wallbase.util.toWallpaperSortOption
+import com.joshiminh.wallbase.util.DownloadedFilter
 import com.joshiminh.wallbase.ui.viewmodel.LibraryViewModel
 import androidx.compose.foundation.lazy.grid.items as gridItems
 
@@ -591,16 +593,8 @@ fun LibraryScreen(
 
                     selectedTab == 1 -> {
                         val creating = uiState.isCreatingAlbum
-                        ExtendedFloatingActionButton(
+                        FloatingActionButton(
                             onClick = { if (!creating) showAlbumDialog = true },
-                            icon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Add,
-                                    contentDescription = "Add album"
-                                )
-                            },
-                            text = { Text(text = "Add album") },
-                            expanded = true,
                             modifier = Modifier.then(
                                 if (creating) {
                                     Modifier
@@ -610,7 +604,12 @@ fun LibraryScreen(
                                     Modifier
                                 }
                             )
-                        )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = "Add album"
+                            )
+                        }
                     }
                 }
             },
@@ -689,6 +688,10 @@ fun LibraryScreen(
                         onColumnsSelected = onGridColumnsSelected
                     )
                 }
+                DownloadedFilterPicker(
+                    filter = uiState.downloadedFilter,
+                    onFilterChanged = libraryViewModel::updateDownloadedFilter
+                )
             } else {
                 AlbumLayoutPicker(
                     label = "Album layout",
@@ -814,6 +817,76 @@ private fun Set<Long>.toggle(id: Long, forceAdd: Boolean = false): Set<Long> {
     return mutable
 }
 
+@Composable
+private fun DownloadedFilterPicker(
+    filter: DownloadedFilter,
+    onFilterChanged: (DownloadedFilter) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "Show downloaded",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // X - Show all (not applied)
+            FilterButton(
+                label = "All",
+                selected = filter == DownloadedFilter.SHOW_ALL,
+                onClick = { onFilterChanged(DownloadedFilter.SHOW_ALL) },
+                modifier = Modifier.weight(1f)
+            )
+
+            // ✓ - Show only downloaded
+            FilterButton(
+                label = "Downloaded",
+                selected = filter == DownloadedFilter.SHOW_DOWNLOADED,
+                onClick = { onFilterChanged(DownloadedFilter.SHOW_DOWNLOADED) },
+                modifier = Modifier.weight(1f)
+            )
+
+            // × - Show only not downloaded
+            FilterButton(
+                label = "Not Downloaded",
+                selected = filter == DownloadedFilter.HIDE_DOWNLOADED,
+                onClick = { onFilterChanged(DownloadedFilter.HIDE_DOWNLOADED) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilterButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(40.dp),
+        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall
+        )
+    }
+}
 
 
 

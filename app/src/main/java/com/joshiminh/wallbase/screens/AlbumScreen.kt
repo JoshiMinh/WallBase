@@ -483,15 +483,24 @@ fun AlbumScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(innerPadding)
+                        .padding(innerPadding),
+                    verticalArrangement = Arrangement.Top
                 ) {
                     if (state.isDownloading) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AssistChip(onClick = {}, enabled = false, label = { Text("Downloading…") })
+                        AssistChip(
+                            modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 12.dp),
+                            onClick = {},
+                            enabled = false,
+                            label = { Text("Downloading…") }
+                        )
                     }
                     if (state.isRemovingDownloads) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        AssistChip(onClick = {}, enabled = false, label = { Text("Removing downloads…") })
+                        AssistChip(
+                            modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 12.dp),
+                            onClick = {},
+                            enabled = false,
+                            label = { Text("Removing downloads…") }
+                        )
                     }
 
                     if (wallpapers.isEmpty()) {
