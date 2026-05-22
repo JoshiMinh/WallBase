@@ -2,7 +2,7 @@
 
 [versions]
 # Tooling
-agp = "9.1.1"                                  # Android Gradle Plugin :contentReference[oaicite:0]{index=0}
+agp = "9.2.1"                                  # Android Gradle Plugin :contentReference[oaicite:0]{index=0}
 androidx-core-ktx = "1.17.0"
 animation = "1.9.2"
 compose-bom-version = "2025.10.01"
