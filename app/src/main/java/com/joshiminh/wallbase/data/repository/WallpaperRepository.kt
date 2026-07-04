@@ -280,27 +280,51 @@ class WallpaperRepository(
             }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
         }
 
-    private fun RedditPost.resolveImageUrl(): String? {
+    private fun RedditPost.resolveImages(): List<WallpaperItem> {
+        if (isGallery && mediaMetadata != null) {
+            return mediaMetadata.values
+                .filter { it.status == "valid" && it.e == "Image" }
+                .mapNotNull { metadata ->
+                    val source = metadata.s ?: return@mapNotNull null
+                    val imageUrl = source.url?.replace("&amp;", "&") ?: return@mapNotNull null
+                    WallpaperItem(
+                        id = "reddit_${id}_${imageUrl.hashCode()}",
+                        title = title,
+                        imageUrl = imageUrl,
+                        sourceUrl = permalink?.let { "https://www.reddit.com$it" } ?: imageUrl,
+                        width = source.width,
+                        height = source.height
+                    )
+                }
+        }
+
         val previewUrl = preview?.images.orEmpty().firstOrNull()?.source?.url
         val directUrl = overriddenUrl ?: url
-        return (previewUrl ?: directUrl)
+        val isImageHint = postHint == "image"
+        val imageUrl = (previewUrl ?: directUrl)
             ?.replace("&amp;", "&")
-            ?.takeIf { it.hasSupportedImageExtension() }
+            ?.takeIf { isImageHint || it.hasSupportedImageExtension() }
+
+        return if (imageUrl != null) {
+            val dimensions = preview?.images.orEmpty().firstOrNull()?.source
+            listOf(
+                WallpaperItem(
+                    id = "reddit_$id",
+                    title = title,
+                    imageUrl = imageUrl,
+                    sourceUrl = permalink?.let { "https://www.reddit.com$it" } ?: imageUrl,
+                    width = dimensions?.width,
+                    height = dimensions?.height
+                )
+            )
+        } else {
+            emptyList()
+        }
     }
 
     private fun RedditListingResponse.toWallpaperItems(): List<WallpaperItem> {
-        return data?.children.orEmpty().mapNotNull { child ->
-            val post = child.data ?: return@mapNotNull null
-            val imageUrl = post.resolveImageUrl() ?: return@mapNotNull null
-            val dimensions = post.preview?.images.orEmpty().firstOrNull()?.source
-            WallpaperItem(
-                id = post.id,
-                title = post.title,
-                imageUrl = imageUrl,
-                sourceUrl = post.permalink?.let { "https://www.reddit.com$it" } ?: imageUrl,
-                width = dimensions?.width,
-                height = dimensions?.height
-            )
+        return data?.children.orEmpty().flatMap { child ->
+            child.data?.resolveImages().orEmpty()
         }
     }
 
@@ -332,15 +356,19 @@ class WallpaperRepository(
             }
     }
 
-    private fun String.normalizeSubredditName(): String = this
-        .removePrefix("https://")
-        .removePrefix("http://")
-        .removePrefix("www.")
-        .substringAfter("reddit.com/", this)
-        .removePrefix("r/")
-        .substringBefore('/')
-        .trim()
-        .lowercase(Locale.ROOT)
+    private fun String.normalizeSubredditName(): String {
+        val trimmed = this.trim()
+        if (trimmed.isBlank()) return ""
+        return trimmed
+            .removePrefix("https://")
+            .removePrefix("http://")
+            .removePrefix("www.")
+            .substringAfter("reddit.com/", trimmed)
+            .removePrefix("r/")
+            .substringBefore('/')
+            .trim()
+            .lowercase(Locale.ROOT)
+    }
 
     private fun buildWebsiteSearchUrl(baseUrl: String, query: String): String {
         return runCatching {

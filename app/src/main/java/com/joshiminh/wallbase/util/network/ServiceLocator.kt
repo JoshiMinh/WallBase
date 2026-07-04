@@ -26,7 +26,7 @@ import retrofit2.create
 
 object ServiceLocator {
 
-    private const val USER_AGENT = "WallBase/1.0 (Android)"
+    private const val USER_AGENT = "android:com.joshiminh.wallbase:v1.1.0 (by /u/JoshiMinh)"
 
     @Volatile
     private var appContext: Context? = null
