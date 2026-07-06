@@ -133,6 +133,24 @@ interface RedditService {
     ): RedditListingResponse
 }
 
+@JsonClass(generateAdapter = true)
+data class RedditTokenResponse(
+    @Json(name = "access_token") val accessToken: String,
+    @Json(name = "token_type") val tokenType: String,
+    @Json(name = "expires_in") val expiresIn: Int,
+    @Json(name = "scope") val scope: String
+)
+
+interface RedditAuthService {
+    @retrofit2.http.FormUrlEncoded
+    @retrofit2.http.POST("api/v1/access_token")
+    fun getAccessToken(
+        @retrofit2.http.Header("Authorization") authHeader: String,
+        @retrofit2.http.Field("grant_type") grantType: String = "https://oauth.reddit.com/grants/installed_client",
+        @retrofit2.http.Field("device_id") deviceId: String
+    ): retrofit2.Call<RedditTokenResponse>
+}
+
 val RedditSource = SourceSeed(
     key = "reddit:wallpapers",
     providerKey = SourceKeys.REDDIT,

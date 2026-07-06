@@ -12,6 +12,7 @@ import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRotationRepository
 import com.joshiminh.wallbase.data.repository.settingsDataStore
+import com.joshiminh.wallbase.sources.RedditAuthService
 import com.joshiminh.wallbase.sources.RedditService
 import com.joshiminh.wallbase.sources.UnsplashService
 import com.joshiminh.wallbase.sources.WallhavenService
@@ -80,12 +81,62 @@ object ServiceLocator {
         builder.build()
     }
 
-    private val redditRetrofit: Retrofit by lazy {
+    private val redditOkHttpClient: OkHttpClient by lazy {
+        okHttpClient.newBuilder()
+            .addInterceptor { chain ->
+                val request = chain.request()
+                // Avoid recursive token calls for the auth endpoint itself
+                if (request.url.encodedPath.contains("api/v1/access_token")) {
+                    return@addInterceptor chain.proceed(request)
+                }
+
+                val token = redditTokenManager.getRedditAccessToken()
+                if (token.isNotEmpty()) {
+                    val updatedRequest = request.newBuilder()
+                        .header("Authorization", "Bearer $token")
+                        .build()
+                    chain.proceed(updatedRequest)
+                } else {
+                    chain.proceed(request)
+                }
+            }
+            .build()
+    }
+
+    private val redditAuthRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl("https://www.reddit.com/")
             .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
+    }
+
+    private val redditAuthService: RedditAuthService by lazy {
+        redditAuthRetrofit.create(RedditAuthService::class.java)
+    }
+
+    private val redditTokenManager: RedditTokenManager by lazy {
+        RedditTokenManager(redditAuthService, BuildConfig.REDDIT_CLIENT_ID)
+    }
+
+    private val hasRedditAuth: Boolean
+        get() = BuildConfig.REDDIT_CLIENT_ID != "YOUR_CLIENT_ID" && BuildConfig.REDDIT_CLIENT_ID.isNotBlank()
+
+    private val redditRetrofit: Retrofit by lazy {
+        if (hasRedditAuth) {
+            Retrofit.Builder()
+                .baseUrl("https://oauth.reddit.com/")
+                .client(redditOkHttpClient)
+                .addConverterFactory(MoshiConverterFactory.create(moshi))
+                .build()
+        } else {
+            // Fallback: public JSON API, no auth required
+            Retrofit.Builder()
+                .baseUrl("https://www.reddit.com/")
+                .client(okHttpClient)
+                .addConverterFactory(MoshiConverterFactory.create(moshi))
+                .build()
+        }
     }
 
     private val redditService: RedditService by lazy {
