@@ -7,6 +7,7 @@ androidx-core-ktx = "1.17.0"
 animation = "1.9.2"
 compose-bom-version = "2025.10.01"
 kotlin = "2.2.21"                              # Kotlin Gradle plugin :contentReference[oaicite:1]{index=1}
+hilt = "2.60.1"
 
 # Compose
 compose-bom = "2025.10.01"                     # Latest production BOM (1.9 core) :contentReference[oaicite:3]{index=3}
@@ -104,8 +105,11 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle-ktx" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore-preferences" }
+hilt = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

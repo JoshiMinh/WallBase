@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.kapt")
     id("org.jetbrains.kotlin.plugin.parcelize")
 }
@@ -102,4 +103,8 @@ dependencies {
 
     implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.work.runtime.ktx)
+
+    // Hilt
+    implementation(libs.hilt)
+    kapt(libs.hilt.compiler)
 }

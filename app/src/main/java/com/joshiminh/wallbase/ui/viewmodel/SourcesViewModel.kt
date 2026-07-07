@@ -14,14 +14,17 @@ import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Locale
+import javax.inject.Inject
 
-class SourcesViewModel(
+@HiltViewModel
+class SourcesViewModel @Inject constructor(
     application: Application,
     private val sourceRepository: SourceRepository,
     private val libraryRepository: LibraryRepository,
@@ -295,18 +298,6 @@ class SourcesViewModel(
     )
 
     companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ServiceLocator.ensureInitialized(application)
-                SourcesViewModel(
-                    application = application,
-                    sourceRepository = ServiceLocator.sourceRepository,
-                    libraryRepository = ServiceLocator.libraryRepository,
-                    wallpaperRepository = ServiceLocator.wallpaperRepository
-                )
-            }
-        }
     }
 }
 

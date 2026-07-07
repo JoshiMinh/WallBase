@@ -14,6 +14,8 @@ import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.json.JSONArray
 import org.json.JSONObject
+import javax.inject.Inject
+import javax.inject.Singleton
 
 // Top-level so it can be called from companion objects too.
 private fun ensurePinterestPath(path: String): String {
@@ -21,7 +23,8 @@ private fun ensurePinterestPath(path: String): String {
     return if (trimmed.endsWith("/")) trimmed else "$trimmed/"
 }
 
-class JsoupWebScraper : WebScraper {
+@Singleton
+class JsoupWebScraper @Inject constructor() : WebScraper {
 
     override suspend fun scrapePinterest(
         query: String,

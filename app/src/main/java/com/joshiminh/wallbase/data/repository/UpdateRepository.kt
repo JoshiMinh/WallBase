@@ -5,8 +5,11 @@ import com.joshiminh.wallbase.util.network.UpdateService
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class UpdateRepository(
+@Singleton
+class UpdateRepository @Inject constructor(
     private val service: UpdateService,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {

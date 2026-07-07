@@ -2,8 +2,11 @@ package com.joshiminh.wallbase.util.network
 
 import com.joshiminh.wallbase.sources.RedditAuthService
 import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class RedditTokenManager(
+@Singleton
+class RedditTokenManager @Inject constructor(
     private val redditAuthService: RedditAuthService,
     private val clientId: String
 ) {

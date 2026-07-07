@@ -17,8 +17,11 @@ import java.net.URL
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.util.Locale
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class SourceRepository(
+@Singleton
+class SourceRepository @Inject constructor(
     private val sourceDao: SourceDao,
     private val wallpaperDao: WallpaperDao,
     private val localStorage: LocalStorageCoordinator

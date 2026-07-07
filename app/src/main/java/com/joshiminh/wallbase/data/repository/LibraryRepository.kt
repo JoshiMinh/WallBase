@@ -38,8 +38,11 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import java.io.ByteArrayOutputStream
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class LibraryRepository(
+@Singleton
+class LibraryRepository @Inject constructor(
     private val wallpaperDao: WallpaperDao,
     private val albumDao: AlbumDao,
     private val localStorage: LocalStorageCoordinator

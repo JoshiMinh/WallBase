@@ -15,9 +15,13 @@ import java.io.InputStream
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 
-class LocalStorageCoordinator(
-    private val context: Context
+@Singleton
+class LocalStorageCoordinator @Inject constructor(
+    @ApplicationContext private val context: Context
 ) {
 
     private val resolver = context.contentResolver

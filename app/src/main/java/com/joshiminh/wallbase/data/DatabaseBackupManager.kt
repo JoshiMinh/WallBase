@@ -27,9 +27,13 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import java.io.InputStream
+import javax.inject.Inject
+import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 
-class DatabaseBackupManager(
-    private val context: Context,
+@Singleton
+class DatabaseBackupManager @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val localStorage: LocalStorageCoordinator,
 ) {
 

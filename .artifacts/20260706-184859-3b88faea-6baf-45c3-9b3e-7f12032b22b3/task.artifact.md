@@ -1,0 +1,27 @@
+# Hilt Migration Task List
+
+- [/] Researching Hilt Migration
+    - [x] Analyze `ServiceLocator.kt` for network dependencies
+    - [x] Check Gradle version and existing dependencies
+    - [x] Identify ViewModels and their dependencies
+- [/] Planning Stage 3
+    - [x] Define Hilt Gradle setup
+    - [x] Design `NetworkModule.kt`
+    - [x] Design `WallBaseApplication.kt`
+    - [ ] Finalize verification strategy
+- [ ] Execution: Infrastructure
+    - [ ] Update `libs.versions.toml`
+    - [ ] Update build.gradle.kts (Project & App)
+    - [ ] Create `WallBaseApplication.kt` and update Manifest
+- [ ] Execution: Network Migration
+    - [ ] Create `NetworkModule.kt`
+    - [ ] Update `RedditTokenManager.kt` with `@Inject`
+    - [ ] Update `JsoupWebScraper.kt` with `@Inject`
+- [ ] Execution: UI Migration
+    - [ ] Annotate `MainActivity.kt` with `@AndroidEntryPoint`
+    - [ ] Migrate `SourcesViewModel.kt` to `@HiltViewModel`
+    - [ ] Migrate `SettingsViewModel.kt` to `@HiltViewModel`
+    - [ ] Migrate other ViewModels to `@HiltViewModel` (SourceBrowse, AlbumDetail, etc.)
+- [ ] Verification
+    - [ ] Build project
+    - [ ] Run manual verification on device

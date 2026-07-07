@@ -20,6 +20,7 @@ import com.joshiminh.wallbase.ui.WallBaseApp
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.util.network.ServiceLocator
+import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -27,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toOkioPath
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,8 +49,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val sourcesViewModel: SourcesViewModel = viewModel(factory = SourcesViewModel.Factory)
-            val settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory)
+            val sourcesViewModel: SourcesViewModel = viewModel()
+            val settingsViewModel: SettingsViewModel = viewModel()
 
             val sourcesUiState by sourcesViewModel.uiState.collectAsStateWithLifecycle()
             val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()

@@ -20,20 +20,23 @@ import com.joshiminh.wallbase.util.network.WebScraper
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
 data class WallpaperPage(
     val wallpapers: List<WallpaperItem>,
     val nextCursor: String?
 )
 
-class WallpaperRepository(
+@Singleton
+class WallpaperRepository @Inject constructor(
     private val redditService: RedditService,
     private val webScraper: WebScraper,
     private val wallhavenService: WallhavenService,
     private val unsplashService: UnsplashService,
-    private val pinterestQuery: String = DEFAULT_PINTEREST_QUERY,
-    private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
 ) {
+    private val pinterestQuery: String = DEFAULT_PINTEREST_QUERY
+    private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
 
     suspend fun fetchWallpapersFor(
         source: Source,
