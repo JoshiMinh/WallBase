@@ -11,7 +11,29 @@ import androidx.compose.ui.graphics.lerp
 import com.joshiminh.wallbase.data.repository.AppTheme
 import com.joshiminh.wallbase.data.repository.AppAccentColor
 
-private val DarkColorScheme = darkColorScheme()
+private val DarkColorScheme = darkColorScheme(
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+    primaryContainer = DarkPrimaryContainer,
+    onPrimaryContainer = DarkOnPrimaryContainer,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    secondary = DarkSecondary,
+    onSecondary = DarkOnSecondary,
+    secondaryContainer = DarkSecondaryContainer,
+    onSecondaryContainer = DarkOnSecondaryContainer,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surfaceContainerLowest = Color(0xFF0F0E0D),
+    surfaceContainerLow = Color(0xFF1B1918),
+    surfaceContainer = Color(0xFF201E1C),
+    surfaceContainerHigh = Color(0xFF2A2725),
+    surfaceContainerHighest = Color(0xFF35312E),
+)
 
 private val LightColorScheme = lightColorScheme(
     primary = LightPrimary,
@@ -23,21 +45,31 @@ private val LightColorScheme = lightColorScheme(
     surfaceVariant = LightSurfaceVariant,
     onSurfaceVariant = LightOnSurfaceVariant,
     outline = LightOutline,
+    outlineVariant = LightOutlineVariant,
+    secondary = LightSecondary,
+    onSecondary = LightOnSecondary,
+    secondaryContainer = LightSecondaryContainer,
+    onSecondaryContainer = LightOnSecondaryContainer,
     background = LightBackground,
-    onBackground = LightOnBackground
+    onBackground = LightOnBackground,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color(0xFFFFF7F2),
+    surfaceContainer = Color(0xFFF8F1EC),
+    surfaceContainerHigh = Color(0xFFF2EBE6),
+    surfaceContainerHighest = Color(0xFFECE5E0),
 )
 
 @Composable
 fun WallBaseTheme(
-    appTheme: AppTheme = AppTheme.LIGHT,
+    appTheme: AppTheme = AppTheme.SYSTEM,
     appAccentColor: AppAccentColor = AppAccentColor.PINK,
     customAccentColorRgb: String? = null,
     content: @Composable () -> Unit
 ) {
     val isDark = when (appTheme) {
-        AppTheme.LIGHT -> false
-        AppTheme.DARK -> true
         AppTheme.SYSTEM -> isSystemInDarkTheme()
+        AppTheme.LIGHT -> false
+        AppTheme.DARK, AppTheme.AMOLED -> true
     }
 
     val baseColorScheme = when {
@@ -45,7 +77,7 @@ fun WallBaseTheme(
         else -> LightColorScheme
     }
 
-    val primaryColor = when (appAccentColor) {
+    val rawAccent = when (appAccentColor) {
         AppAccentColor.PINK -> AccentPink
         AppAccentColor.RED -> AccentRed
         AppAccentColor.BLUE -> AccentBlue
@@ -53,44 +85,37 @@ fun WallBaseTheme(
         AppAccentColor.PURPLE -> AccentPurple
         AppAccentColor.CUSTOM -> {
             // Parse custom color from RGB hex string (e.g., "FF5733")
-            customAccentColorRgb?.let {
-                try {
-                    Color(0xFF000000 or it.toLong(16))
-                } catch (e: Exception) {
-                    AccentPink // Fallback to default if parsing fails
-                }
-            } ?: AccentPink
+            parseRgbColor(customAccentColorRgb) ?: AccentPink
         }
     }
+    val primaryColor = if (isDark) lerp(rawAccent, Color.White, 0.18f) else rawAccent
 
-    val containerColor = lerp(
-        baseColorScheme.surface,
+    val primaryContainer = lerp(
+        baseColorScheme.surfaceVariant,
         primaryColor,
-        if (isDark) 0.32f else 0.22f
+        if (isDark) 0.20f else 0.14f
     )
-    val onPrimaryColor = if (primaryColor.luminance() > 0.5f) Color.Black else Color.White
-    val onContainerColor = if (containerColor.luminance() > 0.5f) Color.Black else Color.White
+    val onPrimaryColor = primaryColor.contrastingForeground()
+    val onPrimaryContainerColor = primaryContainer.contrastingForeground()
 
     val colorScheme = baseColorScheme.copy(
         primary = primaryColor,
-        secondary = primaryColor,
-        tertiary = primaryColor,
         onPrimary = onPrimaryColor,
-        onSecondary = onPrimaryColor,
-        onTertiary = onPrimaryColor,
-        primaryContainer = containerColor,
-        secondaryContainer = containerColor,
-        tertiaryContainer = containerColor,
-        onPrimaryContainer = onContainerColor,
-        onSecondaryContainer = onContainerColor,
-        onTertiaryContainer = onContainerColor
+        primaryContainer = primaryContainer,
+        onPrimaryContainer = onPrimaryContainerColor
     )
 
-    val finalColorScheme = if (appTheme == AppTheme.DARK && isDark) {
+    val finalColorScheme = if (appTheme == AppTheme.AMOLED) {
         colorScheme.copy(
-            background = Color.Black,
-            surface = Color.Black,
-            surfaceVariant = Color(0xFF121212)
+            background = AmoledBackground,
+            surface = AmoledSurface,
+            surfaceVariant = AmoledSurfaceHigh,
+            surfaceContainerLowest = AmoledBackground,
+            surfaceContainerLow = AmoledSurfaceLow,
+            surfaceContainer = AmoledSurfaceLow,
+            surfaceContainerHigh = AmoledSurfaceHigh,
+            surfaceContainerHighest = Color(0xFF202020),
+            outlineVariant = AmoledOutlineVariant,
         )
     } else {
         colorScheme
@@ -102,3 +127,13 @@ fun WallBaseTheme(
         content = content
     )
 }
+
+private fun parseRgbColor(value: String?): Color? {
+    val normalized = value?.trim()?.removePrefix("#") ?: return null
+    if (normalized.length != 6) return null
+    val rgb = normalized.toLongOrNull(16) ?: return null
+    return Color(0xFF000000L or rgb)
+}
+
+private fun Color.contrastingForeground(): Color =
+    if (luminance() > 0.179f) Color.Black else Color.White

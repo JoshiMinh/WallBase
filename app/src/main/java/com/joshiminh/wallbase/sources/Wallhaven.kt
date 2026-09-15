@@ -6,6 +6,8 @@ import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
+import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.entity.SourceSeed
 
 interface WallhavenService {
     @GET("search")
@@ -42,4 +44,16 @@ data class WallhavenWallpaper(
 data class WallhavenMeta(
     @Json(name = "current_page") val currentPage: Int?,
     @Json(name = "last_page") val lastPage: Int?
+)
+
+/** Wallhaven's public search endpoint works without an account or API key. */
+val WallhavenSource = SourceSeed(
+    key = "wallhaven:featured",
+    providerKey = SourceKeys.WALLHAVEN,
+    iconUrl = "https://www.google.com/s2/favicons?sz=128&domain=wallhaven.cc",
+    title = "Featured wallpapers",
+    description = "Fresh wallpapers from Wallhaven's public catalog",
+    showInExplore = true,
+    enabledByDefault = true,
+    config = "https://wallhaven.cc/search?q=wallpapers&purity=100&sorting=toplist",
 )

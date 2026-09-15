@@ -82,6 +82,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.AlbumItem
@@ -238,7 +239,7 @@ private fun DetailScreen(
             Box(modifier = Modifier.fillMaxWidth()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = WallBaseShapes.featured,
                     color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
                 ) {
                     Box(
@@ -248,7 +249,7 @@ private fun DetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         val previewBitmap = uiState.editedPreview
-                        val previewShape = RoundedCornerShape(24.dp)
+                        val previewShape = WallBaseShapes.featured
                         val previewModifier = sharedModifier.then(
                             Modifier
                                 .fillMaxWidth()
@@ -717,7 +718,7 @@ private fun AssistiveLoadingRow() {
             .fillMaxWidth()
             .background(
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(16.dp)
+                shape = WallBaseShapes.card
             )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -741,9 +742,9 @@ private fun ApplyOptionCard(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(WallBaseShapes.card)
             .clickable(enabled = enabled, role = Role.Button) { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = WallBaseShapes.card,
         tonalElevation = 2.dp,
         shadowElevation = 1.dp
     ) {
@@ -833,7 +834,7 @@ private fun AlbumPickerDialog(
                     albums.forEach { album ->
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = WallBaseShapes.card,
                             tonalElevation = 1.dp,
                             onClick = { onAlbumSelected(album) }
                         ) {

@@ -38,7 +38,9 @@ class SourceRepository @Inject constructor(
 
     fun observeSources(): Flow<List<Source>> =
         sourceDao.observeSources().map { entities ->
-            entities.map { entity -> entity.sanitized().toDomain() }
+            entities
+                .filter { it.providerKey == SourceKeys.WALLHAVEN || it.isLocal }
+                .map { entity -> entity.sanitized().toDomain() }
         }
 
     fun observeSource(key: String): Flow<Source?> =
@@ -55,17 +57,8 @@ class SourceRepository @Inject constructor(
         val parsed = parseRemoteSourceInput(input)
             ?: throw IllegalArgumentException("Enter a supported subreddit or wallpaper URL.")
         return when (parsed) {
-            is RemoteSourceInput.Reddit -> addRedditSource(
-                slug = parsed.slug,
-                displayName = parsed.displayName,
-                description = null
-            )
-
-            is RemoteSourceInput.Pinterest -> addPinterestSource(parsed.url)
             is RemoteSourceInput.Wallhaven -> addWallhavenSource(parsed.url)
-            is RemoteSourceInput.Unsplash -> addUnsplashSource(parsed.url)
-            is RemoteSourceInput.AlphaCoders -> addAlphaCodersSource(parsed.url)
-            is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
+            else -> throw IllegalArgumentException("Wallhaven public search and collection URLs are supported.")
         }
     }
 
@@ -116,12 +109,6 @@ class SourceRepository @Inject constructor(
                 updateRedditSource(existing, redditInput)
             }
 
-            SourceKeys.PINTEREST -> {
-                val urlInput = parsed as? RemoteSourceInput.Pinterest
-                    ?: throw IllegalArgumentException("Enter a Pinterest board or URL.")
-                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.PINTEREST, SourceKeys.PINTEREST)
-            }
-
             SourceKeys.WALLHAVEN -> {
                 val urlInput = parsed as? RemoteSourceInput.Wallhaven
                     ?: throw IllegalArgumentException("Enter a Wallhaven search or collection URL.")
@@ -134,19 +121,7 @@ class SourceRepository @Inject constructor(
                 updateWebsiteSource(existing, urlInput.url, RemoteSourceType.UNSPLASH, SourceKeys.UNSPLASH)
             }
 
-            SourceKeys.ALPHA_CODERS -> {
-                val urlInput = parsed as? RemoteSourceInput.AlphaCoders
-                    ?: throw IllegalArgumentException("Enter an AlphaCoders category or URL.")
-                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.ALPHA_CODERS, SourceKeys.ALPHA_CODERS)
-            }
-
-            SourceKeys.WEBSITES -> {
-                val urlInput = parsed as? RemoteSourceInput.Website
-                    ?: throw IllegalArgumentException("Enter a website URL.")
-                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.WEBSITE, SourceKeys.WEBSITES)
-            }
-
-            else -> throw IllegalArgumentException("This source can't be edited.")
+            else -> throw IllegalArgumentException("This legacy source is no longer supported. Add Reddit, Wallhaven, or Unsplash instead.")
         }
 
         sourceDao.updateSource(updated)
@@ -428,10 +403,6 @@ class SourceRepository @Inject constructor(
                 }
             }
 
-            host.contains("pinterest", ignoreCase = true) || host == "pin.it" -> {
-                RemoteSourceInput.Pinterest(normalizedUrl)
-            }
-
             host.contains("wallhaven", ignoreCase = true) || host == "whvn.cc" -> {
                 RemoteSourceInput.Wallhaven(normalizedUrl)
             }
@@ -440,12 +411,7 @@ class SourceRepository @Inject constructor(
                 RemoteSourceInput.Unsplash(normalizedUrl)
             }
 
-            host.contains("alphacoders", ignoreCase = true) -> {
-                RemoteSourceInput.AlphaCoders(normalizedUrl)
-            }
-
-
-            else -> RemoteSourceInput.Website(normalizedUrl)
+            else -> null
         }
     }
 
@@ -639,17 +605,11 @@ class SourceRepository @Inject constructor(
             val displayName: String = "r/$slug"
         }
 
-        class Pinterest(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.PINTEREST)
-
         class Wallhaven(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WALLHAVEN)
 
 
         class Unsplash(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.UNSPLASH)
 
-        class AlphaCoders(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.ALPHA_CODERS)
-
-
-        class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
     }
 
     private companion object {

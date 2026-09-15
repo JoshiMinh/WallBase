@@ -78,13 +78,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 import com.joshiminh.wallbase.data.repository.AppTheme
@@ -117,6 +124,7 @@ fun SettingsScreen(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onRequestAppLockChange: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
+    onSaveSourceCredentials: (String, String, String) -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -600,9 +608,10 @@ private fun SettingsThemeRow(
             onExpandedChange = { expanded = it }
         ) {
             val label = when (selectedTheme) {
+                AppTheme.SYSTEM -> "System"
                 AppTheme.LIGHT -> "Light"
                 AppTheme.DARK -> "Dark"
-                AppTheme.SYSTEM -> "Follow System"
+                AppTheme.AMOLED -> "AMOLED"
             }
             TextButton(
                 onClick = { expanded = true },
@@ -616,8 +625,10 @@ private fun SettingsThemeRow(
                 onDismissRequest = { expanded = false }
             ) {
                 listOf(
+                    AppTheme.SYSTEM to "Follow system",
                     AppTheme.LIGHT to "Light",
-                    AppTheme.DARK to "Dark"
+                    AppTheme.DARK to "Dark",
+                    AppTheme.AMOLED to "AMOLED black",
                 ).forEach { (theme, textLabel) ->
                     DropdownMenuItem(
                         text = { Text(textLabel) },
@@ -670,29 +681,41 @@ private fun SettingsColorRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             val colorOptions = listOf(
-                AppAccentColor.PINK to AccentPink,
-                AppAccentColor.RED to AccentRed,
-                AppAccentColor.BLUE to AccentBlue,
-                AppAccentColor.GREEN to AccentGreen,
-                AppAccentColor.PURPLE to AccentPurple
+                Triple(AppAccentColor.PINK, "Pink", AccentPink),
+                Triple(AppAccentColor.RED, "Red", AccentRed),
+                Triple(AppAccentColor.BLUE, "Blue", AccentBlue),
+                Triple(AppAccentColor.GREEN, "Green", AccentGreen),
+                Triple(AppAccentColor.PURPLE, "Purple", AccentPurple),
             )
 
-            colorOptions.forEach { (accent, colorValue) ->
+            colorOptions.forEach { (accent, label, colorValue) ->
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .background(colorValue)
-                        .clickable { onColorSelected(accent) },
+                        .clickable { onColorSelected(accent) }
+                        .semantics {
+                            contentDescription = "$label accent"
+                            role = Role.RadioButton
+                            selected = selectedColor == accent
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (selectedColor == accent) {
-                        Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
-                            contentDescription = "Selected",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(colorValue),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (selectedColor == accent) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
+                                contentDescription = null,
+                                tint = if (colorValue.luminance() > 0.179f) Color.Black else Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -700,33 +723,44 @@ private fun SettingsColorRow(
             // Custom color option
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
-                    .background(
-                        customColorRgb?.let {
-                            try {
-                                Color(0xFF000000 or it.toLong(16))
-                            } catch (e: Exception) {
-                                MaterialTheme.colorScheme.outlineVariant
-                            }
-                        } ?: MaterialTheme.colorScheme.outlineVariant
-                    )
-                    .clickable { showCustomColorDialog = true },
+                    .clickable { showCustomColorDialog = true }
+                    .semantics {
+                        contentDescription = "Custom accent"
+                        role = Role.RadioButton
+                        selected = selectedColor == AppAccentColor.CUSTOM
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                if (selectedColor == AppAccentColor.CUSTOM) {
-                    Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
-                        contentDescription = "Selected",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                } else {
-                    Text(
-                        text = "+",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                val customColor = customColorRgb
+                    ?.trim()
+                    ?.removePrefix("#")
+                    ?.takeIf { it.length == 6 }
+                    ?.toLongOrNull(16)
+                    ?.let { Color(0xFF000000L or it) }
+                    ?: MaterialTheme.colorScheme.outlineVariant
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(customColor),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selectedColor == AppAccentColor.CUSTOM) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = if (customColor.luminance() > 0.179f) Color.Black else Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "+",
+                            color = if (customColor.luminance() > 0.179f) Color.Black else Color.White,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
                 }
             }
         }
@@ -780,6 +814,82 @@ private fun SettingsToggleRow(
 }
 
 @Composable
+private fun SourceConnectionsCard(
+    uiState: SettingsViewModel.SettingsUiState,
+    onSave: (String, String, String) -> Unit,
+) {
+    var redditClientId by remember { mutableStateOf("") }
+    var unsplashAccessKey by remember { mutableStateOf("") }
+    var wallhavenApiKey by remember { mutableStateOf("") }
+
+    SettingsCard {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Use your own keys. They are encrypted on this device and excluded from backups.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ConnectionField(
+                label = "Reddit client ID",
+                configured = uiState.redditConnected,
+                value = redditClientId,
+                onValueChange = { redditClientId = it },
+                helper = "Required for Reddit browsing and community search.",
+            )
+            ConnectionField(
+                label = "Unsplash access key",
+                configured = uiState.unsplashConnected,
+                value = unsplashAccessKey,
+                onValueChange = { unsplashAccessKey = it },
+                helper = "Required for the official Unsplash API.",
+            )
+            ConnectionField(
+                label = "Wallhaven API key (optional)",
+                configured = uiState.wallhavenTokenConfigured,
+                value = wallhavenApiKey,
+                onValueChange = { wallhavenApiKey = it },
+                helper = "Enables token-gated Wallhaven results; basic safe browsing works without it.",
+            )
+            Button(
+                onClick = { onSave(redditClientId, unsplashAccessKey, wallhavenApiKey) },
+                enabled = redditClientId.isNotBlank() || unsplashAccessKey.isNotBlank() || wallhavenApiKey.isNotBlank(),
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text("Save connections")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionField(
+    label: String,
+    configured: Boolean,
+    value: String,
+    onValueChange: (String) -> Unit,
+    helper: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(label) },
+            placeholder = { Text(if (configured) "Configured — enter a replacement to update" else "Not configured") },
+            singleLine = true,
+        )
+        Text(
+            text = if (configured) "Configured. $helper" else helper,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
 private fun SettingsSection(
     spacing: Dp,
     content: @Composable ColumnScope.() -> Unit
@@ -799,7 +909,7 @@ private fun SettingsCard(
     if (onClick != null) {
         Card(
             modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = WallBaseShapes.card,
             colors = colors,
             onClick = onClick,
             content = content
@@ -807,7 +917,7 @@ private fun SettingsCard(
     } else {
         Card(
             modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = WallBaseShapes.card,
             colors = colors,
             content = content
         )
@@ -838,7 +948,7 @@ private fun SettingsLinkCard(
                 contentDescription = null,
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .clip(WallBaseShapes.control),
                 contentScale = ContentScale.Crop
             )
             Column(
@@ -1072,7 +1182,7 @@ private fun CustomColorPickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(120.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(WallBaseShapes.card)
                         .background(getCurrentColor.invoke())
                 )
 

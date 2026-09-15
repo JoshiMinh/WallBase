@@ -55,6 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -472,7 +473,7 @@ fun WallpaperCard(
                 onClick = onClick,
                 onLongClick = { onLongPress?.invoke() }
             ),
-        shape = RoundedCornerShape(18.dp),
+        shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 4.dp),
         border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
@@ -483,7 +484,7 @@ fun WallpaperCard(
                 contentDescription = item.title,
                 modifier = sharedElementModifier.then(Modifier.fillMaxSize()),
                 contentScale = ContentScale.Crop,
-                clipShape = RoundedCornerShape(18.dp)
+                clipShape = WallBaseShapes.card
             )
 
             if (selectionMode && !isSelected) {
@@ -587,7 +588,7 @@ fun WallpaperListRow(
     Card(
         modifier = modifier
             .fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 4.dp),
         border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
@@ -608,7 +609,7 @@ fun WallpaperListRow(
                         Modifier
                             .height(96.dp)
                             .aspectRatio(item.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO)
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(WallBaseShapes.control)
                     )
                 ) {
                     WallpaperPreviewImage(
@@ -616,7 +617,7 @@ fun WallpaperListRow(
                         contentDescription = item.title,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        clipShape = RoundedCornerShape(14.dp)
+                        clipShape = WallBaseShapes.control
                     )
                     if (selectionMode && !isSelected) {
                         Box(

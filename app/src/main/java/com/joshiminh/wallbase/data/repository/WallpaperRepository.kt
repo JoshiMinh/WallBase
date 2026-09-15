@@ -34,6 +34,7 @@ class WallpaperRepository @Inject constructor(
     private val webScraper: WebScraper,
     private val wallhavenService: WallhavenService,
     private val unsplashService: UnsplashService,
+    private val credentialStore: SourceCredentialStore,
 ) {
     private val pinterestQuery: String = DEFAULT_PINTEREST_QUERY
     private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
@@ -46,67 +47,12 @@ class WallpaperRepository @Inject constructor(
         val provider = source.providerKey.lowercase(Locale.ROOT)
         val trimmedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
         val page = when (provider) {
-            SourceKeys.REDDIT ->
-                fetchRedditWallpapers(
-                    subreddit = source.config ?: DEFAULT_REDDIT_SUBREDDIT,
-                    query = trimmedQuery,
-                    cursor = cursor
-                )
-            SourceKeys.PINTEREST -> {
-                val config = source.config
-                val scrapePage = when {
-                    trimmedQuery != null ->
-                        webScraper.scrapePinterest(trimmedQuery, limit = 30, cursor = cursor)
-                    config.isNullOrBlank() ->
-                        webScraper.scrapePinterest(pinterestQuery, limit = 30, cursor = cursor)
-                    config.startsWith("http", ignoreCase = true) ->
-                        webScraper.scrapeImagesFromUrl(config, limit = 30, cursor = cursor)
-                    else -> webScraper.scrapePinterest(config, limit = 30, cursor = cursor)
-                }
-                WallpaperPage(wallpapers = scrapePage.wallpapers, nextCursor = scrapePage.nextCursor)
-            }
             SourceKeys.WALLHAVEN -> fetchWallhavenWallpapers(
                 config = source.config,
                 query = trimmedQuery,
                 cursor = cursor
             )
-            SourceKeys.UNSPLASH -> fetchUnsplashWallpapers(
-                config = source.config,
-                query = trimmedQuery,
-                cursor = cursor
-            )
-            SourceKeys.ALPHA_CODERS -> {
-                val defaultUrl = source.config ?: DEFAULT_ALPHA_CODERS_URL
-                val targetUrl = trimmedQuery?.let { buildAlphaCodersSearchUrl(it) } ?: defaultUrl
-                val scrapePage = webScraper.scrapeImagesFromUrl(
-                    targetUrl,
-                    limit = 30,
-                    cursor = cursor
-                )
-                WallpaperPage(
-                    wallpapers = scrapePage.wallpapers,
-                    nextCursor = scrapePage.nextCursor
-                )
-            }
-            SourceKeys.PIXIV -> fetchPixivWallpapers(
-                config = source.config,
-                query = trimmedQuery,
-                cursor = cursor
-            )
-            SourceKeys.WEBSITES -> {
-                val url = source.config ?: customWebsiteUrl
-                val targetUrl = trimmedQuery?.let { buildWebsiteSearchUrl(url, it) } ?: url
-                val scrapePage = webScraper.scrapeImagesFromUrl(
-                    targetUrl,
-                    limit = 30,
-                    cursor = cursor
-                )
-                WallpaperPage(
-                    wallpapers = scrapePage.wallpapers,
-                    nextCursor = scrapePage.nextCursor
-                )
-            }
-            else -> WallpaperPage(emptyList(), nextCursor = null)
+            else -> throw UnsupportedSourceException(source.title)
         }
         val mapped = page.wallpapers.map {
             it.copy(
@@ -131,16 +77,12 @@ class WallpaperRepository @Inject constructor(
                 if (username.isNullOrBlank() || collectionId.isNullOrBlank()) {
                     WallpaperPage(emptyList(), nextCursor = null)
                 } else {
-                    runCatching {
-                        wallhavenService.getCollection(
-                            username = username,
-                            collectionId = collectionId,
-                            page = pageNumber,
-                            perPage = WALLHAVEN_PAGE_LIMIT
-                        )
-                    }.mapCatching { response ->
-                        response.toWallpaperPage(pageNumber)
-                    }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
+                    wallhavenService.getCollection(
+                        username = username,
+                        collectionId = collectionId,
+                        page = pageNumber,
+                        perPage = WALLHAVEN_PAGE_LIMIT
+                    ).toWallpaperPage(pageNumber)
                 }
             }
 
@@ -152,9 +94,7 @@ class WallpaperRepository @Inject constructor(
                 params.putIfAbsent("q", DEFAULT_WALLHAVEN_QUERY)
                 params["page"] = pageNumber.toString()
                 params.putIfAbsent("per_page", WALLHAVEN_PAGE_LIMIT.toString())
-                runCatching { wallhavenService.search(params) }
-                    .mapCatching { response -> response.toWallpaperPage(pageNumber) }
-                    .getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
+                wallhavenService.search(params).toWallpaperPage(pageNumber)
             }
         }
     }
@@ -168,39 +108,33 @@ class WallpaperRepository @Inject constructor(
         val pageNumber = cursor?.toIntOrNull()?.takeIf { it > 0 } ?: 1
         when (val parsed = parseUnsplashConfig(config)) {
             is UnsplashConfig.Collection -> {
-                val photos = runCatching {
-                    unsplashService.getCollectionPhotos(
+                val photos = unsplashService.getCollectionPhotos(
                         id = parsed.id,
                         page = pageNumber,
                         perPage = perPage
                     )
-                }.getOrElse { emptyList() }
                 val items = photos.mapNotNull { it.toWallpaperItem() }
                 val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
                 WallpaperPage(items, nextCursor)
             }
 
             is UnsplashConfig.UserLikes -> {
-                val photos = runCatching {
-                    unsplashService.getUserLikes(
+                val photos = unsplashService.getUserLikes(
                         username = parsed.username,
                         page = pageNumber,
                         perPage = perPage
                     )
-                }.getOrElse { emptyList() }
                 val items = photos.mapNotNull { it.toWallpaperItem() }
                 val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
                 WallpaperPage(items, nextCursor)
             }
 
             is UnsplashConfig.UserPhotos -> {
-                val photos = runCatching {
-                    unsplashService.getUserPhotos(
+                val photos = unsplashService.getUserPhotos(
                         username = parsed.username,
                         page = pageNumber,
                         perPage = perPage
                     )
-                }.getOrElse { emptyList() }
                 val items = photos.mapNotNull { it.toWallpaperItem() }
                 val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
                 WallpaperPage(items, nextCursor)
@@ -210,13 +144,11 @@ class WallpaperRepository @Inject constructor(
                 val effectiveQuery = query?.takeIf { it.isNotBlank() }
                     ?: parsed.query?.takeIf { it.isNotBlank() }
                     ?: DEFAULT_UNSPLASH_QUERY
-                val response = runCatching {
-                    unsplashService.searchPhotos(
+                val response = unsplashService.searchPhotos(
                         query = effectiveQuery,
                         page = pageNumber,
                         perPage = perPage
                     )
-                }.getOrElse { return@withContext WallpaperPage(emptyList(), nextCursor = null) }
                 val photos = response.results.orEmpty()
                 val items = photos.mapNotNull { it.toWallpaperItem() }
                 val nextCursor = when {
@@ -247,9 +179,8 @@ class WallpaperRepository @Inject constructor(
 
     suspend fun searchRedditCommunities(query: String, limit: Int = 10): List<RedditCommunity> =
         withContext(Dispatchers.IO) {
-            runCatching { redditService.searchSubreddits(query = query, limit = limit) }
-                .mapCatching { response -> response.toCommunities() }
-                .getOrElse { emptyList() }
+            credentialStore.snapshot().redditClientId.requireConfigured("Reddit client ID")
+            redditService.searchSubreddits(query = query, limit = limit).toCommunities()
         }
 
     private suspend fun fetchRedditWallpapers(
@@ -258,29 +189,26 @@ class WallpaperRepository @Inject constructor(
         cursor: String?
     ): WallpaperPage =
         withContext(Dispatchers.IO) {
-            runCatching {
-                val normalized = subreddit.normalizeSubredditName()
-                if (query.isNullOrBlank()) {
-                    redditService.fetchSubreddit(
-                        subreddit = normalized,
-                        limit = REDDIT_PAGE_LIMIT,
-                        after = cursor
-                    )
-                } else {
-                    redditService.searchSubredditPosts(
-                        subreddit = normalized,
-                        query = query,
-                        restrictToSubreddit = 1,
-                        limit = REDDIT_PAGE_LIMIT,
-                        after = cursor
-                    )
-                }
-            }.mapCatching { response ->
-                WallpaperPage(
-                    wallpapers = response.toWallpaperItems(),
-                    nextCursor = response.data?.after
+            val normalized = subreddit.normalizeSubredditName()
+            val response = if (query.isNullOrBlank()) {
+                redditService.fetchSubreddit(
+                    subreddit = normalized,
+                    limit = REDDIT_PAGE_LIMIT,
+                    after = cursor,
                 )
-            }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
+            } else {
+                redditService.searchSubredditPosts(
+                    subreddit = normalized,
+                    query = query,
+                    restrictToSubreddit = 1,
+                    limit = REDDIT_PAGE_LIMIT,
+                    after = cursor,
+                )
+            }
+            WallpaperPage(
+                wallpapers = response.toWallpaperItems(),
+                nextCursor = response.data?.after,
+            )
         }
 
     private fun RedditPost.resolveImages(): List<WallpaperItem> {
@@ -560,4 +488,16 @@ class WallpaperRepository @Inject constructor(
         private const val WALLHAVEN_PAGE_LIMIT = 30
         private const val UNSPLASH_PAGE_LIMIT = 30
     }
+}
+
+class CredentialRequiredException(credentialName: String) : IllegalStateException(
+    "$credentialName is required. Add it in Settings > Source connections.",
+)
+
+class UnsupportedSourceException(sourceName: String) : IllegalStateException(
+    "$sourceName is not available in the no-key public build. Use Wallhaven instead.",
+)
+
+private fun String.requireConfigured(credentialName: String) {
+    if (isBlank()) throw CredentialRequiredException(credentialName)
 }

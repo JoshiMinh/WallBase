@@ -114,6 +114,7 @@ class MainActivity : ComponentActivity() {
                     onToggleIncludeSourcesInBackup = settingsViewModel::setIncludeSourcesInBackup,
                     onSetAppLockEnabled = settingsViewModel::setAppLockEnabled,
                     onToggleShowHorizontalWallpapers = settingsViewModel::setShowHorizontalWallpapers,
+                    onSaveSourceCredentials = settingsViewModel::saveSourceCredentials,
                     onShowSettingsMessage = settingsViewModel::showMessage,
                     onCompleteOnboarding = settingsViewModel::markOnboardingComplete,
                 )

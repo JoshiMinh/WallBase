@@ -18,6 +18,7 @@ import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
 import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
+import com.joshiminh.wallbase.data.repository.SourceCredentialStore
 import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,7 +40,8 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val updateRepository: UpdateRepository,
     private val localStorage: LocalStorageCoordinator,
-    private val libraryRepository: LibraryRepository
+    private val libraryRepository: LibraryRepository,
+    private val credentialStore: SourceCredentialStore,
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -69,6 +71,7 @@ class SettingsViewModel @Inject constructor(
         }
 
         refreshStorageSnapshot()
+        refreshSourceConnectionState()
     }
 
     fun exportBackup(destination: Uri, includeSources: Boolean) {
@@ -295,6 +298,21 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(message = message) }
     }
 
+    fun saveSourceCredentials(redditClientId: String, unsplashAccessKey: String, wallhavenApiKey: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val existing = credentialStore.snapshot()
+            credentialStore.save(
+                SourceCredentialStore.SourceCredentials(
+                    redditClientId = redditClientId.trim().ifBlank { existing.redditClientId },
+                    unsplashAccessKey = unsplashAccessKey.trim().ifBlank { existing.unsplashAccessKey },
+                    wallhavenApiKey = wallhavenApiKey.trim().ifBlank { existing.wallhavenApiKey },
+                )
+            )
+            refreshSourceConnectionState()
+            _uiState.update { it.copy(message = "Source connection settings saved") }
+        }
+    }
+
     fun consumeRestartRequest() {
         if (!_uiState.value.shouldRestartAfterImport) return
         _uiState.update { it.copy(shouldRestartAfterImport = false) }
@@ -356,7 +374,7 @@ class SettingsViewModel @Inject constructor(
         val isBackingUp: Boolean = false,
         val isRestoring: Boolean = false,
         val message: String? = null,
-        val appTheme: AppTheme = AppTheme.LIGHT,
+        val appTheme: AppTheme = AppTheme.SYSTEM,
         val appAccentColor: AppAccentColor = AppAccentColor.PINK,
         val customAccentColorRgb: String? = null,
         val animationsEnabled: Boolean = true,
@@ -383,6 +401,9 @@ class SettingsViewModel @Inject constructor(
         val dismissedUpdateVersion: String? = null,
         val shouldRestartAfterImport: Boolean = false,
         val showHorizontalWallpapers: Boolean = true,
+        val redditConnected: Boolean = false,
+        val unsplashConnected: Boolean = false,
+        val wallhavenTokenConfigured: Boolean = false,
     )
 
     private data class StorageUsage(
@@ -447,7 +468,8 @@ class SettingsViewModel @Inject constructor(
                     settingsRepository = ServiceLocator.settingsRepository,
                     updateRepository = ServiceLocator.updateRepository,
                     localStorage = ServiceLocator.localStorageCoordinator,
-                    libraryRepository = ServiceLocator.libraryRepository
+                    libraryRepository = ServiceLocator.libraryRepository,
+                    credentialStore = ServiceLocator.sourceCredentialStore
                 )
             }
         }
@@ -473,6 +495,17 @@ class SettingsViewModel @Inject constructor(
                     isStorageLoading = false
                 )
             }
+        }
+    }
+
+    private fun refreshSourceConnectionState() {
+        val credentials = credentialStore.snapshot()
+        _uiState.update {
+            it.copy(
+                redditConnected = credentials.hasReddit,
+                unsplashConnected = credentials.hasUnsplash,
+                wallhavenTokenConfigured = credentials.hasWallhavenToken,
+            )
         }
     }
 }

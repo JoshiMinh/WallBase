@@ -3,37 +3,32 @@ package com.joshiminh.wallbase.sources
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import retrofit2.http.GET
-import retrofit2.http.Headers
 import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface UnsplashService {
-    @Headers("Accept: application/json")
-    @GET("napi/search/photos")
+    @GET("search/photos")
     suspend fun searchPhotos(
         @Query("query") query: String,
         @Query("page") page: Int,
         @Query("per_page") perPage: Int
     ): UnsplashSearchResponse
 
-    @Headers("Accept: application/json")
-    @GET("napi/collections/{id}/photos")
+    @GET("collections/{id}/photos")
     suspend fun getCollectionPhotos(
         @Path("id") id: String,
         @Query("page") page: Int,
         @Query("per_page") perPage: Int
     ): List<UnsplashPhoto>
 
-    @Headers("Accept: application/json")
-    @GET("napi/users/{username}/photos")
+    @GET("users/{username}/photos")
     suspend fun getUserPhotos(
         @Path("username") username: String,
         @Query("page") page: Int,
         @Query("per_page") perPage: Int
     ): List<UnsplashPhoto>
 
-    @Headers("Accept: application/json")
-    @GET("napi/users/{username}/likes")
+    @GET("users/{username}/likes")
     suspend fun getUserLikes(
         @Path("username") username: String,
         @Query("page") page: Int,

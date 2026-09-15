@@ -98,6 +98,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.text.KeyboardActions
@@ -208,30 +209,88 @@ fun CreateAlbumDialog(
 ) {
     var title by rememberSaveable { mutableStateOf("") }
     val trimmedTitle = title.trim()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+    val canCreate = trimmedTitle.isNotBlank() && !isCreating
+
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = "New Album") },
+        onDismissRequest = {
+            if (!isCreating) {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+                onDismiss()
+            }
+        },
+        shape = WallBaseShapes.dialog,
+        icon = {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Album,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(10.dp).size(24.dp),
+                )
+            }
+        },
+        title = { Text(text = "Create album") },
         text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                placeholder = { Text("Enter album name") },
-                enabled = !isCreating,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    text = "Give this collection a name. You can add wallpapers after creating it.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Album name") },
+                    placeholder = { Text("For example, Landscapes") },
+                    supportingText = {
+                        Text(if (isCreating) "Creating album…" else "Names must be unique.")
+                    },
+                    enabled = !isCreating,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (canCreate) {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                onCreate(trimmedTitle)
+                            }
+                        },
+                    ),
+                )
+            }
         },
         confirmButton = {
-            TextButton(
-                onClick = { onCreate(trimmedTitle) },
-                enabled = !isCreating && trimmedTitle.isNotBlank()
+            Button(
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    onCreate(trimmedTitle)
+                },
+                enabled = canCreate,
             ) {
                 Text(text = if (isCreating) "Creating..." else "Create")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isCreating) {
+            TextButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                    onDismiss()
+                },
+                enabled = !isCreating,
+            ) {
                 Text(text = "Cancel")
             }
         }

@@ -35,7 +35,7 @@ import java.util.Locale
         SourceEntity::class,
         RotationScheduleEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -58,7 +58,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): WallBaseDatabase {
             val callback = DefaultSourcesCallback(DefaultSources)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
                 .build()
@@ -198,6 +198,22 @@ abstract class WallBaseDatabase : RoomDatabase() {
                             }
                         }
                     }
+            }
+        }
+
+        val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO sources
+                    (key, provider_key, title, description, icon_res, icon_url, show_in_explore, is_enabled, is_local, config)
+                    VALUES
+                    ('wallhaven:featured', 'wallhaven', 'Featured wallpapers',
+                     'Fresh wallpapers from Wallhaven''s public catalog', NULL,
+                     'https://www.google.com/s2/favicons?sz=128&domain=wallhaven.cc', 1, 1, 0,
+                     'https://wallhaven.cc/search?q=wallpapers&purity=100&sorting=toplist')
+                    """.trimIndent()
+                )
             }
         }
 

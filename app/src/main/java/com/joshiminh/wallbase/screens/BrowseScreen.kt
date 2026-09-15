@@ -63,6 +63,8 @@ import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.sources.RedditCommunity
 import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
+import com.joshiminh.wallbase.ui.theme.WallBaseShapes
+import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
 import java.util.Locale
 
 @Composable
@@ -126,17 +128,30 @@ fun BrowseScreen(
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(horizontal = WallBaseSpacing.md, vertical = WallBaseSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
+
+            item("browse_header") {
+                Column(verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.xxs)) {
+                    Text(text = "Explore sources", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        text = "Choose a collection, then search and save the images you want to keep.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
             if (uiState.sources.isEmpty()) {
                 item("empty_sources") {
-                    Text(
-                        text = "No sources configured",
-                        modifier = Modifier.padding(top = 8.dp),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                    Surface(shape = WallBaseShapes.card, color = MaterialTheme.colorScheme.surfaceVariant) {
+                        Text(
+                            text = "No sources configured. Add a Wallhaven search or collection to begin.",
+                            modifier = Modifier.padding(WallBaseSpacing.md),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
                 }
             } else {
                 val visibleSources = uiState.sources.filterNot(Source::isLocal)
@@ -197,9 +212,9 @@ private fun AddSourceBottomSheet(
     onClearResults: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isReddit = detectedType == SourceRepository.RemoteSourceType.REDDIT
-    val canSearch = isReddit && input.trim().length >= 2 && !isSearching
-    val canAdd = detectedType != null && input.isNotBlank() && !isSearching
+    val isReddit = false
+    val canSearch = false
+    val canAdd = detectedType == SourceRepository.RemoteSourceType.WALLHAVEN && input.isNotBlank() && !isSearching
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(
@@ -207,11 +222,11 @@ private fun AddSourceBottomSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item("title") {
-                Text(text = "Add Source", style = MaterialTheme.typography.titleLarge)
+                Text(text = "Add Wallhaven source", style = MaterialTheme.typography.titleLarge)
             }
             item("subtitle") {
                 Text(
-                    text = "Paste a subreddit or supported wallpaper link.",
+                    text = "Paste a public Wallhaven search or collection link.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -220,14 +235,12 @@ private fun AddSourceBottomSheet(
                 OutlinedTextField(
                     value = input,
                     onValueChange = onInputChange,
-                    label = { Text("Subreddit or URL") },
+                    label = { Text("Wallhaven URL") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = {
-                        if (isReddit) {
-                            if (canSearch) onSearch()
-                        } else if (canAdd) {
+                        if (canAdd) {
                             onAddSource()
                         }
                     })
@@ -264,7 +277,7 @@ private fun AddSourceBottomSheet(
             if (input.isNotBlank() && detectedType == null) {
                 item("invalid_hint") {
                     Text(
-                        text = "Enter a supported source from the list below.",
+                        text = "Enter a public Wallhaven search or collection URL.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -314,30 +327,11 @@ private fun SupportedSourcesList(
 ) {
     val sources = listOf(
         SupportedSourceInfo(
-            label = "Reddit",
-            faviconDomain = "reddit.com",
-            quickAddInput = "https://www.reddit.com/r/wallpapers/"
-        ),
-        SupportedSourceInfo(
-            label = "Pinterest",
-            faviconDomain = "pinterest.com",
-            quickAddInput = "https://www.pinterest.com/wallpapercollec/wallpapers"
-        ),
-        SupportedSourceInfo(
             label = "Wallhaven",
             faviconDomain = "wallhaven.cc",
-            quickAddInput = "https://wallhaven.cc"
+            quickAddInput = "https://wallhaven.cc/search?q=wallpapers&purity=100&sorting=toplist",
+            requirement = "Public API — no account or key required"
         ),
-        SupportedSourceInfo(
-            label = "Unsplash",
-            faviconDomain = "unsplash.com",
-            quickAddInput = "https://unsplash.com/t/wallpapers"
-        ),
-        SupportedSourceInfo(
-            label = "AlphaCoders (Wallpaper Abyss)",
-            faviconDomain = "wall.alphacoders.com",
-            quickAddInput = "https://wall.alphacoders.com/by_category.php?id=3"
-        )
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -374,11 +368,16 @@ private fun SupportedSourcesList(
                             modifier = Modifier.size(24.dp)
                         )
                     }
-                    Text(
-                        text = source.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = source.label, style = MaterialTheme.typography.bodyMedium)
+                        source.requirement?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -433,7 +432,8 @@ private fun RedditSearchResult(
 private data class SupportedSourceInfo(
     val label: String,
     val faviconDomain: String? = null,
-    val quickAddInput: String? = null
+    val quickAddInput: String? = null,
+    val requirement: String? = null,
 ) {
     val faviconUrl: String? = faviconDomain?.let { domain ->
         "https://www.google.com/s2/favicons?sz=128&domain=$domain"
@@ -465,10 +465,10 @@ private fun SourceCard(
                     }
                 }
             ),
-        shape = RoundedCornerShape(10.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        shape = WallBaseShapes.card,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(WallBaseSpacing.md)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val iconUrl = source.iconUrl?.takeUnless { it.isBlank() }
                 val fallbackPainter = safePainterResource(source.iconRes)
@@ -479,7 +479,7 @@ private fun SourceCard(
                         AsyncImage(
                             model = iconUrl,
                             contentDescription = source.title,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(36.dp),
                             placeholder = fallbackPainter ?: defaultPainter,
                             error = fallbackPainter ?: defaultPainter
                         )
@@ -489,7 +489,7 @@ private fun SourceCard(
                         Image(
                             painter = fallbackPainter,
                             contentDescription = source.title,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(36.dp)
                         )
                     }
 
@@ -497,11 +497,11 @@ private fun SourceCard(
                         Icon(
                             imageVector = Icons.Outlined.Public,
                             contentDescription = source.title,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(36.dp)
                         )
                     }
                 }
-                Spacer(Modifier.size(12.dp))
+                Spacer(Modifier.size(WallBaseSpacing.sm))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(source.title, style = MaterialTheme.typography.titleMedium)
                     Text(source.description, style = MaterialTheme.typography.bodyMedium)

@@ -97,6 +97,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.joshiminh.wallbase.ui.theme.WallBaseShapes
+import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.text.KeyboardActions
@@ -190,6 +192,29 @@ fun LibraryContent(
     val hasQuery = isSearching && searchQuery.isNotBlank()
 
     Column(modifier) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = WallBaseSpacing.md, vertical = WallBaseSpacing.sm),
+            shape = WallBaseShapes.featured,
+            color = MaterialTheme.colorScheme.primaryContainer,
+        ) {
+            Column(
+                modifier = Modifier.padding(WallBaseSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.xxs),
+            ) {
+                Text(
+                    text = "Your collection",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Text(
+                    text = "${uiState.wallpapers.size} saved wallpapers · ${uiState.albums.size} albums",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                )
+            }
+        }
         TabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, (title, count) ->
                 Tab(
@@ -299,10 +324,20 @@ fun LibraryContent(
 @Composable
 fun LibraryEmptyState(message: String, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().padding(WallBaseSpacing.lg),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = message, style = MaterialTheme.typography.bodyLarge)
+        Surface(
+            shape = WallBaseShapes.card,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(WallBaseSpacing.lg),
+            )
+        }
     }
 }
 
@@ -370,7 +405,7 @@ fun AlbumGridCard(
 ) {
     val indicatorColor = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = WallBaseShapes.featured,
         border = if (selected) BorderStroke(2.dp, indicatorColor) else null,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
         modifier = Modifier
@@ -429,7 +464,7 @@ fun AlbumGridCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Surface(
-                    shape = RoundedCornerShape(50),
+                    shape = WallBaseShapes.pill,
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                 ) {
                     Text(
@@ -460,7 +495,7 @@ fun AlbumRowCard(
     onLongPress: () -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
     ) {
         Row(
@@ -477,7 +512,7 @@ fun AlbumRowCard(
             Box(
                 modifier = Modifier
                     .size(92.dp)
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(WallBaseShapes.card)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (!album.coverImageUrl.isNullOrBlank()) {

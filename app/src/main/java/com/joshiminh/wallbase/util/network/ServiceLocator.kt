@@ -7,6 +7,7 @@ import com.joshiminh.wallbase.data.WallBaseDatabase
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
 import com.joshiminh.wallbase.data.repository.SettingsRepository
+import com.joshiminh.wallbase.data.repository.SourceCredentialStore
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
@@ -116,27 +117,15 @@ object ServiceLocator {
     }
 
     private val redditTokenManager: RedditTokenManager by lazy {
-        RedditTokenManager(redditAuthService, BuildConfig.REDDIT_CLIENT_ID)
+        RedditTokenManager(redditAuthService) { sourceCredentialStore.snapshot().redditClientId }
     }
 
-    private val hasRedditAuth: Boolean
-        get() = BuildConfig.REDDIT_CLIENT_ID != "YOUR_CLIENT_ID" && BuildConfig.REDDIT_CLIENT_ID.isNotBlank()
-
     private val redditRetrofit: Retrofit by lazy {
-        if (hasRedditAuth) {
-            Retrofit.Builder()
-                .baseUrl("https://oauth.reddit.com/")
-                .client(redditOkHttpClient)
-                .addConverterFactory(MoshiConverterFactory.create(moshi))
-                .build()
-        } else {
-            // Fallback: public JSON API, no auth required
-            Retrofit.Builder()
-                .baseUrl("https://www.reddit.com/")
-                .client(okHttpClient)
-                .addConverterFactory(MoshiConverterFactory.create(moshi))
-                .build()
-        }
+        Retrofit.Builder()
+            .baseUrl("https://oauth.reddit.com/")
+            .client(redditOkHttpClient)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
     }
 
     private val redditService: RedditService by lazy {
@@ -146,7 +135,15 @@ object ServiceLocator {
     private val wallhavenRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl("https://wallhaven.cc/api/v1/")
-            .client(okHttpClient)
+            .client(okHttpClient.newBuilder().addInterceptor { chain ->
+                val key = sourceCredentialStore.snapshot().wallhavenApiKey
+                val url = if (key.isBlank() || chain.request().url.queryParameter("apikey") != null) {
+                    chain.request().url
+                } else {
+                    chain.request().url.newBuilder().addQueryParameter("apikey", key).build()
+                }
+                chain.proceed(chain.request().newBuilder().url(url).build())
+            }.build())
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }
@@ -157,8 +154,15 @@ object ServiceLocator {
 
     private val unsplashRetrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl("https://unsplash.com/")
-            .client(okHttpClient)
+            .baseUrl("https://api.unsplash.com/")
+            .client(okHttpClient.newBuilder().addInterceptor { chain ->
+                val key = sourceCredentialStore.snapshot().unsplashAccessKey
+                val request = chain.request().newBuilder()
+                    .header("Accept-Version", "v1")
+                    .apply { if (key.isNotBlank()) header("Authorization", "Client-ID $key") }
+                    .build()
+                chain.proceed(request)
+            }.build())
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }
@@ -190,7 +194,8 @@ object ServiceLocator {
             redditService = redditService,
             webScraper = scraper,
             wallhavenService = wallhavenService,
-            unsplashService = unsplashService
+            unsplashService = unsplashService,
+            credentialStore = sourceCredentialStore
         )
     }
 
@@ -204,6 +209,10 @@ object ServiceLocator {
 
     val settingsRepository: SettingsRepository by lazy {
         SettingsRepository(context.settingsDataStore)
+    }
+
+    val sourceCredentialStore: SourceCredentialStore by lazy {
+        SourceCredentialStore(context)
     }
 
     val localStorageCoordinator: LocalStorageCoordinator by lazy {

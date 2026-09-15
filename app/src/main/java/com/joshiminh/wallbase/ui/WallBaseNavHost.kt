@@ -20,10 +20,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Collections
@@ -35,6 +39,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -57,6 +63,7 @@ import com.joshiminh.wallbase.ui.*
 import com.joshiminh.wallbase.screens.LibraryScreen
 import com.joshiminh.wallbase.screens.AlbumRoute
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
+import com.joshiminh.wallbase.ui.theme.WallBaseMotion
 import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.data.repository.AppTheme
 import com.joshiminh.wallbase.data.repository.AppAccentColor
@@ -99,6 +106,7 @@ fun WallBaseApp(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onSetAppLockEnabled: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
+    onSaveSourceCredentials: (String, String, String) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
 ) {
@@ -332,28 +340,67 @@ fun WallBaseApp(
             },
             bottomBar = {
                 if (currentDestination?.route in topLevelRoutes) {
-                    NavigationBar {
-                        RootRoute.entries.forEach { item ->
-                            NavigationBarItem(
-                                selected = currentDestination.isTopDestination(item),
-                                onClick = {
-                                    if (!currentDestination.isTopDestination(item)) {
-                                        navController.navigate(item.route) {
-                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = item.icon,
-                                        contentDescription = item.label,
-                                        modifier = Modifier.size(24.dp),
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            tonalElevation = 3.dp,
+                            shadowElevation = 6.dp,
+                        ) {
+                            NavigationBar(
+                                modifier = Modifier.height(68.dp),
+                                containerColor = Color.Transparent,
+                                tonalElevation = 0.dp,
+                                windowInsets = WindowInsets(
+                                    left = 0.dp,
+                                    top = 0.dp,
+                                    right = 0.dp,
+                                    bottom = 0.dp,
+                                ),
+                            ) {
+                                RootRoute.entries.forEach { item ->
+                                    val selected = currentDestination.isTopDestination(item)
+                                    NavigationBarItem(
+                                        selected = selected,
+                                        onClick = {
+                                            if (!selected) {
+                                                navController.navigate(item.route) {
+                                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
+                                            }
+                                        },
+                                        icon = {
+                                            AnimatedNavigationIcon(
+                                                item = item,
+                                                selected = selected,
+                                                animationsEnabled = settingsUiState.animationsEnabled,
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = item.label,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1,
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        ),
                                     )
-                                },
-                                label = { Text(item.label) },
-                            )
+                                }
+                            }
                         }
                     }
                 }
@@ -498,6 +545,7 @@ fun WallBaseApp(
                             onToggleIncludeSourcesInBackup = onToggleIncludeSourcesInBackup,
                             onRequestAppLockChange = handleAppLockToggle,
                             onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
+                            onSaveSourceCredentials = onSaveSourceCredentials,
                         )
                     }
                 }
@@ -531,6 +579,47 @@ fun WallBaseApp(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AnimatedNavigationIcon(
+    item: RootRoute,
+    selected: Boolean,
+    animationsEnabled: Boolean,
+) {
+    /* Hallmark · component: bottom navigation · genre: editorial · theme: editorial gallery
+     * states: selected · unselected · pressed · focus · animations-disabled
+     * critique: P5 H5 E4 S5 R5 V4
+     */
+    val duration = if (animationsEnabled) WallBaseMotion.shortMillis else WallBaseMotion.reducedMillis
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.12f else 1f,
+        animationSpec = tween(durationMillis = duration),
+        label = "navigation icon scale",
+    )
+    val translationY by animateFloatAsState(
+        targetValue = if (selected) -2f else 0f,
+        animationSpec = tween(durationMillis = duration),
+        label = "navigation icon lift",
+    )
+
+    Crossfade(
+        targetState = selected,
+        animationSpec = tween(durationMillis = duration),
+        label = "navigation icon state",
+    ) { isSelected ->
+        Icon(
+            imageVector = if (isSelected) item.selectedIcon else item.icon,
+            contentDescription = null,
+            modifier = Modifier
+                .size(24.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    this.translationY = translationY
+                },
+        )
     }
 }
 

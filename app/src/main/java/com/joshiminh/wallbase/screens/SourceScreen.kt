@@ -8,12 +8,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
@@ -67,6 +69,8 @@ import com.joshiminh.wallbase.util.SortSelection
 import com.joshiminh.wallbase.util.toSelection
 import com.joshiminh.wallbase.util.toWallpaperSortOption
 import com.joshiminh.wallbase.util.filterByHorizontalPreference
+import com.joshiminh.wallbase.ui.theme.WallBaseShapes
+import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
 import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -260,6 +264,7 @@ fun SourceRoute(
         onDismissAlbumPicker = { showAlbumPicker = false },
         showAlbumPicker = showAlbumPicker,
         onLoadMore = viewModel::loadMore,
+        onClearSearch = viewModel::clearQuery,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope
     )
@@ -302,6 +307,7 @@ private fun SourceScreen(
     onDismissAlbumPicker: () -> Unit,
     showAlbumPicker: Boolean,
     onLoadMore: () -> Unit,
+    onClearSearch: () -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
@@ -363,9 +369,10 @@ private fun SourceScreen(
                                 if (state.errorMessage != null) {
                                     ErrorMessage(message = state.errorMessage, onRetry = onRefresh)
                                 } else {
-                                    Text(
-                                        text = "No wallpaper, try search or refresh",
-                                        style = MaterialTheme.typography.bodyLarge
+                                    EmptyWallpaperState(
+                                        query = state.query.takeIf { it.isNotBlank() },
+                                        onClearSearch = onClearSearch,
+                                        onRefresh = onRefresh,
                                     )
                                 }
                             }
@@ -418,6 +425,62 @@ private fun SourceScreen(
             },
             onDismiss = onDismissAlbumPicker
         )
+    }
+}
+
+@Composable
+private fun EmptyWallpaperState(
+    query: String?,
+    onClearSearch: () -> Unit,
+    onRefresh: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(WallBaseSpacing.lg),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Surface(
+            shape = WallBaseShapes.featured,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Column(
+                modifier = Modifier.padding(WallBaseSpacing.lg),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm),
+            ) {
+                Surface(
+                    shape = WallBaseShapes.pill,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Icon(
+                        imageVector = if (query == null) Icons.Outlined.LibraryAdd else Icons.Outlined.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(WallBaseSpacing.sm).size(28.dp),
+                    )
+                }
+                Text(
+                    text = if (query == null) "Nothing here yet" else "No results for \"$query\"",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Text(
+                    text = if (query == null) {
+                        "Refresh this source, or check its connection in Settings."
+                    } else {
+                        "Try another phrase or return to this source's latest wallpapers."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.xs)) {
+                    if (query != null) {
+                        TextButton(onClick = onClearSearch) { Text("Clear search") }
+                    }
+                    Button(onClick = onRefresh) { Text("Refresh") }
+                }
+            }
+        }
     }
 }
 

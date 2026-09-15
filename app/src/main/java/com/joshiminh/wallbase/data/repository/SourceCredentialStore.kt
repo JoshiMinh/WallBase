@@ -1,0 +1,56 @@
+package com.joshiminh.wallbase.data.repository
+
+import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Keeps user-supplied provider keys out of Room and backup exports. The values are
+ * encrypted with an Android Keystore-backed key and are intentionally never logged.
+ */
+@Singleton
+class SourceCredentialStore @Inject constructor(
+    @ApplicationContext context: Context,
+) {
+    private val preferences = EncryptedSharedPreferences.create(
+        context,
+        FILE_NAME,
+        MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+    )
+
+    fun snapshot(): SourceCredentials = SourceCredentials(
+        redditClientId = preferences.getString(REDDIT_CLIENT_ID, null).orEmpty().trim(),
+        unsplashAccessKey = preferences.getString(UNSPLASH_ACCESS_KEY, null).orEmpty().trim(),
+        wallhavenApiKey = preferences.getString(WALLHAVEN_API_KEY, null).orEmpty().trim(),
+    )
+
+    fun save(credentials: SourceCredentials) {
+        preferences.edit()
+            .putString(REDDIT_CLIENT_ID, credentials.redditClientId.ifBlank { null })
+            .putString(UNSPLASH_ACCESS_KEY, credentials.unsplashAccessKey.ifBlank { null })
+            .putString(WALLHAVEN_API_KEY, credentials.wallhavenApiKey.ifBlank { null })
+            .apply()
+    }
+
+    data class SourceCredentials(
+        val redditClientId: String = "",
+        val unsplashAccessKey: String = "",
+        val wallhavenApiKey: String = "",
+    ) {
+        val hasReddit: Boolean get() = redditClientId.isNotBlank()
+        val hasUnsplash: Boolean get() = unsplashAccessKey.isNotBlank()
+        val hasWallhavenToken: Boolean get() = wallhavenApiKey.isNotBlank()
+    }
+
+    private companion object {
+        const val FILE_NAME = "source_credentials"
+        const val REDDIT_CLIENT_ID = "reddit_client_id"
+        const val UNSPLASH_ACCESS_KEY = "unsplash_access_key"
+        const val WALLHAVEN_API_KEY = "wallhaven_api_key"
+    }
+}

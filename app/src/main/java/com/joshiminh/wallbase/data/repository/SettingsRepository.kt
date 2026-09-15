@@ -47,7 +47,7 @@ class SettingsRepository @Inject constructor(
             } else if (legacyDarkTheme) {
                 AppTheme.DARK
             } else {
-                AppTheme.LIGHT
+                AppTheme.SYSTEM
             }
 
             val accentColorStr = prefs[Keys.APP_ACCENT_COLOR]
@@ -258,29 +258,32 @@ enum class WallpaperLayout {
 }
 
 enum class AppTheme {
+    SYSTEM,
     LIGHT,
     DARK,
-    SYSTEM;
+    AMOLED;
 
     val storageValue: String
         get() = when (this) {
+            SYSTEM -> "system"
             LIGHT -> "light"
             DARK -> "dark"
-            SYSTEM -> "system"
+            AMOLED -> "amoled"
         }
 
     companion object {
         fun fromStorage(value: String?): AppTheme = when (value) {
             "dark" -> DARK
             "system" -> SYSTEM
-            "amoled" -> DARK // Migrate legacy amoled value to dark
-            else -> LIGHT // Default to LIGHT
+            "amoled" -> AMOLED
+            "light" -> LIGHT
+            else -> SYSTEM
         }
     }
 }
 
 enum class AppAccentColor {
-    PINK, // Default (#2596be)
+    PINK,
     RED,
     BLUE,
     GREEN,

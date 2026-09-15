@@ -8,7 +8,7 @@ import javax.inject.Singleton
 @Singleton
 class RedditTokenManager @Inject constructor(
     private val redditAuthService: RedditAuthService,
-    private val clientId: String
+    private val clientIdProvider: () -> String,
 ) {
     @Volatile
     private var redditToken: String? = null
@@ -16,19 +16,23 @@ class RedditTokenManager @Inject constructor(
     @Volatile
     private var redditTokenExpiresAt: Long = 0
 
+    @Volatile
+    private var tokenClientId: String? = null
+
     fun getRedditAccessToken(): String {
         val now = System.currentTimeMillis()
+        val clientId = clientIdProvider()
         val currentToken = redditToken
-        if (currentToken != null && now < redditTokenExpiresAt) {
+        if (currentToken != null && tokenClientId == clientId && now < redditTokenExpiresAt) {
             return currentToken
         }
 
         synchronized(this) {
-            if (redditToken != null && now < redditTokenExpiresAt) {
+            if (redditToken != null && tokenClientId == clientId && now < redditTokenExpiresAt) {
                 return redditToken!!
             }
 
-            if (clientId == "YOUR_CLIENT_ID" || clientId.isBlank()) {
+            if (clientId.isBlank()) {
                 return ""
             }
 
@@ -40,6 +44,7 @@ class RedditTokenManager @Inject constructor(
                 val body = response.body()
                 if (response.isSuccessful && body != null) {
                     redditToken = body.accessToken
+                    tokenClientId = clientId
                     redditTokenExpiresAt = now + (body.expiresIn * 1000) - 60000
                     redditToken!!
                 } else {

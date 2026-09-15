@@ -1,6 +1,7 @@
 package com.joshiminh.wallbase.di
 
 import com.joshiminh.wallbase.BuildConfig
+import com.joshiminh.wallbase.data.repository.SourceCredentialStore
 import com.joshiminh.wallbase.sources.RedditAuthService
 import com.joshiminh.wallbase.sources.RedditService
 import com.joshiminh.wallbase.sources.UnsplashService
@@ -65,7 +66,7 @@ object NetworkModule {
     @Named("Reddit")
     fun provideRedditOkHttpClient(
         okHttpClient: OkHttpClient,
-        tokenManager: RedditTokenManager
+        tokenManager: RedditTokenManager,
     ): OkHttpClient {
         return okHttpClient.newBuilder()
             .addInterceptor { chain ->
@@ -104,9 +105,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRedditTokenManager(
-        redditAuthService: RedditAuthService
+        redditAuthService: RedditAuthService,
+        credentialStore: SourceCredentialStore,
     ): RedditTokenManager {
-        return RedditTokenManager(redditAuthService, BuildConfig.REDDIT_CLIENT_ID)
+        return RedditTokenManager(redditAuthService) { credentialStore.snapshot().redditClientId }
     }
 
     @Provides
@@ -116,15 +118,9 @@ object NetworkModule {
         okHttpClient: OkHttpClient,
         moshi: Moshi
     ): RedditService {
-        val hasRedditAuth = BuildConfig.REDDIT_CLIENT_ID != "YOUR_CLIENT_ID" && 
-                BuildConfig.REDDIT_CLIENT_ID.isNotBlank()
-        
-        val client = if (hasRedditAuth) redditOkHttpClient else okHttpClient
-        val baseUrl = if (hasRedditAuth) "https://oauth.reddit.com/" else "https://www.reddit.com/"
-
         return Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .client(client)
+            .baseUrl("https://oauth.reddit.com/")
+            .client(redditOkHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(RedditService::class.java)
@@ -148,11 +144,20 @@ object NetworkModule {
     @Singleton
     fun provideUnsplashService(
         okHttpClient: OkHttpClient,
-        moshi: Moshi
+        moshi: Moshi,
+        credentialStore: SourceCredentialStore,
     ): UnsplashService {
+        val client = okHttpClient.newBuilder().addInterceptor { chain ->
+            val key = credentialStore.snapshot().unsplashAccessKey
+            val request = chain.request().newBuilder()
+                .header("Accept-Version", "v1")
+                .apply { if (key.isNotBlank()) header("Authorization", "Client-ID $key") }
+                .build()
+            chain.proceed(request)
+        }.build()
         return Retrofit.Builder()
-            .baseUrl("https://unsplash.com/")
-            .client(okHttpClient)
+            .baseUrl("https://api.unsplash.com/")
+            .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(UnsplashService::class.java)
