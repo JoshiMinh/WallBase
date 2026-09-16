@@ -192,30 +192,7 @@ fun LibraryContent(
     val hasQuery = isSearching && searchQuery.isNotBlank()
 
     Column(modifier) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = WallBaseSpacing.md, vertical = WallBaseSpacing.sm),
-            shape = WallBaseShapes.featured,
-            color = MaterialTheme.colorScheme.primaryContainer,
-        ) {
-            Column(
-                modifier = Modifier.padding(WallBaseSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.xxs),
-            ) {
-                Text(
-                    text = "Your collection",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Text(
-                    text = "${uiState.wallpapers.size} saved wallpapers · ${uiState.albums.size} albums",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-                )
-            }
-        }
-        TabRow(selectedTabIndex = selectedTab) {
+        androidx.compose.material3.PrimaryTabRow(selectedTabIndex = selectedTab) {
             tabs.forEachIndexed { index, (title, count) ->
                 Tab(
                     selected = selectedTab == index,

@@ -91,7 +91,7 @@ fun SortBottomSheet(
                 )
             }
             additionalContent?.let { content ->
-                Divider()
+                androidx.compose.material3.HorizontalDivider()
                 content()
             }
         }

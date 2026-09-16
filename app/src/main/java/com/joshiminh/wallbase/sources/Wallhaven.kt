@@ -26,24 +26,24 @@ interface WallhavenService {
 
 @JsonClass(generateAdapter = true)
 data class WallhavenResponse(
-    @Json(name = "data") val data: List<WallhavenWallpaper>?,
-    @Json(name = "meta") val meta: WallhavenMeta?
+    @param:Json(name = "data") val data: List<WallhavenWallpaper>?,
+    @param:Json(name = "meta") val meta: WallhavenMeta?
 )
 
 @JsonClass(generateAdapter = true)
 data class WallhavenWallpaper(
-    @Json(name = "id") val id: String?,
-    @Json(name = "url") val url: String?,
-    @Json(name = "short_url") val shortUrl: String?,
-    @Json(name = "path") val path: String?,
-    @Json(name = "dimension_x") val dimensionX: Int?,
-    @Json(name = "dimension_y") val dimensionY: Int?
+    @param:Json(name = "id") val id: String?,
+    @param:Json(name = "url") val url: String?,
+    @param:Json(name = "short_url") val shortUrl: String?,
+    @param:Json(name = "path") val path: String?,
+    @param:Json(name = "dimension_x") val dimensionX: Int?,
+    @param:Json(name = "dimension_y") val dimensionY: Int?
 )
 
 @JsonClass(generateAdapter = true)
 data class WallhavenMeta(
-    @Json(name = "current_page") val currentPage: Int?,
-    @Json(name = "last_page") val lastPage: Int?
+    @param:Json(name = "current_page") val currentPage: Int?,
+    @param:Json(name = "last_page") val lastPage: Int?
 )
 
 /** Wallhaven's public search endpoint works without an account or API key. */

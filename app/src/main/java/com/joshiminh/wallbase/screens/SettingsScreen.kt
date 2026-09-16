@@ -506,7 +506,7 @@ fun SettingsScreen(
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = "Require your device screen lock before opening WallBase. Rotations keep running.",
+                                    text = "Require your device screen lock before opening WallBase.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

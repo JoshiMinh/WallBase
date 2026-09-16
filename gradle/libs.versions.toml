@@ -32,14 +32,12 @@ jsoup = "1.21.2"
 datastore-preferences = "1.1.7"
 security-crypto = "1.1.0-alpha06"
 
-# Room & WorkManager
+# Room
 retrofit = "3.0.0"
-room = "2.8.3"                                 # Stable Room (compatible with Work 2.10.x) :contentReference[oaicite:15]{index=15}
-work = "2.11.0"                                # Latest stable WorkManager :contentReference[oaicite:16]{index=16}
+room = "2.8.3"
 
 navigation-compose = "2.9.5"
 foundation = "1.9.2"
-work-runtime-ktx = "2.9.0"
 
 [libraries]
 # AndroidX core
@@ -92,10 +90,6 @@ jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
-
-# WorkManager
-androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
-androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 
 androidx-compose-ui-text = { module = "androidx.compose.ui:ui-text" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }

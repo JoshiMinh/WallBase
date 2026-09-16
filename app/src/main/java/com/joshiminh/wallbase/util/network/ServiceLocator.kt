@@ -1,7 +1,6 @@
 package com.joshiminh.wallbase.util.network
 
 import android.content.Context
-import androidx.work.WorkManager
 import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.data.WallBaseDatabase
 import com.joshiminh.wallbase.data.repository.LibraryRepository
@@ -11,7 +10,6 @@ import com.joshiminh.wallbase.data.repository.SourceCredentialStore
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
-import com.joshiminh.wallbase.data.repository.WallpaperRotationRepository
 import com.joshiminh.wallbase.data.repository.settingsDataStore
 import com.joshiminh.wallbase.sources.RedditAuthService
 import com.joshiminh.wallbase.sources.RedditService
@@ -59,7 +57,7 @@ object ServiceLocator {
         Moshi.Builder()
             .add(KotlinJsonAdapterFactory())
             .build()
-    }
+        }
 
     private val okHttpClient: OkHttpClient by lazy {
         val builder = OkHttpClient.Builder()
@@ -227,15 +225,7 @@ object ServiceLocator {
         )
     }
 
-    val rotationRepository: WallpaperRotationRepository by lazy {
-        WallpaperRotationRepository(
-            database = database,
-            workManager = WorkManager.getInstance(context)
-        )
-    }
-
     val updateRepository: UpdateRepository by lazy {
         UpdateRepository(updateService)
     }
 }
-

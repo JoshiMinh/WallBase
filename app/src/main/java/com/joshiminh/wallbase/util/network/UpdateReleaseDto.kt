@@ -5,9 +5,7 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class UpdateReleaseDto(
-    @Json(name = "tag_name") val tagName: String,
-    @Json(name = "body") val changelog: String? = null,
-    @Json(name = "html_url") val downloadUrl: String? = null
+    @param:Json(name = "tag_name") val tagName: String,
+    @param:Json(name = "body") val changelog: String? = null,
+    @param:Json(name = "html_url") val downloadUrl: String? = null
 )
-
-

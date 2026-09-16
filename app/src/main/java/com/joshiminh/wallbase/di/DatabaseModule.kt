@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.joshiminh.wallbase.data.WallBaseDatabase
 import com.joshiminh.wallbase.data.dao.AlbumDao
-import com.joshiminh.wallbase.data.dao.RotationScheduleDao
 import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.repository.settingsDataStore
@@ -36,10 +35,6 @@ object DatabaseModule {
 
     @Provides
     fun provideAlbumDao(database: WallBaseDatabase): AlbumDao = database.albumDao()
-
-    @Provides
-    fun provideRotationScheduleDao(database: WallBaseDatabase): RotationScheduleDao = 
-        database.rotationScheduleDao()
 
     @Provides
     @Singleton

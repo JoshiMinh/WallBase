@@ -102,9 +102,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     kapt(libs.androidx.room.compiler)
 
-    implementation(libs.androidx.work.runtime)
-    implementation(libs.androidx.work.runtime.ktx)
-
     // Hilt
     implementation(libs.hilt)
     kapt(libs.hilt.compiler)

@@ -8,18 +8,15 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.joshiminh.wallbase.data.dao.AlbumDao
-import com.joshiminh.wallbase.data.dao.RotationScheduleDao
 import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.AlbumEntity
 import com.joshiminh.wallbase.data.entity.AlbumWallpaperCrossRef
-import com.joshiminh.wallbase.data.entity.SourceEntity.Companion.fromSeed
 import com.joshiminh.wallbase.data.entity.DefaultSources
 import com.joshiminh.wallbase.data.entity.SourceEntity
 import com.joshiminh.wallbase.data.entity.SourceSeed
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.entity.WallpaperEntity
-import com.joshiminh.wallbase.data.entity.RotationScheduleEntity
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustmentsJson
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
@@ -32,8 +29,7 @@ import java.util.Locale
         AlbumEntity::class,
         WallpaperEntity::class,
         AlbumWallpaperCrossRef::class,
-        SourceEntity::class,
-        RotationScheduleEntity::class
+        SourceEntity::class
     ],
     version = 9,
     exportSchema = false
@@ -43,7 +39,6 @@ abstract class WallBaseDatabase : RoomDatabase() {
     abstract fun sourceDao(): SourceDao
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun albumDao(): AlbumDao
-    abstract fun rotationScheduleDao(): RotationScheduleDao
 
     companion object {
         @Volatile
@@ -69,22 +64,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
 
         val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS rotation_schedules (
-                        schedule_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        album_id INTEGER NOT NULL,
-                        interval_minutes INTEGER NOT NULL,
-                        target TEXT NOT NULL,
-                        is_enabled INTEGER NOT NULL,
-                        last_applied_at INTEGER,
-                        last_wallpaper_id INTEGER,
-                        FOREIGN KEY(album_id) REFERENCES albums(album_id) ON DELETE CASCADE
-                    )
-                    """.trimIndent()
-                )
-                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_rotation_schedules_album_id ON rotation_schedules(album_id)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_rotation_schedules_is_enabled ON rotation_schedules(is_enabled)")
+                // Preserved historical migration
             }
         }
 
@@ -254,4 +234,3 @@ abstract class WallBaseDatabase : RoomDatabase() {
         }
     }
 }
-

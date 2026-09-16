@@ -1,7 +1,6 @@
 package com.joshiminh.wallbase.screens
 
 import com.joshiminh.wallbase.navigation.*
-import com.joshiminh.wallbase.ui.RotationScheduleBottomSheet
 import com.joshiminh.wallbase.util.*
 
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -10,59 +9,31 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.contentColorFor
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -75,30 +46,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.WallpaperItem
-import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.components.SortBottomSheet
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
-import com.joshiminh.wallbase.util.SortField
-import com.joshiminh.wallbase.util.toSelection
-import com.joshiminh.wallbase.util.toWallpaperSortOption
 import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
-import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
-import com.joshiminh.wallbase.util.wallpapers.WallpaperRotationDefaults
-import java.text.DateFormat
-import java.util.Date
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -295,10 +252,6 @@ fun AlbumRoute(
         onPromptRemoveDownloads = viewModel::promptRemoveDownloads,
         onConfirmRemoveDownloads = viewModel::removeAlbumDownloads,
         onDismissRemoveDownloads = viewModel::dismissRemoveDownloadsPrompt,
-        onToggleRotation = viewModel::toggleRotation,
-        onSelectRotationInterval = viewModel::updateRotationInterval,
-        onSelectRotationTarget = viewModel::updateRotationTarget,
-        onStartRotationNow = viewModel::triggerRotationNow,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope
     )
@@ -399,59 +352,13 @@ fun AlbumScreen(
     onPromptRemoveDownloads: () -> Unit,
     onConfirmRemoveDownloads: () -> Unit,
     onDismissRemoveDownloads: () -> Unit,
-    onToggleRotation: (Boolean) -> Unit,
-    onSelectRotationInterval: (Long) -> Unit,
-    onSelectRotationTarget: (WallpaperTarget) -> Unit,
-    onStartRotationNow: () -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?
 ) {
     val hasQuery = isSearching && searchQuery.isNotBlank()
-    var showRotationSheet by rememberSaveable { mutableStateOf(false) }
-    val canConfigureRotation = state.wallpapers.isNotEmpty()
-    val canDownloadAlbum = state.wallpapers.isNotEmpty() &&
-            !state.isDownloading &&
-            !state.isRemovingDownloads &&
-            !state.notFound
-
-    val defaultFabContainerColor = FloatingActionButtonDefaults.containerColor
-    val defaultFabContentColor = contentColorFor(defaultFabContainerColor)
-
-    val disabledFabContainerColor = MaterialTheme.colorScheme.surfaceVariant
-    val disabledFabContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        floatingActionButton = {
-            if (!state.isLoading && !state.notFound) {
-                FloatingActionButton(
-                    modifier = Modifier
-                        .semantics { if (!canConfigureRotation) disabled() },
-                    containerColor = if (canConfigureRotation) {
-                        defaultFabContainerColor
-                    } else {
-                        disabledFabContainerColor
-                    },
-                    contentColor = if (canConfigureRotation) {
-                        defaultFabContentColor
-                    } else {
-                        disabledFabContentColor
-                    },
-                    onClick = {
-                        if (!canConfigureRotation) return@FloatingActionButton
-
-                        showRotationSheet = true
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Schedule,
-                        contentDescription = "Schedule rotation"
-                    )
-                }
-            }
-        },
-        floatingActionButtonPosition = FabPosition.End
-        // (avoid custom contentWindowInsets constructor that can error across versions)
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { innerPadding ->
         when {
             state.isLoading -> {
@@ -545,18 +452,6 @@ fun AlbumScreen(
                 }
             }
         }
-    }
-
-    if (showRotationSheet) {
-        RotationScheduleBottomSheet(
-            rotationState = state.rotation,
-            canConfigure = canConfigureRotation,
-            onDismiss = { showRotationSheet = false },
-            onToggleRotation = onToggleRotation,
-            onSelectRotationInterval = onSelectRotationInterval,
-            onSelectRotationTarget = onSelectRotationTarget,
-            onStartRotationNow = onStartRotationNow
-        )
     }
 
     if (state.showRemoveDownloadsConfirmation) {

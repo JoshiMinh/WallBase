@@ -1,36 +1,59 @@
-# --- Build Artifacts ---
+# ==============================================================================
+# Built-in Gradle / Android Build Artifacts
+# ==============================================================================
 .gradle/
-.gradle
 build/
 app/build/
 captures/
+.cxx/
+.externalNativeBuild/
+cmake-build-*/
+
+# Output packages and binary artifacts
 *.apk
 *.aab
-*.bundle
+*.ap_
+*.dex
 *.class
-*.log
-*.pyc
+*.bundle
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
 
-# --- Android Studio / IntelliJ IDEA ---
+# ==============================================================================
+# Android Studio / IntelliJ IDEA / Eclipse
+# ==============================================================================
 .idea/
 *.iml
 *.iws
 *.ipr
-.externalNativeBuild/
-.cxx/
-local.properties
-cmake-build-*/
 .navigation/
+out/
 
-# --- Kotlin / Java ---
+# Local configuration and environment secrets
+local.properties
+signing.properties
+*.keystore
+*.jks
+google-services.json
+com_google_firebase_crashlytics_config.json
+
+# ==============================================================================
+# Kotlin / Java
+# ==============================================================================
 .kotlin/
 kotlin-daemon-embeddable-*.jar
+*.pyc
+__pycache__/
 
-# --- Jetpack Compose / UI Testing ---
+# ==============================================================================
+# Jetpack Compose / UI Testing
+# ==============================================================================
 **/screenshots/*.png
 !**/screenshots/goldens/*.png
 
-# --- OS Generated ---
+# ==============================================================================
+# OS Generated Files
+# ==============================================================================
 .DS_Store
 .DS_Store?
 ._*
@@ -40,17 +63,13 @@ ehthumbs.db
 Thumbs.db
 desktop.ini
 
-# --- Analysis & Logs ---
+# ==============================================================================
+# Diagnostics, Logs, & Analysis
+# ==============================================================================
+*.log
 analysis_output.txt
 analysis_results.txt
 build_output*.txt
 lint-results.xml
 lint-results-debug.html
 target/
-
-# --- Secrets ---
-google-services.json
-signing.properties
-
-# --- Crashlytics / Firebase ---
-com_google_firebase_crashlytics_config.json
