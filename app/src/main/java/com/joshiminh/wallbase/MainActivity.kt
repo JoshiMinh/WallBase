@@ -74,12 +74,16 @@ class MainActivity : ComponentActivity() {
             WallBaseTheme(
                 appTheme = settingsUiState.appTheme,
                 appAccentColor = settingsUiState.appAccentColor,
+                dynamicColor = settingsUiState.dynamicColor,
+                amoledDark = settingsUiState.amoledDark,
             ) {
                 WallBaseApp(
                     sourcesUiState = sourcesUiState,
                     settingsUiState = settingsUiState,
                     onSetAppTheme = settingsViewModel::setAppTheme,
                     onSetAppAccentColor = settingsViewModel::setAppAccentColor,
+                    onToggleDynamicColor = settingsViewModel::setDynamicColor,
+                    onToggleAmoledDark = settingsViewModel::setAmoledDark,
                     onToggleAnimations = settingsViewModel::setAnimationsEnabled,
                     onUpdateSourceInput = sourcesViewModel::updateSourceInput,
                     onSearchReddit = sourcesViewModel::searchRedditCommunities,

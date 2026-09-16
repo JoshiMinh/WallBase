@@ -102,6 +102,7 @@ import com.joshiminh.wallbase.ui.theme.AccentRed
 import com.joshiminh.wallbase.ui.theme.AccentBlue
 import com.joshiminh.wallbase.ui.theme.AccentGreen
 import android.content.pm.PackageManager
+import android.os.Build
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
 
@@ -111,6 +112,8 @@ fun SettingsScreen(
     uiState: SettingsViewModel.SettingsUiState,
     onSetAppTheme: (AppTheme) -> Unit,
     onSetAppAccentColor: (AppAccentColor) -> Unit,
+    onToggleDynamicColor: (Boolean) -> Unit,
+    onToggleAmoledDark: (Boolean) -> Unit,
     onToggleAnimations: (Boolean) -> Unit,
     onExportBackup: (Boolean) -> Unit,
     onImportBackup: () -> Unit,
@@ -191,14 +194,36 @@ fun SettingsScreen(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                            SettingsColorRow(
-                                title = "Accent Color",
-                                subtitle = "Pick an accent color. Overrides Material You.",
-                                selectedColor = uiState.appAccentColor,
-                                onColorSelected = onSetAppAccentColor,
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                SettingsToggleRow(
+                                    title = "Dynamic Color",
+                                    subtitle = "Use wallpaper-derived colors across the app (Material You).",
+                                    checked = uiState.dynamicColor,
+                                    onCheckedChange = onToggleDynamicColor
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
+
+                            SettingsToggleRow(
+                                title = "Pure black (AMOLED)",
+                                subtitle = "Use pitch-black background in dark mode.",
+                                checked = uiState.amoledDark,
+                                onCheckedChange = onToggleAmoledDark
                             )
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            if (!uiState.dynamicColor || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                                SettingsColorRow(
+                                    title = "Accent Color",
+                                    subtitle = "Pick an accent color for the app.",
+                                    selectedColor = uiState.appAccentColor,
+                                    onColorSelected = onSetAppAccentColor,
+                                )
+
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
 
                             SettingsToggleRow(
                                 title = "Enable animations",

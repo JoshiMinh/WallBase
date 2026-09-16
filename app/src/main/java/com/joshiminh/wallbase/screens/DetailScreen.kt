@@ -62,6 +62,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -194,6 +196,10 @@ private fun DetailScreen(
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope
     )
+    val vibrantColor = uiState.palette?.vibrantColor?.let { Color(it) }
+    val dominantColor = uiState.palette?.dominantColor?.let { Color(it) }
+    val dynamicAccentColor = vibrantColor ?: dominantColor ?: MaterialTheme.colorScheme.primary
+    val ambientGlowColor = dominantColor ?: vibrantColor ?: MaterialTheme.colorScheme.primary
     val statusMessages = remember(
         uiState.isDownloading,
         uiState.isRemovingDownload,
@@ -278,7 +284,7 @@ private fun DetailScreen(
                                     .background(
                                         Brush.radialGradient(
                                             colors = listOf(
-                                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                                ambientGlowColor.copy(alpha = 0.35f),
                                                 Color.Transparent
                                             )
                                         )
@@ -418,6 +424,7 @@ private fun DetailScreen(
                         inLibrary = uiState.isInLibrary,
                         enabled = !libraryBusy,
                         busy = libraryBusy,
+                        accentColor = dynamicAccentColor,
                         onClick = {
                             if (!libraryBusy) {
                                 if (uiState.isInLibrary) {
@@ -512,14 +519,19 @@ private fun DetailScreen(
                 Button(
                     modifier = Modifier.weight(1f),
                     onClick = { showTargetDialog = true },
-                    enabled = uiState.hasWallpaperPermission && !uiState.isApplying
+                    enabled = uiState.hasWallpaperPermission && !uiState.isApplying,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = dynamicAccentColor,
+                        contentColor = if (dynamicAccentColor.luminance() > 0.5f) Color.Black else Color.White
+                    )
                 ) {
                     if (uiState.isApplying) {
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .width(18.dp)
                                 .height(18.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
+                            color = if (dynamicAccentColor.luminance() > 0.5f) Color.Black else Color.White
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(text = "Applying…")
@@ -605,12 +617,24 @@ private fun LibraryActionButton(
     inLibrary: Boolean,
     enabled: Boolean,
     busy: Boolean,
+    accentColor: Color,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val containerColor = if (inLibrary) {
+        accentColor.copy(alpha = 0.2f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = if (inLibrary) {
+        accentColor
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     Surface(
         modifier = Modifier
-            .size(44.dp)
+            .size(48.dp)
             .combinedClickable(
                 enabled = enabled || busy,
                 onClick = {
@@ -626,23 +650,32 @@ private fun LibraryActionButton(
             ),
         shape = CircleShape,
         tonalElevation = 4.dp,
-        color = MaterialTheme.colorScheme.surfaceVariant
+        color = containerColor
     ) {
         Box(contentAlignment = Alignment.Center) {
             when {
                 busy -> {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp
+                        strokeWidth = 2.dp,
+                        color = contentColor
                     )
                 }
 
                 inLibrary -> {
-                    Icon(imageVector = Icons.Outlined.TaskAlt, contentDescription = "In library")
+                    Icon(
+                        imageVector = Icons.Filled.TaskAlt,
+                        contentDescription = "In library",
+                        tint = contentColor
+                    )
                 }
 
                 else -> {
-                    Icon(imageVector = Icons.Filled.Add, contentDescription = "Add to library")
+                    Icon(
+                        imageVector = Icons.Filled.Add,
+                        contentDescription = "Add to library",
+                        tint = contentColor
+                    )
                 }
             }
         }

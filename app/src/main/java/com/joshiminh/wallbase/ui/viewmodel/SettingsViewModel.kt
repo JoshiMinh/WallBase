@@ -54,6 +54,8 @@ class SettingsViewModel @Inject constructor(
                     it.copy(
                         appTheme = preferences.appTheme,
                         appAccentColor = preferences.appAccentColor,
+                        dynamicColor = preferences.dynamicColor,
+                        amoledDark = preferences.amoledDark,
                         animationsEnabled = preferences.animationsEnabled,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
                         albumLayout = preferences.albumLayout,
@@ -260,6 +262,22 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setDynamicColor(enabled: Boolean) {
+        if (_uiState.value.dynamicColor == enabled) return
+        _uiState.update { it.copy(dynamicColor = enabled) }
+        viewModelScope.launch {
+            settingsRepository.setDynamicColor(enabled)
+        }
+    }
+
+    fun setAmoledDark(enabled: Boolean) {
+        if (_uiState.value.amoledDark == enabled) return
+        _uiState.update { it.copy(amoledDark = enabled) }
+        viewModelScope.launch {
+            settingsRepository.setAmoledDark(enabled)
+        }
+    }
+
     fun setAutoDownload(enabled: Boolean) {
         if (_uiState.value.autoDownload == enabled) return
         _uiState.update { it.copy(autoDownload = enabled) }
@@ -375,6 +393,8 @@ class SettingsViewModel @Inject constructor(
         val message: String? = null,
         val appTheme: AppTheme = AppTheme.SYSTEM,
         val appAccentColor: AppAccentColor = AppAccentColor.PINK,
+        val dynamicColor: Boolean = true,
+        val amoledDark: Boolean = false,
         val animationsEnabled: Boolean = true,
         val wallpaperGridColumns: Int = 2,
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,

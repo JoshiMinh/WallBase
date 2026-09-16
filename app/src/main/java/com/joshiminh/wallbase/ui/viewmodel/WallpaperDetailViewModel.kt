@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.palette.graphics.Palette
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.entity.WallpaperItem
@@ -54,6 +55,7 @@ class WallpaperDetailViewModel(
     private var processedWallpaper: EditedWallpaper? = null
     private var cachedAdjustments: WallpaperAdjustments? = null
     private var previewJob: Job? = null
+    private var paletteJob: Job? = null
     private var persistAdjustmentsJob: Job? = null
     private var autoDownloadEnabled: Boolean = false
     private var storageLimitBytes: Long = 0L
@@ -110,9 +112,12 @@ class WallpaperDetailViewModel(
                 editedPreview = null,
                 isEditorReady = false,
                 isProcessingEdits = false,
-                isAddingToAlbum = false
+                isAddingToAlbum = false,
+                palette = null
             )
         }
+
+        extractPaletteForWallpaper(normalizedWallpaper)
 
         val sourceKey = normalizedWallpaper.sourceKey
         if (sourceKey != null) {
@@ -222,8 +227,39 @@ class WallpaperDetailViewModel(
         )
     }
 
+    private fun extractPaletteForWallpaper(wallpaper: WallpaperItem) {
+        paletteJob?.cancel()
+        paletteJob = viewModelScope.launch(Dispatchers.IO) {
+            val model: Any = wallpaper.localUri?.takeIf { it.isNotBlank() }?.toUri()
+                ?: wallpaper.imageUrl.takeIf { it.isNotBlank() }
+                ?: return@launch
+            val bitmap = runCatching { editor.loadOriginalBitmap(model) }.getOrNull() ?: return@launch
+            val p = runCatching {
+                Palette.from(bitmap)
+                    .maximumColorCount(16)
+                    .generate()
+            }.getOrNull()
+            if (!bitmap.isRecycled && bitmap !== originalBitmap) {
+                bitmap.recycle()
+            }
+            if (p != null) {
+                val palette = WallpaperPalette(
+                    dominantColor = p.dominantSwatch?.rgb,
+                    vibrantColor = p.vibrantSwatch?.rgb,
+                    darkVibrantColor = p.darkVibrantSwatch?.rgb,
+                    lightVibrantColor = p.lightVibrantSwatch?.rgb,
+                    mutedColor = p.mutedSwatch?.rgb,
+                    darkMutedColor = p.darkMutedSwatch?.rgb,
+                    lightMutedColor = p.lightMutedSwatch?.rgb,
+                )
+                _uiState.update { it.copy(palette = palette) }
+            }
+        }
+    }
+
     private fun resetEditorState() {
         previewJob?.cancel()
+        paletteJob?.cancel()
         recycleProcessedWallpaper()
         originalBitmap?.takeIf { !it.isRecycled }?.recycle()
         originalBitmap = null
@@ -796,6 +832,16 @@ class WallpaperDetailViewModel(
         }
     }
 
+    data class WallpaperPalette(
+        val dominantColor: Int? = null,
+        val vibrantColor: Int? = null,
+        val darkVibrantColor: Int? = null,
+        val lightVibrantColor: Int? = null,
+        val mutedColor: Int? = null,
+        val darkMutedColor: Int? = null,
+        val lightMutedColor: Int? = null,
+    )
+
     data class WallpaperDetailUiState(
         val wallpaper: WallpaperItem? = null,
         val isApplying: Boolean = false,
@@ -815,7 +861,8 @@ class WallpaperDetailViewModel(
         val isProcessingEdits: Boolean = false,
         val message: String? = null,
         val albums: List<AlbumItem> = emptyList(),
-        val isAddingToAlbum: Boolean = false
+        val isAddingToAlbum: Boolean = false,
+        val palette: WallpaperPalette? = null
     )
 
     data class WallpaperPreviewLaunch(
@@ -853,6 +900,7 @@ class WallpaperDetailViewModel(
     override fun onCleared() {
         super.onCleared()
         previewJob?.cancel()
+        paletteJob?.cancel()
         recycleProcessedWallpaper()
         originalBitmap?.takeIf { !it.isRecycled }?.recycle()
         originalBitmap = null

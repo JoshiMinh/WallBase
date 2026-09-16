@@ -53,10 +53,16 @@ class SettingsRepository @Inject constructor(
             val accentColorStr = prefs[Keys.APP_ACCENT_COLOR]
             val appAccentColor = AppAccentColor.fromStorage(accentColorStr)
 
+            val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+            val dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: isAndroid12Plus
+            val amoledDark = prefs[Keys.AMOLED_DARK] ?: false
+
             val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES
             SettingsPreferences(
                 appTheme = appTheme,
                 appAccentColor = appAccentColor,
+                dynamicColor = dynamicColor,
+                amoledDark = amoledDark,
                 animationsEnabled = prefs[Keys.ANIMATIONS_ENABLED] ?: true,
                 wallpaperGridColumns = wallpaperColumns,
                 albumLayout = albumLayout,
@@ -151,6 +157,18 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    suspend fun setDynamicColor(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.DYNAMIC_COLOR] = enabled
+        }
+    }
+
+    suspend fun setAmoledDark(enabled: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[Keys.AMOLED_DARK] = enabled
+        }
+    }
+
     suspend fun setShowHorizontalWallpapers(show: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.SHOW_HORIZONTAL_WALLPAPERS] = show
@@ -160,6 +178,8 @@ class SettingsRepository @Inject constructor(
     private object Keys {
         val APP_THEME = stringPreferencesKey("app_theme")
         val APP_ACCENT_COLOR = stringPreferencesKey("app_accent_color")
+        val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val AMOLED_DARK = booleanPreferencesKey("amoled_dark")
         val DARK_THEME = booleanPreferencesKey("dark_theme") // legacy
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
         val ALBUM_LAYOUT = stringPreferencesKey("album_layout")
@@ -187,6 +207,8 @@ class SettingsRepository @Inject constructor(
 data class SettingsPreferences(
     val appTheme: AppTheme,
     val appAccentColor: AppAccentColor,
+    val dynamicColor: Boolean,
+    val amoledDark: Boolean,
     val animationsEnabled: Boolean,
     val wallpaperGridColumns: Int,
     val albumLayout: AlbumLayout,

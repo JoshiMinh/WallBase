@@ -87,6 +87,7 @@ dependencies {
 
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.compose.animation)
+    implementation(libs.androidx.palette)
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.moshi)
