@@ -117,7 +117,6 @@ abstract class WallBaseDatabase : RoomDatabase() {
                     }
                     SourceKeys.WALLHAVEN -> extractHost(config)?.let(::buildFaviconUrl)
                     SourceKeys.UNSPLASH -> extractHost(config)?.let(::buildFaviconUrl)
-                    SourceKeys.ALPHA_CODERS -> extractHost(config)?.let(::buildFaviconUrl)
                     SourceKeys.WEBSITES -> extractHost(config)?.let(::buildFaviconUrl)
                     else -> null
                 }

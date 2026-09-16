@@ -52,6 +52,26 @@ class WallpaperRepository @Inject constructor(
                 query = trimmedQuery,
                 cursor = cursor
             )
+            SourceKeys.REDDIT -> fetchRedditWallpapers(
+                subreddit = source.config ?: DEFAULT_REDDIT_SUBREDDIT,
+                query = trimmedQuery,
+                cursor = cursor
+            )
+            SourceKeys.UNSPLASH -> fetchUnsplashWallpapers(
+                config = source.config,
+                query = trimmedQuery,
+                cursor = cursor
+            )
+            SourceKeys.PINTEREST -> fetchPinterestWallpapers(
+                config = source.config,
+                query = trimmedQuery,
+                cursor = cursor
+            )
+            SourceKeys.WEBSITES -> fetchWebsiteWallpapers(
+                config = source.config,
+                query = trimmedQuery,
+                cursor = cursor
+            )
             else -> throw UnsupportedSourceException(source.title)
         }
         val mapped = page.wallpapers.map {
@@ -77,12 +97,14 @@ class WallpaperRepository @Inject constructor(
                 if (username.isNullOrBlank() || collectionId.isNullOrBlank()) {
                     WallpaperPage(emptyList(), nextCursor = null)
                 } else {
-                    wallhavenService.getCollection(
-                        username = username,
-                        collectionId = collectionId,
-                        page = pageNumber,
-                        perPage = WALLHAVEN_PAGE_LIMIT
-                    ).toWallpaperPage(pageNumber)
+                    runCatching {
+                        wallhavenService.getCollection(
+                            username = username,
+                            collectionId = collectionId,
+                            page = pageNumber,
+                            perPage = WALLHAVEN_PAGE_LIMIT
+                        ).toWallpaperPage(pageNumber)
+                    }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
                 }
             }
 
@@ -94,7 +116,9 @@ class WallpaperRepository @Inject constructor(
                 params.putIfAbsent("q", DEFAULT_WALLHAVEN_QUERY)
                 params["page"] = pageNumber.toString()
                 params.putIfAbsent("per_page", WALLHAVEN_PAGE_LIMIT.toString())
-                wallhavenService.search(params).toWallpaperPage(pageNumber)
+                runCatching {
+                    wallhavenService.search(params).toWallpaperPage(pageNumber)
+                }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
             }
         }
     }
@@ -108,33 +132,39 @@ class WallpaperRepository @Inject constructor(
         val pageNumber = cursor?.toIntOrNull()?.takeIf { it > 0 } ?: 1
         when (val parsed = parseUnsplashConfig(config)) {
             is UnsplashConfig.Collection -> {
-                val photos = unsplashService.getCollectionPhotos(
+                val photos = runCatching {
+                    unsplashService.getCollectionPhotos(
                         id = parsed.id,
                         page = pageNumber,
                         perPage = perPage
                     )
+                }.getOrElse { emptyList() }
                 val items = photos.mapNotNull { it.toWallpaperItem() }
                 val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
                 WallpaperPage(items, nextCursor)
             }
 
             is UnsplashConfig.UserLikes -> {
-                val photos = unsplashService.getUserLikes(
+                val photos = runCatching {
+                    unsplashService.getUserLikes(
                         username = parsed.username,
                         page = pageNumber,
                         perPage = perPage
                     )
+                }.getOrElse { emptyList() }
                 val items = photos.mapNotNull { it.toWallpaperItem() }
                 val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
                 WallpaperPage(items, nextCursor)
             }
 
             is UnsplashConfig.UserPhotos -> {
-                val photos = unsplashService.getUserPhotos(
+                val photos = runCatching {
+                    unsplashService.getUserPhotos(
                         username = parsed.username,
                         page = pageNumber,
                         perPage = perPage
                     )
+                }.getOrElse { emptyList() }
                 val items = photos.mapNotNull { it.toWallpaperItem() }
                 val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
                 WallpaperPage(items, nextCursor)
@@ -144,15 +174,17 @@ class WallpaperRepository @Inject constructor(
                 val effectiveQuery = query?.takeIf { it.isNotBlank() }
                     ?: parsed.query?.takeIf { it.isNotBlank() }
                     ?: DEFAULT_UNSPLASH_QUERY
-                val response = unsplashService.searchPhotos(
+                val response = runCatching {
+                    unsplashService.searchPhotos(
                         query = effectiveQuery,
                         page = pageNumber,
                         perPage = perPage
                     )
-                val photos = response.results.orEmpty()
+                }.getOrNull()
+                val photos = response?.results.orEmpty()
                 val items = photos.mapNotNull { it.toWallpaperItem() }
                 val nextCursor = when {
-                    response.totalPages != null && pageNumber < response.totalPages ->
+                    response?.totalPages != null && pageNumber < response.totalPages ->
                         (pageNumber + 1).toString()
                     photos.size < perPage -> null
                     else -> (pageNumber + 1).toString()
@@ -162,13 +194,38 @@ class WallpaperRepository @Inject constructor(
         }
     }
 
-    private suspend fun fetchPixivWallpapers(
+    private suspend fun fetchPinterestWallpapers(
         config: String?,
         query: String?,
         cursor: String?
     ): WallpaperPage = withContext(Dispatchers.IO) {
-        val defaultUrl = config ?: DEFAULT_PIXIV_URL
-        val targetUrl = query?.let { buildPixivSearchUrl(it) } ?: defaultUrl
+        val scrapePage = when {
+            !query.isNullOrBlank() -> webScraper.scrapePinterest(
+                query = query,
+                limit = 30,
+                cursor = cursor
+            )
+            !config.isNullOrBlank() -> webScraper.scrapeImagesFromUrl(
+                url = config,
+                limit = 30,
+                cursor = cursor
+            )
+            else -> webScraper.scrapePinterest(
+                query = pinterestQuery,
+                limit = 30,
+                cursor = cursor
+            )
+        }
+        WallpaperPage(scrapePage.wallpapers, scrapePage.nextCursor)
+    }
+
+    private suspend fun fetchWebsiteWallpapers(
+        config: String?,
+        query: String?,
+        cursor: String?
+    ): WallpaperPage = withContext(Dispatchers.IO) {
+        val baseUrl = config ?: customWebsiteUrl
+        val targetUrl = query?.let { buildWebsiteSearchUrl(baseUrl, it) } ?: baseUrl
         val scrapePage = webScraper.scrapeImagesFromUrl(
             url = targetUrl,
             limit = 30,
@@ -179,8 +236,9 @@ class WallpaperRepository @Inject constructor(
 
     suspend fun searchRedditCommunities(query: String, limit: Int = 10): List<RedditCommunity> =
         withContext(Dispatchers.IO) {
-            credentialStore.snapshot().redditClientId.requireConfigured("Reddit client ID")
-            redditService.searchSubreddits(query = query, limit = limit).toCommunities()
+            runCatching {
+                redditService.searchSubreddits(query = query, limit = limit).toCommunities()
+            }.getOrElse { emptyList() }
         }
 
     private suspend fun fetchRedditWallpapers(
@@ -189,25 +247,27 @@ class WallpaperRepository @Inject constructor(
         cursor: String?
     ): WallpaperPage =
         withContext(Dispatchers.IO) {
-            val normalized = subreddit.normalizeSubredditName()
-            val response = if (query.isNullOrBlank()) {
-                redditService.fetchSubreddit(
-                    subreddit = normalized,
-                    limit = REDDIT_PAGE_LIMIT,
-                    after = cursor,
-                )
-            } else {
-                redditService.searchSubredditPosts(
-                    subreddit = normalized,
-                    query = query,
-                    restrictToSubreddit = 1,
-                    limit = REDDIT_PAGE_LIMIT,
-                    after = cursor,
-                )
-            }
+            val normalized = subreddit.normalizeSubredditName().ifBlank { DEFAULT_REDDIT_SUBREDDIT }
+            val response = runCatching {
+                if (query.isNullOrBlank()) {
+                    redditService.fetchSubreddit(
+                        subreddit = normalized,
+                        limit = REDDIT_PAGE_LIMIT,
+                        after = cursor,
+                    )
+                } else {
+                    redditService.searchSubredditPosts(
+                        subreddit = normalized,
+                        query = query,
+                        restrictToSubreddit = 1,
+                        limit = REDDIT_PAGE_LIMIT,
+                        after = cursor,
+                    )
+                }
+            }.getOrNull()
             WallpaperPage(
-                wallpapers = response.toWallpaperItems(),
-                nextCursor = response.data?.after,
+                wallpapers = response?.toWallpaperItems().orEmpty(),
+                nextCursor = response?.data?.after,
             )
         }
 
@@ -320,16 +380,6 @@ class WallpaperRepository @Inject constructor(
             val separator = if (baseUrl.contains('?')) '&' else '?'
             "$baseUrl$separator" + "q=${Uri.encode(query)}"
         }
-    }
-
-    private fun buildAlphaCodersSearchUrl(query: String): String {
-        val encoded = Uri.encode(query)
-        return "https://wall.alphacoders.com/search.php?search=$encoded"
-    }
-
-    private fun buildPixivSearchUrl(query: String): String {
-        val encoded = Uri.encode(query.replace(' ', '_'))
-        return "https://www.pixiv.net/en/tags/$encoded/artworks"
     }
 
     private fun parseQueryParameters(config: String?): Map<String, String> {
@@ -480,10 +530,6 @@ class WallpaperRepository @Inject constructor(
             "https://www.pixelstalk.net/category/wallpapers/4k-wallpapers/"
         private const val DEFAULT_WALLHAVEN_QUERY = "wallpapers"
         private const val DEFAULT_UNSPLASH_QUERY = "wallpapers"
-        private const val DEFAULT_ALPHA_CODERS_URL =
-            "https://wall.alphacoders.com/search.php?search=wallpaper"
-        private const val DEFAULT_PIXIV_URL =
-            "https://www.pixiv.net/en/tags/wallpaper/artworks"
         private const val REDDIT_PAGE_LIMIT = 30
         private const val WALLHAVEN_PAGE_LIMIT = 30
         private const val UNSPLASH_PAGE_LIMIT = 30

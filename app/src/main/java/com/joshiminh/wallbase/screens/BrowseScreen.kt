@@ -277,7 +277,7 @@ private fun AddSourceBottomSheet(
             if (input.isNotBlank() && detectedType == null) {
                 item("invalid_hint") {
                     Text(
-                        text = "Enter a public Wallhaven search or collection URL.",
+                        text = "Enter a subreddit (e.g. r/wallpapers), or a Wallhaven, Unsplash, Pinterest, or wallpaper website URL.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -331,6 +331,24 @@ private fun SupportedSourcesList(
             faviconDomain = "wallhaven.cc",
             quickAddInput = "https://wallhaven.cc/search?q=wallpapers&purity=100&sorting=toplist",
             requirement = "Public API — no account or key required"
+        ),
+        SupportedSourceInfo(
+            label = "Reddit",
+            faviconDomain = "reddit.com",
+            quickAddInput = "r/wallpapers",
+            requirement = "Subreddits like r/wallpapers, r/wallpaper"
+        ),
+        SupportedSourceInfo(
+            label = "Unsplash",
+            faviconDomain = "unsplash.com",
+            quickAddInput = "https://unsplash.com/s/photos/wallpapers",
+            requirement = "Collections & photo searches"
+        ),
+        SupportedSourceInfo(
+            label = "Pinterest",
+            faviconDomain = "pinterest.com",
+            quickAddInput = "https://www.pinterest.com/wallpapercollec/wallpapers/",
+            requirement = "Pinterest boards & pin URLs"
         ),
     )
 
@@ -538,7 +556,6 @@ private fun sourceShareUrl(source: Source): String? {
         SourceKeys.PINTEREST,
         SourceKeys.WALLHAVEN,
         SourceKeys.UNSPLASH,
-        SourceKeys.ALPHA_CODERS,
         SourceKeys.WEBSITES -> config
 
         else -> null

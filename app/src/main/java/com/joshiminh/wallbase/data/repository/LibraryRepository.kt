@@ -1079,14 +1079,6 @@ class LibraryRepository @Inject constructor(
                 element.resolveImageCandidate("data-cfsrc", "data-src", "src")?.let { return it }
             }
         }
-        if (host.contains("alphacoders.com")) {
-            document.selectFirst("img#mainImage")?.let { element ->
-                element.resolveImageCandidate("data-src", "src")?.let { return it }
-            }
-            document.select("div.big_container img").firstOrNull()?.let { element ->
-                element.resolveImageCandidate("data-src", "src")?.let { return it }
-            }
-        }
         if (host.contains("reddit.com")) {
             document.select("img[src]").firstOrNull { element ->
                 val candidate = element.absUrl("src")
@@ -1139,7 +1131,7 @@ class LibraryRepository @Inject constructor(
             host.contains("redd.it") ||
             host.contains("redditmedia.com") ||
             host.contains("wallhaven.cc") ||
-            host.contains("alphacoders.com") ||
+            host.contains("pinimg.com") ||
             host.contains("twimg.com")
     }
 

@@ -32,14 +32,15 @@ class SourceRepository @Inject constructor(
         PINTEREST,
         WALLHAVEN,
         UNSPLASH,
-        ALPHA_CODERS,
         WEBSITE
     }
 
     fun observeSources(): Flow<List<Source>> =
         sourceDao.observeSources().map { entities ->
             entities
-                .filter { it.providerKey == SourceKeys.WALLHAVEN || it.isLocal }
+                .filter {
+                    it.providerKey in SUPPORTED_PROVIDERS || it.isLocal
+                }
                 .map { entity -> entity.sanitized().toDomain() }
         }
 
@@ -57,8 +58,15 @@ class SourceRepository @Inject constructor(
         val parsed = parseRemoteSourceInput(input)
             ?: throw IllegalArgumentException("Enter a supported subreddit or wallpaper URL.")
         return when (parsed) {
+            is RemoteSourceInput.Reddit -> addRedditSource(
+                slug = parsed.slug,
+                displayName = parsed.displayName,
+                description = null
+            )
             is RemoteSourceInput.Wallhaven -> addWallhavenSource(parsed.url)
-            else -> throw IllegalArgumentException("Wallhaven public search and collection URLs are supported.")
+            is RemoteSourceInput.Unsplash -> addUnsplashSource(parsed.url)
+            is RemoteSourceInput.Pinterest -> addPinterestSource(parsed.url)
+            is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
         }
     }
 
@@ -121,7 +129,19 @@ class SourceRepository @Inject constructor(
                 updateWebsiteSource(existing, urlInput.url, RemoteSourceType.UNSPLASH, SourceKeys.UNSPLASH)
             }
 
-            else -> throw IllegalArgumentException("This legacy source is no longer supported. Add Reddit, Wallhaven, or Unsplash instead.")
+            SourceKeys.PINTEREST -> {
+                val urlInput = parsed as? RemoteSourceInput.Pinterest
+                    ?: throw IllegalArgumentException("Enter a Pinterest board or pin URL.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.PINTEREST, SourceKeys.PINTEREST)
+            }
+
+            SourceKeys.WEBSITES -> {
+                val urlInput = parsed as? RemoteSourceInput.Website
+                    ?: throw IllegalArgumentException("Enter a valid website URL.")
+                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.WEBSITE, SourceKeys.WEBSITES)
+            }
+
+            else -> throw IllegalArgumentException("This source is not editable.")
         }
 
         sourceDao.updateSource(updated)
@@ -215,29 +235,6 @@ class SourceRepository @Inject constructor(
         val entity = SourceEntity(
             key = buildWebsiteKey(SourceKeys.UNSPLASH, url),
             providerKey = SourceKeys.UNSPLASH,
-            title = metadata.title,
-            description = metadata.description,
-            iconRes = metadata.fallbackIcon,
-            iconUrl = metadata.iconUrl,
-            showInExplore = true,
-            isEnabled = true,
-            isLocal = false,
-            config = url.value
-        )
-        val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).sanitized().toDomain()
-    }
-
-    private suspend fun addAlphaCodersSource(url: NormalizedUrl): Source {
-        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.ALPHA_CODERS, url.value)
-        if (existing != null) {
-            throw IllegalStateException("Source already added")
-        }
-
-        val metadata = buildWebsiteMetadata(url, RemoteSourceType.ALPHA_CODERS)
-        val entity = SourceEntity(
-            key = buildWebsiteKey(SourceKeys.ALPHA_CODERS, url),
-            providerKey = SourceKeys.ALPHA_CODERS,
             title = metadata.title,
             description = metadata.description,
             iconRes = metadata.fallbackIcon,
@@ -361,7 +358,6 @@ class SourceRepository @Inject constructor(
             }
             SourceKeys.WALLHAVEN,
             SourceKeys.UNSPLASH,
-            SourceKeys.ALPHA_CODERS,
             SourceKeys.WEBSITES -> {
                 config
                     ?.let { it.tryNormalizeUrl() }
@@ -411,7 +407,11 @@ class SourceRepository @Inject constructor(
                 RemoteSourceInput.Unsplash(normalizedUrl)
             }
 
-            else -> null
+            host.contains("pinterest", ignoreCase = true) || host == "pin.it" -> {
+                RemoteSourceInput.Pinterest(normalizedUrl)
+            }
+
+            else -> RemoteSourceInput.Website(normalizedUrl)
         }
     }
 
@@ -426,7 +426,6 @@ class SourceRepository @Inject constructor(
             .ifBlank { url.host.replace(Regex("[^A-Za-z0-9]+"), "_") }
         return "$provider:$sanitized"
     }
-
 
     private fun buildWebsiteMetadata(
         url: NormalizedUrl,
@@ -447,9 +446,9 @@ class SourceRepository @Inject constructor(
         val queryLabel = url.queryParam("q")?.toDisplayNameSegment()
 
         val title = when (type) {
-            RemoteSourceType.PINTEREST -> listOfNotNull("Pinterest (limited)", queryLabel ?: pathSegment)
+            RemoteSourceType.PINTEREST -> listOfNotNull("Pinterest", queryLabel ?: pathSegment)
                 .joinToString(" - ")
-                .ifBlank { "Pinterest (limited)" }
+                .ifBlank { "Pinterest" }
 
             RemoteSourceType.WALLHAVEN -> listOfNotNull("Wallhaven", queryLabel ?: pathSegment)
                 .joinToString(" - ")
@@ -458,10 +457,6 @@ class SourceRepository @Inject constructor(
             RemoteSourceType.UNSPLASH -> listOfNotNull("Unsplash", queryLabel ?: pathSegment)
                 .joinToString(" - ")
                 .ifBlank { "Unsplash" }
-
-            RemoteSourceType.ALPHA_CODERS -> listOfNotNull("AlphaCoders", queryLabel ?: pathSegment)
-                .joinToString(" - ")
-                .ifBlank { "AlphaCoders" }
 
             RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
                 .joinToString(" - ")
@@ -607,13 +602,22 @@ class SourceRepository @Inject constructor(
 
         class Wallhaven(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WALLHAVEN)
 
-
         class Unsplash(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.UNSPLASH)
 
+        class Pinterest(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.PINTEREST)
+
+        class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
     }
 
     private companion object {
         private val SUBREDDIT_PATTERN = Regex("[a-z0-9_]+")
+        val SUPPORTED_PROVIDERS = setOf(
+            SourceKeys.WALLHAVEN,
+            SourceKeys.REDDIT,
+            SourceKeys.UNSPLASH,
+            SourceKeys.PINTEREST,
+            SourceKeys.WEBSITES,
+        )
     }
 }
 
