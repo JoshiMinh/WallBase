@@ -19,13 +19,23 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -334,73 +344,41 @@ fun WallBaseApp(
                             }
                         },
                         actions = { topBarState?.actions?.invoke(this) },
-                        colors = TopAppBarDefaults.topAppBarColors(),
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                            scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                        ),
                     )
                 }
             },
             bottomBar = {
                 if (currentDestination?.route in topLevelRoutes) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                        tonalElevation = 0.dp,
                     ) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(24.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            tonalElevation = 3.dp,
-                            shadowElevation = 6.dp,
-                        ) {
-                            NavigationBar(
-                                modifier = Modifier.height(68.dp),
-                                containerColor = Color.Transparent,
-                                tonalElevation = 0.dp,
-                                windowInsets = WindowInsets(
-                                    left = 0.dp,
-                                    top = 0.dp,
-                                    right = 0.dp,
-                                    bottom = 0.dp,
-                                ),
-                            ) {
-                                RootRoute.entries.forEach { item ->
-                                    val selected = currentDestination.isTopDestination(item)
-                                    NavigationBarItem(
-                                        selected = selected,
-                                        onClick = {
-                                            if (!selected) {
-                                                navController.navigate(item.route) {
-                                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                                    launchSingleTop = true
-                                                    restoreState = true
-                                                }
-                                            }
-                                        },
-                                        icon = {
-                                            AnimatedNavigationIcon(
-                                                item = item,
-                                                selected = selected,
-                                                animationsEnabled = settingsUiState.animationsEnabled,
-                                            )
-                                        },
-                                        label = {
-                                            Text(
-                                                text = item.label,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1,
-                                            )
-                                        },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        ),
+                        RootRoute.entries.forEach { item ->
+                            val isSelected = currentDestination.isTopDestination(item)
+                            NavigationBarItem(
+                                selected = isSelected,
+                                onClick = {
+                                    if (!isSelected) {
+                                        navController.navigate(item.route) {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                },
+                                icon = {
+                                    AnimatedBottomBarIcon(
+                                        item = item,
+                                        isSelected = isSelected,
+                                        animationsEnabled = settingsUiState.animationsEnabled,
                                     )
-                                }
-                            }
+                                },
+                                label = { Text(item.label) },
+                            )
                         }
                     }
                 }
@@ -640,4 +618,52 @@ private fun SharedTransitionHost(
         }
     }
 }
+
+@Composable
+private fun AnimatedBottomBarIcon(
+    item: RootRoute,
+    isSelected: Boolean,
+    animationsEnabled: Boolean,
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.15f else 1.0f,
+        animationSpec = if (animationsEnabled) {
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            )
+        } else {
+            snap()
+        },
+        label = "BottomBarIconScale_${item.name}",
+    )
+
+    AnimatedContent(
+        targetState = isSelected,
+        transitionSpec = {
+            if (animationsEnabled) {
+                (fadeIn(animationSpec = tween(200, delayMillis = 40)) +
+                    scaleIn(initialScale = 0.8f, animationSpec = tween(200)))
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(150)) +
+                            scaleOut(targetScale = 0.8f, animationSpec = tween(150))
+                    )
+            } else {
+                fadeIn(animationSpec = snap()).togetherWith(fadeOut(animationSpec = snap()))
+            }
+        },
+        label = "BottomBarIconContent_${item.name}",
+        modifier = Modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        },
+    ) { selected ->
+        Icon(
+            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+            contentDescription = item.label,
+            modifier = Modifier.size(24.dp),
+        )
+    }
+}
+
 

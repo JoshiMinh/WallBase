@@ -54,7 +54,6 @@ class SettingsViewModel @Inject constructor(
                     it.copy(
                         appTheme = preferences.appTheme,
                         appAccentColor = preferences.appAccentColor,
-                        customAccentColorRgb = preferences.customAccentColorRgb,
                         animationsEnabled = preferences.animationsEnabled,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
                         albumLayout = preferences.albumLayout,
@@ -376,7 +375,6 @@ class SettingsViewModel @Inject constructor(
         val message: String? = null,
         val appTheme: AppTheme = AppTheme.SYSTEM,
         val appAccentColor: AppAccentColor = AppAccentColor.PINK,
-        val customAccentColorRgb: String? = null,
         val animationsEnabled: Boolean = true,
         val wallpaperGridColumns: Int = 2,
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,

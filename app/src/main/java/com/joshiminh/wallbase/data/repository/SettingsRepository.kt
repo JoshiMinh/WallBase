@@ -47,18 +47,16 @@ class SettingsRepository @Inject constructor(
             } else if (legacyDarkTheme) {
                 AppTheme.DARK
             } else {
-                AppTheme.SYSTEM
+                AppTheme.LIGHT
             }
 
             val accentColorStr = prefs[Keys.APP_ACCENT_COLOR]
             val appAccentColor = AppAccentColor.fromStorage(accentColorStr)
-            val customAccentColorRgb = prefs[Keys.CUSTOM_ACCENT_COLOR_RGB]
 
             val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES
             SettingsPreferences(
                 appTheme = appTheme,
                 appAccentColor = appAccentColor,
-                customAccentColorRgb = customAccentColorRgb,
                 animationsEnabled = prefs[Keys.ANIMATIONS_ENABLED] ?: true,
                 wallpaperGridColumns = wallpaperColumns,
                 albumLayout = albumLayout,
@@ -84,16 +82,6 @@ class SettingsRepository @Inject constructor(
     suspend fun setAppAccentColor(color: AppAccentColor) {
         dataStore.edit { prefs ->
             prefs[Keys.APP_ACCENT_COLOR] = color.storageValue
-        }
-    }
-
-    suspend fun setCustomAccentColor(rgbValue: String?) {
-        dataStore.edit { prefs ->
-            if (rgbValue.isNullOrBlank()) {
-                prefs.remove(Keys.CUSTOM_ACCENT_COLOR_RGB)
-            } else {
-                prefs[Keys.CUSTOM_ACCENT_COLOR_RGB] = rgbValue
-            }
         }
     }
 
@@ -172,7 +160,6 @@ class SettingsRepository @Inject constructor(
     private object Keys {
         val APP_THEME = stringPreferencesKey("app_theme")
         val APP_ACCENT_COLOR = stringPreferencesKey("app_accent_color")
-        val CUSTOM_ACCENT_COLOR_RGB = stringPreferencesKey("custom_accent_color_rgb")
         val DARK_THEME = booleanPreferencesKey("dark_theme") // legacy
         val WALLPAPER_GRID_COLUMNS = intPreferencesKey("wallpaper_grid_columns")
         val ALBUM_LAYOUT = stringPreferencesKey("album_layout")
@@ -200,7 +187,6 @@ class SettingsRepository @Inject constructor(
 data class SettingsPreferences(
     val appTheme: AppTheme,
     val appAccentColor: AppAccentColor,
-    val customAccentColorRgb: String?,
     val animationsEnabled: Boolean,
     val wallpaperGridColumns: Int,
     val albumLayout: AlbumLayout,
@@ -258,37 +244,32 @@ enum class WallpaperLayout {
 }
 
 enum class AppTheme {
-    SYSTEM,
     LIGHT,
     DARK,
-    AMOLED;
+    SYSTEM;
 
     val storageValue: String
         get() = when (this) {
-            SYSTEM -> "system"
             LIGHT -> "light"
             DARK -> "dark"
-            AMOLED -> "amoled"
+            SYSTEM -> "system"
         }
 
     companion object {
         fun fromStorage(value: String?): AppTheme = when (value) {
             "dark" -> DARK
             "system" -> SYSTEM
-            "amoled" -> AMOLED
-            "light" -> LIGHT
-            else -> SYSTEM
+            "amoled" -> DARK // Migrate legacy amoled value to dark
+            else -> LIGHT
         }
     }
 }
 
 enum class AppAccentColor {
-    PINK,
+    PINK, // Default Brand Pink
     RED,
     BLUE,
-    GREEN,
-    PURPLE,
-    CUSTOM;
+    GREEN;
 
     val storageValue: String
         get() = when (this) {
@@ -296,8 +277,6 @@ enum class AppAccentColor {
             RED -> "red"
             BLUE -> "blue"
             GREEN -> "green"
-            PURPLE -> "purple"
-            CUSTOM -> "custom"
         }
 
     companion object {
@@ -305,10 +284,7 @@ enum class AppAccentColor {
             "red" -> RED
             "blue" -> BLUE
             "green" -> GREEN
-            "purple" -> PURPLE
-            "custom" -> CUSTOM
             else -> PINK
         }
     }
 }
-

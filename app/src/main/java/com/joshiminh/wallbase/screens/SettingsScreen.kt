@@ -31,13 +31,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
@@ -100,7 +101,6 @@ import com.joshiminh.wallbase.ui.theme.AccentPink
 import com.joshiminh.wallbase.ui.theme.AccentRed
 import com.joshiminh.wallbase.ui.theme.AccentBlue
 import com.joshiminh.wallbase.ui.theme.AccentGreen
-import com.joshiminh.wallbase.ui.theme.AccentPurple
 import android.content.pm.PackageManager
 import kotlin.math.roundToInt
 import kotlin.system.exitProcess
@@ -111,7 +111,6 @@ fun SettingsScreen(
     uiState: SettingsViewModel.SettingsUiState,
     onSetAppTheme: (AppTheme) -> Unit,
     onSetAppAccentColor: (AppAccentColor) -> Unit,
-    onSetCustomAccentColor: (String?) -> Unit = {},
     onToggleAnimations: (Boolean) -> Unit,
     onExportBackup: (Boolean) -> Unit,
     onImportBackup: () -> Unit,
@@ -196,9 +195,7 @@ fun SettingsScreen(
                                 title = "Accent Color",
                                 subtitle = "Pick an accent color. Overrides Material You.",
                                 selectedColor = uiState.appAccentColor,
-                                customColorRgb = uiState.customAccentColorRgb,
                                 onColorSelected = onSetAppAccentColor,
-                                onCustomColorSelected = onSetCustomAccentColor
                             )
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -611,11 +608,10 @@ private fun SettingsThemeRow(
                 AppTheme.SYSTEM -> "System"
                 AppTheme.LIGHT -> "Light"
                 AppTheme.DARK -> "Dark"
-                AppTheme.AMOLED -> "AMOLED"
             }
             TextButton(
                 onClick = { expanded = true },
-                modifier = Modifier.menuAnchor()
+                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
             ) {
                 Text(text = label)
                 ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
@@ -628,7 +624,6 @@ private fun SettingsThemeRow(
                     AppTheme.SYSTEM to "Follow system",
                     AppTheme.LIGHT to "Light",
                     AppTheme.DARK to "Dark",
-                    AppTheme.AMOLED to "AMOLED black",
                 ).forEach { (theme, textLabel) ->
                     DropdownMenuItem(
                         text = { Text(textLabel) },
@@ -648,12 +643,8 @@ private fun SettingsColorRow(
     title: String,
     subtitle: String,
     selectedColor: AppAccentColor,
-    customColorRgb: String?,
     onColorSelected: (AppAccentColor) -> Unit,
-    onCustomColorSelected: (String?) -> Unit = {}
 ) {
-    var showCustomColorDialog by remember { mutableStateOf(false) }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -685,7 +676,6 @@ private fun SettingsColorRow(
                 Triple(AppAccentColor.RED, "Red", AccentRed),
                 Triple(AppAccentColor.BLUE, "Blue", AccentBlue),
                 Triple(AppAccentColor.GREEN, "Green", AccentGreen),
-                Triple(AppAccentColor.PURPLE, "Purple", AccentPurple),
             )
 
             colorOptions.forEach { (accent, label, colorValue) ->
@@ -719,63 +709,7 @@ private fun SettingsColorRow(
                     }
                 }
             }
-
-            // Custom color option
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .clickable { showCustomColorDialog = true }
-                    .semantics {
-                        contentDescription = "Custom accent"
-                        role = Role.RadioButton
-                        selected = selectedColor == AppAccentColor.CUSTOM
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                val customColor = customColorRgb
-                    ?.trim()
-                    ?.removePrefix("#")
-                    ?.takeIf { it.length == 6 }
-                    ?.toLongOrNull(16)
-                    ?.let { Color(0xFF000000L or it) }
-                    ?: MaterialTheme.colorScheme.outlineVariant
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(customColor),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (selectedColor == AppAccentColor.CUSTOM) {
-                        Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
-                            contentDescription = null,
-                            tint = if (customColor.luminance() > 0.179f) Color.Black else Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    } else {
-                        Text(
-                            text = "+",
-                            color = if (customColor.luminance() > 0.179f) Color.Black else Color.White,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
-                }
-            }
         }
-    }
-
-    if (showCustomColorDialog) {
-        CustomColorPickerDialog(
-            currentColor = customColorRgb,
-            onColorSelected = { newColor ->
-                onColorSelected(AppAccentColor.CUSTOM)
-                onCustomColorSelected(newColor)
-                showCustomColorDialog = false
-            },
-            onDismiss = { showCustomColorDialog = false }
-        )
     }
 }
 
@@ -965,7 +899,10 @@ private fun SettingsLinkCard(
                     color = contentColor.copy(alpha = 0.8f)
                 )
             }
-            Icon(imageVector = Icons.Outlined.OpenInNew, contentDescription = null)
+            Icon(
+                imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Outlined.OpenInNew,
+                contentDescription = null
+            )
         }
     }
 }
@@ -1154,84 +1091,4 @@ private fun restartApplication(activity: Activity, onRestartConsumed: () -> Unit
     exitProcess(0)
 }
 
-@Composable
-private fun CustomColorPickerDialog(
-    currentColor: String?,
-    onColorSelected: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var colorInput by remember { mutableStateOf(currentColor?.uppercase() ?: "FF5733") }
-    var showError by remember { mutableStateOf(false) }
-    val fallbackColor = MaterialTheme.colorScheme.outlineVariant
-
-    val getCurrentColor = {
-        try {
-            Color(0xFF000000 or colorInput.toLong(16))
-        } catch (e: Exception) {
-            fallbackColor
-        }
-    }
-
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Pick a Custom Color") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Color preview
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .clip(WallBaseShapes.card)
-                        .background(getCurrentColor.invoke())
-                )
-
-                // Hex input field
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Hex Color",
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                    androidx.compose.material3.OutlinedTextField(
-                        value = colorInput,
-                        onValueChange = { input ->
-                            colorInput = input.uppercase().take(6)
-                            showError = false
-                        },
-                        placeholder = { Text("FF5733") },
-                        isError = showError,
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        prefix = { Text("#") }
-                    )
-                    if (showError) {
-                        Text(
-                            text = "Invalid hex color format (use 6 hex characters)",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (colorInput.length == 6 && colorInput.all { it in '0'..'9' || it in 'A'..'F' }) {
-                        onColorSelected(colorInput)
-                    } else {
-                        showError = true
-                    }
-                }
-            ) {
-                Text("Apply")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
 

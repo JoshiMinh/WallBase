@@ -74,7 +74,6 @@ class MainActivity : ComponentActivity() {
             WallBaseTheme(
                 appTheme = settingsUiState.appTheme,
                 appAccentColor = settingsUiState.appAccentColor,
-                customAccentColorRgb = settingsUiState.customAccentColorRgb
             ) {
                 WallBaseApp(
                     sourcesUiState = sourcesUiState,
