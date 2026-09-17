@@ -23,6 +23,7 @@ cmake-build-*/
 # Android Studio / IntelliJ IDEA / Eclipse
 # ==============================================================================
 .idea/
+.vscode/
 *.iml
 *.iws
 *.ipr

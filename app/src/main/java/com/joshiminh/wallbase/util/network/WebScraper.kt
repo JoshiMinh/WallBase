@@ -14,6 +14,12 @@ interface WebScraper {
         cursor: String? = null
     ): ScrapePage
 
+    suspend fun scrapeReddit(
+        subreddit: String,
+        query: String? = null,
+        cursor: String? = null
+    ): ScrapePage
+
     suspend fun scrapeImagesFromUrl(
         url: String,
         limit: Int = 30,

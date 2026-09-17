@@ -90,14 +90,15 @@ object ServiceLocator {
                 }
 
                 val token = redditTokenManager.getRedditAccessToken()
+                val builder = request.newBuilder()
                 if (token.isNotEmpty()) {
-                    val updatedRequest = request.newBuilder()
-                        .header("Authorization", "Bearer $token")
-                        .build()
-                    chain.proceed(updatedRequest)
+                    val newUrl = request.url.newBuilder().host("oauth.reddit.com").build()
+                    builder.url(newUrl).header("Authorization", "Bearer $token")
                 } else {
-                    chain.proceed(request)
+                    val newUrl = request.url.newBuilder().host("www.reddit.com").build()
+                    builder.url(newUrl).removeHeader("Authorization")
                 }
+                chain.proceed(builder.build())
             }
             .build()
     }
@@ -120,7 +121,7 @@ object ServiceLocator {
 
     private val redditRetrofit: Retrofit by lazy {
         Retrofit.Builder()
-            .baseUrl("https://oauth.reddit.com/")
+            .baseUrl("https://www.reddit.com/")
             .client(redditOkHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()

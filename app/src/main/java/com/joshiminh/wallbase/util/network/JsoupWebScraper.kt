@@ -38,6 +38,75 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
         }
     }.getOrElse { ScrapePage(emptyList(), nextCursor = null) }
 
+    override suspend fun scrapeReddit(
+        subreddit: String,
+        query: String?,
+        cursor: String?
+    ): ScrapePage = withContext(Dispatchers.IO) {
+        runCatching {
+            val cleanSubreddit = subreddit.trim().removePrefix("r/").removePrefix("/")
+            val baseUrl = if (!query.isNullOrBlank()) {
+                val encoded = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
+                "https://www.reddit.com/r/$cleanSubreddit/search.rss?q=$encoded&restrict_sr=1&sort=relevance"
+            } else {
+                "https://www.reddit.com/r/$cleanSubreddit/top/.rss?t=all"
+            }
+            val targetUrl = if (!cursor.isNullOrBlank()) {
+                val separator = if (baseUrl.contains('?')) '&' else '?'
+                "$baseUrl${separator}after=${URLEncoder.encode(cursor, StandardCharsets.UTF_8.toString())}"
+            } else {
+                baseUrl
+            }
+
+            val document = Jsoup.connect(targetUrl)
+                .userAgent(USER_AGENT)
+                .referrer("https://www.google.com")
+                .timeout(TIMEOUT_MS)
+                .parser(org.jsoup.parser.Parser.xmlParser())
+                .get()
+
+            val entries = document.select("entry")
+            val items = mutableListOf<WallpaperItem>()
+            var lastId: String? = null
+
+            for (entry in entries) {
+                val rawId = entry.selectFirst("id")?.text().orEmpty()
+                if (rawId.isNotBlank()) {
+                    lastId = rawId
+                }
+                val title = entry.selectFirst("title")?.text()?.ifBlank { "Reddit Wallpaper" } ?: "Reddit Wallpaper"
+                val link = entry.selectFirst("link")?.attr("href").takeUnless { it.isNullOrBlank() } ?: targetUrl
+                val contentHtml = entry.selectFirst("content")?.text().orEmpty()
+                val contentDoc = if (contentHtml.isNotBlank()) Jsoup.parse(contentHtml) else null
+
+                val directLink = contentDoc?.select("a[href]")?.asSequence()
+                    ?.map { it.attr("href") }
+                    ?.firstOrNull { it.hasSupportedExtension() || it.contains("i.redd.it") || it.contains("i.imgur.com") }
+
+                val previewImg = contentDoc?.selectFirst("img[src]")?.attr("src")
+                    ?: entry.selectFirst("media\\:thumbnail")?.attr("url")
+
+                val candidateUrl = (directLink ?: previewImg)
+                    ?.replace("&amp;", "&")
+                    ?.let { if (it.startsWith("http://", ignoreCase = true)) "https://" + it.substring(7) else it }
+                if (candidateUrl != null && candidateUrl.startsWith("http", ignoreCase = true)) {
+                    val idValue = if (rawId.isNotBlank()) "reddit_$rawId" else "reddit_${candidateUrl.hashCode()}"
+                    items += WallpaperItem(
+                        id = idValue,
+                        title = title,
+                        imageUrl = candidateUrl,
+                        sourceUrl = link
+                    )
+                }
+            }
+
+            val nextCursor = if (items.isNotEmpty() && lastId != null) lastId else null
+            ScrapePage(items, nextCursor)
+        }.getOrElse {
+            ScrapePage(emptyList(), nextCursor = null)
+        }
+    }
+
     override suspend fun scrapeImagesFromUrl(
         url: String,
         limit: Int,

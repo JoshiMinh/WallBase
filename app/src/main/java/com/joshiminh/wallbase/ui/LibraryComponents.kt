@@ -304,17 +304,13 @@ fun LibraryEmptyState(message: String, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxSize().padding(WallBaseSpacing.lg),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
-            shape = WallBaseShapes.card,
-            color = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(WallBaseSpacing.lg),
-            )
-        }
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(WallBaseSpacing.lg),
+        )
     }
 }
 

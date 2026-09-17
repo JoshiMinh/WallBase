@@ -1,5 +1,6 @@
 package com.joshiminh.wallbase.data.entity
 
+import com.joshiminh.wallbase.sources.RedditSource
 import com.joshiminh.wallbase.sources.WallhavenSource
 
 /**
@@ -20,8 +21,6 @@ data class SourceSeed(
 
 /** List of default sources bundled with the app. */
 val DefaultSources: List<SourceSeed> = listOf(
-    WallhavenSource
+    WallhavenSource,
+    RedditSource
 )
-
-
-

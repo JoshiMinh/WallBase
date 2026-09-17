@@ -435,51 +435,42 @@ private fun EmptyWallpaperState(
     onRefresh: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(WallBaseSpacing.lg),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(WallBaseSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm, Alignment.CenterVertically),
     ) {
         Surface(
-            shape = WallBaseShapes.featured,
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = WallBaseShapes.pill,
+            color = MaterialTheme.colorScheme.primaryContainer,
         ) {
-            Column(
-                modifier = Modifier.padding(WallBaseSpacing.lg),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm),
-            ) {
-                Surface(
-                    shape = WallBaseShapes.pill,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                ) {
-                    Icon(
-                        imageVector = if (query == null) Icons.Outlined.LibraryAdd else Icons.Outlined.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier.padding(WallBaseSpacing.sm).size(28.dp),
-                    )
-                }
-                Text(
-                    text = if (query == null) "Nothing here yet" else "No results for \"$query\"",
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                Text(
-                    text = if (query == null) {
-                        "Refresh this source, or check its connection in Settings."
-                    } else {
-                        "Try another phrase or return to this source's latest wallpapers."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.xs)) {
-                    if (query != null) {
-                        TextButton(onClick = onClearSearch) { Text("Clear search") }
-                    }
-                    Button(onClick = onRefresh) { Text("Refresh") }
-                }
+            Icon(
+                imageVector = if (query == null) Icons.Outlined.LibraryAdd else Icons.Outlined.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(WallBaseSpacing.sm).size(28.dp),
+            )
+        }
+        Text(
+            text = if (query == null) "Nothing here yet" else "No results for \"$query\"",
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            text = if (query == null) {
+                "Refresh this source, or check its connection in Settings."
+            } else {
+                "Try another phrase or return to this source's latest wallpapers."
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.xs)) {
+            if (query != null) {
+                TextButton(onClick = onClearSearch) { Text("Clear search") }
             }
+            Button(onClick = onRefresh) { Text("Refresh") }
         }
     }
 }

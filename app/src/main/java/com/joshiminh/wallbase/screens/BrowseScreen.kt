@@ -6,6 +6,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
@@ -131,25 +133,19 @@ fun BrowseScreen(
             contentPadding = PaddingValues(horizontal = WallBaseSpacing.md, vertical = WallBaseSpacing.md),
             verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
-
-            item("browse_header") {
-                Column(verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.xxs)) {
-                    Text(text = "Explore sources", style = MaterialTheme.typography.headlineSmall)
-                    Text(
-                        text = "Choose a collection, then search and save the images you want to keep.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
             if (uiState.sources.isEmpty()) {
                 item("empty_sources") {
-                    Surface(shape = WallBaseShapes.card, color = MaterialTheme.colorScheme.surfaceVariant) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(WallBaseSpacing.lg),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            text = "No sources configured. Add a Wallhaven search or collection to begin.",
-                            modifier = Modifier.padding(WallBaseSpacing.md),
+                            text = "No sources configured. Add a subreddit or wallpaper source to begin.",
                             style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -177,8 +173,14 @@ fun BrowseScreen(
             existingConfigs = uiState.existingRedditConfigs,
             onInputChange = onUpdateSourceInput,
             onSearch = onSearchReddit,
-            onAddSource = onAddSourceFromInput,
-            onAddResult = onAddRedditCommunity,
+            onAddSource = {
+                onAddSourceFromInput()
+                showAddSourceModal = false
+            },
+            onAddResult = { community ->
+                onAddRedditCommunity(community)
+                showAddSourceModal = false
+            },
             onClearResults = onClearSearchResults,
             onDismiss = { showAddSourceModal = false }
         )
@@ -212,9 +214,34 @@ private fun AddSourceBottomSheet(
     onClearResults: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isReddit = false
-    val canSearch = false
-    val canAdd = detectedType == SourceRepository.RemoteSourceType.WALLHAVEN && input.isNotBlank() && !isSearching
+    val isReddit = detectedType == SourceRepository.RemoteSourceType.REDDIT
+    val canSearch = isReddit && input.trim().length >= 2 && !isSearching
+    val canAdd = detectedType != null && input.isNotBlank() && !isSearching
+
+    val sheetTitle = when (detectedType) {
+        SourceRepository.RemoteSourceType.REDDIT -> "Add Reddit source"
+        SourceRepository.RemoteSourceType.WALLHAVEN -> "Add Wallhaven source"
+        SourceRepository.RemoteSourceType.UNSPLASH -> "Add Unsplash source"
+        SourceRepository.RemoteSourceType.PINTEREST -> "Add Pinterest source"
+        SourceRepository.RemoteSourceType.WEBSITE -> "Add Website source"
+        null -> "Add source"
+    }
+    val sheetSubtitle = when (detectedType) {
+        SourceRepository.RemoteSourceType.REDDIT -> "Enter a subreddit name (e.g. r/wallpapers) or Reddit link."
+        SourceRepository.RemoteSourceType.WALLHAVEN -> "Paste a public Wallhaven search or collection link."
+        SourceRepository.RemoteSourceType.UNSPLASH -> "Paste an Unsplash collection or search link."
+        SourceRepository.RemoteSourceType.PINTEREST -> "Paste a Pinterest board or pin link."
+        SourceRepository.RemoteSourceType.WEBSITE -> "Paste a wallpaper website link."
+        null -> "Enter a subreddit name, or paste a Wallhaven, Unsplash, Pinterest, or website link."
+    }
+    val inputLabel = when (detectedType) {
+        SourceRepository.RemoteSourceType.REDDIT -> "Subreddit name or URL"
+        SourceRepository.RemoteSourceType.WALLHAVEN -> "Wallhaven URL"
+        SourceRepository.RemoteSourceType.UNSPLASH -> "Unsplash URL"
+        SourceRepository.RemoteSourceType.PINTEREST -> "Pinterest URL"
+        SourceRepository.RemoteSourceType.WEBSITE -> "Website URL"
+        null -> "Subreddit or wallpaper URL"
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(
@@ -222,11 +249,11 @@ private fun AddSourceBottomSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item("title") {
-                Text(text = "Add Wallhaven source", style = MaterialTheme.typography.titleLarge)
+                Text(text = sheetTitle, style = MaterialTheme.typography.titleLarge)
             }
             item("subtitle") {
                 Text(
-                    text = "Paste a public Wallhaven search or collection link.",
+                    text = sheetSubtitle,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -235,7 +262,7 @@ private fun AddSourceBottomSheet(
                 OutlinedTextField(
                     value = input,
                     onValueChange = onInputChange,
-                    label = { Text("Wallhaven URL") },
+                    label = { Text(inputLabel) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),

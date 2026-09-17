@@ -31,7 +31,7 @@ import java.util.Locale
         AlbumWallpaperCrossRef::class,
         SourceEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -53,7 +53,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): WallBaseDatabase {
             val callback = DefaultSourcesCallback(DefaultSources)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
                 .build()
@@ -191,6 +191,22 @@ abstract class WallBaseDatabase : RoomDatabase() {
                      'Fresh wallpapers from Wallhaven''s public catalog', NULL,
                      'https://www.google.com/s2/favicons?sz=128&domain=wallhaven.cc', 1, 1, 0,
                      'https://wallhaven.cc/search?q=wallpapers&purity=100&sorting=toplist')
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_9_10 = object : androidx.room.migration.Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    INSERT OR IGNORE INTO sources
+                    (key, provider_key, title, description, icon_res, icon_url, show_in_explore, is_enabled, is_local, config)
+                    VALUES
+                    ('reddit:wallpapers', 'reddit', 'r/wallpapers',
+                     'Top posts from r/wallpapers', NULL,
+                     'https://www.google.com/s2/favicons?sz=128&domain=reddit.com', 1, 1, 0,
+                     'wallpapers')
                     """.trimIndent()
                 )
             }

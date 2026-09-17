@@ -236,9 +236,25 @@ class WallpaperRepository @Inject constructor(
 
     suspend fun searchRedditCommunities(query: String, limit: Int = 10): List<RedditCommunity> =
         withContext(Dispatchers.IO) {
-            runCatching {
+            val apiResult = runCatching {
                 redditService.searchSubreddits(query = query, limit = limit).toCommunities()
-            }.getOrElse { emptyList() }
+            }.getOrNull()
+            if (!apiResult.isNullOrEmpty()) return@withContext apiResult
+
+            val normalized = query.normalizeSubredditName()
+            if (normalized.isNotBlank()) {
+                listOf(
+                    RedditCommunity(
+                        name = normalized,
+                        displayName = "r/$normalized",
+                        title = "r/$normalized",
+                        description = "Subreddit feed",
+                        iconUrl = null
+                    )
+                )
+            } else {
+                emptyList()
+            }
         }
 
     private suspend fun fetchRedditWallpapers(
@@ -265,16 +281,22 @@ class WallpaperRepository @Inject constructor(
                     )
                 }
             }.getOrNull()
-            WallpaperPage(
-                wallpapers = response?.toWallpaperItems().orEmpty(),
-                nextCursor = response?.data?.after,
-            )
+
+            val items = response?.toWallpaperItems().orEmpty()
+            if (items.isNotEmpty()) {
+                WallpaperPage(
+                    wallpapers = items,
+                    nextCursor = response?.data?.after,
+                )
+            } else {
+                val rssResult = webScraper.scrapeReddit(normalized, query = query, cursor = cursor)
+                WallpaperPage(rssResult.wallpapers, rssResult.nextCursor)
+            }
         }
 
     private fun RedditPost.resolveImages(): List<WallpaperItem> {
-        if (isGallery && mediaMetadata != null) {
-            return mediaMetadata.values
-                .filter { it.status == "valid" && it.e == "Image" }
+        if (!mediaMetadata.isNullOrEmpty()) {
+            val galleryItems = mediaMetadata.values
                 .mapNotNull { metadata ->
                     val source = metadata.s ?: return@mapNotNull null
                     val imageUrl = source.url?.replace("&amp;", "&") ?: return@mapNotNull null
@@ -287,25 +309,31 @@ class WallpaperRepository @Inject constructor(
                         height = source.height
                     )
                 }
+            if (galleryItems.isNotEmpty()) return galleryItems
         }
 
-        val previewUrl = preview?.images.orEmpty().firstOrNull()?.source?.url
         val directUrl = overriddenUrl ?: url
-        val isImageHint = postHint == "image"
-        val imageUrl = (previewUrl ?: directUrl)
-            ?.replace("&amp;", "&")
-            ?.takeIf { isImageHint || it.hasSupportedImageExtension() }
+        val previewSource = preview?.images.orEmpty().firstOrNull()?.source
+        val previewUrl = previewSource?.url?.replace("&amp;", "&")
+        val cleanDirectUrl = directUrl?.replace("&amp;", "&")
 
-        return if (imageUrl != null) {
-            val dimensions = preview?.images.orEmpty().firstOrNull()?.source
+        val candidateUrl = when {
+            cleanDirectUrl != null && cleanDirectUrl.hasSupportedImageExtension() -> cleanDirectUrl
+            postHint == "image" && cleanDirectUrl != null -> cleanDirectUrl
+            previewUrl != null -> previewUrl
+            cleanDirectUrl != null && (cleanDirectUrl.contains("i.redd.it") || cleanDirectUrl.contains("imgur.com")) -> cleanDirectUrl
+            else -> null
+        }?.let { if (it.startsWith("http://", ignoreCase = true)) "https://" + it.substring(7) else it }
+
+        return if (candidateUrl != null) {
             listOf(
                 WallpaperItem(
                     id = "reddit_$id",
                     title = title,
-                    imageUrl = imageUrl,
-                    sourceUrl = permalink?.let { "https://www.reddit.com$it" } ?: imageUrl,
-                    width = dimensions?.width,
-                    height = dimensions?.height
+                    imageUrl = candidateUrl,
+                    sourceUrl = permalink?.let { "https://www.reddit.com$it" } ?: candidateUrl,
+                    width = previewSource?.width,
+                    height = previewSource?.height
                 )
             )
         } else {
