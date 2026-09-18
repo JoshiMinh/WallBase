@@ -29,16 +29,21 @@ fun List<WallpaperItem>.filterByDownloadStatus(filter: DownloadedFilter): List<W
 }
 
 /**
+ * Checks if a wallpaper matches horizontal wallpaper preferences.
+ * Horizontal wallpapers are those with an aspect ratio > 1.2 (wider than tall).
+ */
+fun WallpaperItem.matchesHorizontalPreference(showHorizontal: Boolean): Boolean {
+    if (showHorizontal) return true
+    val ratio = aspectRatio ?: return true
+    return ratio <= 1.2f
+}
+
+/**
  * Filters wallpapers based on aspect ratio and orientation preferences.
  * Horizontal wallpapers are those with an aspect ratio > 1.2 (wider than tall).
  */
 fun List<WallpaperItem>.filterByHorizontalPreference(showHorizontal: Boolean): List<WallpaperItem> {
     if (showHorizontal) return this
-
-    return filter { wallpaper ->
-        val aspectRatio = wallpaper.aspectRatio ?: return@filter true
-        // Exclude horizontal wallpapers (aspect ratio > 1.2 means wider than tall)
-        aspectRatio <= 1.2f
-    }
+    return filter { it.matchesHorizontalPreference(showHorizontal) }
 }
 

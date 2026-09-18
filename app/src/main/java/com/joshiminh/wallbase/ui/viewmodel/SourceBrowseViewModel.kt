@@ -6,27 +6,34 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.filter
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.Source
+import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
-import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.repository.SourceRepository
-import com.joshiminh.wallbase.data.entity.WallpaperItem
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.util.AlbumSortOption
 import com.joshiminh.wallbase.util.WallpaperSortOption
-import com.joshiminh.wallbase.util.sortedWith
-import com.joshiminh.wallbase.util.filterByHorizontalPreference
+import com.joshiminh.wallbase.util.matchesHorizontalPreference
 import com.joshiminh.wallbase.util.network.ServiceLocator
-import kotlinx.coroutines.Job
+import com.joshiminh.wallbase.util.sortedWith
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.LinkedHashMap
 
 class SourceBrowseViewModel(
     private val sourceKey: String,
@@ -39,39 +46,34 @@ class SourceBrowseViewModel(
     private val _uiState = MutableStateFlow(SourceBrowseUiState())
     val uiState: StateFlow<SourceBrowseUiState> = _uiState.asStateFlow()
 
-    private var loadJob: Job? = null
-    private var currentQuery: String? = null
-    private var activeSourceKey: String? = null
-    private var lastSourceConfig: String? = null
-    private var nextPageCursor: String? = null
+    private val _searchQuery = MutableStateFlow<String?>(null)
     private var autoDownloadEnabled: Boolean = false
     private var storageLimitBytes: Long = 0L
-    private var showHorizontalWallpapers: Boolean = true
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val wallpaperPagingFlow: Flow<PagingData<WallpaperItem>> = combine(
+        sourceRepository.observeSource(sourceKey),
+        _searchQuery,
+        settingsRepository.preferences.map { it.showHorizontalWallpapers }
+    ) { source, query, showHorizontal ->
+        Triple(source, query, showHorizontal)
+    }.flatMapLatest { (source, query, showHorizontal) ->
+        if (source == null) {
+            flowOf(PagingData.empty())
+        } else {
+            wallpaperRepository.getWallpaperPagingData(source, query)
+                .map { pagingData ->
+                    pagingData.filter { item ->
+                        item.matchesHorizontalPreference(showHorizontal)
+                    }
+                }
+        }
+    }.cachedIn(viewModelScope)
 
     init {
         viewModelScope.launch {
             sourceRepository.observeSource(sourceKey).collectLatest { source ->
                 _uiState.update { it.copy(source = source) }
-                if (source == null) {
-                    loadJob?.cancel()
-                    activeSourceKey = null
-                    lastSourceConfig = null
-                    nextPageCursor = null
-                    _uiState.update {
-                        it.copy(
-                            wallpapers = emptyList(),
-                            isLoading = false,
-                            isRefreshing = false,
-                            errorMessage = "Source unavailable"
-                        )
-                    }
-                } else if (
-                    source.key != activeSourceKey ||
-                    source.config != lastSourceConfig ||
-                    _uiState.value.wallpapers.isEmpty()
-                ) {
-                    loadWallpapers(source, query = currentQuery, showLoading = true)
-                }
             }
         }
 
@@ -123,7 +125,6 @@ class SourceBrowseViewModel(
                     val layout = preferences.wallpaperLayout
                     autoDownloadEnabled = preferences.autoDownload
                     storageLimitBytes = preferences.storageLimitBytes
-                    showHorizontalWallpapers = preferences.showHorizontalWallpapers
                     val needsUpdate = state.wallpaperGridColumns != columns ||
                         state.wallpaperLayout != layout ||
                         state.autoDownloadEnabled != preferences.autoDownload ||
@@ -150,126 +151,50 @@ class SourceBrowseViewModel(
     }
 
     fun search() {
-        val source = _uiState.value.source ?: return
         val trimmed = _uiState.value.query.trim()
-        currentQuery = trimmed.takeIf { it.isNotEmpty() }
-        loadWallpapers(source, query = currentQuery, showLoading = true)
+        _searchQuery.value = trimmed.takeIf { it.isNotEmpty() }
     }
 
     fun clearQuery() {
-        if (_uiState.value.query.isBlank() && currentQuery == null) return
+        if (_uiState.value.query.isBlank() && _searchQuery.value == null) return
         _uiState.update { it.copy(query = "") }
-        val source = _uiState.value.source ?: return
-        currentQuery = null
-        loadWallpapers(source, query = null, showLoading = true)
+        _searchQuery.value = null
     }
 
-    fun refresh() {
-        val source = _uiState.value.source ?: return
-        nextPageCursor = null
-        loadWallpapers(source, query = currentQuery, showLoading = false)
-    }
-
-    fun loadMore() {
-        val state = _uiState.value
-        if (!state.canLoadMore || state.isLoading || state.isRefreshing || state.isAppending) return
-        val source = state.source ?: return
-        loadWallpapers(
-            source = source,
-            query = currentQuery,
-            showLoading = false,
-            append = true,
-            cursor = nextPageCursor
-        )
-    }
-
-    private fun loadWallpapers(
-        source: Source,
-        query: String?,
-        showLoading: Boolean,
-        append: Boolean = false,
-        cursor: String? = null
-    ) {
-        loadJob?.cancel()
-        activeSourceKey = source.key
-        lastSourceConfig = source.config
-        if (!append) {
-            nextPageCursor = null
-        }
-        loadJob = viewModelScope.launch {
-            val hasExisting = _uiState.value.wallpapers.isNotEmpty()
-            _uiState.update {
-                it.copy(
-                    isLoading = if (append) it.isLoading else showLoading || !hasExisting,
-                    isRefreshing = if (append) it.isRefreshing else !showLoading && hasExisting,
-                    isAppending = append,
-                    errorMessage = if (append) it.errorMessage else null,
-                    canLoadMore = if (append) it.canLoadMore else false
-                )
-            }
-            val result = runCatching {
-                wallpaperRepository.fetchWallpapersFor(source, query, cursor)
-            }
-            result.fold(
-                onSuccess = { page ->
-                    _uiState.update { state ->
-                        nextPageCursor = page.nextCursor
-                        val combined = if (append) {
-                            val merged = LinkedHashMap<String, WallpaperItem>()
-                            state.wallpapers.forEach { existing -> merged[existing.id] = existing }
-                            page.wallpapers.forEach { item -> merged[item.id] = item }
-                            merged.values.toList()
-                        } else {
-                            page.wallpapers
-                        }
-                        val availableIds = combined.mapTo(hashSetOf()) { it.id }
-                        val retainedSelection = state.selectedIds.filterTo(hashSetOf()) { it in availableIds }
-                        val sorted = combined.sortedWith(state.wallpaperSortOption)
-                        val allowMore = page.nextCursor != null || page.wallpapers.isNotEmpty()
-                        state.copy(
-                            wallpapers = sorted,
-                            isLoading = false,
-                            isRefreshing = false,
-                            isAppending = false,
-                            errorMessage = null,
-                            selectedIds = retainedSelection,
-                            isSelectionMode = retainedSelection.isNotEmpty(),
-                            canLoadMore = allowMore
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update { state ->
-                        val message = error.localizedMessage?.takeIf { it.isNotBlank() }
-                            ?: "Unable to load wallpapers."
-                        state.copy(
-                            isLoading = false,
-                            isRefreshing = false,
-                            isAppending = false,
-                            errorMessage = message,
-                            wallpapers = state.wallpapers,
-                            canLoadMore = state.canLoadMore
-                        )
-                    }
-                }
+    fun beginSelection(wallpaper: WallpaperItem) {
+        _uiState.update { state ->
+            val updated = state.selectedWallpapers + (wallpaper.id to wallpaper)
+            state.copy(
+                selectedWallpapers = updated,
+                selectedIds = updated.keys,
+                isSelectionMode = updated.isNotEmpty()
             )
         }
     }
 
-    fun beginSelection(wallpaper: WallpaperItem) {
-        modifySelection { it.add(wallpaper.id) }
-    }
-
     fun toggleSelection(wallpaper: WallpaperItem) {
-        modifySelection {
-            if (!it.add(wallpaper.id)) {
-                it.remove(wallpaper.id)
+        _uiState.update { state ->
+            val updated = if (wallpaper.id in state.selectedWallpapers) {
+                state.selectedWallpapers - wallpaper.id
+            } else {
+                state.selectedWallpapers + (wallpaper.id to wallpaper)
             }
+            state.copy(
+                selectedWallpapers = updated,
+                selectedIds = updated.keys,
+                isSelectionMode = updated.isNotEmpty()
+            )
         }
     }
 
     fun clearSelection() {
-        _uiState.update { it.copy(selectedIds = emptySet(), isSelectionMode = false) }
+        _uiState.update {
+            it.copy(
+                selectedWallpapers = emptyMap(),
+                selectedIds = emptySet(),
+                isSelectionMode = false
+            )
+        }
     }
 
     fun addSelectedToLibrary() {
@@ -299,12 +224,13 @@ class SourceBrowseViewModel(
                         message to false
                     }
                 )
-                val updatedSelection = if (clearSelection) emptySet() else state.selectedIds
+                val updatedMap = if (clearSelection) emptyMap() else state.selectedWallpapers
                 state.copy(
                     isActionInProgress = false,
                     message = message,
-                    selectedIds = updatedSelection,
-                    isSelectionMode = updatedSelection.isNotEmpty()
+                    selectedWallpapers = updatedMap,
+                    selectedIds = updatedMap.keys,
+                    isSelectionMode = updatedMap.isNotEmpty()
                 )
             }
             if (autoDownloadEnabled && addedWallpapers.isNotEmpty()) {
@@ -373,12 +299,13 @@ class SourceBrowseViewModel(
                         message to false
                     }
                 )
-                val updatedSelection = if (clearSelection) emptySet() else state.selectedIds
+                val updatedMap = if (clearSelection) emptyMap() else state.selectedWallpapers
                 state.copy(
                     isActionInProgress = false,
                     message = message,
-                    selectedIds = updatedSelection,
-                    isSelectionMode = updatedSelection.isNotEmpty()
+                    selectedWallpapers = updatedMap,
+                    selectedIds = updatedMap.keys,
+                    isSelectionMode = updatedMap.isNotEmpty()
                 )
             }
         }
@@ -395,10 +322,7 @@ class SourceBrowseViewModel(
             if (state.wallpaperSortOption == option) {
                 state
             } else {
-                state.copy(
-                    wallpaperSortOption = option,
-                    wallpapers = state.wallpapers.sortedWith(option)
-                )
+                state.copy(wallpaperSortOption = option)
             }
         }
     }
@@ -421,28 +345,7 @@ class SourceBrowseViewModel(
     }
 
     private fun selectedWallpapers(): List<WallpaperItem> {
-        val current = _uiState.value
-        if (current.selectedIds.isEmpty()) return emptyList()
-        val byId = current.wallpapers.associateBy { it.id }
-        return current.selectedIds.mapNotNull(byId::get)
-    }
-
-    private fun modifySelection(block: (MutableSet<String>) -> Unit) {
-        _uiState.update { state ->
-            val working = state.selectedIds.toMutableSet()
-            block(working)
-            val updated = working.toSet()
-            val selectionChanged = updated != state.selectedIds
-            val modeChanged = state.isSelectionMode != updated.isNotEmpty()
-            if (!selectionChanged && !modeChanged) {
-                state
-            } else {
-                state.copy(
-                    selectedIds = updated,
-                    isSelectionMode = updated.isNotEmpty()
-                )
-            }
-        }
+        return _uiState.value.selectedWallpapers.values.toList()
     }
 
     private fun setMessage(message: String) {
@@ -452,21 +355,16 @@ class SourceBrowseViewModel(
     data class SourceBrowseUiState(
         val source: Source? = null,
         val query: String = "",
-        val wallpapers: List<WallpaperItem> = emptyList(),
-        val isLoading: Boolean = true,
-        val isRefreshing: Boolean = false,
-        val errorMessage: String? = null,
         val savedWallpaperKeys: Set<String> = emptySet(),
         val savedRemoteIdsByProvider: Map<String, Set<String>> = emptyMap(),
         val savedImageUrls: Set<String> = emptySet(),
         val isSelectionMode: Boolean = false,
         val selectedIds: Set<String> = emptySet(),
+        val selectedWallpapers: Map<String, WallpaperItem> = emptyMap(),
         val isActionInProgress: Boolean = false,
         val message: String? = null,
         val albums: List<AlbumItem> = emptyList(),
         val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
-        val isAppending: Boolean = false,
-        val canLoadMore: Boolean = false,
         val wallpaperGridColumns: Int = 2,
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
         val autoDownloadEnabled: Boolean = false,
@@ -492,5 +390,3 @@ class SourceBrowseViewModel(
         }
     }
 }
-
-

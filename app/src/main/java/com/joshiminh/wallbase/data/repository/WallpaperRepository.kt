@@ -15,6 +15,10 @@ import com.joshiminh.wallbase.sources.WallhavenService
 import com.joshiminh.wallbase.sources.WallhavenWallpaper
 import com.joshiminh.wallbase.util.network.ScrapePage
 import com.joshiminh.wallbase.util.network.WebScraper
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import kotlinx.coroutines.flow.Flow
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,6 +39,21 @@ class WallpaperRepository @Inject constructor(
 ) {
     private val pinterestQuery: String = DEFAULT_PINTEREST_QUERY
     private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
+
+    fun getWallpaperPagingData(
+        source: Source,
+        query: String? = null,
+        pageSize: Int = 24
+    ): Flow<PagingData<WallpaperItem>> {
+        return Pager(
+            config = PagingConfig(
+                pageSize = pageSize,
+                prefetchDistance = 6,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = { WallpaperPagingSource(this, source, query) }
+        ).flow
+    }
 
     suspend fun fetchWallpapersFor(
         source: Source,

@@ -54,6 +54,9 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.joshiminh.wallbase.navigation.TopBarHandle
 import com.joshiminh.wallbase.navigation.TopBarState
 import com.joshiminh.wallbase.data.entity.AlbumItem
@@ -68,7 +71,6 @@ import com.joshiminh.wallbase.util.SortField
 import com.joshiminh.wallbase.util.SortSelection
 import com.joshiminh.wallbase.util.toSelection
 import com.joshiminh.wallbase.util.toWallpaperSortOption
-import com.joshiminh.wallbase.util.filterByHorizontalPreference
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
 import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
@@ -238,6 +240,7 @@ fun SourceRoute(
     }
 
     val supportsSharedTransitions = sharedTransitionScope != null && animatedVisibilityScope != null
+    val pagingItems = viewModel.wallpaperPagingFlow.collectAsLazyPagingItems()
 
     val onCardClick: (WallpaperItem) -> Unit = { wallpaper ->
         if (uiState.isSelectionMode) {
@@ -256,14 +259,13 @@ fun SourceRoute(
 
     SourceScreen(
         state = uiState,
+        pagingItems = pagingItems,
         snackbarHostState = snackbarHostState,
-        onRefresh = viewModel::refresh,
         onWallpaperClick = onCardClick,
         onWallpaperLongPress = onCardLongPress,
         onAddSelectionToAlbum = viewModel::addSelectedToAlbum,
         onDismissAlbumPicker = { showAlbumPicker = false },
         showAlbumPicker = showAlbumPicker,
-        onLoadMore = viewModel::loadMore,
         onClearSearch = viewModel::clearQuery,
         sharedTransitionScope = sharedTransitionScope,
         animatedVisibilityScope = animatedVisibilityScope
@@ -299,14 +301,13 @@ fun SourceRoute(
 @Composable
 private fun SourceScreen(
     state: SourceBrowseViewModel.SourceBrowseUiState,
+    pagingItems: LazyPagingItems<WallpaperItem>,
     snackbarHostState: SnackbarHostState,
-    onRefresh: () -> Unit,
     onWallpaperClick: (WallpaperItem) -> Unit,
     onWallpaperLongPress: (WallpaperItem) -> Unit,
     onAddSelectionToAlbum: (Long) -> Unit,
     onDismissAlbumPicker: () -> Unit,
     showAlbumPicker: Boolean,
-    onLoadMore: () -> Unit,
     onClearSearch: () -> Unit,
     sharedTransitionScope: SharedTransitionScope?,
     animatedVisibilityScope: AnimatedVisibilityScope?
@@ -315,12 +316,19 @@ private fun SourceScreen(
     if (source == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
-                text = state.errorMessage ?: "Source not available",
+                text = "Source not available",
                 style = MaterialTheme.typography.bodyLarge
             )
         }
         return
     }
+
+    val refreshState = pagingItems.loadState.refresh
+    val isRefreshing = refreshState is LoadState.Loading && pagingItems.itemCount > 0
+    val isInitialLoading = refreshState is LoadState.Loading && pagingItems.itemCount == 0
+    val initialError = (refreshState as? LoadState.Error)?.error?.localizedMessage
+        ?: if (refreshState is LoadState.Error) "Unable to load wallpapers." else null
+    val isEmpty = refreshState is LoadState.NotLoading && pagingItems.itemCount == 0
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -331,14 +339,6 @@ private fun SourceScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            state.errorMessage?.takeIf { state.wallpapers.isEmpty() }?.let { message ->
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
             Spacer(modifier = Modifier.height(4.dp))
 
             Box(
@@ -347,12 +347,12 @@ private fun SourceScreen(
                     .fillMaxWidth()
             ) {
                 PullToRefreshBox(
-                    isRefreshing = state.isRefreshing,
-                    onRefresh = onRefresh,
+                    isRefreshing = isRefreshing,
+                    onRefresh = { pagingItems.refresh() },
                     modifier = Modifier.fillMaxSize()
                 ) {
                     when {
-                        state.isLoading -> {
+                        isInitialLoading -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -361,29 +361,34 @@ private fun SourceScreen(
                             }
                         }
 
-                        state.wallpapers.isEmpty() -> {
+                        initialError != null && pagingItems.itemCount == 0 -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (state.errorMessage != null) {
-                                    ErrorMessage(message = state.errorMessage, onRetry = onRefresh)
-                                } else {
-                                    EmptyWallpaperState(
-                                        query = state.query.takeIf { it.isNotBlank() },
-                                        onClearSearch = onClearSearch,
-                                        onRefresh = onRefresh,
-                                    )
-                                }
+                                ErrorMessage(
+                                    message = initialError,
+                                    onRetry = { pagingItems.retry() }
+                                )
+                            }
+                        }
+
+                        isEmpty -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                EmptyWallpaperState(
+                                    query = state.query.takeIf { it.isNotBlank() },
+                                    onClearSearch = onClearSearch,
+                                    onRefresh = { pagingItems.refresh() },
+                                )
                             }
                         }
 
                         else -> {
-                            val filteredWallpapers = state.wallpapers.filterByHorizontalPreference(
-                                showHorizontal = state.showHorizontalWallpapers
-                            )
                             WallpaperGrid(
-                                wallpapers = filteredWallpapers,
+                                pagingItems = pagingItems,
                                 onWallpaperSelected = onWallpaperClick,
                                 onLongPress = onWallpaperLongPress,
                                 selectedIds = state.selectedIds,
@@ -391,9 +396,6 @@ private fun SourceScreen(
                                 savedWallpaperKeys = state.savedWallpaperKeys,
                                 savedRemoteIdsByProvider = state.savedRemoteIdsByProvider,
                                 savedImageUrls = state.savedImageUrls,
-                                onLoadMore = onLoadMore.takeIf { state.canLoadMore },
-                                isLoadingMore = state.isAppending,
-                                canLoadMore = state.canLoadMore,
                                 modifier = Modifier.fillMaxSize(),
                                 columns = state.wallpaperGridColumns,
                                 layout = state.wallpaperLayout,
@@ -403,15 +405,6 @@ private fun SourceScreen(
                         }
                     }
                 }
-            }
-
-            state.errorMessage?.takeIf { state.wallpapers.isNotEmpty() }?.let { message ->
-                Text(
-                    text = message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
             }
         }
     }

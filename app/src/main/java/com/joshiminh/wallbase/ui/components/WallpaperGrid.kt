@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items as lazyItems
@@ -35,12 +36,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -410,6 +418,306 @@ fun WallpaperGrid(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
+@Composable
+fun WallpaperGrid(
+    pagingItems: LazyPagingItems<WallpaperItem>,
+    onWallpaperSelected: (WallpaperItem) -> Unit,
+    modifier: Modifier = Modifier,
+    onLongPress: ((WallpaperItem) -> Unit)? = null,
+    selectedIds: Set<String> = emptySet(),
+    selectionMode: Boolean = false,
+    savedWallpaperKeys: Set<String> = emptySet(),
+    savedRemoteIdsByProvider: Map<String, Set<String>> = emptyMap(),
+    savedImageUrls: Set<String> = emptySet(),
+    showDownloadedBadge: Boolean = false,
+    columns: Int = 2,
+    layout: WallpaperLayout = WallpaperLayout.GRID,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
+) {
+    when (layout) {
+        WallpaperLayout.GRID -> {
+            val gridState = rememberLazyStaggeredGridState()
+            val columnCount = columns.coerceIn(1, 3)
+
+            LazyVerticalStaggeredGrid(
+                modifier = modifier.fillMaxSize(),
+                columns = StaggeredGridCells.Fixed(columnCount),
+                state = gridState,
+                verticalItemSpacing = 8.dp,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
+            ) {
+                items(
+                    count = pagingItems.itemCount,
+                    key = pagingItems.itemKey { it.id },
+                    contentType = pagingItems.itemContentType { "wallpaper" }
+                ) { index ->
+                    val wallpaper = pagingItems[index]
+                    if (wallpaper != null) {
+                        val isSelected = wallpaper.id in selectedIds
+                        val isSaved = wallpaper.isSaved(
+                            savedWallpaperKeys = savedWallpaperKeys,
+                            savedRemoteIdsByProvider = savedRemoteIdsByProvider,
+                            savedImageUrls = savedImageUrls
+                        )
+                        val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
+                            wallpaper = wallpaper,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                        WallpaperCard(
+                            item = wallpaper,
+                            isSelected = isSelected,
+                            isSaved = isSaved,
+                            selectionMode = selectionMode,
+                            showDownloadedBadge = showDownloadedBadge,
+                            onClick = { onWallpaperSelected(wallpaper) },
+                            onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
+                            modifier = Modifier.fillMaxWidth(),
+                            sharedElementModifier = sharedModifier
+                        )
+                    }
+                }
+
+                when (val appendState = pagingItems.loadState.append) {
+                    is LoadState.Loading -> {
+                        item(span = StaggeredGridItemSpan.FullLine, contentType = "loading") {
+                            PagingAppendLoadingIndicator()
+                        }
+                    }
+                    is LoadState.Error -> {
+                        item(span = StaggeredGridItemSpan.FullLine, contentType = "error") {
+                            PagingAppendErrorIndicator(
+                                errorMessage = appendState.error.localizedMessage ?: "Failed to load more wallpapers",
+                                onRetry = { pagingItems.retry() }
+                            )
+                        }
+                    }
+                    is LoadState.NotLoading -> Unit
+                }
+            }
+        }
+
+        WallpaperLayout.JUSTIFIED -> {
+            BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+                val containerWidth = maxWidth
+                val rowSpacing = 8.dp
+                val targetRowHeight = 180.dp
+                val loadedWallpapers = remember(pagingItems.itemSnapshotList) {
+                    pagingItems.itemSnapshotList.items
+                }
+                val rows = rememberJustifiedRows(
+                    wallpapers = loadedWallpapers,
+                    containerWidth = containerWidth,
+                    rowSpacing = rowSpacing,
+                    targetRowHeight = targetRowHeight
+                )
+                val listState = rememberLazyListState()
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(rowSpacing),
+                    contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
+                ) {
+                    itemsIndexed(
+                        rows,
+                        key = { _, row -> row.startIndex },
+                        contentType = { _, _ -> "justifiedRow" }
+                    ) { _, row ->
+                        val rowItems = row.items
+                        val ratios = rowItems.map { item ->
+                            val ratio = item.aspectRatio
+                            when {
+                                ratio == null || ratio <= 0f -> DEFAULT_ASPECT_RATIO
+                                else -> ratio
+                            }
+                        }
+                        val availableWidth = (containerWidth - rowSpacing * (rowItems.size - 1)).coerceAtLeast(0.dp)
+                        val totalRatio = ratios.sum().takeIf { it > 0f } ?: DEFAULT_ASPECT_RATIO
+                        val rowHeight = if (availableWidth > 0.dp) {
+                            (availableWidth.value / totalRatio).dp
+                        } else {
+                            targetRowHeight
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(rowHeight),
+                            horizontalArrangement = Arrangement.spacedBy(rowSpacing)
+                        ) {
+                            rowItems.forEachIndexed { index, wallpaper ->
+                                val ratio = ratios.getOrNull(index) ?: DEFAULT_ASPECT_RATIO
+                                val itemWidth = (rowHeight.value * ratio).dp
+                                val isSelected = wallpaper.id in selectedIds
+                                val isSaved = wallpaper.isSaved(
+                                    savedWallpaperKeys = savedWallpaperKeys,
+                                    savedRemoteIdsByProvider = savedRemoteIdsByProvider,
+                                    savedImageUrls = savedImageUrls
+                                )
+
+                                val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
+                                    wallpaper = wallpaper,
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                                WallpaperCard(
+                                    item = wallpaper,
+                                    isSelected = isSelected,
+                                    isSaved = isSaved,
+                                    selectionMode = selectionMode,
+                                    showDownloadedBadge = showDownloadedBadge,
+                                    onClick = { onWallpaperSelected(wallpaper) },
+                                    onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
+                                    modifier = Modifier
+                                        .height(rowHeight)
+                                        .width(itemWidth),
+                                    aspectRatio = null,
+                                    sharedElementModifier = sharedModifier
+                                )
+                            }
+                        }
+                    }
+
+                    when (val appendState = pagingItems.loadState.append) {
+                        is LoadState.Loading -> {
+                            item(contentType = "loading") {
+                                PagingAppendLoadingIndicator()
+                            }
+                        }
+                        is LoadState.Error -> {
+                            item(contentType = "error") {
+                                PagingAppendErrorIndicator(
+                                    errorMessage = appendState.error.localizedMessage ?: "Failed to load more wallpapers",
+                                    onRetry = { pagingItems.retry() }
+                                )
+                            }
+                        }
+                        is LoadState.NotLoading -> Unit
+                    }
+                }
+            }
+        }
+
+        WallpaperLayout.LIST -> {
+            val listState = rememberLazyListState()
+
+            LazyColumn(
+                modifier = modifier.fillMaxSize(),
+                state = listState,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 24.dp)
+            ) {
+                items(
+                    count = pagingItems.itemCount,
+                    key = pagingItems.itemKey { it.id },
+                    contentType = pagingItems.itemContentType { "wallpaper" }
+                ) { index ->
+                    val wallpaper = pagingItems[index]
+                    if (wallpaper != null) {
+                        val isSelected = wallpaper.id in selectedIds
+                        val isSaved = wallpaper.isSaved(
+                            savedWallpaperKeys = savedWallpaperKeys,
+                            savedRemoteIdsByProvider = savedRemoteIdsByProvider,
+                            savedImageUrls = savedImageUrls
+                        )
+                        val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
+                            wallpaper = wallpaper,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                        WallpaperListRow(
+                            item = wallpaper,
+                            isSelected = isSelected,
+                            isSaved = isSaved,
+                            selectionMode = selectionMode,
+                            showDownloadedBadge = showDownloadedBadge,
+                            onClick = { onWallpaperSelected(wallpaper) },
+                            onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
+                            sharedElementModifier = sharedModifier
+                        )
+                    }
+                }
+
+                when (val appendState = pagingItems.loadState.append) {
+                    is LoadState.Loading -> {
+                        item(contentType = "loading") {
+                            PagingAppendLoadingIndicator()
+                        }
+                    }
+                    is LoadState.Error -> {
+                        item(contentType = "error") {
+                            PagingAppendErrorIndicator(
+                                errorMessage = appendState.error.localizedMessage ?: "Failed to load more wallpapers",
+                                onRetry = { pagingItems.retry() }
+                            )
+                        }
+                    }
+                    is LoadState.NotLoading -> Unit
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PagingAppendLoadingIndicator(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(32.dp),
+            strokeWidth = 3.dp
+        )
+    }
+}
+
+@Composable
+fun PagingAppendErrorIndicator(
+    errorMessage: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = WallBaseShapes.card,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = errorMessage,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                Text("Retry")
             }
         }
     }

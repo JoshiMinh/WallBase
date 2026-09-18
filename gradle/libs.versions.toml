@@ -37,6 +37,9 @@ palette = "1.0.0"
 retrofit = "3.0.0"
 room = "2.8.3"
 
+# Paging 3
+paging = "3.3.6"
+
 navigation-compose = "2.9.5"
 foundation = "1.9.2"
 
@@ -105,6 +108,11 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "security-crypto" }
 hilt = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
+
+# Paging 3
+androidx-paging-runtime = { module = "androidx.paging:paging-runtime-ktx", version.ref = "paging" }
+androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "paging" }
+androidx-paging-common = { module = "androidx.paging:paging-common", version.ref = "paging" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
