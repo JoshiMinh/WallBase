@@ -8,8 +8,8 @@ val PinterestSource = SourceSeed(
     providerKey = SourceKeys.PINTEREST,
     iconUrl = "https://www.google.com/s2/favicons?sz=128&domain=pinterest.com",
     title = "Pinterest Wallpapers",
-    description = "Latest pins from our Pinterest board (limited support)",
+    description = "Ultra HD wallpapers from Pinterest",
     showInExplore = true,
     enabledByDefault = true,
-    config = "https://www.pinterest.com/wallpapercollec/wallpapers"
+    config = "https://www.pinterest.com/wallpapersden/ultra-hd-wallpapers-collections/"
 )

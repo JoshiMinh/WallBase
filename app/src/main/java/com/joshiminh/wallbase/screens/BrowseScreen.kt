@@ -230,7 +230,7 @@ private fun AddSourceBottomSheet(
         SourceRepository.RemoteSourceType.REDDIT -> "Enter a subreddit name (e.g. r/wallpapers) or Reddit link."
         SourceRepository.RemoteSourceType.WALLHAVEN -> "Paste a public Wallhaven search or collection link."
         SourceRepository.RemoteSourceType.UNSPLASH -> "Paste an Unsplash collection or search link."
-        SourceRepository.RemoteSourceType.PINTEREST -> "Paste a Pinterest board or pin link."
+        SourceRepository.RemoteSourceType.PINTEREST -> "Enter a Pinterest board, profile (@username), or URL."
         SourceRepository.RemoteSourceType.WEBSITE -> "Paste a wallpaper website link."
         null -> "Enter a subreddit name, or paste a Wallhaven, Unsplash, Pinterest, or website link."
     }
@@ -238,9 +238,9 @@ private fun AddSourceBottomSheet(
         SourceRepository.RemoteSourceType.REDDIT -> "Subreddit name or URL"
         SourceRepository.RemoteSourceType.WALLHAVEN -> "Wallhaven URL"
         SourceRepository.RemoteSourceType.UNSPLASH -> "Unsplash URL"
-        SourceRepository.RemoteSourceType.PINTEREST -> "Pinterest URL"
+        SourceRepository.RemoteSourceType.PINTEREST -> "Pinterest board, @username, or URL"
         SourceRepository.RemoteSourceType.WEBSITE -> "Website URL"
-        null -> "Subreddit or wallpaper URL"
+        null -> "Subreddit, Pinterest, or wallpaper URL"
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -374,8 +374,8 @@ private fun SupportedSourcesList(
         SupportedSourceInfo(
             label = "Pinterest",
             faviconDomain = "pinterest.com",
-            quickAddInput = "https://www.pinterest.com/wallpapercollec/wallpapers/",
-            requirement = "Pinterest boards & pin URLs"
+            quickAddInput = "https://www.pinterest.com/wallpapersden/ultra-hd-wallpapers-collections/",
+            requirement = "Boards, profiles (@username), or URLs"
         ),
     )
 

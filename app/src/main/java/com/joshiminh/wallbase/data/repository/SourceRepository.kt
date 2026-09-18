@@ -321,14 +321,35 @@ class SourceRepository @Inject constructor(
             SourceKeys.LOCAL -> iconRes?.takeIf { it != 0 }
             else -> null
         }
+        val sanitizedConfig = if (providerKey == SourceKeys.PINTEREST && config?.contains("wallpapercollec") == true) {
+            "https://www.pinterest.com/wallpapersden/ultra-hd-wallpapers-collections/"
+        } else {
+            config
+        }
+        val sanitizedTitle = if (providerKey == SourceKeys.PINTEREST && (title == "Pinterest - Wallpapers" || title == "Pinterest Wallpapers" || title.contains("wallpapercollec", ignoreCase = true))) {
+            "Pinterest • Ultra HD Wallpapers"
+        } else {
+            title
+        }
+        val sanitizedDescription = if (providerKey == SourceKeys.PINTEREST && description.contains("wallpapercollec")) {
+            "Ultra HD wallpapers from Pinterest"
+        } else {
+            description
+        }
         val normalizedIconUrl = iconUrl
             ?.takeIf { it.isNotBlank() }
             ?.takeIf { it.isNetworkUrl() }
-        val resolvedIconUrl = normalizedIconUrl ?: resolveDefaultIconUrl(providerKey, config)
+        val resolvedIconUrl = normalizedIconUrl ?: resolveDefaultIconUrl(providerKey, sanitizedConfig)
 
-        val requiresUpdate = sanitizedIconRes != iconRes || resolvedIconUrl != iconUrl
+        val requiresUpdate = sanitizedIconRes != iconRes || resolvedIconUrl != iconUrl || sanitizedConfig != config || sanitizedTitle != title || sanitizedDescription != description
         return if (requiresUpdate) {
-            copy(iconRes = sanitizedIconRes, iconUrl = resolvedIconUrl)
+            copy(
+                title = sanitizedTitle,
+                description = sanitizedDescription,
+                config = sanitizedConfig,
+                iconRes = sanitizedIconRes,
+                iconUrl = resolvedIconUrl
+            )
         } else {
             this
         }
@@ -374,6 +395,14 @@ class SourceRepository @Inject constructor(
     private fun parseRemoteSourceInput(input: String): RemoteSourceInput? {
         val trimmed = input.trim()
         if (trimmed.isBlank()) return null
+
+        if (trimmed.startsWith("@")) {
+            val username = trimmed.removePrefix("@").trim()
+            val pinterestUrl = "https://www.pinterest.com/$username/".tryNormalizeUrl()
+            if (pinterestUrl != null) {
+                return RemoteSourceInput.Pinterest(pinterestUrl)
+            }
+        }
 
         val subreddit = trimmed.tryNormalizeSubreddit()
         if (!subreddit.isNullOrBlank()) {
@@ -438,28 +467,36 @@ class SourceRepository @Inject constructor(
             .joinToString(" ") { it.toDisplayNameSegment() }
             .ifBlank { url.host.toDisplayNameSegment() }
 
-        val pathSegment = url.path
+        val pathSegments = url.path
             .split('/')
-            .lastOrNull { it.isNotBlank() }
-            ?.toDisplayNameSegment()
+            .filter { it.isNotBlank() }
 
+        val pathSegment = pathSegments.lastOrNull()?.toDisplayNameSegment()
         val queryLabel = url.queryParam("q")?.toDisplayNameSegment()
 
         val title = when (type) {
-            RemoteSourceType.PINTEREST -> listOfNotNull("Pinterest", queryLabel ?: pathSegment)
-                .joinToString(" - ")
-                .ifBlank { "Pinterest" }
+            RemoteSourceType.PINTEREST -> {
+                val label = when {
+                    !queryLabel.isNullOrBlank() -> queryLabel
+                    pathSegments.size >= 2 -> pathSegments.last().toDisplayNameSegment()
+                    pathSegments.size == 1 -> "@${pathSegments[0]}"
+                    else -> null
+                }
+                listOfNotNull("Pinterest", label)
+                    .joinToString(" • ")
+                    .ifBlank { "Pinterest Wallpapers" }
+            }
 
             RemoteSourceType.WALLHAVEN -> listOfNotNull("Wallhaven", queryLabel ?: pathSegment)
-                .joinToString(" - ")
+                .joinToString(" • ")
                 .ifBlank { "Wallhaven" }
 
             RemoteSourceType.UNSPLASH -> listOfNotNull("Unsplash", queryLabel ?: pathSegment)
-                .joinToString(" - ")
+                .joinToString(" • ")
                 .ifBlank { "Unsplash" }
 
             RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
-                .joinToString(" - ")
+                .joinToString(" • ")
                 .ifBlank { hostName }
 
             else -> hostName

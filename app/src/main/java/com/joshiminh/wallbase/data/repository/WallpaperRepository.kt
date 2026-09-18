@@ -16,6 +16,7 @@ import com.joshiminh.wallbase.sources.UnsplashService
 import com.joshiminh.wallbase.sources.WallhavenResponse
 import com.joshiminh.wallbase.sources.WallhavenService
 import com.joshiminh.wallbase.sources.WallhavenWallpaper
+import com.joshiminh.wallbase.util.network.ScrapePage
 import com.joshiminh.wallbase.util.network.WebScraper
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -200,13 +201,29 @@ class WallpaperRepository @Inject constructor(
         cursor: String?
     ): WallpaperPage = withContext(Dispatchers.IO) {
         val scrapePage = when {
+            !config.isNullOrBlank() -> {
+                val page = webScraper.scrapeImagesFromUrl(
+                    url = config,
+                    limit = 30,
+                    cursor = cursor
+                )
+                if (!query.isNullOrBlank()) {
+                    val filtered = page.wallpapers.filter { it.title.contains(query, ignoreCase = true) }
+                    if (filtered.isNotEmpty()) {
+                        ScrapePage(filtered, page.nextCursor)
+                    } else {
+                        webScraper.scrapePinterest(
+                            query = query,
+                            limit = 30,
+                            cursor = cursor
+                        )
+                    }
+                } else {
+                    page
+                }
+            }
             !query.isNullOrBlank() -> webScraper.scrapePinterest(
                 query = query,
-                limit = 30,
-                cursor = cursor
-            )
-            !config.isNullOrBlank() -> webScraper.scrapeImagesFromUrl(
-                url = config,
                 limit = 30,
                 cursor = cursor
             )

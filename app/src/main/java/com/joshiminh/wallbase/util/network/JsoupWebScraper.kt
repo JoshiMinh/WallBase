@@ -17,12 +17,6 @@ import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Top-level so it can be called from companion objects too.
-private fun ensurePinterestPath(path: String): String {
-    val trimmed = if (path.startsWith("/")) path else "/$path"
-    return if (trimmed.endsWith("/")) trimmed else "$trimmed/"
-}
-
 @Singleton
 class JsoupWebScraper @Inject constructor() : WebScraper {
 
@@ -30,13 +24,34 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
         query: String,
         limit: Int,
         cursor: String?,
-    ): ScrapePage = runCatching {
-        val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
-        val url = "https://www.pinterest.com/search/pins/?q=$encodedQuery"
-        extractImages(url, limit, cursor) { element ->
-            element.attr("alt").ifBlank { "Pinterest Pin" }
+    ): ScrapePage = withContext(Dispatchers.IO) {
+        val trimmed = query.trim()
+        val defaultUrl = "https://www.pinterest.com/wallpapersden/ultra-hd-wallpapers-collections/"
+        val targetUrl = if (trimmed.isBlank() || trimmed.equals("wallpaper backgrounds", ignoreCase = true) || trimmed.equals("wallpapers", ignoreCase = true)) {
+            defaultUrl
+        } else if (trimmed.contains("pinterest.") || trimmed.contains("/")) {
+            trimmed
+        } else if (trimmed.startsWith("@")) {
+            "https://www.pinterest.com/${trimmed.removePrefix("@")}/"
+        } else {
+            defaultUrl
         }
-    }.getOrElse { ScrapePage(emptyList(), nextCursor = null) }
+
+        val page = scrapePinterestUrl(targetUrl, limit, cursor)
+        if (page != null && page.wallpapers.isNotEmpty()) {
+            if (trimmed.isNotBlank() && !targetUrl.contains(trimmed, ignoreCase = true) && !trimmed.equals("wallpaper backgrounds", ignoreCase = true)) {
+                val filtered = page.wallpapers.filter { item ->
+                    item.title.contains(trimmed, ignoreCase = true)
+                }
+                if (filtered.isNotEmpty()) {
+                    return@withContext ScrapePage(filtered, page.nextCursor)
+                }
+            }
+            return@withContext page
+        }
+
+        ScrapePage(emptyList(), nextCursor = null)
+    }
 
     override suspend fun scrapeReddit(
         subreddit: String,
@@ -114,13 +129,15 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
     ): ScrapePage {
         val uri = runCatching { URI(url) }.getOrNull()
         val host = uri?.host?.lowercase(Locale.ROOT) ?: ""
-        val specialized = when {
-            host.contains("pinterest.") -> runCatching {
+        val isPinterest = host.contains("pinterest.") || host == "pin.it" || url.contains("pinterest.com")
+        if (isPinterest) {
+            val specialized = runCatching {
                 scrapePinterestUrl(url, limit, cursor)
             }.getOrNull()
-            else -> null
+            if (specialized != null && specialized.wallpapers.isNotEmpty()) {
+                return specialized
+            }
         }
-        if (specialized != null) return specialized
 
         return runCatching {
             extractImages(url, limit, cursor) { element ->
@@ -185,130 +202,96 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
         pageUrl: String,
         limit: Int,
         cursor: String?,
-    ): ScrapePage? {
-        if (cursor.isNullOrBlank()) {
-            val info = parsePinterestUrl(pageUrl) ?: return null
-            return runCatching {
-                val document = fetch(pageUrl)
-                parsePinterestInitialPage(document, info, limit)
-            }.getOrNull()
+    ): ScrapePage? = withContext(Dispatchers.IO) {
+        val info = parsePinterestUrl(pageUrl) ?: return@withContext null
+        val items = mutableListOf<WallpaperItem>()
+
+        // 1. If it has a board slug, try board pidgets first
+        if (!info.boardSlug.isNullOrBlank()) {
+            val boardEndpoint = "https://api.pinterest.com/v3/pidgets/boards/${info.username}/${info.boardSlug}/pins/"
+            val boardPins = fetchPidgetsPins(boardEndpoint)
+            if (boardPins.isNotEmpty()) {
+                items.addAll(boardPins)
+            }
         }
 
-        val parsedCursor = PinterestCursor.decode(cursor) ?: return null
+        // 2. If board was empty or url is a user profile, fetch user pidgets
+        if (items.isEmpty()) {
+            val userEndpoint = "https://api.pinterest.com/v3/pidgets/users/${info.username}/pins/"
+            val userPins = fetchPidgetsPins(userEndpoint)
+            if (userPins.isNotEmpty()) {
+                items.addAll(userPins)
+            }
+        }
+
+        if (items.isEmpty()) return@withContext null
+
+        val offset = cursor?.toIntOrNull()?.takeIf { it >= 0 } ?: 0
+        val fromIndex = offset.coerceAtMost(items.size)
+        val toIndex = (fromIndex + limit).coerceAtMost(items.size)
+        val pagedItems = if (fromIndex >= toIndex) emptyList() else items.subList(fromIndex, toIndex).toList()
+        val nextCursor = if (items.size > toIndex) toIndex.toString() else null
+
+        ScrapePage(pagedItems, nextCursor)
+    }
+
+    private fun fetchPidgetsPins(endpoint: String): List<WallpaperItem> {
         return runCatching {
-            fetchPinterestContinuation(parsedCursor)
-        }.getOrNull()
-    }
-
-    private fun parsePinterestInitialPage(
-        document: Document,
-        info: PinterestUrlInfo,
-        limit: Int,
-    ): ScrapePage? {
-        val scripts = document.select("script[id=__PWS_DATA__], script[id=__PWS_INITIAL_PROPS__]")
-        scripts.forEach { element ->
-            val data = element.data().takeIf { it.isNotBlank() } ?: return@forEach
-            val root = runCatching { JSONObject(data) }.getOrNull() ?: return@forEach
-            val resourceName = info.type.resourceName
-            val resource = root.findPinterestResource(resourceName) ?: return@forEach
-            val response = resource.optJSONObject("resource_response") ?: return@forEach
-            val dataArray = response.optJSONArray("data") ?: JSONArray()
-            val pins = parsePinterestPins(dataArray)
-            val bookmark = response.optString("bookmark").takeIf { it.isNotBlank() }
-            val options = resource.optJSONObject("resource")?.optJSONObject("options")
-            val boardId = options?.optString("board_id").takeIf { !it.isNullOrBlank() }
-            val slug = options?.optString("slug").takeIf { !it.isNullOrBlank() } ?: info.boardSlug
-            val pageSize = options?.optInt("page_size")?.takeIf { it > 0 } ?: limit
-            val nextCursor = bookmark?.let {
-                PinterestCursor(
-                    type = resourceName,
-                    username = info.username,
-                    slug = slug,
-                    boardId = boardId,
-                    pagePath = ensurePinterestPath(info.pagePath),
-                    bookmark = it,
-                    pageSize = pageSize
-                ).encode()
-            }
-            if (pins.isNotEmpty()) {
-                return ScrapePage(pins, nextCursor)
-            }
-        }
-        return null
-    }
-
-    private suspend fun fetchPinterestContinuation(cursor: PinterestCursor): ScrapePage? =
-        withContext(Dispatchers.IO) {
-            val endpoint = when (cursor.type) {
-                PinterestResourceType.BOARD.resourceName -> PINTEREST_BOARD_ENDPOINT
-                PinterestResourceType.USER_PINS.resourceName -> PINTEREST_USER_PINS_ENDPOINT
-                else -> return@withContext null
-            }
-            val options = JSONObject().apply {
-                put("isPrefetch", false)
-                put("page_size", cursor.pageSize)
-                put("bookmarks", JSONArray().apply { put(cursor.bookmark) })
-                cursor.boardId?.let { put("board_id", it) }
-                cursor.slug?.let { put("slug", it) }
-                cursor.username?.let { put("username", it) }
-            }
-            val payload = JSONObject()
-                .put("options", options)
-                .put("context", JSONObject())
-            val responseBody = Jsoup.connect(endpoint)
+            val response = Jsoup.connect(endpoint)
                 .ignoreContentType(true)
-                .method(Connection.Method.GET)
                 .userAgent(USER_AGENT)
                 .referrer("https://www.google.com")
                 .timeout(TIMEOUT_MS)
-                .header("Accept", "application/json, text/javascript, */*; q=0.01")
-                .header("X-Requested-With", "XMLHttpRequest")
-                .data("source_url", cursor.pagePath)
-                .data("data", payload.toString())
-                .data("_", System.currentTimeMillis().toString())
+                .header("Accept", "application/json, text/plain, */*")
+                .method(Connection.Method.GET)
                 .execute()
-                .body()
-            val json = runCatching { JSONObject(responseBody) }.getOrNull() ?: return@withContext null
-            val response = json.optJSONObject("resource_response") ?: return@withContext null
-            val data = response.optJSONArray("data") ?: JSONArray()
-            val pins = parsePinterestPins(data)
-            val bookmark = response.optString("bookmark").takeIf { it.isNotBlank() }
-            val nextCursor = bookmark?.let { cursor.copy(bookmark = it).encode() }
-            ScrapePage(pins, nextCursor)
-        }
 
-    private fun parsePinterestPins(data: JSONArray): List<WallpaperItem> {
+            val body = response.body()
+            val json = JSONObject(body)
+            val data = json.optJSONObject("data") ?: return@runCatching emptyList()
+            val pinsArray = data.optJSONArray("pins") ?: return@runCatching emptyList()
+            parsePinterestPins(pinsArray)
+        }.getOrElse { emptyList() }
+    }
+
+    private fun parsePinterestPins(pinsArray: JSONArray): List<WallpaperItem> {
         val items = mutableListOf<WallpaperItem>()
-        for (index in 0 until data.length()) {
-            val pin = data.optJSONObject(index) ?: continue
+        for (i in 0 until pinsArray.length()) {
+            val pin = pinsArray.optJSONObject(i) ?: continue
             val id = pin.optString("id").takeIf { it.isNotBlank() } ?: continue
             val images = pin.optJSONObject("images") ?: continue
-            val imageUrl = PINTEREST_IMAGE_ORDER.asSequence()
-                .mapNotNull { sizeKey ->
-                    images.optJSONObject(sizeKey)?.optString("url")?.takeIf { it.isNotBlank() }
-                }
-                .firstOrNull()
-                ?.replace("\\u0026", "&")
-                ?.replace("\\u003d", "=")
+
+            val rawUrl = images.optJSONObject("564x")?.optString("url")
+                ?: images.optJSONObject("236x")?.optString("url")
+                ?: images.optJSONObject("237x")?.optString("url")
+                ?: images.optJSONObject("orig")?.optString("url")
                 ?: continue
 
-            val title = pin.optString("title")
-                .ifBlank { pin.optString("grid_title") }
-                .ifBlank { pin.optJSONObject("grid_description")?.optString("text") ?: "" }
-                .ifBlank { "Pinterest Pin" }
+            if (rawUrl.isBlank()) continue
 
-            val sourceUrl = pin.optString("link")
-                .ifBlank { pin.optString("seo_link") }
-                .ifBlank { "https://www.pinterest.com/pin/$id/" }
+            // Upgrade thumbnail URL to highest resolution originals
+            val highResUrl = rawUrl
+                .replace(Regex("/(236x|237x|564x|736x)/"), "/originals/")
+                .replace("&amp;", "&")
 
-            val orig = images.optJSONObject("orig")
-            val width = orig?.optInt("width")?.takeIf { it > 0 }
-            val height = orig?.optInt("height")?.takeIf { it > 0 }
+            val desc = pin.optString("description").trim()
+            val boardName = pin.optJSONObject("board")?.optString("name")?.trim().orEmpty()
+            val pinnerName = pin.optJSONObject("pinner")?.let {
+                it.optString("full_name").ifBlank { it.optString("username") }
+            }?.trim().orEmpty()
+
+            val title = cleanPinterestTitle(desc, boardName, pinnerName)
+            val sourceUrl = pin.optString("link").takeIf { it.isNotBlank() }
+                ?: "https://www.pinterest.com/pin/$id/"
+
+            val imgObj = images.optJSONObject("564x") ?: images.optJSONObject("orig") ?: images.optJSONObject("236x")
+            val width = imgObj?.optInt("width")?.takeIf { it > 0 }
+            val height = imgObj?.optInt("height")?.takeIf { it > 0 }
 
             items += WallpaperItem(
-                id = id,
+                id = "pin_$id",
                 title = title,
-                imageUrl = imageUrl,
+                imageUrl = highResUrl,
                 sourceUrl = sourceUrl,
                 width = width,
                 height = height
@@ -317,129 +300,59 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
         return items
     }
 
-    private fun JSONObject.findPinterestResource(name: String): JSONObject? {
-        optJSONArray("resourceResponses")?.let { array ->
-            for (index in 0 until array.length()) {
-                val candidate = array.optJSONObject(index)
-                if (candidate?.optString("name") == name) {
-                    return candidate
-                }
-            }
+    private fun cleanPinterestTitle(desc: String, board: String, pinner: String): String {
+        val firstLine = desc.lines().firstOrNull().orEmpty()
+        val withoutHashtags = firstLine.replace(Regex("#\\w+"), "").trim()
+        return when {
+            withoutHashtags.isNotBlank() -> withoutHashtags.take(100)
+            board.isNotBlank() -> board
+            pinner.isNotBlank() -> "By $pinner"
+            else -> "Pinterest Wallpaper"
         }
-        val iterator = keys()
-        while (iterator.hasNext()) {
-            val key = iterator.next()
-            val value = opt(key)
-            when (value) {
-                is JSONObject -> {
-                    val match = value.findPinterestResource(name)
-                    if (match != null) return match
-                }
-                is JSONArray -> {
-                    for (i in 0 until value.length()) {
-                        val child = value.optJSONObject(i) ?: continue
-                        val match = child.findPinterestResource(name)
-                        if (match != null) return match
-                    }
-                }
-            }
-        }
-        return null
     }
 
     private fun parsePinterestUrl(pageUrl: String): PinterestUrlInfo? {
-        val uri = runCatching { URI(pageUrl) }.getOrNull() ?: return null
-        val host = uri.host?.lowercase(Locale.ROOT) ?: return null
-        if (!host.contains("pinterest.")) return null
-        val segments = uri.path.split('/').filter { it.isNotBlank() }
-        if (segments.isEmpty()) return null
-        val username = segments[0]
-        if (username.isBlank()) return null
-        val defaultPath = if (segments.size >= 2) uri.path else "/$username/_pins/"
-        val pagePath = ensurePinterestPath(defaultPath)
-        return when {
-            segments.size >= 2 && segments[1].equals("_pins", ignoreCase = true) ->
-                PinterestUrlInfo(PinterestResourceType.USER_PINS, username, null, pagePath)
-            segments.size >= 2 && segments[1].equals("_created", ignoreCase = true) ->
-                PinterestUrlInfo(PinterestResourceType.USER_PINS, username, null, pagePath)
-            segments.size >= 2 -> {
-                val slug = segments[1]
-                PinterestUrlInfo(PinterestResourceType.BOARD, username, slug, pagePath)
-            }
-            else -> PinterestUrlInfo(
-                PinterestResourceType.USER_PINS,
-                username,
-                null,
-                ensurePinterestPath("/$username/_pins/")
-            )
+        val trimmed = pageUrl.trim()
+            .removePrefix("https://")
+            .removePrefix("http://")
+            .removePrefix("www.")
+            .removePrefix("@")
+
+        val parts = trimmed.split('?', '#')[0].trim('/').split('/')
+        if (parts.isEmpty() || parts[0].isBlank()) return null
+
+        val username = if (parts[0].contains("pinterest.") || parts[0] == "pin.it") {
+            if (parts.size >= 2) parts[1] else return null
+        } else {
+            parts[0]
         }
+
+        if (username.isBlank() || username.equals("pin", ignoreCase = true) || username.equals("search", ignoreCase = true)) {
+            return null
+        }
+
+        val boardSlug = if (parts[0].contains("pinterest.")) {
+            if (parts.size >= 3 && !parts[2].startsWith("_")) parts[2] else null
+        } else {
+            if (parts.size >= 2 && !parts[1].startsWith("_")) parts[1] else null
+        }
+
+        return PinterestUrlInfo(username = username, boardSlug = boardSlug)
     }
 
     private data class PinterestUrlInfo(
-        val type: PinterestResourceType,
         val username: String,
-        val boardSlug: String?,
-        val pagePath: String
+        val boardSlug: String?
     )
-
-    private enum class PinterestResourceType(val resourceName: String) {
-        BOARD("BoardFeedResource"),
-        USER_PINS("UserPinsResource")
-    }
-
-    private data class PinterestCursor(
-        val type: String,
-        val username: String?,
-        val slug: String?,
-        val boardId: String?,
-        val pagePath: String,
-        val bookmark: String,
-        val pageSize: Int
-    ) {
-        fun encode(): String = JSONObject().apply {
-            put("type", type)
-            put("username", username)
-            put("slug", slug)
-            put("boardId", boardId)
-            put("pagePath", pagePath)
-            put("bookmark", bookmark)
-            put("pageSize", pageSize)
-        }.toString()
-
-        companion object {
-            fun decode(raw: String): PinterestCursor? = runCatching {
-                val json = JSONObject(raw)
-                val type = json.optString("type").takeIf { it.isNotBlank() } ?: return@runCatching null
-                val pathValue = json.optString("pagePath").takeIf { it.isNotBlank() } ?: return@runCatching null
-                val bookmark = json.optString("bookmark").takeIf { it.isNotBlank() } ?: return@runCatching null
-                val pageSize = json.optInt("pageSize").takeIf { it > 0 } ?: 30
-                PinterestCursor(
-                    type = type,
-                    username = json.optString("username").takeIf { it.isNotBlank() },
-                    slug = json.optString("slug").takeIf { it.isNotBlank() },
-                    boardId = json.optString("boardId").takeIf { it.isNotBlank() },
-                    pagePath = ensurePinterestPath(pathValue),
-                    bookmark = bookmark,
-                    pageSize = pageSize
-                )
-            }.getOrNull()
-        }
-    }
 
     private companion object {
         private const val TIMEOUT_MS = 15_000
         private const val USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 14; WallBase) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
         private const val IMAGE_SELECTOR =
             "img[src], img[data-src], img[data-lazy-src], img[data-original], img[data-actualsrc]"
         private val IMAGE_ATTRIBUTES =
             listOf("src", "data-src", "data-lazy-src", "data-original", "data-actualsrc")
-        private val PINTEREST_IMAGE_ORDER = listOf("orig", "736x", "600x", "564x", "474x", "236x")
-
-        private const val PINTEREST_BOARD_ENDPOINT =
-            "https://www.pinterest.com/resource/BoardFeedResource/get/"
-        private const val PINTEREST_USER_PINS_ENDPOINT =
-            "https://www.pinterest.com/resource/UserPinsResource/get/"
     }
 
     private fun Element.extractImageUrl(): String? {
@@ -457,23 +370,4 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
                 normalized.endsWith(".png") ||
                 normalized.endsWith(".webp")
     }
-
-    private fun metaImageCandidates(doc: Document): List<String> {
-        // most common meta image slots sites use
-        val selectors = listOf(
-            "meta[property=og:image]",
-            "meta[property=og:image:url]",
-            "meta[name=twitter:image]",
-            "meta[name=twitter:image:src]"
-        )
-        return selectors.mapNotNull { sel ->
-            doc.selectFirst(sel)?.attr("content")?.takeIf { it.isNotBlank() }
-        }
-    }
-
-    private fun ensureLeadingSlash(path: String): String {
-        if (path.isBlank()) return "/"
-        return if (path.startsWith('/')) path else "/$path"
-    }
 }
-
