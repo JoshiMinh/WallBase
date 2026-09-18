@@ -451,9 +451,27 @@ class SourceRepository @Inject constructor(
                     .ifBlank { "Pinterest Wallpapers" }
             }
 
-            RemoteSourceType.WALLHAVEN -> listOfNotNull("Wallhaven", queryLabel ?: pathSegment)
-                .joinToString(" • ")
-                .ifBlank { "Wallhaven" }
+            RemoteSourceType.WALLHAVEN -> {
+                val sorting = url.queryParam("sorting")?.toDisplayNameSegment()
+                val label = when {
+                    !queryLabel.isNullOrBlank() -> queryLabel
+                    pathSegments.size >= 4 && pathSegments[0].equals("user", ignoreCase = true) &&
+                        (pathSegments[2].equals("collections", ignoreCase = true) || pathSegments[2].equals("favorites", ignoreCase = true)) ->
+                        "${pathSegments[1]}'s Collection #${pathSegments[3]}"
+                    pathSegments.size >= 3 && pathSegments[0].equals("collections", ignoreCase = true) ->
+                        "${pathSegments[1]}'s Collection #${pathSegments[2]}"
+                    pathSegments.size >= 2 && pathSegments[0].equals("user", ignoreCase = true) ->
+                        "@${pathSegments[1]}"
+                    pathSegments.size >= 2 && pathSegments[0].equals("tag", ignoreCase = true) ->
+                        "#${pathSegments[1]}"
+                    !sorting.isNullOrBlank() -> sorting
+                    !pathSegment.isNullOrBlank() -> pathSegment
+                    else -> "Toplist"
+                }
+                listOfNotNull("Wallhaven", label)
+                    .joinToString(" • ")
+                    .ifBlank { "Wallhaven" }
+            }
 
             RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
                 .joinToString(" • ")

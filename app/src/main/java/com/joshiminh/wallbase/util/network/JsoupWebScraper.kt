@@ -27,30 +27,21 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
     ): ScrapePage = withContext(Dispatchers.IO) {
         val trimmed = query.trim()
         val defaultUrl = "https://www.pinterest.com/wallpapersden/ultra-hd-wallpapers-collections/"
-        val targetUrl = if (trimmed.isBlank() || trimmed.equals("wallpaper backgrounds", ignoreCase = true) || trimmed.equals("wallpapers", ignoreCase = true)) {
-            defaultUrl
-        } else if (trimmed.contains("pinterest.") || trimmed.contains("/")) {
-            trimmed
-        } else if (trimmed.startsWith("@")) {
-            "https://www.pinterest.com/${trimmed.removePrefix("@")}/"
-        } else {
-            defaultUrl
-        }
-
-        val page = scrapePinterestUrl(targetUrl, limit, cursor)
-        if (page != null && page.wallpapers.isNotEmpty()) {
-            if (trimmed.isNotBlank() && !targetUrl.contains(trimmed, ignoreCase = true) && !trimmed.equals("wallpaper backgrounds", ignoreCase = true)) {
-                val filtered = page.wallpapers.filter { item ->
-                    item.title.contains(trimmed, ignoreCase = true)
-                }
-                if (filtered.isNotEmpty()) {
-                    return@withContext ScrapePage(filtered, page.nextCursor)
-                }
+        when {
+            trimmed.isBlank() || trimmed.equals("wallpaper backgrounds", ignoreCase = true) || trimmed.equals("wallpapers", ignoreCase = true) -> {
+                scrapePinterestUrl(defaultUrl, limit, cursor) ?: ScrapePage(emptyList(), nextCursor = null)
             }
-            return@withContext page
+            trimmed.contains("pinterest.") || trimmed.contains("/") -> {
+                scrapePinterestUrl(trimmed, limit, cursor) ?: ScrapePage(emptyList(), nextCursor = null)
+            }
+            trimmed.startsWith("@") -> {
+                val profileUrl = "https://www.pinterest.com/${trimmed.removePrefix("@")}/"
+                scrapePinterestUrl(profileUrl, limit, cursor) ?: ScrapePage(emptyList(), nextCursor = null)
+            }
+            else -> {
+                scrapePinterestSearch(trimmed, limit, cursor)
+            }
         }
-
-        ScrapePage(emptyList(), nextCursor = null)
     }
 
     override suspend fun scrapeReddit(
@@ -254,6 +245,88 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
         }.getOrElse { emptyList() }
     }
 
+    private suspend fun scrapePinterestSearch(
+        query: String,
+        limit: Int,
+        cursor: String?,
+    ): ScrapePage = withContext(Dispatchers.IO) {
+        runCatching {
+            val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
+            val searchUrl = "https://www.pinterest.com/search/pins/?q=$encodedQuery"
+            val document = Jsoup.connect(searchUrl)
+                .userAgent(MOBILE_USER_AGENT)
+                .referrer("https://www.google.com")
+                .timeout(TIMEOUT_MS)
+                .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+                .get()
+
+            val imgElements = document.select("img[elementtiming=grid-gated-pin-image-search], img[src*='i.pinimg.com/236x/'], img[src*='i.pinimg.com/474x/'], img[src*='i.pinimg.com/736x/']")
+            val items = mutableListOf<WallpaperItem>()
+            val seenUrls = mutableSetOf<String>()
+
+            for (img in imgElements) {
+                val src = img.attr("src").ifBlank { img.attr("data-src") }
+                if (src.isBlank() || !src.contains("i.pinimg.com")) continue
+                if (src.contains("/60x60/") || src.contains("/75x75/")) continue
+
+                val srcSet = img.attr("srcSet").ifBlank { img.attr("srcset") }
+                val highResUrl = extractHighResFromSrcSet(srcSet)
+                    ?: src.replace(Regex("/(236x|237x|474x|564x|736x)/"), "/originals/").replace("&amp;", "&")
+                if (!seenUrls.add(highResUrl)) continue
+
+                val thumbUrl = extractThumbFromSrcSet(srcSet) ?: src.replace("&amp;", "&")
+                val filename = highResUrl.substringAfterLast('/').substringBefore('?')
+                val id = filename.substringBeforeLast('.').ifBlank { highResUrl.hashCode().toString() }
+                val alt = img.attr("alt").trim()
+                val title = if (alt.isNotBlank() && !alt.equals("Pin", ignoreCase = true) && !alt.equals("Image", ignoreCase = true)) {
+                    alt.take(100)
+                } else {
+                    "$query Wallpaper"
+                }
+
+                items += WallpaperItem(
+                    id = "pin_$id",
+                    title = title,
+                    imageUrl = highResUrl,
+                    thumbnailUrl = thumbUrl,
+                    sourceUrl = "https://www.pinterest.com/search/pins/?q=$encodedQuery",
+                    width = null,
+                    height = null
+                )
+            }
+
+            val offset = cursor?.toIntOrNull()?.takeIf { it >= 0 } ?: 0
+            val fromIndex = offset.coerceAtMost(items.size)
+            val toIndex = (fromIndex + limit).coerceAtMost(items.size)
+            val pagedItems = if (fromIndex >= toIndex) emptyList() else items.subList(fromIndex, toIndex).toList()
+            val nextCursor = if (items.size > toIndex) toIndex.toString() else null
+
+            ScrapePage(pagedItems, nextCursor)
+        }.getOrElse {
+            ScrapePage(emptyList(), nextCursor = null)
+        }
+    }
+
+    private fun extractHighResFromSrcSet(srcSet: String): String? {
+        if (srcSet.isBlank()) return null
+        val match = Regex("""(https://i\.pinimg\.com/originals/[^\s,]+)""").find(srcSet)
+        if (match != null) return match.groupValues[1]
+        val match736 = Regex("""(https://i\.pinimg\.com/736x/[^\s,]+)""").find(srcSet)
+        if (match736 != null) return match736.groupValues[1].replace("/736x/", "/originals/")
+        return null
+    }
+
+    private fun extractThumbFromSrcSet(srcSet: String): String? {
+        if (srcSet.isBlank()) return null
+        val match736 = Regex("""(https://i\.pinimg\.com/736x/[^\s,]+)""").find(srcSet)
+        if (match736 != null) return match736.groupValues[1]
+        val match474 = Regex("""(https://i\.pinimg\.com/474x/[^\s,]+)""").find(srcSet)
+        if (match474 != null) return match474.groupValues[1]
+        val match236 = Regex("""(https://i\.pinimg\.com/236x/[^\s,]+)""").find(srcSet)
+        if (match236 != null) return match236.groupValues[1]
+        return null
+    }
+
     private fun parsePinterestPins(pinsArray: JSONArray): List<WallpaperItem> {
         val items = mutableListOf<WallpaperItem>()
         for (i in 0 until pinsArray.length()) {
@@ -274,6 +347,10 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
                 .replace(Regex("/(236x|237x|564x|736x)/"), "/originals/")
                 .replace("&amp;", "&")
 
+            val thumbUrl = images.optJSONObject("564x")?.optString("url")
+                ?: images.optJSONObject("236x")?.optString("url")
+                ?: rawUrl
+
             val desc = pin.optString("description").trim()
             val boardName = pin.optJSONObject("board")?.optString("name")?.trim().orEmpty()
             val pinnerName = pin.optJSONObject("pinner")?.let {
@@ -292,6 +369,7 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
                 id = "pin_$id",
                 title = title,
                 imageUrl = highResUrl,
+                thumbnailUrl = thumbUrl,
                 sourceUrl = sourceUrl,
                 width = width,
                 height = height
@@ -349,6 +427,8 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
         private const val TIMEOUT_MS = 15_000
         private const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+        private const val MOBILE_USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
         private const val IMAGE_SELECTOR =
             "img[src], img[data-src], img[data-lazy-src], img[data-original], img[data-actualsrc]"
         private val IMAGE_ATTRIBUTES =

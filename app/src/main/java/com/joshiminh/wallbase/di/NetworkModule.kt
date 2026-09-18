@@ -128,13 +128,40 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideWallhavenService(
+    @Named("Wallhaven")
+    fun provideWallhavenOkHttpClient(
         okHttpClient: OkHttpClient,
+        credentialStore: SourceCredentialStore,
+    ): OkHttpClient {
+        return okHttpClient.newBuilder()
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val key = credentialStore.snapshot().wallhavenApiKey
+                if (key.isBlank()) {
+                    return@addInterceptor chain.proceed(request)
+                }
+                val builder = request.newBuilder()
+                builder.header("X-API-Key", key)
+                val newUrl = if (request.url.queryParameter("apikey") == null) {
+                    request.url.newBuilder().addQueryParameter("apikey", key).build()
+                } else {
+                    request.url
+                }
+                builder.url(newUrl)
+                chain.proceed(builder.build())
+            }
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideWallhavenService(
+        @Named("Wallhaven") wallhavenOkHttpClient: OkHttpClient,
         moshi: Moshi
     ): WallhavenService {
         return Retrofit.Builder()
             .baseUrl("https://wallhaven.cc/api/v1/")
-            .client(okHttpClient)
+            .client(wallhavenOkHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(WallhavenService::class.java)

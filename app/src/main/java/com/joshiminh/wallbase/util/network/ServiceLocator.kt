@@ -134,13 +134,21 @@ object ServiceLocator {
         Retrofit.Builder()
             .baseUrl("https://wallhaven.cc/api/v1/")
             .client(okHttpClient.newBuilder().addInterceptor { chain ->
+                val request = chain.request()
                 val key = sourceCredentialStore.snapshot().wallhavenApiKey
-                val url = if (key.isBlank() || chain.request().url.queryParameter("apikey") != null) {
-                    chain.request().url
+                if (key.isBlank()) {
+                    chain.proceed(request)
                 } else {
-                    chain.request().url.newBuilder().addQueryParameter("apikey", key).build()
+                    val builder = request.newBuilder()
+                    builder.header("X-API-Key", key)
+                    val newUrl = if (request.url.queryParameter("apikey") == null) {
+                        request.url.newBuilder().addQueryParameter("apikey", key).build()
+                    } else {
+                        request.url
+                    }
+                    builder.url(newUrl)
+                    chain.proceed(builder.build())
                 }
-                chain.proceed(chain.request().newBuilder().url(url).build())
             }.build())
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()

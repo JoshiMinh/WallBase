@@ -353,7 +353,7 @@ private fun SupportedSourcesList(
         SupportedSourceInfo(
             label = "Wallhaven",
             faviconDomain = "wallhaven.cc",
-            quickAddInput = "https://wallhaven.cc/search?q=wallpapers&purity=100&sorting=toplist",
+            quickAddInput = "https://wallhaven.cc/toplist",
             requirement = "Public API — no account or key required"
         ),
         SupportedSourceInfo(

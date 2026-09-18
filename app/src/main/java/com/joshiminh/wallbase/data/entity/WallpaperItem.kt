@@ -21,6 +21,7 @@ data class WallpaperItem(
     val localUri: String? = null,
     val isDownloaded: Boolean = false,
     val cropSettings: WallpaperCropSettings? = null,
+    val thumbnailUrl: String? = null,
 ) : Parcelable {
 
     val aspectRatio: Float?
@@ -60,7 +61,9 @@ data class WallpaperItem(
     }
 
     fun previewModel(): Any =
-        localUri?.takeIf { isDownloaded && it.isNotBlank() } ?: imageUrl
+        localUri?.takeIf { isDownloaded && it.isNotBlank() }
+            ?: thumbnailUrl?.takeIf { it.isNotBlank() }
+            ?: imageUrl
 
     fun transitionKey(): String = "wallpaper-$id"
 }

@@ -90,11 +90,13 @@ class WallpaperRepository @Inject constructor(
                     WallpaperPage(emptyList(), nextCursor = null)
                 } else {
                     runCatching {
+                        val options = parsed.params.toMutableMap()
+                        options["page"] = pageNumber.toString()
                         wallhavenService.getCollection(
                             username = username,
                             collectionId = collectionId,
                             page = pageNumber,
-                            perPage = WALLHAVEN_PAGE_LIMIT
+                            options = options.ifEmpty { null }
                         ).toWallpaperPage(pageNumber)
                     }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
                 }
@@ -105,9 +107,7 @@ class WallpaperRepository @Inject constructor(
                 if (!query.isNullOrBlank()) {
                     params["q"] = query
                 }
-                params.putIfAbsent("q", DEFAULT_WALLHAVEN_QUERY)
                 params["page"] = pageNumber.toString()
-                params.putIfAbsent("per_page", WALLHAVEN_PAGE_LIMIT.toString())
                 runCatching {
                     wallhavenService.search(params).toWallpaperPage(pageNumber)
                 }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
@@ -121,29 +121,13 @@ class WallpaperRepository @Inject constructor(
         cursor: String?
     ): WallpaperPage = withContext(Dispatchers.IO) {
         val scrapePage = when {
-            !config.isNullOrBlank() -> {
-                val page = webScraper.scrapeImagesFromUrl(
-                    url = config,
-                    limit = 30,
-                    cursor = cursor
-                )
-                if (!query.isNullOrBlank()) {
-                    val filtered = page.wallpapers.filter { it.title.contains(query, ignoreCase = true) }
-                    if (filtered.isNotEmpty()) {
-                        ScrapePage(filtered, page.nextCursor)
-                    } else {
-                        webScraper.scrapePinterest(
-                            query = query,
-                            limit = 30,
-                            cursor = cursor
-                        )
-                    }
-                } else {
-                    page
-                }
-            }
             !query.isNullOrBlank() -> webScraper.scrapePinterest(
                 query = query,
+                limit = 30,
+                cursor = cursor
+            )
+            !config.isNullOrBlank() -> webScraper.scrapeImagesFromUrl(
+                url = config,
                 limit = 30,
                 cursor = cursor
             )
@@ -357,24 +341,74 @@ class WallpaperRepository @Inject constructor(
 
     private fun parseWallhavenConfig(config: String?): WallhavenConfig {
         if (config.isNullOrBlank()) {
-            return WallhavenConfig(mode = WallhavenMode.SEARCH)
+            return WallhavenConfig(mode = WallhavenMode.SEARCH, params = mapOf("sorting" to "toplist"))
         }
         val uri = runCatching { Uri.parse(config) }.getOrElse {
             return WallhavenConfig(mode = WallhavenMode.SEARCH)
         }
         val segments = uri.pathSegments.filter { it.isNotBlank() }
+
+        // Collections: /collections/{username}/{id}
         if (segments.size >= 3 && segments[0].equals("collections", ignoreCase = true)) {
             val username = segments.getOrNull(1)
             val collectionId = segments.getOrNull(2)
             if (!username.isNullOrBlank() && !collectionId.isNullOrBlank()) {
+                val params = parseQueryParams(uri)
                 return WallhavenConfig(
                     mode = WallhavenMode.COLLECTION,
                     collectionUser = username,
-                    collectionId = collectionId
+                    collectionId = collectionId,
+                    params = params
                 )
             }
         }
 
+        // Collections / Favorites under user: /user/{username}/collections/{id} or /user/{username}/favorites/{id}
+        if (segments.size >= 4 && segments[0].equals("user", ignoreCase = true) &&
+            (segments[2].equals("collections", ignoreCase = true) || segments[2].equals("favorites", ignoreCase = true))
+        ) {
+            val username = segments.getOrNull(1)
+            val collectionId = segments.getOrNull(3)
+            if (!username.isNullOrBlank() && !collectionId.isNullOrBlank()) {
+                val params = parseQueryParams(uri)
+                return WallhavenConfig(
+                    mode = WallhavenMode.COLLECTION,
+                    collectionUser = username,
+                    collectionId = collectionId,
+                    params = params
+                )
+            }
+        }
+
+        val params = parseQueryParams(uri).toMutableMap()
+
+        // User profile uploads: /user/{username} or /user/{username}/uploads
+        if (segments.size >= 2 && segments[0].equals("user", ignoreCase = true)) {
+            val username = segments[1]
+            if (username.isNotBlank()) {
+                params.putIfAbsent("q", "@$username")
+            }
+        }
+
+        // Tag search: /tag/{id}
+        if (segments.size >= 2 && segments[0].equals("tag", ignoreCase = true)) {
+            val tagId = segments[1]
+            if (tagId.isNotBlank()) {
+                params.putIfAbsent("q", "id:$tagId")
+            }
+        }
+
+        val firstSegment = segments.firstOrNull()?.lowercase(Locale.ROOT)
+        when (firstSegment) {
+            "toplist" -> params.putIfAbsent("sorting", "toplist")
+            "latest" -> params.putIfAbsent("sorting", "date_added")
+            "random" -> params.putIfAbsent("sorting", "random")
+            "hot" -> params.putIfAbsent("sorting", "hot")
+        }
+        return WallhavenConfig(mode = WallhavenMode.SEARCH, params = params)
+    }
+
+    private fun parseQueryParams(uri: Uri): Map<String, String> {
         val params = mutableMapOf<String, String>()
         uri.queryParameterNames.forEach { name ->
             val value = uri.getQueryParameter(name)
@@ -382,13 +416,7 @@ class WallpaperRepository @Inject constructor(
                 params[name] = value
             }
         }
-        val firstSegment = segments.firstOrNull()?.lowercase(Locale.ROOT)
-        when (firstSegment) {
-            "toplist" -> params.putIfAbsent("sorting", "toplist")
-            "latest" -> params.putIfAbsent("sorting", "date_added")
-            "random" -> params.putIfAbsent("sorting", "random")
-        }
-        return WallhavenConfig(mode = WallhavenMode.SEARCH, params = params)
+        return params
     }
 
     private fun WallhavenResponse.toWallpaperPage(requestedPage: Int): WallpaperPage {
@@ -397,6 +425,8 @@ class WallpaperRepository @Inject constructor(
         val last = meta?.lastPage
         val nextCursor = when {
             current != null && last != null && current < last -> (current + 1).toString()
+            current != null && last != null && current >= last -> null
+            wallpapers.isEmpty() -> null
             wallpapers.size < WALLHAVEN_PAGE_LIMIT -> null
             else -> (requestedPage + 1).toString()
         }
@@ -408,10 +438,12 @@ class WallpaperRepository @Inject constructor(
         val idValue = id?.takeIf { it.isNotBlank() } ?: imageUrl.hashCode().toString()
         val titleValue = id?.let { "Wallhaven #$it" } ?: "Wallhaven wallpaper"
         val sourceUrl = url ?: shortUrl ?: imageUrl
+        val thumbUrl = thumbs?.large ?: thumbs?.small ?: thumbs?.original
         return WallpaperItem(
             id = "wallhaven_$idValue",
             title = titleValue,
             imageUrl = imageUrl,
+            thumbnailUrl = thumbUrl,
             sourceUrl = sourceUrl,
             width = dimensionX,
             height = dimensionY
@@ -432,9 +464,8 @@ class WallpaperRepository @Inject constructor(
         private const val DEFAULT_PINTEREST_QUERY = "wallpaper backgrounds"
         private const val DEFAULT_CUSTOM_WEBSITE =
             "https://www.pixelstalk.net/category/wallpapers/4k-wallpapers/"
-        private const val DEFAULT_WALLHAVEN_QUERY = "wallpapers"
         private const val REDDIT_PAGE_LIMIT = 30
-        private const val WALLHAVEN_PAGE_LIMIT = 30
+        private const val WALLHAVEN_PAGE_LIMIT = 24
     }
 }
 
