@@ -110,7 +110,7 @@ val Shapes = Shapes(
 fun WallBaseTheme(
     appTheme: AppTheme = AppTheme.SYSTEM,
     appAccentColor: AppAccentColor = AppAccentColor.PINK,
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     amoledDark: Boolean = false,
     content: @Composable () -> Unit
 ) {

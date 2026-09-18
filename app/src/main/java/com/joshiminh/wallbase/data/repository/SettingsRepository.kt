@@ -54,7 +54,7 @@ class SettingsRepository @Inject constructor(
             val appAccentColor = AppAccentColor.fromStorage(accentColorStr)
 
             val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-            val dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: isAndroid12Plus
+            val dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: false
             val amoledDark = prefs[Keys.AMOLED_DARK] ?: false
 
             val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES

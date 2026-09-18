@@ -392,7 +392,7 @@ class SettingsViewModel @Inject constructor(
         val message: String? = null,
         val appTheme: AppTheme = AppTheme.SYSTEM,
         val appAccentColor: AppAccentColor = AppAccentColor.PINK,
-        val dynamicColor: Boolean = true,
+        val dynamicColor: Boolean = false,
         val amoledDark: Boolean = false,
         val animationsEnabled: Boolean = true,
         val wallpaperGridColumns: Int = 2,
