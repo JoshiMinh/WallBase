@@ -126,7 +126,7 @@ fun SettingsScreen(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onRequestAppLockChange: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
-    onSaveSourceCredentials: (String, String, String) -> Unit,
+    onSaveSourceCredentials: (String, String) -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -773,10 +773,9 @@ private fun SettingsToggleRow(
 @Composable
 private fun SourceConnectionsCard(
     uiState: SettingsViewModel.SettingsUiState,
-    onSave: (String, String, String) -> Unit,
+    onSave: (String, String) -> Unit,
 ) {
     var redditClientId by remember { mutableStateOf("") }
-    var unsplashAccessKey by remember { mutableStateOf("") }
     var wallhavenApiKey by remember { mutableStateOf("") }
 
     SettingsCard {
@@ -797,13 +796,6 @@ private fun SourceConnectionsCard(
                 helper = "Required for Reddit browsing and community search.",
             )
             ConnectionField(
-                label = "Unsplash access key",
-                configured = uiState.unsplashConnected,
-                value = unsplashAccessKey,
-                onValueChange = { unsplashAccessKey = it },
-                helper = "Required for the official Unsplash API.",
-            )
-            ConnectionField(
                 label = "Wallhaven API key (optional)",
                 configured = uiState.wallhavenTokenConfigured,
                 value = wallhavenApiKey,
@@ -811,8 +803,8 @@ private fun SourceConnectionsCard(
                 helper = "Enables token-gated Wallhaven results; basic safe browsing works without it.",
             )
             Button(
-                onClick = { onSave(redditClientId, unsplashAccessKey, wallhavenApiKey) },
-                enabled = redditClientId.isNotBlank() || unsplashAccessKey.isNotBlank() || wallhavenApiKey.isNotBlank(),
+                onClick = { onSave(redditClientId, wallhavenApiKey) },
+                enabled = redditClientId.isNotBlank() || wallhavenApiKey.isNotBlank(),
                 modifier = Modifier.align(Alignment.End),
             ) {
                 Text("Save connections")

@@ -31,7 +31,6 @@ class SourceRepository @Inject constructor(
         REDDIT,
         PINTEREST,
         WALLHAVEN,
-        UNSPLASH,
         WEBSITE
     }
 
@@ -64,7 +63,6 @@ class SourceRepository @Inject constructor(
                 description = null
             )
             is RemoteSourceInput.Wallhaven -> addWallhavenSource(parsed.url)
-            is RemoteSourceInput.Unsplash -> addUnsplashSource(parsed.url)
             is RemoteSourceInput.Pinterest -> addPinterestSource(parsed.url)
             is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
         }
@@ -121,12 +119,6 @@ class SourceRepository @Inject constructor(
                 val urlInput = parsed as? RemoteSourceInput.Wallhaven
                     ?: throw IllegalArgumentException("Enter a Wallhaven search or collection URL.")
                 updateWebsiteSource(existing, urlInput.url, RemoteSourceType.WALLHAVEN, SourceKeys.WALLHAVEN)
-            }
-
-            SourceKeys.UNSPLASH -> {
-                val urlInput = parsed as? RemoteSourceInput.Unsplash
-                    ?: throw IllegalArgumentException("Enter an Unsplash collection or URL.")
-                updateWebsiteSource(existing, urlInput.url, RemoteSourceType.UNSPLASH, SourceKeys.UNSPLASH)
             }
 
             SourceKeys.PINTEREST -> {
@@ -212,29 +204,6 @@ class SourceRepository @Inject constructor(
         val entity = SourceEntity(
             key = buildWebsiteKey(SourceKeys.WALLHAVEN, url),
             providerKey = SourceKeys.WALLHAVEN,
-            title = metadata.title,
-            description = metadata.description,
-            iconRes = metadata.fallbackIcon,
-            iconUrl = metadata.iconUrl,
-            showInExplore = true,
-            isEnabled = true,
-            isLocal = false,
-            config = url.value
-        )
-        val id = sourceDao.insertSource(entity)
-        return entity.copy(id = id).sanitized().toDomain()
-    }
-
-    private suspend fun addUnsplashSource(url: NormalizedUrl): Source {
-        val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.UNSPLASH, url.value)
-        if (existing != null) {
-            throw IllegalStateException("Source already added")
-        }
-
-        val metadata = buildWebsiteMetadata(url, RemoteSourceType.UNSPLASH)
-        val entity = SourceEntity(
-            key = buildWebsiteKey(SourceKeys.UNSPLASH, url),
-            providerKey = SourceKeys.UNSPLASH,
             title = metadata.title,
             description = metadata.description,
             iconRes = metadata.fallbackIcon,
@@ -378,7 +347,6 @@ class SourceRepository @Inject constructor(
                 buildFaviconUrl(domain)
             }
             SourceKeys.WALLHAVEN,
-            SourceKeys.UNSPLASH,
             SourceKeys.WEBSITES -> {
                 config
                     ?.let { it.tryNormalizeUrl() }
@@ -430,10 +398,6 @@ class SourceRepository @Inject constructor(
 
             host.contains("wallhaven", ignoreCase = true) || host == "whvn.cc" -> {
                 RemoteSourceInput.Wallhaven(normalizedUrl)
-            }
-
-            host.contains("unsplash", ignoreCase = true) -> {
-                RemoteSourceInput.Unsplash(normalizedUrl)
             }
 
             host.contains("pinterest", ignoreCase = true) || host == "pin.it" -> {
@@ -490,10 +454,6 @@ class SourceRepository @Inject constructor(
             RemoteSourceType.WALLHAVEN -> listOfNotNull("Wallhaven", queryLabel ?: pathSegment)
                 .joinToString(" • ")
                 .ifBlank { "Wallhaven" }
-
-            RemoteSourceType.UNSPLASH -> listOfNotNull("Unsplash", queryLabel ?: pathSegment)
-                .joinToString(" • ")
-                .ifBlank { "Unsplash" }
 
             RemoteSourceType.WEBSITE -> listOfNotNull(hostName, queryLabel ?: pathSegment)
                 .joinToString(" • ")
@@ -639,8 +599,6 @@ class SourceRepository @Inject constructor(
 
         class Wallhaven(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WALLHAVEN)
 
-        class Unsplash(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.UNSPLASH)
-
         class Pinterest(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.PINTEREST)
 
         class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
@@ -651,7 +609,6 @@ class SourceRepository @Inject constructor(
         val SUPPORTED_PROVIDERS = setOf(
             SourceKeys.WALLHAVEN,
             SourceKeys.REDDIT,
-            SourceKeys.UNSPLASH,
             SourceKeys.PINTEREST,
             SourceKeys.WEBSITES,
         )

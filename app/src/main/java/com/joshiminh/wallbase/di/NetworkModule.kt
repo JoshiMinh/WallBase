@@ -4,7 +4,6 @@ import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.data.repository.SourceCredentialStore
 import com.joshiminh.wallbase.sources.RedditAuthService
 import com.joshiminh.wallbase.sources.RedditService
-import com.joshiminh.wallbase.sources.UnsplashService
 import com.joshiminh.wallbase.sources.WallhavenService
 import com.joshiminh.wallbase.util.network.JsoupWebScraper
 import com.joshiminh.wallbase.util.network.RedditTokenManager
@@ -139,29 +138,6 @@ object NetworkModule {
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(WallhavenService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideUnsplashService(
-        okHttpClient: OkHttpClient,
-        moshi: Moshi,
-        credentialStore: SourceCredentialStore,
-    ): UnsplashService {
-        val client = okHttpClient.newBuilder().addInterceptor { chain ->
-            val key = credentialStore.snapshot().unsplashAccessKey
-            val request = chain.request().newBuilder()
-                .header("Accept-Version", "v1")
-                .apply { if (key.isNotBlank()) header("Authorization", "Client-ID $key") }
-                .build()
-            chain.proceed(request)
-        }.build()
-        return Retrofit.Builder()
-            .baseUrl("https://api.unsplash.com/")
-            .client(client)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-            .create(UnsplashService::class.java)
     }
 
     @Provides

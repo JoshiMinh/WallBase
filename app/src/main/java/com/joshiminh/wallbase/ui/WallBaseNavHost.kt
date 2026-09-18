@@ -118,7 +118,7 @@ fun WallBaseApp(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onSetAppLockEnabled: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
-    onSaveSourceCredentials: (String, String, String) -> Unit,
+    onSaveSourceCredentials: (String, String) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
 ) {

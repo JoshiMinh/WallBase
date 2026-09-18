@@ -1087,11 +1087,6 @@ class LibraryRepository @Inject constructor(
                 element.resolveImageCandidate("src")?.let { return it }
             }
         }
-        if (host.contains("unsplash.com")) {
-            document.select("link[rel=preload][as=image]").firstOrNull()?.let { element ->
-                element.absUrl("href").takeIf { it.isNotBlank() }?.let { return it }
-            }
-        }
         return null
     }
 
@@ -1127,8 +1122,7 @@ class LibraryRepository @Inject constructor(
         if (!url.startsWith("http", ignoreCase = true)) return false
         if (looksLikeImageUrl(url)) return true
         val host = runCatching { URI(url).host?.lowercase(Locale.ROOT) }.getOrNull() ?: return false
-        return host.contains("unsplash.com") ||
-            host.contains("redd.it") ||
+        return host.contains("redd.it") ||
             host.contains("redditmedia.com") ||
             host.contains("wallhaven.cc") ||
             host.contains("pinimg.com") ||

@@ -221,7 +221,6 @@ private fun AddSourceBottomSheet(
     val sheetTitle = when (detectedType) {
         SourceRepository.RemoteSourceType.REDDIT -> "Add Reddit source"
         SourceRepository.RemoteSourceType.WALLHAVEN -> "Add Wallhaven source"
-        SourceRepository.RemoteSourceType.UNSPLASH -> "Add Unsplash source"
         SourceRepository.RemoteSourceType.PINTEREST -> "Add Pinterest source"
         SourceRepository.RemoteSourceType.WEBSITE -> "Add Website source"
         null -> "Add source"
@@ -229,15 +228,13 @@ private fun AddSourceBottomSheet(
     val sheetSubtitle = when (detectedType) {
         SourceRepository.RemoteSourceType.REDDIT -> "Enter a subreddit name (e.g. r/wallpapers) or Reddit link."
         SourceRepository.RemoteSourceType.WALLHAVEN -> "Paste a public Wallhaven search or collection link."
-        SourceRepository.RemoteSourceType.UNSPLASH -> "Paste an Unsplash collection or search link."
         SourceRepository.RemoteSourceType.PINTEREST -> "Enter a Pinterest board, profile (@username), or URL."
         SourceRepository.RemoteSourceType.WEBSITE -> "Paste a wallpaper website link."
-        null -> "Enter a subreddit name, or paste a Wallhaven, Unsplash, Pinterest, or website link."
+        null -> "Enter a subreddit name, or paste a Wallhaven, Pinterest, or website link."
     }
     val inputLabel = when (detectedType) {
         SourceRepository.RemoteSourceType.REDDIT -> "Subreddit name or URL"
         SourceRepository.RemoteSourceType.WALLHAVEN -> "Wallhaven URL"
-        SourceRepository.RemoteSourceType.UNSPLASH -> "Unsplash URL"
         SourceRepository.RemoteSourceType.PINTEREST -> "Pinterest board, @username, or URL"
         SourceRepository.RemoteSourceType.WEBSITE -> "Website URL"
         null -> "Subreddit, Pinterest, or wallpaper URL"
@@ -304,7 +301,7 @@ private fun AddSourceBottomSheet(
             if (input.isNotBlank() && detectedType == null) {
                 item("invalid_hint") {
                     Text(
-                        text = "Enter a subreddit (e.g. r/wallpapers), or a Wallhaven, Unsplash, Pinterest, or wallpaper website URL.",
+                        text = "Enter a subreddit (e.g. r/wallpapers), or a Wallhaven, Pinterest, or wallpaper website URL.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -364,12 +361,6 @@ private fun SupportedSourcesList(
             faviconDomain = "reddit.com",
             quickAddInput = "r/wallpapers",
             requirement = "Subreddits like r/wallpapers, r/wallpaper"
-        ),
-        SupportedSourceInfo(
-            label = "Unsplash",
-            faviconDomain = "unsplash.com",
-            quickAddInput = "https://unsplash.com/s/photos/wallpapers",
-            requirement = "Collections & photo searches"
         ),
         SupportedSourceInfo(
             label = "Pinterest",
@@ -582,7 +573,6 @@ private fun sourceShareUrl(source: Source): String? {
 
         SourceKeys.PINTEREST,
         SourceKeys.WALLHAVEN,
-        SourceKeys.UNSPLASH,
         SourceKeys.WEBSITES -> config
 
         else -> null

@@ -13,7 +13,6 @@ import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.data.repository.settingsDataStore
 import com.joshiminh.wallbase.sources.RedditAuthService
 import com.joshiminh.wallbase.sources.RedditService
-import com.joshiminh.wallbase.sources.UnsplashService
 import com.joshiminh.wallbase.sources.WallhavenService
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
@@ -151,25 +150,6 @@ object ServiceLocator {
         wallhavenRetrofit.create(WallhavenService::class.java)
     }
 
-    private val unsplashRetrofit: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl("https://api.unsplash.com/")
-            .client(okHttpClient.newBuilder().addInterceptor { chain ->
-                val key = sourceCredentialStore.snapshot().unsplashAccessKey
-                val request = chain.request().newBuilder()
-                    .header("Accept-Version", "v1")
-                    .apply { if (key.isNotBlank()) header("Authorization", "Client-ID $key") }
-                    .build()
-                chain.proceed(request)
-            }.build())
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-    }
-
-    private val unsplashService: UnsplashService by lazy {
-        unsplashRetrofit.create(UnsplashService::class.java)
-    }
-
     private val githubRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl("https://api.github.com/repos/JoshiMinh/WallBase/")
@@ -193,7 +173,6 @@ object ServiceLocator {
             redditService = redditService,
             webScraper = scraper,
             wallhavenService = wallhavenService,
-            unsplashService = unsplashService,
             credentialStore = sourceCredentialStore
         )
     }

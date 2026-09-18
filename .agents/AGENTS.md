@@ -54,7 +54,6 @@ WallBase/
 │       │   │   └── SourceScreen.kt           # Source management & custom feeds
 │       │   ├── sources/                      # Network scrapers and source providers
 │       │   │   ├── Reddit.kt                 # Reddit JSON API with OAuth token manager
-│       │   │   ├── Unsplash.kt               # Unsplash public API
 │       │   │   ├── Wallhaven.kt              # Wallhaven REST API
 │       │   │   ├── Pinterest.kt              # Pinterest feed parser
 │       │   │   ├── AlphaCoders.kt            # AlphaCoders scraper

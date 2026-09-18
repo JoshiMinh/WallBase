@@ -315,13 +315,12 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(message = message) }
     }
 
-    fun saveSourceCredentials(redditClientId: String, unsplashAccessKey: String, wallhavenApiKey: String) {
+    fun saveSourceCredentials(redditClientId: String, wallhavenApiKey: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val existing = credentialStore.snapshot()
             credentialStore.save(
                 SourceCredentialStore.SourceCredentials(
                     redditClientId = redditClientId.trim().ifBlank { existing.redditClientId },
-                    unsplashAccessKey = unsplashAccessKey.trim().ifBlank { existing.unsplashAccessKey },
                     wallhavenApiKey = wallhavenApiKey.trim().ifBlank { existing.wallhavenApiKey },
                 )
             )
@@ -420,7 +419,6 @@ class SettingsViewModel @Inject constructor(
         val shouldRestartAfterImport: Boolean = false,
         val showHorizontalWallpapers: Boolean = true,
         val redditConnected: Boolean = false,
-        val unsplashConnected: Boolean = false,
         val wallhavenTokenConfigured: Boolean = false,
     )
 
@@ -521,7 +519,6 @@ class SettingsViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 redditConnected = credentials.hasReddit,
-                unsplashConnected = credentials.hasUnsplash,
                 wallhavenTokenConfigured = credentials.hasWallhavenToken,
             )
         }

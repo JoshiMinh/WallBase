@@ -10,9 +10,6 @@ import com.joshiminh.wallbase.sources.RedditPost
 import com.joshiminh.wallbase.sources.RedditService
 import com.joshiminh.wallbase.sources.RedditSubredditChild
 import com.joshiminh.wallbase.sources.RedditSubredditListingResponse
-import com.joshiminh.wallbase.sources.UnsplashPhoto
-import com.joshiminh.wallbase.sources.UnsplashSearchResponse
-import com.joshiminh.wallbase.sources.UnsplashService
 import com.joshiminh.wallbase.sources.WallhavenResponse
 import com.joshiminh.wallbase.sources.WallhavenService
 import com.joshiminh.wallbase.sources.WallhavenWallpaper
@@ -34,7 +31,6 @@ class WallpaperRepository @Inject constructor(
     private val redditService: RedditService,
     private val webScraper: WebScraper,
     private val wallhavenService: WallhavenService,
-    private val unsplashService: UnsplashService,
     private val credentialStore: SourceCredentialStore,
 ) {
     private val pinterestQuery: String = DEFAULT_PINTEREST_QUERY
@@ -55,11 +51,6 @@ class WallpaperRepository @Inject constructor(
             )
             SourceKeys.REDDIT -> fetchRedditWallpapers(
                 subreddit = source.config ?: DEFAULT_REDDIT_SUBREDDIT,
-                query = trimmedQuery,
-                cursor = cursor
-            )
-            SourceKeys.UNSPLASH -> fetchUnsplashWallpapers(
-                config = source.config,
                 query = trimmedQuery,
                 cursor = cursor
             )
@@ -120,77 +111,6 @@ class WallpaperRepository @Inject constructor(
                 runCatching {
                     wallhavenService.search(params).toWallpaperPage(pageNumber)
                 }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
-            }
-        }
-    }
-
-    private suspend fun fetchUnsplashWallpapers(
-        config: String?,
-        query: String?,
-        cursor: String?
-    ): WallpaperPage = withContext(Dispatchers.IO) {
-        val perPage = UNSPLASH_PAGE_LIMIT
-        val pageNumber = cursor?.toIntOrNull()?.takeIf { it > 0 } ?: 1
-        when (val parsed = parseUnsplashConfig(config)) {
-            is UnsplashConfig.Collection -> {
-                val photos = runCatching {
-                    unsplashService.getCollectionPhotos(
-                        id = parsed.id,
-                        page = pageNumber,
-                        perPage = perPage
-                    )
-                }.getOrElse { emptyList() }
-                val items = photos.mapNotNull { it.toWallpaperItem() }
-                val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
-                WallpaperPage(items, nextCursor)
-            }
-
-            is UnsplashConfig.UserLikes -> {
-                val photos = runCatching {
-                    unsplashService.getUserLikes(
-                        username = parsed.username,
-                        page = pageNumber,
-                        perPage = perPage
-                    )
-                }.getOrElse { emptyList() }
-                val items = photos.mapNotNull { it.toWallpaperItem() }
-                val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
-                WallpaperPage(items, nextCursor)
-            }
-
-            is UnsplashConfig.UserPhotos -> {
-                val photos = runCatching {
-                    unsplashService.getUserPhotos(
-                        username = parsed.username,
-                        page = pageNumber,
-                        perPage = perPage
-                    )
-                }.getOrElse { emptyList() }
-                val items = photos.mapNotNull { it.toWallpaperItem() }
-                val nextCursor = if (photos.size < perPage) null else (pageNumber + 1).toString()
-                WallpaperPage(items, nextCursor)
-            }
-
-            is UnsplashConfig.Search -> {
-                val effectiveQuery = query?.takeIf { it.isNotBlank() }
-                    ?: parsed.query?.takeIf { it.isNotBlank() }
-                    ?: DEFAULT_UNSPLASH_QUERY
-                val response = runCatching {
-                    unsplashService.searchPhotos(
-                        query = effectiveQuery,
-                        page = pageNumber,
-                        perPage = perPage
-                    )
-                }.getOrNull()
-                val photos = response?.results.orEmpty()
-                val items = photos.mapNotNull { it.toWallpaperItem() }
-                val nextCursor = when {
-                    response?.totalPages != null && pageNumber < response.totalPages ->
-                        (pageNumber + 1).toString()
-                    photos.size < perPage -> null
-                    else -> (pageNumber + 1).toString()
-                }
-                WallpaperPage(items, nextCursor)
             }
         }
     }
@@ -471,42 +391,6 @@ class WallpaperRepository @Inject constructor(
         return WallhavenConfig(mode = WallhavenMode.SEARCH, params = params)
     }
 
-    private fun parseUnsplashConfig(config: String?): UnsplashConfig {
-        if (config.isNullOrBlank()) return UnsplashConfig.Search(query = null)
-        val uri = runCatching { Uri.parse(config) }.getOrElse {
-            return UnsplashConfig.Search(query = null)
-        }
-        val segments = uri.pathSegments.filter { it.isNotBlank() }
-        if (segments.size >= 3 && segments[0].equals("collections", ignoreCase = true)) {
-            val id = segments.getOrNull(1)
-            if (!id.isNullOrBlank()) {
-                return UnsplashConfig.Collection(id)
-            }
-        }
-        if (segments.size >= 2 && segments[0].equals("s", ignoreCase = true) &&
-            segments[1].equals("photos", ignoreCase = true)
-        ) {
-            val term = segments.drop(2)
-                .joinToString(" ") { it.replace('-', ' ') }
-                .takeIf { it.isNotBlank() }
-            val queryParam = uri.getQueryParameter("query")
-                ?: uri.getQueryParameter("q")
-                ?: term
-            return UnsplashConfig.Search(queryParam)
-        }
-        val first = segments.firstOrNull()
-        if (!first.isNullOrBlank() && first.startsWith("@")) {
-            val username = first.removePrefix("@")
-            val next = segments.getOrNull(1)
-            return when {
-                next.equals("likes", ignoreCase = true) -> UnsplashConfig.UserLikes(username)
-                else -> UnsplashConfig.UserPhotos(username)
-            }
-        }
-        val queryParam = uri.getQueryParameter("query") ?: uri.getQueryParameter("q")
-        return UnsplashConfig.Search(queryParam)
-    }
-
     private fun WallhavenResponse.toWallpaperPage(requestedPage: Int): WallpaperPage {
         val wallpapers = data.orEmpty().mapNotNull { it.toWallpaperItem() }
         val current = meta?.currentPage
@@ -534,24 +418,6 @@ class WallpaperRepository @Inject constructor(
         )
     }
 
-    private fun UnsplashPhoto.toWallpaperItem(): WallpaperItem? {
-        val imageUrl = urls?.full ?: urls?.raw ?: urls?.regular ?: return null
-        val idValue = id?.takeIf { it.isNotBlank() } ?: imageUrl.hashCode().toString()
-        val titleValue = description?.takeIf { it.isNotBlank() }
-            ?: altDescription?.takeIf { it.isNotBlank() }
-            ?: user?.name?.takeIf { it.isNotBlank() }?.let { "$it on Unsplash" }
-            ?: "Unsplash wallpaper"
-        val sourceUrl = links?.html ?: imageUrl
-        return WallpaperItem(
-            id = "unsplash_$idValue",
-            title = titleValue,
-            imageUrl = imageUrl,
-            sourceUrl = sourceUrl,
-            width = width,
-            height = height
-        )
-    }
-
     private data class WallhavenConfig(
         val mode: WallhavenMode,
         val params: Map<String, String> = emptyMap(),
@@ -561,23 +427,14 @@ class WallpaperRepository @Inject constructor(
 
     private enum class WallhavenMode { SEARCH, COLLECTION }
 
-    private sealed interface UnsplashConfig {
-        data class Search(val query: String?) : UnsplashConfig
-        data class Collection(val id: String) : UnsplashConfig
-        data class UserPhotos(val username: String) : UnsplashConfig
-        data class UserLikes(val username: String) : UnsplashConfig
-    }
-
     private companion object {
         private const val DEFAULT_REDDIT_SUBREDDIT = "wallpapers"
         private const val DEFAULT_PINTEREST_QUERY = "wallpaper backgrounds"
         private const val DEFAULT_CUSTOM_WEBSITE =
             "https://www.pixelstalk.net/category/wallpapers/4k-wallpapers/"
         private const val DEFAULT_WALLHAVEN_QUERY = "wallpapers"
-        private const val DEFAULT_UNSPLASH_QUERY = "wallpapers"
         private const val REDDIT_PAGE_LIMIT = 30
         private const val WALLHAVEN_PAGE_LIMIT = 30
-        private const val UNSPLASH_PAGE_LIMIT = 30
     }
 }
 
