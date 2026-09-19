@@ -51,10 +51,17 @@ class SettingsRepository @Inject constructor(
             }
 
             val accentColorStr = prefs[Keys.APP_ACCENT_COLOR]
-            val appAccentColor = AppAccentColor.fromStorage(accentColorStr)
+            val legacyDynamic = prefs[Keys.DYNAMIC_COLOR] ?: false
+            val appAccentColor = if (accentColorStr != null) {
+                AppAccentColor.fromStorage(accentColorStr)
+            } else if (legacyDynamic) {
+                AppAccentColor.DYNAMIC
+            } else {
+                AppAccentColor.PINK
+            }
 
             val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-            val dynamicColor = prefs[Keys.DYNAMIC_COLOR] ?: false
+            val dynamicColor = appAccentColor == AppAccentColor.DYNAMIC
             val amoledDark = prefs[Keys.AMOLED_DARK] ?: false
 
             val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES
@@ -268,26 +275,28 @@ enum class WallpaperLayout {
 enum class AppTheme {
     LIGHT,
     DARK,
+    AMOLED,
     SYSTEM;
 
     val storageValue: String
         get() = when (this) {
             LIGHT -> "light"
             DARK -> "dark"
+            AMOLED -> "amoled"
             SYSTEM -> "system"
         }
 
     companion object {
         fun fromStorage(value: String?): AppTheme = when (value) {
-            "dark" -> DARK
+            "dark", "amoled" -> DARK
             "system" -> SYSTEM
-            "amoled" -> DARK // Migrate legacy amoled value to dark
             else -> LIGHT
         }
     }
 }
 
 enum class AppAccentColor {
+    DYNAMIC, // Material You dynamic colors (Android 12+)
     PINK, // Default Brand Pink
     RED,
     BLUE,
@@ -295,6 +304,7 @@ enum class AppAccentColor {
 
     val storageValue: String
         get() = when (this) {
+            DYNAMIC -> "dynamic"
             PINK -> "pink"
             RED -> "red"
             BLUE -> "blue"
@@ -303,6 +313,7 @@ enum class AppAccentColor {
 
     companion object {
         fun fromStorage(value: String?): AppAccentColor = when (value) {
+            "dynamic" -> DYNAMIC
             "red" -> RED
             "blue" -> BLUE
             "green" -> GREEN

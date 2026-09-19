@@ -22,6 +22,7 @@ import com.joshiminh.wallbase.util.WallpaperSortOption
 import com.joshiminh.wallbase.util.matchesHorizontalPreference
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import com.joshiminh.wallbase.util.sortedWith
+import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -352,6 +353,7 @@ class SourceBrowseViewModel(
         _uiState.update { it.copy(message = message) }
     }
 
+    @Immutable
     data class SourceBrowseUiState(
         val source: Source? = null,
         val query: String = "",

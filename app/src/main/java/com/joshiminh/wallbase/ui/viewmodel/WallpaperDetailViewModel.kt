@@ -8,6 +8,7 @@ import android.app.Activity
 import android.app.Application
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import androidx.compose.runtime.Immutable
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
@@ -230,10 +231,17 @@ class WallpaperDetailViewModel(
     private fun extractPaletteForWallpaper(wallpaper: WallpaperItem) {
         paletteJob?.cancel()
         paletteJob = viewModelScope.launch(Dispatchers.IO) {
-            val model: Any = wallpaper.localUri?.takeIf { it.isNotBlank() }?.toUri()
-                ?: wallpaper.imageUrl.takeIf { it.isNotBlank() }
-                ?: return@launch
-            val bitmap = runCatching { editor.loadOriginalBitmap(model) }.getOrNull() ?: return@launch
+            val candidateModels = listOfNotNull(
+                wallpaper.thumbnailUrl?.takeIf { it.isNotBlank() },
+                wallpaper.localUri?.takeIf { it.isNotBlank() }?.toUri(),
+                wallpaper.imageUrl.takeIf { it.isNotBlank() }
+            )
+            var loadedBitmap: Bitmap? = null
+            for (model in candidateModels) {
+                loadedBitmap = runCatching { editor.loadSampledBitmap(model, maxDimension = 128) }.getOrNull()
+                if (loadedBitmap != null) break
+            }
+            val bitmap = loadedBitmap ?: return@launch
             val p = runCatching {
                 Palette.from(bitmap)
                     .maximumColorCount(16)
@@ -832,6 +840,7 @@ class WallpaperDetailViewModel(
         }
     }
 
+    @Immutable
     data class WallpaperPalette(
         val dominantColor: Int? = null,
         val vibrantColor: Int? = null,
@@ -842,6 +851,7 @@ class WallpaperDetailViewModel(
         val lightMutedColor: Int? = null,
     )
 
+    @androidx.compose.runtime.Stable
     data class WallpaperDetailUiState(
         val wallpaper: WallpaperItem? = null,
         val isApplying: Boolean = false,

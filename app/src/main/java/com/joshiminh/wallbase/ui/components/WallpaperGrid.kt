@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -147,6 +150,12 @@ private fun buildJustifiedRows(
     return rows
 }
 
+@Composable
+private fun topBarInsetPadding(defaultTop: Dp = 8.dp): Dp {
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    return statusBarTop + 56.dp + defaultTop
+}
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun WallpaperGrid(
@@ -165,6 +174,7 @@ fun WallpaperGrid(
     canLoadMore: Boolean = false,
     columns: Int = 2,
     layout: WallpaperLayout = WallpaperLayout.GRID,
+    contentPadding: PaddingValues = PaddingValues(start = 8.dp, top = topBarInsetPadding(8.dp), end = 8.dp, bottom = 24.dp),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -194,7 +204,7 @@ fun WallpaperGrid(
                 state = gridState,
                 verticalItemSpacing = 8.dp,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
+                contentPadding = contentPadding
             ) {
                 items(
                     wallpapers,
@@ -202,24 +212,32 @@ fun WallpaperGrid(
                     contentType = { "wallpaper" }
                 ) { wallpaper ->
                     val isSelected = wallpaper.id in selectedIds
-                    val isSaved = wallpaper.isSaved(
-                        savedWallpaperKeys = savedWallpaperKeys,
-                        savedRemoteIdsByProvider = savedRemoteIdsByProvider,
-                        savedImageUrls = savedImageUrls
-                    )
+                    val isSaved = remember(wallpaper.id, savedWallpaperKeys, savedRemoteIdsByProvider, savedImageUrls) {
+                        wallpaper.isSaved(
+                            savedWallpaperKeys = savedWallpaperKeys,
+                            savedRemoteIdsByProvider = savedRemoteIdsByProvider,
+                            savedImageUrls = savedImageUrls
+                        )
+                    }
                     val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
                         wallpaper = wallpaper,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope
                     )
+                    val onClickHandler = remember(wallpaper.id, onWallpaperSelected) {
+                        { onWallpaperSelected(wallpaper) }
+                    }
+                    val onLongPressHandler = remember(wallpaper.id, onLongPress) {
+                        onLongPress?.let { handler -> { handler(wallpaper) } }
+                    }
                     WallpaperCard(
                         item = wallpaper,
                         isSelected = isSelected,
                         isSaved = isSaved,
                         selectionMode = selectionMode,
                         showDownloadedBadge = showDownloadedBadge,
-                        onClick = { onWallpaperSelected(wallpaper) },
-                        onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
+                        onClick = onClickHandler,
+                        onLongPress = onLongPressHandler,
                         modifier = Modifier.fillMaxWidth(),
                         sharedElementModifier = sharedModifier
                     )
@@ -279,7 +297,7 @@ fun WallpaperGrid(
                     modifier = Modifier.fillMaxSize(),
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(rowSpacing),
-                    contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
+                    contentPadding = contentPadding
                 ) {
                     itemsIndexed(
                         rows,
@@ -376,7 +394,7 @@ fun WallpaperGrid(
                 modifier = modifier.fillMaxSize(),
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 24.dp)
+                contentPadding = contentPadding
             ) {
                 lazyItems(
                     wallpapers,
@@ -438,6 +456,7 @@ fun WallpaperGrid(
     showDownloadedBadge: Boolean = false,
     columns: Int = 2,
     layout: WallpaperLayout = WallpaperLayout.GRID,
+    contentPadding: PaddingValues = PaddingValues(start = 8.dp, top = topBarInsetPadding(8.dp), end = 8.dp, bottom = 24.dp),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -452,7 +471,7 @@ fun WallpaperGrid(
                 state = gridState,
                 verticalItemSpacing = 8.dp,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
+                contentPadding = contentPadding
             ) {
                 items(
                     count = pagingItems.itemCount,
@@ -462,24 +481,32 @@ fun WallpaperGrid(
                     val wallpaper = pagingItems[index]
                     if (wallpaper != null) {
                         val isSelected = wallpaper.id in selectedIds
-                        val isSaved = wallpaper.isSaved(
-                            savedWallpaperKeys = savedWallpaperKeys,
-                            savedRemoteIdsByProvider = savedRemoteIdsByProvider,
-                            savedImageUrls = savedImageUrls
-                        )
+                        val isSaved = remember(wallpaper.id, savedWallpaperKeys, savedRemoteIdsByProvider, savedImageUrls) {
+                            wallpaper.isSaved(
+                                savedWallpaperKeys = savedWallpaperKeys,
+                                savedRemoteIdsByProvider = savedRemoteIdsByProvider,
+                                savedImageUrls = savedImageUrls
+                            )
+                        }
                         val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
                             wallpaper = wallpaper,
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
+                        val onClickHandler = remember(wallpaper.id, onWallpaperSelected) {
+                            { onWallpaperSelected(wallpaper) }
+                        }
+                        val onLongPressHandler = remember(wallpaper.id, onLongPress) {
+                            onLongPress?.let { handler -> { handler(wallpaper) } }
+                        }
                         WallpaperCard(
                             item = wallpaper,
                             isSelected = isSelected,
                             isSaved = isSaved,
                             selectionMode = selectionMode,
                             showDownloadedBadge = showDownloadedBadge,
-                            onClick = { onWallpaperSelected(wallpaper) },
-                            onLongPress = onLongPress?.let { handler -> { handler(wallpaper) } },
+                            onClick = onClickHandler,
+                            onLongPress = onLongPressHandler,
                             modifier = Modifier.fillMaxWidth(),
                             sharedElementModifier = sharedModifier
                         )
@@ -525,7 +552,7 @@ fun WallpaperGrid(
                     modifier = Modifier.fillMaxSize(),
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(rowSpacing),
-                    contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp)
+                    contentPadding = contentPadding
                 ) {
                     itemsIndexed(
                         rows,
@@ -614,7 +641,7 @@ fun WallpaperGrid(
                 modifier = modifier.fillMaxSize(),
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 24.dp)
+                contentPadding = contentPadding
             ) {
                 items(
                     count = pagingItems.itemCount,
@@ -783,7 +810,7 @@ fun WallpaperCard(
             ),
         shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 6.dp else 0.dp),
         border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
     ) {
         Box {

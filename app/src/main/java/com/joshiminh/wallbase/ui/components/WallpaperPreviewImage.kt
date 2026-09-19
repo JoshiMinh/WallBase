@@ -26,7 +26,8 @@ fun WallpaperPreviewImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
-    clipShape: RoundedCornerShape = RoundedCornerShape(0.dp)
+    clipShape: RoundedCornerShape = RoundedCornerShape(0.dp),
+    showOverlay: Boolean = false
 ) {
     val context = LocalContext.current
     val imageRequest = remember(model) {
@@ -34,24 +35,15 @@ fun WallpaperPreviewImage(
             .data(model)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(false)
+            .crossfade(100)
             .build()
     }
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val gradientBrush = remember(surfaceVariant) {
-        Brush.verticalGradient(
-            colors = listOf(
-                surfaceVariant.copy(alpha = 0.25f),
-                Color.Transparent,
-                surfaceVariant.copy(alpha = 0.2f)
-            )
-        )
-    }
+    val containerBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
 
     Box(
         modifier = modifier
             .clip(clipShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+            .background(containerBg),
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
@@ -60,10 +52,22 @@ fun WallpaperPreviewImage(
             modifier = Modifier.fillMaxSize(),
             contentScale = contentScale
         )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(gradientBrush)
-        )
+        if (showOverlay) {
+            val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+            val gradientBrush = remember(surfaceVariant) {
+                Brush.verticalGradient(
+                    colors = listOf(
+                        surfaceVariant.copy(alpha = 0.25f),
+                        Color.Transparent,
+                        surfaceVariant.copy(alpha = 0.2f)
+                    )
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(gradientBrush)
+            )
+        }
     }
 }

@@ -39,6 +39,18 @@ class WallpaperEditor(
         return drawable.asDrawable(context.resources).toBitmap().copy(Bitmap.Config.ARGB_8888, true)
     }
 
+    suspend fun loadSampledBitmap(model: Any, maxDimension: Int = 128): Bitmap {
+        val request = ImageRequest.Builder(context)
+            .data(model)
+            .size(maxDimension, maxDimension)
+            .allowHardware(false)
+            .build()
+        val result = imageLoader.execute(request)
+        val drawable = (result as? SuccessResult)?.image
+            ?: error("Unable to load sample wallpaper")
+        return drawable.asDrawable(context.resources).toBitmap().copy(Bitmap.Config.ARGB_8888, true)
+    }
+
     fun applyAdjustments(source: Bitmap, adjustments: WallpaperAdjustments): EditedWallpaper {
         var working = source
         if (!working.isMutable) {

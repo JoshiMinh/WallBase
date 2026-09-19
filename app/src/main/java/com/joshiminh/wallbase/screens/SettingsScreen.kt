@@ -27,6 +27,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.Button
@@ -194,36 +196,14 @@ fun SettingsScreen(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                SettingsToggleRow(
-                                    title = "Dynamic Color",
-                                    subtitle = "Use wallpaper-derived colors across the app (Material You).",
-                                    checked = uiState.dynamicColor,
-                                    onCheckedChange = onToggleDynamicColor
-                                )
-
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            }
-
-                            SettingsToggleRow(
-                                title = "Pure black (AMOLED)",
-                                subtitle = "Use pitch-black background in dark mode.",
-                                checked = uiState.amoledDark,
-                                onCheckedChange = onToggleAmoledDark
+                            SettingsColorRow(
+                                title = "Accent Color",
+                                subtitle = "Pick an accent color or dynamic wallpaper colors.",
+                                selectedColor = uiState.appAccentColor,
+                                onColorSelected = onSetAppAccentColor,
                             )
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                            if (!uiState.dynamicColor || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                                SettingsColorRow(
-                                    title = "Accent Color",
-                                    subtitle = "Pick an accent color for the app.",
-                                    selectedColor = uiState.appAccentColor,
-                                    onColorSelected = onSetAppAccentColor,
-                                )
-
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            }
 
                             SettingsToggleRow(
                                 title = "Enable animations",
@@ -632,7 +612,7 @@ private fun SettingsThemeRow(
             val label = when (selectedTheme) {
                 AppTheme.SYSTEM -> "System"
                 AppTheme.LIGHT -> "Light"
-                AppTheme.DARK -> "Dark"
+                AppTheme.DARK, AppTheme.AMOLED -> "Dark"
             }
             TextButton(
                 onClick = { expanded = true },
@@ -696,14 +676,22 @@ private fun SettingsColorRow(
                 .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            val colorOptions = listOf(
-                Triple(AppAccentColor.PINK, "Pink", AccentPink),
-                Triple(AppAccentColor.RED, "Red", AccentRed),
-                Triple(AppAccentColor.BLUE, "Blue", AccentBlue),
-                Triple(AppAccentColor.GREEN, "Green", AccentGreen),
-            )
+            val colorOptions = remember {
+                buildList {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        add(Triple(AppAccentColor.DYNAMIC, "Dynamic", Color.Unspecified))
+                    }
+                    add(Triple(AppAccentColor.PINK, "Pink", AccentPink))
+                    add(Triple(AppAccentColor.RED, "Red", AccentRed))
+                    add(Triple(AppAccentColor.BLUE, "Blue", AccentBlue))
+                    add(Triple(AppAccentColor.GREEN, "Green", AccentGreen))
+                }
+            }
 
-            colorOptions.forEach { (accent, label, colorValue) ->
+            colorOptions.forEach { (accent, label, fallbackColor) ->
+                val isSelected = selectedColor == accent
+                val isDynamic = accent == AppAccentColor.DYNAMIC
+
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -712,24 +700,51 @@ private fun SettingsColorRow(
                         .semantics {
                             contentDescription = "$label accent"
                             role = Role.RadioButton
-                            selected = selectedColor == accent
+                            selected = isSelected
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(colorValue),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (selectedColor == accent) {
+                    if (isDynamic) {
+                        val containerBg = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                        val iconColor = if (isSelected) {
+                            if (containerBg.luminance() > 0.5f) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(containerBg)
+                                .then(
+                                    if (!isSelected) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape) else Modifier
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
+                                imageVector = if (isSelected) androidx.compose.material.icons.Icons.Outlined.CheckCircle else androidx.compose.material.icons.Icons.Outlined.AutoAwesome,
                                 contentDescription = null,
-                                tint = if (colorValue.luminance() > 0.179f) Color.Black else Color.White,
-                                modifier = Modifier.size(22.dp)
+                                tint = iconColor,
+                                modifier = Modifier.size(20.dp)
                             )
+                        }
+                    } else {
+                        val colorValue = fallbackColor
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(colorValue),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = if (colorValue.luminance() > 0.179f) androidx.compose.ui.graphics.Color.Black else androidx.compose.ui.graphics.Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
                     }
                 }

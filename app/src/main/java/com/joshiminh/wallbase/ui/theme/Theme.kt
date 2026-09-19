@@ -47,7 +47,7 @@ private val BaseLightColorScheme = lightColorScheme(
 
 private fun buildLightColorScheme(accent: AppAccentColor): ColorScheme {
     val primaryColor = when (accent) {
-        AppAccentColor.PINK -> AccentPink
+        AppAccentColor.DYNAMIC, AppAccentColor.PINK -> AccentPink
         AppAccentColor.RED -> AccentRed
         AppAccentColor.BLUE -> AccentBlue
         AppAccentColor.GREEN -> AccentGreen
@@ -74,7 +74,7 @@ private fun buildLightColorScheme(accent: AppAccentColor): ColorScheme {
 
 private fun buildDarkColorScheme(accent: AppAccentColor): ColorScheme {
     val primaryColor = when (accent) {
-        AppAccentColor.PINK -> AccentPink
+        AppAccentColor.DYNAMIC, AppAccentColor.PINK -> AccentPink
         AppAccentColor.RED -> AccentRed
         AppAccentColor.BLUE -> AccentBlue
         AppAccentColor.GREEN -> AccentGreen
@@ -117,11 +117,12 @@ fun WallBaseTheme(
     val context = LocalContext.current
     val isDark = when (appTheme) {
         AppTheme.LIGHT -> false
-        AppTheme.DARK -> true
+        AppTheme.DARK, AppTheme.AMOLED -> true
         AppTheme.SYSTEM -> isSystemInDarkTheme()
     }
+    val isAmoled = appTheme == AppTheme.AMOLED || (isDark && amoledDark)
 
-    val useDynamicColor = dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useDynamicColor = (dynamicColor || appAccentColor == AppAccentColor.DYNAMIC) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val colorScheme = when {
         useDynamicColor && isDark -> dynamicDarkColorScheme(context)
@@ -130,11 +131,13 @@ fun WallBaseTheme(
         else -> buildLightColorScheme(appAccentColor)
     }
 
-    val finalColorScheme = if (isDark && amoledDark) {
+    val finalColorScheme = if (isAmoled) {
         colorScheme.copy(
             background = Color.Black,
-            surface = Color.Black,
-            surfaceVariant = Color(0xFF141414),
+            surface = Color(0xFF141414),
+            onSurface = DarkOnSurface,
+            surfaceVariant = Color(0xFF1E1E1E),
+            onSurfaceVariant = DarkOnSurfaceVariant,
             surfaceContainer = Color(0xFF181818),
             surfaceContainerHigh = Color(0xFF222222),
             surfaceContainerHighest = Color(0xFF2C2C2C),

@@ -286,6 +286,7 @@ class SourcesViewModel @Inject constructor(
         }
     }
 
+    @androidx.compose.runtime.Immutable
     data class SourcesUiState(
         val sources: List<Source> = emptyList(),
         val urlInput: String = "",

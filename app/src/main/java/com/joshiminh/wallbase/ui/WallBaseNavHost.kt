@@ -307,10 +307,14 @@ fun WallBaseApp(
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
             topBar = {
                 if (showTopBar) {
                     TopAppBar(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
                         windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top),
                         title = {
                             val overrideState = topBarState
@@ -331,7 +335,7 @@ fun WallBaseApp(
                                     Icon(
                                         imageVector = overrideNav.icon,
                                         contentDescription = overrideNav.contentDescription,
-                                        modifier = Modifier.size(24.dp),
+                                        modifier = Modifier.size(26.dp),
                                     )
                                 }
                                 overrideState != null -> Unit // no nav icon when state provided
@@ -339,7 +343,7 @@ fun WallBaseApp(
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                         contentDescription = "Back",
-                                        modifier = Modifier.size(24.dp),
+                                        modifier = Modifier.size(26.dp),
                                     )
                                 }
                                 else -> Unit
@@ -347,8 +351,8 @@ fun WallBaseApp(
                         },
                         actions = { topBarState?.actions?.invoke(this) },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                            scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent,
                         ),
                     )
                 }
@@ -386,10 +390,22 @@ fun WallBaseApp(
                 }
             },
         ) { innerPadding ->
+            val layoutDirection = androidx.compose.ui.platform.LocalLayoutDirection.current
+            val hasBottomNav = currentDestination?.route in topLevelRoutes
+            val effectivePadding = if (hasBottomNav) {
+                innerPadding
+            } else {
+                PaddingValues(
+                    start = innerPadding.calculateStartPadding(layoutDirection),
+                    top = 0.dp,
+                    end = innerPadding.calculateEndPadding(layoutDirection),
+                    bottom = 0.dp,
+                )
+            }
             val navContainerModifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(innerPadding)
+                .padding(effectivePadding)
 
             val renderNavHost: @Composable (SharedTransitionScope?) -> Unit = { sharedScope ->
                 NavHost(

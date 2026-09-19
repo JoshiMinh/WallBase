@@ -387,6 +387,7 @@ class LibraryViewModel(
         directAddStatus.value = null
     }
 
+    @androidx.compose.runtime.Immutable
     data class LibraryUiState(
         val wallpapers: List<WallpaperItem> = emptyList(),
         val albums: List<AlbumItem> = emptyList(),

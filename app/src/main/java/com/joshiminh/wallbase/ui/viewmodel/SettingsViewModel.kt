@@ -5,6 +5,7 @@ package com.joshiminh.wallbase.ui.viewmodel
 import android.app.Application
 import android.net.Uri
 import android.os.StatFs
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -386,6 +387,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    @Immutable
     data class SettingsUiState(
         val isBackingUp: Boolean = false,
         val isRestoring: Boolean = false,

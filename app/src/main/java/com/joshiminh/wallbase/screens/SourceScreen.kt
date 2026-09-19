@@ -339,8 +339,6 @@ private fun SourceScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
-
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -381,7 +379,10 @@ private fun SourceScreen(
                                 EmptyWallpaperState(
                                     query = state.query.takeIf { it.isNotBlank() },
                                     onClearSearch = onClearSearch,
-                                    onRefresh = { pagingItems.refresh() },
+                                    onRefresh = {
+                                        pagingItems.retry()
+                                        pagingItems.refresh()
+                                    },
                                 )
                             }
                         }

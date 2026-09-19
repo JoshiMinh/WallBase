@@ -192,7 +192,10 @@ fun LibraryContent(
     val hasQuery = isSearching && searchQuery.isNotBlank()
 
     Column(modifier) {
-        androidx.compose.material3.PrimaryTabRow(selectedTabIndex = selectedTab) {
+        androidx.compose.material3.PrimaryTabRow(
+            selectedTabIndex = selectedTab,
+            containerColor = MaterialTheme.colorScheme.background
+        ) {
             tabs.forEachIndexed { index, (title, count) ->
                 Tab(
                     selected = selectedTab == index,
@@ -230,6 +233,7 @@ fun LibraryContent(
                             columns = wallpaperGridColumns,
                             layout = wallpaperLayout,
                             showDownloadedBadge = true,
+                            contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp),
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
