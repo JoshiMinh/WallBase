@@ -24,19 +24,39 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build Release APK
-      run: ./gradlew assembleRelease
+    - name: Build Debug and Release APKs
+      run: ./gradlew assembleDebug assembleRelease
 
-    - name: Get current date
-      id: date
-      run: echo "tag_name=$(date +'%m-%Y')" >> $GITHUB_OUTPUT
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/*.apk
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: app/build/outputs/apk/release/*.apk
+
+    - name: Determine Release Tag
+      id: release_info
+      run: |
+        VERSION=$(grep 'versionName =' app/build.gradle.kts | head -n 1 | awk -F '"' '{print $2}')
+        if [ -z "$VERSION" ]; then
+          VERSION=$(date +'%m-%Y')
+        fi
+        echo "tag_name=v${VERSION}" >> $GITHUB_OUTPUT
+        echo "release_name=Release v${VERSION}" >> $GITHUB_OUTPUT
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: ${{ steps.date.outputs.tag_name }}
-        name: Release ${{ steps.date.outputs.tag_name }}
-        files: app/build/outputs/apk/release/*.apk
+        tag_name: ${{ steps.release_info.outputs.tag_name }}
+        name: ${{ steps.release_info.outputs.release_name }}
+        files: |
+          app/build/outputs/apk/release/*.apk
+          app/build/outputs/apk/debug/*.apk
         draft: false
         prerelease: false
         generate_release_notes: true

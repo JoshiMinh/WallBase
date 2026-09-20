@@ -137,17 +137,17 @@ object NetworkModule {
             .addInterceptor { chain ->
                 val request = chain.request()
                 val key = credentialStore.snapshot().wallhavenApiKey
-                if (key.isBlank()) {
-                    return@addInterceptor chain.proceed(request)
-                }
                 val builder = request.newBuilder()
-                builder.header("X-API-Key", key)
-                val newUrl = if (request.url.queryParameter("apikey") == null) {
-                    request.url.newBuilder().addQueryParameter("apikey", key).build()
-                } else {
-                    request.url
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36 WallBase/1.1.0")
+                if (key.isNotBlank()) {
+                    builder.header("X-API-Key", key)
+                    val newUrl = if (request.url.queryParameter("apikey") == null) {
+                        request.url.newBuilder().addQueryParameter("apikey", key).build()
+                    } else {
+                        request.url
+                    }
+                    builder.url(newUrl)
                 }
-                builder.url(newUrl)
                 chain.proceed(builder.build())
             }
             .build()

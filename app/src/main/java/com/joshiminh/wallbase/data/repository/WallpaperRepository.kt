@@ -126,6 +126,8 @@ class WallpaperRepository @Inject constructor(
                 if (!query.isNullOrBlank()) {
                     params["q"] = query
                 }
+                params.putIfAbsent("purity", "100")
+                params.putIfAbsent("categories", "111")
                 params["page"] = pageNumber.toString()
                 runCatching {
                     wallhavenService.search(params).toWallpaperPage(pageNumber)

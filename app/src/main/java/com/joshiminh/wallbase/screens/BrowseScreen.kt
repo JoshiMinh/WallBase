@@ -1,6 +1,8 @@
 package com.joshiminh.wallbase.screens
 
 import com.joshiminh.wallbase.navigation.*
+import com.joshiminh.wallbase.ui.components.topBarInsetPadding
+import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
 import android.annotation.SuppressLint
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -130,8 +133,15 @@ fun BrowseScreen(
         contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = WallBaseSpacing.md, vertical = WallBaseSpacing.md),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(
+                start = WallBaseSpacing.md,
+                top = topBarInsetPadding(WallBaseSpacing.md, hasTabBar = false),
+                end = WallBaseSpacing.md,
+                bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
+            ),
             verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
             if (uiState.sources.isEmpty()) {

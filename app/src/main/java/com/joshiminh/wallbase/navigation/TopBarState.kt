@@ -9,6 +9,7 @@ data class TopBarState(
     val navigationIcon: NavigationIcon? = null,
     val actions: (@Composable RowScope.() -> Unit)? = null,
     val titleContent: (@Composable () -> Unit)? = null,
+    val bottomContent: (@Composable () -> Unit)? = null,
 ) {
     data class NavigationIcon(
         val icon: ImageVector,

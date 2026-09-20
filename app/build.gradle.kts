@@ -26,8 +26,8 @@ android {
         applicationId = "com.joshiminh.wallbase"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "6.2"
+        versionCode = 9
+        versionName = "6.3"
         
         buildConfigField("String", "REDDIT_CLIENT_ID", "\"$redditClientId\"")
     }

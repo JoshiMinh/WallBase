@@ -2,6 +2,8 @@ package com.joshiminh.wallbase.screens
 
 import com.joshiminh.wallbase.navigation.*
 import com.joshiminh.wallbase.util.*
+import com.joshiminh.wallbase.ui.components.topBarInsetPadding
+import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -9,6 +11,7 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -357,15 +360,11 @@ fun AlbumScreen(
 ) {
     val hasQuery = isSearching && searchQuery.isNotBlank()
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
-    ) { innerPadding ->
+    Box(modifier = Modifier.fillMaxSize()) {
         when {
             state.isLoading -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
@@ -374,9 +373,7 @@ fun AlbumScreen(
 
             state.notFound -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -388,14 +385,12 @@ fun AlbumScreen(
 
             else -> {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Top
                 ) {
                     if (state.isDownloading) {
                         AssistChip(
-                            modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 12.dp),
+                            modifier = Modifier.padding(start = 12.dp, top = topBarInsetPadding(8.dp), end = 12.dp),
                             onClick = {},
                             enabled = false,
                             label = { Text("Downloading…") }
@@ -403,7 +398,7 @@ fun AlbumScreen(
                     }
                     if (state.isRemovingDownloads) {
                         AssistChip(
-                            modifier = Modifier.padding(start = 12.dp, top = 8.dp, end = 12.dp),
+                            modifier = Modifier.padding(start = 12.dp, top = topBarInsetPadding(8.dp), end = 12.dp),
                             onClick = {},
                             enabled = false,
                             label = { Text("Removing downloads…") }
@@ -434,6 +429,12 @@ fun AlbumScreen(
                                     .fillMaxWidth(),
                                 columns = state.wallpaperGridColumns,
                                 layout = state.wallpaperLayout,
+                                contentPadding = PaddingValues(
+                                    start = 4.dp,
+                                    top = topBarInsetPadding(4.dp),
+                                    end = 4.dp,
+                                    bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)
+                                ),
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
@@ -445,13 +446,24 @@ fun AlbumScreen(
                                     .weight(1f)
                                     .fillMaxWidth(),
                                 columns = state.wallpaperGridColumns,
-                                layout = state.wallpaperLayout
+                                layout = state.wallpaperLayout,
+                                contentPadding = PaddingValues(
+                                    start = 4.dp,
+                                    top = topBarInsetPadding(4.dp),
+                                    end = 4.dp,
+                                    bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)
+                                )
                             )
                         }
                     }
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 
     if (state.showRemoveDownloadsConfirmation) {

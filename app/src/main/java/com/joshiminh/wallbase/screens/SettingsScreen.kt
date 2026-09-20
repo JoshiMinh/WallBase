@@ -1,6 +1,8 @@
 package com.joshiminh.wallbase.screens
 
 import com.joshiminh.wallbase.navigation.*
+import com.joshiminh.wallbase.ui.components.topBarInsetPadding
+import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -169,7 +171,12 @@ fun SettingsScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .imePadding(),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(
+                start = 12.dp,
+                top = topBarInsetPadding(8.dp, hasTabBar = false),
+                end = 12.dp,
+                bottom = bottomBarInsetPadding(16.dp, hasBottomNav = true)
+            ),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {

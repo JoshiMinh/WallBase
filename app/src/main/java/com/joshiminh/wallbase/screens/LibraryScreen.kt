@@ -95,6 +95,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -139,7 +140,8 @@ fun LibraryScreen(
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     libraryViewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
     sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    bottomBarOffsetY: Float = 0f
 ) {
     val uiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -487,11 +489,30 @@ fun LibraryScreen(
             } else {
                 null
             }
+            val tabBottomContent: @Composable () -> Unit = {
+                val tabs = listOf(
+                    "Wallpapers" to uiState.wallpapers.size,
+                    "Albums" to uiState.albums.size
+                )
+                androidx.compose.material3.PrimaryTabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = Color.Transparent
+                ) {
+                    tabs.forEachIndexed { index, (title, count) ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            text = { Text("$title · $count") }
+                        )
+                    }
+                }
+            }
             TopBarState(
                 title = if (isSearchActive) null else baseTitle,
                 navigationIcon = navigationIcon,
                 actions = actions,
-                titleContent = titleContent
+                titleContent = titleContent,
+                bottomContent = tabBottomContent
             )
         }
     }
@@ -581,9 +602,60 @@ fun LibraryScreen(
             uiState.selectionAction == LibraryViewModel.SelectionAction.DOWNLOAD
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-            floatingActionButton = {
+        PullToRefreshBox(
+            isRefreshing = false,
+            onRefresh = {
+                // Trigger preview refresh if needed
+            },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            LibraryContent(
+                uiState = uiState,
+                wallpapers = displayedWallpapers,
+                albums = displayedAlbums,
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                onWallpaperClick = onWallpaperClick,
+                onWallpaperLongPress = onWallpaperLongPress,
+                wallpaperSelectionIds = selectedWallpaperIds,
+                albumSelectionIds = selectedAlbumIds,
+                isWallpaperSelectionMode = isWallpaperSelection,
+                isAlbumSelectionMode = isAlbumSelection,
+                selectionMode = selectionMode,
+                onAlbumClick = onAlbumClick,
+                onAlbumLongPress = onAlbumLongPress,
+                onCreateAlbum = {
+                    libraryViewModel.createAlbum(it)
+                    showAlbumDialog = false
+                },
+                onRequestCreateAlbum = { showAlbumDialog = true },
+                onDismissCreateAlbum = { showAlbumDialog = false },
+                showAlbumDialog = showAlbumDialog,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                isSearching = isSearchActive,
+                searchQuery = trimmedQuery,
+                wallpaperGridColumns = wallpaperGridColumns,
+                wallpaperLayout = wallpaperLayout,
+                albumLayout = albumLayout,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        val showFab = when {
+            selectedTab == 0 && !selectionMode -> true
+            selectedTab == 1 -> true
+            else -> false
+        }
+        if (showFab) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .graphicsLayer {
+                        translationY = bottomBarOffsetY * 2f
+                    }
+                    .padding(end = 16.dp, bottom = 96.dp)
+            ) {
                 when {
                     selectedTab == 0 && !selectionMode -> {
                         FloatingActionButton(onClick = { showDirectAddDialog = true }) {
@@ -612,50 +684,6 @@ fun LibraryScreen(
                         }
                     }
                 }
-            },
-            contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
-        ) { innerPadding ->
-            PullToRefreshBox(
-                isRefreshing = false,
-                onRefresh = {
-                    // Trigger preview refresh if needed
-                    // This is a placeholder for potential cache refresh logic
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                LibraryContent(
-                    uiState = uiState,
-                    wallpapers = displayedWallpapers,
-                    albums = displayedAlbums,
-                    selectedTab = selectedTab,
-                    onTabSelected = { selectedTab = it },
-                    onWallpaperClick = onWallpaperClick,
-                    onWallpaperLongPress = onWallpaperLongPress,
-                    wallpaperSelectionIds = selectedWallpaperIds,
-                    albumSelectionIds = selectedAlbumIds,
-                    isWallpaperSelectionMode = isWallpaperSelection,
-                    isAlbumSelectionMode = isAlbumSelection,
-                    selectionMode = selectionMode,
-                    onAlbumClick = onAlbumClick,
-                    onAlbumLongPress = onAlbumLongPress,
-                    onCreateAlbum = {
-                        libraryViewModel.createAlbum(it)
-                        showAlbumDialog = false
-                    },
-                    onRequestCreateAlbum = { showAlbumDialog = true },
-                    onDismissCreateAlbum = { showAlbumDialog = false },
-                    showAlbumDialog = showAlbumDialog,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    isSearching = isSearchActive,
-                    searchQuery = trimmedQuery,
-                    wallpaperGridColumns = wallpaperGridColumns,
-                    wallpaperLayout = wallpaperLayout,
-                    albumLayout = albumLayout,
-                    modifier = Modifier.fillMaxSize()
-                )
             }
         }
 

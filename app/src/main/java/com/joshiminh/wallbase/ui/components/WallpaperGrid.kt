@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -151,9 +152,17 @@ private fun buildJustifiedRows(
 }
 
 @Composable
-private fun topBarInsetPadding(defaultTop: Dp = 8.dp): Dp {
+fun topBarInsetPadding(defaultTop: Dp = 8.dp, hasTabBar: Boolean = false): Dp {
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    return statusBarTop + 56.dp + defaultTop
+    val extraTab = if (hasTabBar) 48.dp else 0.dp
+    return statusBarTop + 56.dp + extraTab + defaultTop
+}
+
+@Composable
+fun bottomBarInsetPadding(extraBottom: Dp = 16.dp, hasBottomNav: Boolean = true): Dp {
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val extraNav = if (hasBottomNav) 80.dp else 0.dp
+    return navBarBottom + extraNav + extraBottom
 }
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
@@ -174,7 +183,7 @@ fun WallpaperGrid(
     canLoadMore: Boolean = false,
     columns: Int = 2,
     layout: WallpaperLayout = WallpaperLayout.GRID,
-    contentPadding: PaddingValues = PaddingValues(start = 8.dp, top = topBarInsetPadding(8.dp), end = 8.dp, bottom = 24.dp),
+    contentPadding: PaddingValues = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -202,8 +211,8 @@ fun WallpaperGrid(
                 modifier = modifier.fillMaxSize(),
                 columns = StaggeredGridCells.Fixed(columnCount),
                 state = gridState,
-                verticalItemSpacing = 8.dp,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalItemSpacing = 4.dp,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 contentPadding = contentPadding
             ) {
                 items(
@@ -456,7 +465,7 @@ fun WallpaperGrid(
     showDownloadedBadge: Boolean = false,
     columns: Int = 2,
     layout: WallpaperLayout = WallpaperLayout.GRID,
-    contentPadding: PaddingValues = PaddingValues(start = 8.dp, top = topBarInsetPadding(8.dp), end = 8.dp, bottom = 24.dp),
+    contentPadding: PaddingValues = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -469,8 +478,8 @@ fun WallpaperGrid(
                 modifier = modifier.fillMaxSize(),
                 columns = StaggeredGridCells.Fixed(columnCount),
                 state = gridState,
-                verticalItemSpacing = 8.dp,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalItemSpacing = 4.dp,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 contentPadding = contentPadding
             ) {
                 items(

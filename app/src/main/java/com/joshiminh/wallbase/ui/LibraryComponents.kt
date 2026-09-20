@@ -1,5 +1,8 @@
 package com.joshiminh.wallbase.ui
 
+import com.joshiminh.wallbase.ui.components.topBarInsetPadding
+import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -87,6 +90,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -185,32 +189,13 @@ fun LibraryContent(
     albumLayout: AlbumLayout,
     modifier: Modifier = Modifier
 ) {
-    val tabs = listOf(
-        "Wallpapers" to uiState.wallpapers.size,
-        "Albums" to uiState.albums.size
-    )
     val hasQuery = isSearching && searchQuery.isNotBlank()
 
-    Column(modifier) {
-        androidx.compose.material3.PrimaryTabRow(
-            selectedTabIndex = selectedTab,
-            containerColor = MaterialTheme.colorScheme.background
-        ) {
-            tabs.forEachIndexed { index, (title, count) ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { onTabSelected(index) },
-                    text = { Text("$title · $count") }
-                )
-            }
-        }
-
+    Box(modifier) {
         when (selectedTab) {
             0 -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 8.dp)
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     if (wallpapers.isEmpty()) {
                         val message = when {
@@ -233,7 +218,7 @@ fun LibraryContent(
                             columns = wallpaperGridColumns,
                             layout = wallpaperLayout,
                             showDownloadedBadge = true,
-                            contentPadding = PaddingValues(start = 8.dp, top = 8.dp, end = 8.dp, bottom = 24.dp),
+                            contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -243,9 +228,7 @@ fun LibraryContent(
 
             else -> {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 8.dp)
+                    modifier = Modifier.fillMaxSize()
                 ) {
                     if (albums.isEmpty()) {
                         val hasAlbums = uiState.albums.isNotEmpty()
@@ -333,9 +316,9 @@ fun AlbumList(
             LazyVerticalGrid(
                 modifier = modifier.fillMaxSize(),
                 columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 gridItems(albums, key = AlbumItem::id) { album ->
                     val isSelected = album.id in selectedAlbumIds
@@ -353,8 +336,8 @@ fun AlbumList(
         AlbumLayout.CARD_LIST -> {
             LazyColumn(
                 modifier = modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(albums, key = AlbumItem::id) { album ->
                     val isSelected = album.id in selectedAlbumIds
