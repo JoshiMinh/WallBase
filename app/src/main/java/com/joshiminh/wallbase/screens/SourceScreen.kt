@@ -20,6 +20,14 @@ import com.joshiminh.wallbase.ui.components.topBarInsetPadding
 import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.outlined.Public
+import coil3.compose.AsyncImage
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.Sort
@@ -163,7 +171,7 @@ fun SourceRoute(
                 }
             }
             val navigationIcon: TopBarState.NavigationIcon? = null
-            val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
+            val titleContent: (@Composable () -> Unit) = if (isSearchActive) {
                 {
                     TopBarSearchField(
                         value = uiState.query,
@@ -179,10 +187,62 @@ fun SourceRoute(
                     )
                 }
             } else {
-                null
+                {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val source = uiState.source
+                        val iconUrl = source?.iconUrl?.takeUnless { it.isBlank() }
+                        val fallbackPainter = safePainterResource(source?.iconRes)
+                        val defaultPainter = rememberVectorPainter(image = Icons.Outlined.Public)
+
+                        when {
+                            iconUrl != null -> {
+                                AsyncImage(
+                                    model = iconUrl,
+                                    contentDescription = source?.title,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop,
+                                    placeholder = fallbackPainter ?: defaultPainter,
+                                    error = fallbackPainter ?: defaultPainter
+                                )
+                            }
+
+                            fallbackPainter != null -> {
+                                Image(
+                                    painter = fallbackPainter,
+                                    contentDescription = source?.title,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+
+                            else -> {
+                                Icon(
+                                    imageVector = Icons.Outlined.Public,
+                                    contentDescription = source?.title,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = overrideTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
             TopBarState(
-                title = if (isSearchActive) null else overrideTitle,
+                title = null,
                 navigationIcon = navigationIcon,
                 actions = actions,
                 titleContent = titleContent

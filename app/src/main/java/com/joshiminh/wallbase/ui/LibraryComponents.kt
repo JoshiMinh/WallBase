@@ -218,7 +218,7 @@ fun LibraryContent(
                             columns = wallpaperGridColumns,
                             layout = wallpaperLayout,
                             showDownloadedBadge = true,
-                            contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
+                            contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)),
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -316,7 +316,7 @@ fun AlbumList(
             LazyVerticalGrid(
                 modifier = modifier.fillMaxSize(),
                 columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
+                contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -336,7 +336,7 @@ fun AlbumList(
         AlbumLayout.CARD_LIST -> {
             LazyColumn(
                 modifier = modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
+                contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(albums, key = AlbumItem::id) { album ->

@@ -305,19 +305,30 @@ fun WallBaseApp(
         }
     }
 
+    val currentRoute = currentDestination?.route
+    val isWallpaperGridRoute = remember(currentRoute) {
+        currentRoute == RootRoute.Library.route ||
+            currentRoute?.startsWith("sourceBrowse") == true ||
+            currentRoute?.startsWith("album") == true
+    }
+
     var isBarsVisible by rememberSaveable { mutableStateOf(true) }
 
-    LaunchedEffect(currentDestination?.route) {
+    LaunchedEffect(currentRoute) {
         isBarsVisible = true
     }
 
-    val nestedScrollConnection = remember {
+    val nestedScrollConnection = remember(isWallpaperGridRoute) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (!isWallpaperGridRoute) {
+                    if (!isBarsVisible) isBarsVisible = true
+                    return Offset.Zero
+                }
                 val delta = available.y
-                if (delta < -10f && isBarsVisible) {
+                if (delta < -12f && isBarsVisible) {
                     isBarsVisible = false
-                } else if (delta > 10f && !isBarsVisible) {
+                } else if (delta > 12f && !isBarsVisible) {
                     isBarsVisible = true
                 }
                 return Offset.Zero
@@ -333,13 +344,13 @@ fun WallBaseApp(
     val bottomBarHeightPx = remember(density) { with(density) { 120.dp.toPx() } }
 
     val topBarOffsetY by animateFloatAsState(
-        targetValue = if (isBarsVisible) 0f else -topBarHeightPx,
+        targetValue = if (isBarsVisible || !isWallpaperGridRoute) 0f else -topBarHeightPx,
         animationSpec = animationSpec,
         label = "TopBarOffsetY",
     )
 
     val bottomBarOffsetY by animateFloatAsState(
-        targetValue = if (isBarsVisible) 0f else bottomBarHeightPx,
+        targetValue = if (isBarsVisible || !isWallpaperGridRoute) 0f else bottomBarHeightPx,
         animationSpec = animationSpec,
         label = "BottomBarOffsetY",
     )
@@ -357,58 +368,70 @@ fun WallBaseApp(
             contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
             topBar = {
                 if (showTopBar) {
-                    Column(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .graphicsLayer {
                                 translationY = topBarOffsetY
-                            }
+                            },
+                        color = MaterialTheme.colorScheme.background,
+                        tonalElevation = 0.dp,
                     ) {
-                        TopAppBar(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp),
-                            windowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top),
-                            title = {
-                                val overrideState = topBarState
-                                val customTitle = overrideState?.titleContent
-                                when {
-                                    customTitle != null -> customTitle()
-                                    else -> Text(
-                                        text = overrideState?.title ?: currentTitle(currentDestination),
-                                        style = MaterialTheme.typography.titleLarge,
-                                    )
-                                }
-                            },
-                            navigationIcon = {
-                                val overrideState = topBarState
-                                val overrideNav = overrideState?.navigationIcon
-                                when {
-                                    overrideNav != null -> IconButton(onClick = overrideNav.onClick) {
-                                        Icon(
-                                            imageVector = overrideNav.icon,
-                                            contentDescription = overrideNav.contentDescription,
-                                            modifier = Modifier.size(26.dp),
+                                .background(MaterialTheme.colorScheme.background)
+                                .statusBarsPadding()
+                        ) {
+                            TopAppBar(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
+                                title = {
+                                    val overrideState = topBarState
+                                    val customTitle = overrideState?.titleContent
+                                    when {
+                                        customTitle != null -> customTitle()
+                                        else -> Text(
+                                            text = overrideState?.title ?: currentTitle(currentDestination),
+                                            style = MaterialTheme.typography.titleLarge,
                                         )
                                     }
-                                    overrideState != null -> Unit // no nav icon when state provided
-                                    canNavigateBack -> IconButton(onClick = { navController.navigateUp() }) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Back",
-                                            modifier = Modifier.size(26.dp),
-                                        )
+                                },
+                                navigationIcon = {
+                                    val overrideState = topBarState
+                                    val overrideNav = overrideState?.navigationIcon
+                                    when {
+                                        overrideNav != null -> IconButton(onClick = overrideNav.onClick) {
+                                            Icon(
+                                                imageVector = overrideNav.icon,
+                                                contentDescription = overrideNav.contentDescription,
+                                                modifier = Modifier.size(26.dp),
+                                            )
+                                        }
+                                        overrideState != null -> Unit // no nav icon when state provided
+                                        canNavigateBack -> IconButton(onClick = { navController.navigateUp() }) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = "Back",
+                                                modifier = Modifier.size(26.dp),
+                                            )
+                                        }
+                                        else -> Unit
                                     }
-                                    else -> Unit
-                                }
-                            },
-                            actions = { topBarState?.actions?.invoke(this) },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color.Transparent,
-                                scrolledContainerColor = Color.Transparent,
-                            ),
-                        )
-                        topBarState?.bottomContent?.invoke()
+                                },
+                                actions = { topBarState?.actions?.invoke(this) },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.background,
+                                    scrolledContainerColor = MaterialTheme.colorScheme.background,
+                                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                                    actionIconContentColor = MaterialTheme.colorScheme.onBackground,
+                                ),
+                            )
+                            topBarState?.bottomContent?.invoke()
+                        }
                     }
                 }
             },
@@ -418,7 +441,7 @@ fun WallBaseApp(
                         modifier = Modifier.graphicsLayer {
                             translationY = bottomBarOffsetY
                         },
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                        containerColor = MaterialTheme.colorScheme.surface,
                         tonalElevation = 0.dp,
                     ) {
                         RootRoute.entries.forEach { item ->

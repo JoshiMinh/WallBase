@@ -40,16 +40,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.DownloadDone
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -192,9 +193,6 @@ private fun DetailScreen(
 ) {
     val wallpaper = uiState.wallpaper ?: return
     val context = LocalContext.current
-    val canAddToLibrary = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
-    val canRemoveFromLibrary = uiState.isInLibrary && wallpaper.sourceKey != null
-    val canDownload = wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL
     var showAlbumPicker by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
@@ -228,26 +226,6 @@ private fun DetailScreen(
     }
     val dynamicAccentColor = vibrantColor ?: dominantColor ?: localExtractedColor ?: MaterialTheme.colorScheme.primary
     val ambientGlowColor = dominantColor ?: vibrantColor ?: localExtractedColor ?: MaterialTheme.colorScheme.primary
-
-    val statusMessages = remember(
-        uiState.isDownloading,
-        uiState.isRemovingDownload,
-        uiState.isAddingToLibrary,
-        uiState.isRemovingFromLibrary,
-        uiState.isAddingToAlbum,
-        uiState.isApplying
-    ) {
-        buildList {
-            if (uiState.isDownloading) add("Downloading wallpaper…")
-            if (uiState.isRemovingDownload) add("Removing download…")
-            if (uiState.isAddingToLibrary) add("Adding to library…")
-            if (uiState.isRemovingFromLibrary) add("Removing from library…")
-            if (uiState.isAddingToAlbum) add("Adding to album…")
-            if (uiState.isApplying) add("Applying wallpaper…")
-        }
-    }
-    val showLibraryAction = canAddToLibrary || canRemoveFromLibrary
-    val libraryBusy = uiState.isAddingToLibrary || uiState.isRemovingFromLibrary || uiState.isAddingToAlbum
 
     val scrollState = rememberScrollState()
     var isViewModeOpen by remember { mutableStateOf(false) }
@@ -384,14 +362,6 @@ private fun DetailScreen(
                 }
             }
 
-            if (statusMessages.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    statusMessages.forEach { status ->
-                        AssistChip(onClick = {}, enabled = false, label = { Text(text = status) })
-                    }
-                }
-            }
-
             if (!uiState.hasWallpaperPermission) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
@@ -412,6 +382,7 @@ private fun DetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 1. Share
                 IconButton(
                     onClick = {
                         val shareUrl = wallpaper.sourceUrl
@@ -448,9 +419,10 @@ private fun DetailScreen(
                     )
                 }
 
+                // 2. Download (auto-adds to library if not already)
                 val downloadEnabled = when {
                     uiState.isDownloaded -> !uiState.isRemovingDownload
-                    else -> canDownload && !uiState.isDownloading
+                    else -> !uiState.isDownloading && (wallpaper.sourceKey != SourceKeys.LOCAL)
                 }
                 IconButton(
                     onClick = {
@@ -467,19 +439,19 @@ private fun DetailScreen(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
                                 strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         uiState.isDownloaded -> {
                             Icon(
-                                imageVector = Icons.Outlined.TaskAlt,
+                                imageVector = Icons.Outlined.DownloadDone,
                                 contentDescription = "Remove download",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                         else -> {
                             Icon(
-                                imageVector = Icons.Outlined.CloudDownload,
+                                imageVector = Icons.Outlined.Download,
                                 contentDescription = "Download wallpaper",
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
@@ -487,26 +459,61 @@ private fun DetailScreen(
                     }
                 }
 
-                if (showLibraryAction) {
-                    LibraryIconButton(
-                        inLibrary = uiState.isInLibrary,
-                        enabled = !libraryBusy,
-                        busy = libraryBusy,
-                        onClick = {
-                            if (!libraryBusy) {
-                                if (uiState.isInLibrary) {
-                                    onRemoveFromLibrary()
-                                } else {
-                                    onAddToLibrary()
-                                }
-                            }
-                        },
-                        onLongClick = {
-                            if (!libraryBusy) {
-                                showAlbumPicker = true
-                            }
+                // 3. Album
+                IconButton(
+                    onClick = { showAlbumPicker = true },
+                    enabled = !uiState.isAddingToAlbum
+                ) {
+                    if (uiState.isAddingToAlbum) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.PhotoLibrary,
+                            contentDescription = "Add to album",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // 4. Save (Library Bookmark toggle)
+                val saveEnabled = !uiState.isAddingToLibrary && !uiState.isRemovingFromLibrary
+                IconButton(
+                    onClick = {
+                        if (uiState.isInLibrary) {
+                            onRemoveFromLibrary()
+                        } else {
+                            onAddToLibrary()
                         }
-                    )
+                    },
+                    enabled = saveEnabled
+                ) {
+                    when {
+                        uiState.isAddingToLibrary || uiState.isRemovingFromLibrary -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        uiState.isInLibrary -> {
+                            Icon(
+                                imageVector = Icons.Filled.Bookmark,
+                                contentDescription = "Remove from library",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        else -> {
+                            Icon(
+                                imageVector = Icons.Outlined.BookmarkBorder,
+                                contentDescription = "Save to library",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -596,65 +603,6 @@ private fun DetailScreen(
 }
 
 private const val DEFAULT_DETAIL_ASPECT_RATIO = 9f / 16f
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun LibraryIconButton(
-    inLibrary: Boolean,
-    enabled: Boolean,
-    busy: Boolean,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .size(48.dp)
-            .clip(CircleShape)
-            .combinedClickable(
-                enabled = enabled || busy,
-                onClick = {
-                    if (!busy && enabled) {
-                        onClick()
-                    }
-                },
-                onLongClick = {
-                    if (!busy) {
-                        onLongClick()
-                    }
-                }
-            ),
-        shape = CircleShape,
-        color = Color.Transparent
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            when {
-                busy -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                inLibrary -> {
-                    Icon(
-                        imageVector = Icons.Filled.TaskAlt,
-                        contentDescription = "In library",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                else -> {
-                    Icon(
-                        imageVector = Icons.Filled.Add,
-                        contentDescription = "Add to library",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-        }
-    }
-}
 
 
 

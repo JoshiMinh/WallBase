@@ -496,7 +496,7 @@ fun LibraryScreen(
                 )
                 androidx.compose.material3.PrimaryTabRow(
                     selectedTabIndex = selectedTab,
-                    containerColor = Color.Transparent
+                    containerColor = MaterialTheme.colorScheme.background
                 ) {
                     tabs.forEachIndexed { index, (title, count) ->
                         Tab(
@@ -652,7 +652,7 @@ fun LibraryScreen(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .graphicsLayer {
-                        translationY = bottomBarOffsetY * 2f
+                        translationY = bottomBarOffsetY * 1.5f
                     }
                     .padding(end = 16.dp, bottom = 96.dp)
             ) {

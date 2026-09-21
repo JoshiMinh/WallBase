@@ -386,6 +386,16 @@ class WallpaperDetailViewModel(
         }
 
         viewModelScope.launch {
+            if (!_uiState.value.isInLibrary) {
+                val addResult = runCatching { libraryRepository.addWallpaper(wallpaper) }
+                val added = addResult.getOrNull() == true
+                if (addResult.isSuccess) {
+                    _uiState.update { it.copy(isInLibrary = true) }
+                    if (added && autoDownloadEnabled && wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL) {
+                        downloadWallpaper(autoInitiated = true)
+                    }
+                }
+            }
             schedulePersistAdjustments(immediate = true)
             _uiState.update {
                 it.copy(
@@ -519,6 +529,16 @@ class WallpaperDetailViewModel(
         if (_uiState.value.isApplying) return
 
         viewModelScope.launch {
+            if (!_uiState.value.isInLibrary) {
+                val addResult = runCatching { libraryRepository.addWallpaper(wallpaper) }
+                val added = addResult.getOrNull() == true
+                if (addResult.isSuccess) {
+                    _uiState.update { it.copy(isInLibrary = true) }
+                    if (added && autoDownloadEnabled && wallpaper.sourceKey != null && wallpaper.sourceKey != SourceKeys.LOCAL) {
+                        downloadWallpaper(autoInitiated = true)
+                    }
+                }
+            }
             val target = fallback.target
             val reason = fallback.reason
             _uiState.update {
@@ -677,6 +697,12 @@ class WallpaperDetailViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isDownloading = true, message = null) }
+            if (!_uiState.value.isInLibrary) {
+                val ensureResult = runCatching { libraryRepository.addWallpaper(wallpaper) }
+                if (ensureResult.isSuccess) {
+                    _uiState.update { it.copy(isInLibrary = true) }
+                }
+            }
             val prepared = if (autoInitiated) null else prepareEditedWallpaper()
             val limit = storageLimitBytes
             val result = if (prepared != null) {
@@ -697,6 +723,7 @@ class WallpaperDetailViewModel(
                 }
                 it.copy(
                     isDownloading = false,
+                    isInLibrary = libraryState?.isInLibrary ?: true,
                     isDownloaded = libraryState?.isDownloaded ?: it.isDownloaded,
                     wallpaper = updatedWallpaper,
                     message = result.fold(
@@ -796,13 +823,21 @@ class WallpaperDetailViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(isRemovingFromLibrary = true, message = null) }
             val result = runCatching { libraryRepository.removeWallpaper(wallpaper) }
+            val removed = result.getOrDefault(false)
             _uiState.update {
+                val updatedWallpaper = if (removed) {
+                    it.wallpaper?.copy(localUri = null, isDownloaded = false)
+                } else {
+                    it.wallpaper
+                }
                 it.copy(
                     isRemovingFromLibrary = false,
-                    isInLibrary = if (result.getOrDefault(false)) false else it.isInLibrary,
+                    isInLibrary = if (removed) false else it.isInLibrary,
+                    isDownloaded = if (removed) false else it.isDownloaded,
+                    wallpaper = updatedWallpaper,
                     message = result.fold(
-                        onSuccess = { removed ->
-                            if (removed) "Removed wallpaper from your library"
+                        onSuccess = { success ->
+                            if (success) "Removed wallpaper from your library"
                             else "Wallpaper not found in your library"
                         },
                         onFailure = { throwable ->

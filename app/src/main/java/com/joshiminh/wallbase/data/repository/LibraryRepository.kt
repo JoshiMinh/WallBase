@@ -267,7 +267,11 @@ class LibraryRepository @Inject constructor(
                     return@forEach
                 }
 
-                val wallpaperId = resolveWallpaperId(item)
+                val wallpaperId = when (val ensure = ensureWallpaperSaved(item)) {
+                    is EnsureResult.Inserted -> ensure.id
+                    is EnsureResult.Existing -> ensure.id
+                    EnsureResult.Skipped, EnsureResult.Failed -> resolveWallpaperId(item)
+                }
                 if (wallpaperId == null) {
                     skipped++
                     return@forEach
@@ -614,12 +618,15 @@ class LibraryRepository @Inject constructor(
 
     private suspend fun deleteWallpaperEntity(entity: WallpaperEntity): Boolean {
         val localUri = entity.localUri
-        if (!localUri.isNullOrBlank() && (entity.isDownloaded || entity.sourceKey == SourceKeys.LOCAL)) {
+        if (!localUri.isNullOrBlank()) {
             runCatching { localStorage.deleteDocument(localUri.toUri()) }
                 .onFailure { error ->
                     if (error is IllegalStateException) throw error
                 }
         }
+
+        albumDao.deleteCrossRefsForWallpaper(entity.id)
+        albumDao.clearCoverWallpaper(entity.id)
 
         return wallpaperDao.deleteById(entity.id) > 0
     }
