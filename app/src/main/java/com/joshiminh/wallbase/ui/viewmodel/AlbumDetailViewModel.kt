@@ -234,6 +234,30 @@ class AlbumDetailViewModel(
         }
     }
 
+    fun renameWallpaper(wallpaper: WallpaperItem, customTitle: String?) {
+        viewModelScope.launch {
+            val trimmed = customTitle?.trim()?.takeIf { it.isNotBlank() }
+            val success = repository.renameWallpaper(wallpaper, trimmed)
+            if (success) {
+                message.value = if (trimmed != null) "Wallpaper renamed" else "Wallpaper name reset to original"
+            } else {
+                message.value = "Unable to rename wallpaper"
+            }
+        }
+    }
+
+    fun updateWallpaperGridColumns(columns: Int) {
+        viewModelScope.launch {
+            settingsRepository.setWallpaperGridColumns(columns)
+        }
+    }
+
+    fun updateWallpaperLayout(layout: WallpaperLayout) {
+        viewModelScope.launch {
+            settingsRepository.setWallpaperLayout(layout)
+        }
+    }
+
     data class AlbumDetailUiState(
         val isLoading: Boolean = false,
         val albumTitle: String? = null,

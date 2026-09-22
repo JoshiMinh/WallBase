@@ -45,6 +45,8 @@ class LibraryViewModel(
     private val wallpaperSort = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
     private val albumSort = MutableStateFlow(AlbumSortOption.TITLE_ASCENDING)
     private val downloadedFilter = MutableStateFlow(DownloadedFilter.SHOW_ALL)
+    private val favoritesOnly = MutableStateFlow(false)
+    private val isRefreshing = MutableStateFlow(false)
     private var storageLimitBytes: Long = 0L
 
     val uiState: StateFlow<LibraryUiState> =
@@ -60,14 +62,25 @@ class LibraryViewModel(
             settingsRepository.preferences,
             directAddInProgress,
             directAddStatus,
-            downloadedFilter
+            downloadedFilter,
+            favoritesOnly,
+            isRefreshing
         ) { values ->
             values.toLibraryStateInputs()
         }.map { inputs ->
             storageLimitBytes = inputs.preferences.storageLimitBytes
 
+            val baseWallpapers = inputs.wallpapers
+                .sortedWith(inputs.wallpaperSortOption)
+                .filterByDownloadStatus(inputs.downloadedFilter)
+            val filteredWallpapers = if (inputs.favoritesOnly) {
+                baseWallpapers.filter { it.isFavorite }
+            } else {
+                baseWallpapers
+            }
+
             LibraryUiState(
-                wallpapers = inputs.wallpapers.sortedWith(inputs.wallpaperSortOption).filterByDownloadStatus(inputs.downloadedFilter),
+                wallpapers = filteredWallpapers,
                 albums = inputs.albums.sortedWith(inputs.albumSortOption),
                 isCreatingAlbum = inputs.isCreatingAlbum,
                 isSelectionActionInProgress = inputs.isSelectionActionInProgress,
@@ -80,13 +93,43 @@ class LibraryViewModel(
                 wallpaperLayout = inputs.preferences.wallpaperLayout,
                 isDirectAddInProgress = inputs.isDirectAddInProgress,
                 directAddCompleted = inputs.directAddCompleted,
-                downloadedFilter = inputs.downloadedFilter
+                downloadedFilter = inputs.downloadedFilter,
+                favoritesOnly = inputs.favoritesOnly,
+                isRefreshing = inputs.isRefreshing
             )
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
             initialValue = LibraryUiState()
         )
+
+    fun refreshLibrary() {
+        if (isRefreshing.value) return
+        viewModelScope.launch {
+            isRefreshing.value = true
+            try {
+                repository.rescanLibrary()
+            } finally {
+                isRefreshing.value = false
+            }
+        }
+    }
+
+    fun updateFavoritesFilter(enabled: Boolean) {
+        favoritesOnly.value = enabled
+    }
+
+    fun renameWallpaper(wallpaper: WallpaperItem, customTitle: String?) {
+        viewModelScope.launch {
+            val trimmed = customTitle?.trim()?.takeIf { it.isNotBlank() }
+            val success = repository.renameWallpaper(wallpaper, trimmed)
+            if (success) {
+                messageFlow.value = if (trimmed != null) "Wallpaper renamed" else "Wallpaper name reset to original"
+            } else {
+                messageFlow.value = "Unable to rename wallpaper"
+            }
+        }
+    }
 
     fun updateWallpaperSort(option: WallpaperSortOption) {
         wallpaperSort.value = option
@@ -402,7 +445,9 @@ class LibraryViewModel(
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
         val isDirectAddInProgress: Boolean = false,
         val directAddCompleted: Boolean? = null,
-        val downloadedFilter: DownloadedFilter = DownloadedFilter.SHOW_ALL
+        val downloadedFilter: DownloadedFilter = DownloadedFilter.SHOW_ALL,
+        val favoritesOnly: Boolean = false,
+        val isRefreshing: Boolean = false
     )
 
     enum class SelectionAction {
@@ -439,7 +484,9 @@ private data class LibraryStateInputs(
     val preferences: SettingsPreferences,
     val isDirectAddInProgress: Boolean,
     val directAddCompleted: Boolean?,
-    val downloadedFilter: DownloadedFilter
+    val downloadedFilter: DownloadedFilter,
+    val favoritesOnly: Boolean,
+    val isRefreshing: Boolean
 )
 
 private fun Array<Any?>.toLibraryStateInputs(): LibraryStateInputs {
@@ -455,7 +502,9 @@ private fun Array<Any?>.toLibraryStateInputs(): LibraryStateInputs {
         preferences = this[8] as SettingsPreferences,
         isDirectAddInProgress = this[9] as Boolean,
         directAddCompleted = this[10] as Boolean?,
-        downloadedFilter = this[11] as DownloadedFilter
+        downloadedFilter = this[11] as DownloadedFilter,
+        favoritesOnly = this[12] as Boolean,
+        isRefreshing = this[13] as Boolean
     )
 }
 

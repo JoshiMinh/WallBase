@@ -20,9 +20,14 @@ data class WallpaperItem(
     val addedAt: Long? = null,
     val localUri: String? = null,
     val isDownloaded: Boolean = false,
+    val isFavorite: Boolean = false,
     val cropSettings: WallpaperCropSettings? = null,
     val thumbnailUrl: String? = null,
+    val customTitle: String? = null,
 ) : Parcelable {
+
+    val displayTitle: String
+        get() = customTitle?.takeIf { it.isNotBlank() } ?: title
 
     val aspectRatio: Float?
         get() {

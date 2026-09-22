@@ -892,7 +892,7 @@ fun WallpaperCard(
             ) {
                 Column {
                     Text(
-                        text = item.title,
+                        text = item.displayTitle,
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.White,
                         maxLines = 2,
@@ -1040,7 +1040,7 @@ fun WallpaperListRow(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = item.title,
+                        text = item.displayTitle,
                         style = MaterialTheme.typography.titleMedium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis

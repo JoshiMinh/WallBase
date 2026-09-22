@@ -912,6 +912,29 @@ class WallpaperDetailViewModel(
         }
     }
 
+    fun renameWallpaper(customTitle: String?) {
+        val wallpaper = _uiState.value.wallpaper ?: return
+        viewModelScope.launch {
+            val trimmed = customTitle?.trim()?.takeIf { it.isNotBlank() }
+            val success = runCatching {
+                libraryRepository.renameWallpaper(wallpaper, trimmed)
+            }.getOrDefault(false)
+
+            if (success) {
+                _uiState.update { current ->
+                    val updated = current.wallpaper?.copy(customTitle = trimmed)
+                    current.copy(
+                        wallpaper = updated,
+                        isInLibrary = true,
+                        message = if (trimmed != null) "Wallpaper renamed" else "Wallpaper name reset to original"
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(message = "Unable to rename wallpaper") }
+            }
+        }
+    }
+
     fun consumeMessage() {
         _uiState.update { it.copy(message = null) }
     }

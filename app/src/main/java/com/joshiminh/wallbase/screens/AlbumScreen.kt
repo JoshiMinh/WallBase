@@ -55,8 +55,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.WallpaperItem
-import com.joshiminh.wallbase.ui.components.SortBottomSheet
+import com.joshiminh.wallbase.ui.components.SheetTab
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
+import com.joshiminh.wallbase.ui.components.ViewFilterSortBottomSheet
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
 import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
 
@@ -96,7 +97,7 @@ fun AlbumRoute(
             uiState.wallpapers
         } else {
             uiState.wallpapers.filter { wallpaper ->
-                wallpaper.title.contains(trimmedQuery, ignoreCase = true) ||
+                wallpaper.displayTitle.contains(trimmedQuery, ignoreCase = true) ||
                         (wallpaper.sourceName?.contains(trimmedQuery, ignoreCase = true) == true)
             }
         }
@@ -261,15 +262,20 @@ fun AlbumRoute(
         animatedVisibilityScope = animatedVisibilityScope
     )
 
-    SortBottomSheet(
+    ViewFilterSortBottomSheet(
         visible = showSortSheet,
-        title = "Sort wallpapers",
-        selection = sortSelection,
-        availableFields = availableSortFields,
-        onSelectionChanged = { selection ->
+        onDismissRequest = { showSortSheet = false },
+        availableTabs = listOf(SheetTab.SORT, SheetTab.DISPLAY),
+        initialTab = SheetTab.SORT,
+        sortSelection = sortSelection,
+        availableSortFields = availableSortFields,
+        onSortSelectionChanged = { selection ->
             viewModel.updateSort(selection.toWallpaperSortOption())
         },
-        onDismissRequest = { showSortSheet = false }
+        wallpaperLayout = uiState.wallpaperLayout,
+        onWallpaperLayoutChanged = viewModel::updateWallpaperLayout,
+        gridColumns = uiState.wallpaperGridColumns,
+        onGridColumnsChanged = viewModel::updateWallpaperGridColumns
     )
 
     if (showRenameDialog) {

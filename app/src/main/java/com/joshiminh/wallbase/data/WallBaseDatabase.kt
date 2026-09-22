@@ -31,7 +31,7 @@ import java.util.Locale
         AlbumWallpaperCrossRef::class,
         SourceEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -53,7 +53,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): WallBaseDatabase {
             val callback = DefaultSourcesCallback(DefaultSources)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
                 .build()
@@ -208,6 +208,12 @@ abstract class WallBaseDatabase : RoomDatabase() {
                      'wallpapers')
                     """.trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_10_11 = object : androidx.room.migration.Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE wallpapers ADD COLUMN custom_title TEXT")
             }
         }
 

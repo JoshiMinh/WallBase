@@ -54,10 +54,12 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.DownloadDone
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Home
+import com.joshiminh.wallbase.ui.components.RenameWallpaperDialog
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
@@ -192,6 +194,7 @@ fun WallpaperRoute(
         onConfirmRemoveDownload = viewModel::removeDownload,
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
+        onRenameWallpaper = viewModel::renameWallpaper,
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
         sharedTransitionScope = sharedTransitionScope,
@@ -239,6 +242,7 @@ fun WallpaperScreen(
     onConfirmRemoveDownload: () -> Unit,
     onDismissRemoveDownload: () -> Unit,
     onRequestPermission: () -> Unit,
+    onRenameWallpaper: (String?) -> Unit = {},
     onNavigateBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
     sharedTransitionScope: SharedTransitionScope?,
@@ -291,13 +295,25 @@ fun WallpaperScreen(
 
     val scrollState = rememberScrollState()
     var isViewModeOpen by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
 
     if (isViewModeOpen) {
         WallpaperViewModeDialog(
             previewBitmap = previewBitmap,
             previewModel = wallpaper.previewModel(),
-            title = wallpaper.title,
+            title = wallpaper.displayTitle,
             onDismiss = { isViewModeOpen = false }
+        )
+    }
+
+    if (showRenameDialog) {
+        RenameWallpaperDialog(
+            wallpaper = wallpaper,
+            onConfirm = { newTitle ->
+                onRenameWallpaper(newTitle)
+                showRenameDialog = false
+            },
+            onDismiss = { showRenameDialog = false }
         )
     }
 
@@ -408,25 +424,50 @@ fun WallpaperScreen(
                                                 )
                                             )
                                     )
-                                    Column(
+                                    Row(
                                         modifier = Modifier
                                             .align(Alignment.BottomStart)
                                             .fillMaxWidth()
                                             .padding(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Text(
-                                            text = item.title.ifBlank { "Untitled wallpaper" },
-                                            style = MaterialTheme.typography.titleLarge,
-                                            color = Color.White,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = item.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = Color.White.copy(alpha = 0.8f)
-                                        )
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable {
+                                                    if (isCurrent) {
+                                                        showRenameDialog = true
+                                                    }
+                                                },
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                text = item.displayTitle.ifBlank { "Untitled wallpaper" },
+                                                style = MaterialTheme.typography.titleLarge,
+                                                color = Color.White,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = item.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = Color.White.copy(alpha = 0.8f)
+                                            )
+                                        }
+
+                                        if (isCurrent) {
+                                            IconButton(
+                                                onClick = { showRenameDialog = true },
+                                                modifier = Modifier.padding(start = 8.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Edit,
+                                                    contentDescription = "Rename wallpaper",
+                                                    tint = Color.White
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

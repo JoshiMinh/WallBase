@@ -703,6 +703,55 @@ class LibraryRepository @Inject constructor(
         }
     }
 
+    suspend fun renameWallpaper(wallpaper: WallpaperItem, customTitle: String?): Boolean {
+        return withContext(Dispatchers.IO) {
+            val trimmed = customTitle?.trim()?.takeIf { it.isNotBlank() }
+            val ensureResult = ensureWallpaperSaved(wallpaper)
+            val wallpaperId = when (ensureResult) {
+                is EnsureResult.Existing -> ensureResult.id
+                is EnsureResult.Inserted -> ensureResult.id
+                EnsureResult.Failed, EnsureResult.Skipped -> resolveWallpaperId(wallpaper)
+            } ?: return@withContext false
+
+            wallpaperDao.updateCustomTitle(
+                id = wallpaperId,
+                customTitle = trimmed,
+                updatedAt = System.currentTimeMillis()
+            ) > 0
+        }
+    }
+
+    suspend fun rescanLibrary(): Boolean = withContext(Dispatchers.IO) {
+        val downloaded = wallpaperDao.getWallpapersWithLocalMedia()
+        val now = System.currentTimeMillis()
+        for (entity in downloaded) {
+            val uriStr = entity.localUri ?: continue
+            val uri = uriStr.toUri()
+            val exists = runCatching {
+                if (uri.scheme == "file") {
+                    java.io.File(uri.path ?: "").exists()
+                } else {
+                    localStorage.documentFromUri(uri)?.exists() == true
+                }
+            }.getOrDefault(false)
+
+            if (!exists) {
+                if (entity.sourceKey == SourceKeys.LOCAL) {
+                    deleteWallpaperEntity(entity)
+                } else {
+                    wallpaperDao.updateDownloadState(
+                        id = entity.id,
+                        localUri = null,
+                        isDownloaded = false,
+                        fileSize = null,
+                        updatedAt = now
+                    )
+                }
+            }
+        }
+        true
+    }
+
     suspend fun createAlbum(title: String): AlbumItem {
         val normalizedTitle = title.trim()
         require(normalizedTitle.isNotEmpty()) { "Album name cannot be blank" }
@@ -1250,7 +1299,9 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
         addedAt = addedAt,
         localUri = localUri,
         isDownloaded = isDownloaded,
-        cropSettings = crop
+        isFavorite = isFavorite,
+        cropSettings = crop,
+        customTitle = customTitle
     )
 }
 

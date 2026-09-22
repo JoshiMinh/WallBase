@@ -45,6 +45,7 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -76,7 +77,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.Button
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.surfaceColorAtElevation
+import com.joshiminh.wallbase.ui.components.RenameWallpaperDialog
+import com.joshiminh.wallbase.ui.components.SheetTab
+import com.joshiminh.wallbase.ui.components.ViewFilterSortBottomSheet
+import com.joshiminh.wallbase.ui.components.topBarInsetPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -154,6 +161,7 @@ fun LibraryScreen(
     var selectedAlbumIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showRemoveDownloadsDialog by rememberSaveable { mutableStateOf(false) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
+    var showRenameDialog by rememberSaveable { mutableStateOf(false) }
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showDirectAddDialog by rememberSaveable { mutableStateOf(false) }
@@ -190,7 +198,7 @@ fun LibraryScreen(
             uiState.wallpapers
         } else {
             uiState.wallpapers.filter { wallpaper ->
-                wallpaper.title.contains(trimmedQuery, ignoreCase = true) ||
+                wallpaper.displayTitle.contains(trimmedQuery, ignoreCase = true) ||
                     (wallpaper.sourceName?.contains(trimmedQuery, ignoreCase = true) == true) ||
                     (wallpaper.sourceKey?.contains(trimmedQuery, ignoreCase = true) == true)
             }
@@ -369,6 +377,18 @@ fun LibraryScreen(
                         enabled = !uiState.isSelectionActionInProgress
                     ) {
                         Icon(imageVector = Icons.Outlined.Download, contentDescription = downloadLabel)
+                    }
+                }
+                if (selectedWallpaperIds.size == 1) {
+                    IconButton(
+                        onClick = {
+                            if (!uiState.isSelectionActionInProgress) {
+                                showRenameDialog = true
+                            }
+                        },
+                        enabled = !uiState.isSelectionActionInProgress
+                    ) {
+                        Icon(imageVector = Icons.Outlined.Edit, contentDescription = "Rename wallpaper")
                     }
                 }
                 IconButton(
@@ -607,11 +627,21 @@ fun LibraryScreen(
         uiState.isSelectionActionInProgress &&
             uiState.selectionAction == LibraryViewModel.SelectionAction.DOWNLOAD
 
+    val pullRefreshState = rememberPullToRefreshState()
+
     Box(modifier = Modifier.fillMaxSize()) {
         PullToRefreshBox(
-            isRefreshing = false,
-            onRefresh = {
-                // Trigger preview refresh if needed
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { libraryViewModel.refreshLibrary() },
+            state = pullRefreshState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullRefreshState,
+                    isRefreshing = uiState.isRefreshing,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = topBarInsetPadding(8.dp, hasTabBar = true))
+                )
             },
             modifier = Modifier.fillMaxSize()
         ) {
@@ -702,40 +732,59 @@ fun LibraryScreen(
         )
     }
 
-    SortBottomSheet(
-        visible = showSortSheet,
-        title = sortSheetTitle,
-        selection = activeSortSelection,
-        availableFields = availableSortFields,
-        onSelectionChanged = applySortSelection,
-        onDismissRequest = { showSortSheet = false },
-        additionalContent = {
-            if (selectedTab == 0) {
-                WallpaperLayoutPicker(
-                    label = "Wallpaper layout",
-                    selectedLayout = wallpaperLayout,
-                    onLayoutSelected = onWallpaperLayoutSelected
-                )
-                if (wallpaperLayout == WallpaperLayout.GRID) {
-                    GridColumnPicker(
-                        label = "Grid columns",
-                        selectedColumns = wallpaperGridColumns,
-                        onColumnsSelected = onGridColumnsSelected
-                    )
-                }
-                DownloadedFilterPicker(
-                    filter = uiState.downloadedFilter,
-                    onFilterChanged = libraryViewModel::updateDownloadedFilter
-                )
-            } else {
+    if (selectedTab == 0) {
+        ViewFilterSortBottomSheet(
+            visible = showSortSheet,
+            onDismissRequest = { showSortSheet = false },
+            availableTabs = listOf(SheetTab.FILTER, SheetTab.SORT, SheetTab.DISPLAY),
+            initialTab = SheetTab.SORT,
+            sortSelection = wallpaperSelection,
+            availableSortFields = availableSortFields,
+            onSortSelectionChanged = { selection ->
+                libraryViewModel.updateWallpaperSort(selection.toWallpaperSortOption())
+            },
+            downloadedFilter = uiState.downloadedFilter,
+            onDownloadedFilterChanged = libraryViewModel::updateDownloadedFilter,
+            favoritesOnly = uiState.favoritesOnly,
+            onFavoritesOnlyChanged = libraryViewModel::updateFavoritesFilter,
+            wallpaperLayout = wallpaperLayout,
+            onWallpaperLayoutChanged = onWallpaperLayoutSelected,
+            gridColumns = wallpaperGridColumns,
+            onGridColumnsChanged = onGridColumnsSelected
+        )
+    } else {
+        ViewFilterSortBottomSheet(
+            visible = showSortSheet,
+            onDismissRequest = { showSortSheet = false },
+            availableTabs = listOf(SheetTab.SORT, SheetTab.DISPLAY),
+            initialTab = SheetTab.SORT,
+            sortSelection = albumSelection,
+            availableSortFields = availableSortFields,
+            onSortSelectionChanged = { selection ->
+                libraryViewModel.updateAlbumSort(selection.toAlbumSortOption())
+            },
+            customDisplayContent = {
                 AlbumLayoutPicker(
                     label = "Album layout",
                     selectedLayout = albumLayout,
                     onLayoutSelected = onAlbumLayoutSelected
                 )
             }
-        }
-    )
+        )
+    }
+
+    if (showRenameDialog && selectedWallpapers.size == 1) {
+        val targetWallpaper = selectedWallpapers.first()
+        RenameWallpaperDialog(
+            wallpaper = targetWallpaper,
+            onConfirm = { newTitle ->
+                libraryViewModel.renameWallpaper(targetWallpaper, newTitle)
+                showRenameDialog = false
+                selectedWallpaperIds = emptySet()
+            },
+            onDismiss = { showRenameDialog = false }
+        )
+    }
 
     if (showSelectionAlbumDialog) {
         AlbumPickerDialog(

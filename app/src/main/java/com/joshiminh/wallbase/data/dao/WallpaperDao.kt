@@ -98,6 +98,25 @@ interface WallpaperDao {
         editSettings: String?,
         updatedAt: Long
     )
+
+    @Query(
+        "UPDATE wallpapers SET custom_title = :customTitle, updated_at = :updatedAt WHERE wallpaper_id = :id"
+    )
+    suspend fun updateCustomTitle(
+        id: Long,
+        customTitle: String?,
+        updatedAt: Long
+    ): Int
+
+    @Query(
+        "UPDATE wallpapers SET custom_title = :customTitle, updated_at = :updatedAt WHERE source_key = :sourceKey AND remote_id = :remoteId"
+    )
+    suspend fun updateCustomTitleByRemoteId(
+        sourceKey: String,
+        remoteId: String,
+        customTitle: String?,
+        updatedAt: Long
+    ): Int
 }
 
 
