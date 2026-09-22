@@ -70,31 +70,47 @@ WallBase is engineered following modern Android development practices and Clean 
 
 ---
 
-## Building from Source
+## Building and Running
 
 ### Prerequisites
 
-- Android Studio (Ladybug / Meerkat or newer)
-- JDK 21
-- Android SDK 36
+- **JDK 21** configured on your system
+- **Android SDK** (Target SDK `36`, Minimum SDK `26`)
+- **Android Studio** (Ladybug / Meerkat or newer) OR **Android CLI Tools / ADB**
+- A connected **physical Android device** (USB Debugging enabled) or a running **Android Emulator** (API 26+)
 
-### Build Instructions
+### Running via Command Line (Terminal / PowerShell)
 
-1. Clone the repository:
+1. **Check connected devices / emulators:**
    ```bash
-   git clone https://github.com/joshiminh/WallBase.git
-   cd WallBase
+   adb devices
    ```
 
-2. (Optional) Configure Reddit API Credentials in `local.properties`:
-   ```properties
-   REDDIT_CLIENT_ID=your_client_id_here
-   ```
+2. **Build and install the debug APK:**
+   - **Windows (PowerShell/CMD):**
+     ```pwsh
+     .\gradlew installDebug
+     ```
+   - **macOS / Linux:**
+     ```bash
+     ./gradlew installDebug
+     ```
 
-3. Build the debug APK:
+3. **Launch the application:**
    ```bash
-   ./gradlew assembleDebug
+   adb shell am start -n com.joshiminh.wallbase/.MainActivity
    ```
+
+### Running via Android Studio
+
+1. Open the project root folder in **Android Studio**.
+2. Let Gradle sync and index dependencies.
+3. Select your connected target device or emulator.
+4. Click the **Run** button (`▶` / `Shift + F10`).
+
+### Configuration (Optional)
+
+WallBase works **out-of-the-box without any extra configuration**. All sources work with public endpoints by default, and optional API keys (such as Wallhaven) can be configured directly inside the app's settings.
 
 ---
 

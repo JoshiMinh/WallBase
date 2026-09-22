@@ -10,6 +10,7 @@ data class TopBarState(
     val actions: (@Composable RowScope.() -> Unit)? = null,
     val titleContent: (@Composable () -> Unit)? = null,
     val bottomContent: (@Composable () -> Unit)? = null,
+    val autoHideBars: Boolean? = null,
 ) {
     data class NavigationIcon(
         val icon: ImageVector,

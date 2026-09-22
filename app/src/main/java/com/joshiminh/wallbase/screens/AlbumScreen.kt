@@ -64,7 +64,7 @@ import com.joshiminh.wallbase.ui.viewmodel.AlbumDetailViewModel
 @Composable
 fun AlbumRoute(
     albumId: Long,
-    onWallpaperSelected: (WallpaperItem, Boolean) -> Unit,
+    onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
     onAlbumDeleted: () -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     viewModel: AlbumDetailViewModel = viewModel(factory = AlbumDetailViewModel.provideFactory(albumId)),
@@ -211,7 +211,8 @@ fun AlbumRoute(
         title = if (isSearchActive) null else title,
         navigationIcon = null,
         actions = topBarActions,
-        titleContent = titleContent
+        titleContent = titleContent,
+        autoHideBars = false
     )
     val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
     SideEffect {
@@ -241,6 +242,7 @@ fun AlbumRoute(
         onWallpaperSelected(
             wallpaper,
             supportsSharedTransitions,
+            displayedWallpapers
         )
     }
 
@@ -433,7 +435,7 @@ fun AlbumScreen(
                                     start = 4.dp,
                                     top = topBarInsetPadding(4.dp),
                                     end = 4.dp,
-                                    bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)
+                                    bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)
                                 ),
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope
@@ -451,7 +453,7 @@ fun AlbumScreen(
                                     start = 4.dp,
                                     top = topBarInsetPadding(4.dp),
                                     end = 4.dp,
-                                    bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)
+                                    bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)
                                 )
                             )
                         }

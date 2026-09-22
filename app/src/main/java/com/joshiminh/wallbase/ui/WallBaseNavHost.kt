@@ -123,7 +123,7 @@ fun WallBaseApp(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onSetAppLockEnabled: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
-    onSaveSourceCredentials: (String, String) -> Unit,
+    onSaveSourceCredentials: (String) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
 ) {
@@ -147,14 +147,21 @@ fun WallBaseApp(
 
     val animationsEnabledState = rememberUpdatedState(settingsUiState.animationsEnabled)
 
-    val navigateToWallpaperDetail = remember(
+    val navigateToWallpaperDetail: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit = remember(
         navController,
         wallpaperSelectionViewModel,
     ) {
-        { wallpaper: WallpaperItem, enableSharedTransition: Boolean ->
+        { wallpaper: WallpaperItem, enableSharedTransition: Boolean, wallpapers: List<WallpaperItem> ->
             val useSharedTransition =
                 animationsEnabledState.value && enableSharedTransition
-            wallpaperSelectionViewModel.select(wallpaper, useSharedTransition)
+            val list = if (wallpapers.isNotEmpty()) wallpapers else listOf(wallpaper)
+            val index = list.indexOfFirst { it.id == wallpaper.id }.coerceAtLeast(0)
+            wallpaperSelectionViewModel.select(
+                wallpaper = wallpaper,
+                wallpapers = list,
+                initialIndex = index,
+                enableSharedTransition = useSharedTransition,
+            )
             navController.navigateSingleTop("wallpaperDetail") {
                 popUpTo("wallpaperDetail") { inclusive = true }
             }
@@ -306,16 +313,22 @@ fun WallBaseApp(
     }
 
     val currentRoute = currentDestination?.route
-    val isWallpaperGridRoute = remember(currentRoute) {
-        currentRoute == RootRoute.Library.route ||
-            currentRoute?.startsWith("sourceBrowse") == true ||
-            currentRoute?.startsWith("album") == true
+    val autoHideRequested = topBarState?.autoHideBars
+    val isWallpaperGridRoute = remember(currentRoute, autoHideRequested) {
+        if (autoHideRequested != null) {
+            autoHideRequested
+        } else {
+            currentRoute == RootRoute.Library.route ||
+                currentRoute?.startsWith("sourceBrowse") == true
+        }
     }
 
     var isBarsVisible by rememberSaveable { mutableStateOf(true) }
 
-    LaunchedEffect(currentRoute) {
-        isBarsVisible = true
+    LaunchedEffect(currentRoute, isWallpaperGridRoute) {
+        if (!isWallpaperGridRoute) {
+            isBarsVisible = true
+        }
     }
 
     val nestedScrollConnection = remember(isWallpaperGridRoute) {
@@ -552,6 +565,8 @@ fun WallBaseApp(
                             .selectedWallpaper.collectAsStateWithLifecycle()
 
                         val wallpaper = selectedWallpaperState?.wallpaper
+                        val wallpapers = selectedWallpaperState?.wallpapers ?: listOfNotNull(wallpaper)
+                        val initialIndex = selectedWallpaperState?.initialIndex ?: 0
                         val enableSharedTransition =
                             selectedWallpaperState?.enableSharedTransition == true
 
@@ -581,8 +596,10 @@ fun WallBaseApp(
                             val detailVisibilityScope =
                                 if (detailSharedScope != null) this else null
 
-                            DetailRoute(
+                            WallpaperRoute(
                                 wallpaper = wallpaper,
+                                wallpapers = wallpapers,
+                                initialIndex = initialIndex,
                                 onNavigateBack = navigateBack,
                                 sharedTransitionScope = detailSharedScope,
                                 animatedVisibilityScope = detailVisibilityScope,

@@ -90,7 +90,7 @@ import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
 @Composable
 fun SourceRoute(
     sourceKey: String,
-    onWallpaperSelected: (WallpaperItem, Boolean) -> Unit,
+    onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     viewModel: SourceBrowseViewModel = viewModel(factory = SourceBrowseViewModel.provideFactory(sourceKey)),
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -139,7 +139,8 @@ fun SourceRoute(
                             contentDescription = "Add to album"
                         )
                     }
-                }
+                },
+                autoHideBars = false
             )
         }
 
@@ -245,7 +246,8 @@ fun SourceRoute(
                 title = null,
                 navigationIcon = navigationIcon,
                 actions = actions,
-                titleContent = titleContent
+                titleContent = titleContent,
+                autoHideBars = !isSearchActive
             )
         }
 
@@ -309,9 +311,11 @@ fun SourceRoute(
         if (uiState.isSelectionMode) {
             viewModel.toggleSelection(wallpaper)
         } else {
+            val loadedItems = pagingItems.itemSnapshotList.items
             onWallpaperSelected(
                 wallpaper,
                 supportsSharedTransitions,
+                loadedItems
             )
         }
     }
@@ -460,7 +464,7 @@ private fun SourceScreen(
                                     start = 4.dp,
                                     top = topBarInsetPadding(4.dp),
                                     end = 4.dp,
-                                    bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)
+                                    bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)
                                 ),
                                 sharedTransitionScope = sharedTransitionScope,
                                 animatedVisibilityScope = animatedVisibilityScope

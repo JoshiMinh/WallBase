@@ -35,8 +35,10 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -159,7 +161,7 @@ fun topBarInsetPadding(defaultTop: Dp = 8.dp, hasTabBar: Boolean = false): Dp {
 }
 
 @Composable
-fun bottomBarInsetPadding(extraBottom: Dp = 16.dp, hasBottomNav: Boolean = false): Dp {
+fun bottomBarInsetPadding(extraBottom: Dp = 4.dp, hasBottomNav: Boolean = false): Dp {
     val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val extraNav = if (hasBottomNav) 80.dp else 0.dp
     return navBarBottom + extraNav + extraBottom
@@ -183,7 +185,7 @@ fun WallpaperGrid(
     canLoadMore: Boolean = false,
     columns: Int = 2,
     layout: WallpaperLayout = WallpaperLayout.GRID,
-    contentPadding: PaddingValues = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
+    contentPadding: PaddingValues = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp), end = 4.dp, bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -465,7 +467,7 @@ fun WallpaperGrid(
     showDownloadedBadge: Boolean = false,
     columns: Int = 2,
     layout: WallpaperLayout = WallpaperLayout.GRID,
-    contentPadding: PaddingValues = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp), end = 4.dp, bottom = bottomBarInsetPadding(16.dp)),
+    contentPadding: PaddingValues = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp), end = 4.dp, bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -865,11 +867,7 @@ fun WallpaperCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     if (isDownloaded) {
-                        Icon(
-                            imageVector = Icons.Filled.CheckCircle,
-                            contentDescription = "Downloaded",
-                            tint = Color(0xFF2E7D32)
-                        )
+                        DownloadedBadge()
                     }
                     if (isSaved) {
                         Icon(
@@ -912,6 +910,33 @@ fun WallpaperCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun DownloadedBadge(
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 24.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 15.dp
+) {
+    Surface(
+        modifier = modifier.size(size),
+        shape = CircleShape,
+        color = Color(0xFF2E7D32),
+        tonalElevation = 2.dp,
+        shadowElevation = 2.dp
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = "Downloaded",
+                tint = Color.White,
+                modifier = Modifier.size(iconSize)
+            )
         }
     }
 }
@@ -995,11 +1020,7 @@ fun WallpaperListRow(
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             if (isDownloaded) {
-                                Icon(
-                                    imageVector = Icons.Filled.CheckCircle,
-                                    contentDescription = "Downloaded",
-                                    tint = Color(0xFF2E7D32)
-                                )
+                                DownloadedBadge(size = 20.dp, iconSize = 13.dp)
                             }
                             if (isSaved) {
                                 Icon(

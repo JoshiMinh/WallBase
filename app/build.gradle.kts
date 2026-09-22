@@ -15,21 +15,12 @@ android {
     compileSdk = 36
     buildFeatures { buildConfig = true }
 
-    val localProperties = Properties()
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localProperties.load(localPropertiesFile.inputStream())
-    }
-    val redditClientId = localProperties.getProperty("REDDIT_CLIENT_ID") ?: "YOUR_CLIENT_ID"
-
     defaultConfig {
         applicationId = "com.joshiminh.wallbase"
         minSdk = 26
         targetSdk = 36
         versionCode = 10
         versionName = "6.4"
-        
-        buildConfigField("String", "REDDIT_CLIENT_ID", "\"$redditClientId\"")
     }
 
     buildTypes {

@@ -316,12 +316,11 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(message = message) }
     }
 
-    fun saveSourceCredentials(redditClientId: String, wallhavenApiKey: String) {
+    fun saveSourceCredentials(wallhavenApiKey: String) {
         viewModelScope.launch(Dispatchers.IO) {
             val existing = credentialStore.snapshot()
             credentialStore.save(
                 SourceCredentialStore.SourceCredentials(
-                    redditClientId = redditClientId.trim().ifBlank { existing.redditClientId },
                     wallhavenApiKey = wallhavenApiKey.trim().ifBlank { existing.wallhavenApiKey },
                 )
             )
@@ -420,7 +419,6 @@ class SettingsViewModel @Inject constructor(
         val dismissedUpdateVersion: String? = null,
         val shouldRestartAfterImport: Boolean = false,
         val showHorizontalWallpapers: Boolean = true,
-        val redditConnected: Boolean = false,
         val wallhavenTokenConfigured: Boolean = false,
     )
 
@@ -520,7 +518,6 @@ class SettingsViewModel @Inject constructor(
         val credentials = credentialStore.snapshot()
         _uiState.update {
             it.copy(
-                redditConnected = credentials.hasReddit,
                 wallhavenTokenConfigured = credentials.hasWallhavenToken,
             )
         }

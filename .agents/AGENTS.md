@@ -47,13 +47,13 @@ WallBase/
 │       │   ├── screens/                      # Composable Screen destinations
 │       │   │   ├── LandingScreen.kt          # Home / Featured wallpaper feed
 │       │   │   ├── BrowseScreen.kt           # Search & filter wallpapers
-│       │   │   ├── DetailScreen.kt           # Fullscreen preview, palette, actions
+│       │   │   ├── WallpaperScreen.kt        # Fullscreen preview, palette, actions
 │       │   │   ├── AlbumScreen.kt            # Album contents & management
 │       │   │   ├── LibraryScreen.kt          # Favorites, Downloads, Custom Albums
 │       │   │   ├── SettingsScreen.kt         # App preferences, appearance, storage
 │       │   │   └── SourceScreen.kt           # Source management & custom feeds
 │       │   ├── sources/                      # Network scrapers and source providers
-│       │   │   ├── Reddit.kt                 # Reddit JSON API with OAuth token manager
+│       │   │   ├── Reddit.kt                 # Reddit JSON API scraper
 │       │   │   ├── Wallhaven.kt              # Wallhaven REST API
 │       │   │   ├── Pinterest.kt              # Pinterest feed parser
 │       │   │   ├── AlphaCoders.kt            # AlphaCoders scraper
@@ -120,8 +120,6 @@ WallBase enforces strict visual consistency and a dedicated brand aesthetic.
 
 ### Networking & Data Layer
 - All network and scraper calls must run on `Dispatchers.IO`.
-- **Never use `runBlocking`** on the main thread or inside OkHttp interceptors.
-- Handle token management cleanly (e.g. `RedditTokenManager` synchronous execution within interceptors).
 - Wrap external network responses in `Result<T>` or sealed domain states to prevent uncaught network exceptions.
 
 ### Security & Secrets

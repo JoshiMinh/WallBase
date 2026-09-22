@@ -33,12 +33,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Album
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Search
@@ -218,7 +221,7 @@ fun LibraryContent(
                             columns = wallpaperGridColumns,
                             layout = wallpaperLayout,
                             showDownloadedBadge = true,
-                            contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)),
+                            contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)),
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope
                         )
@@ -316,9 +319,14 @@ fun AlbumList(
             LazyVerticalGrid(
                 modifier = modifier.fillMaxSize(),
                 columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                contentPadding = PaddingValues(
+                    start = WallBaseSpacing.xs,
+                    top = topBarInsetPadding(WallBaseSpacing.xs, hasTabBar = true),
+                    end = WallBaseSpacing.xs,
+                    bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
+                ),
+                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
             ) {
                 gridItems(albums, key = AlbumItem::id) { album ->
                     val isSelected = album.id in selectedAlbumIds
@@ -336,8 +344,13 @@ fun AlbumList(
         AlbumLayout.CARD_LIST -> {
             LazyColumn(
                 modifier = modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                contentPadding = PaddingValues(
+                    start = WallBaseSpacing.sm,
+                    top = topBarInsetPadding(WallBaseSpacing.xs, hasTabBar = true),
+                    end = WallBaseSpacing.sm,
+                    bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
+                ),
+                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.xs)
             ) {
                 items(albums, key = AlbumItem::id) { album ->
                     val isSelected = album.id in selectedAlbumIds
@@ -361,15 +374,28 @@ fun AlbumGridCard(
     selected: Boolean,
     selectionMode: Boolean,
     onClick: () -> Unit,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val indicatorColor = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    }
+
     Card(
         shape = WallBaseShapes.featured,
-        border = if (selected) BorderStroke(2.dp, indicatorColor) else null,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
-        modifier = Modifier
-            .aspectRatio(3f / 4f)
+        border = BorderStroke(if (selected) 2.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 6.dp else 2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = modifier
+            .aspectRatio(0.82f)
+            .graphicsLayer {
+                if (selected) {
+                    scaleX = 0.97f
+                    scaleY = 0.97f
+                }
+            }
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
@@ -391,51 +417,95 @@ fun AlbumGridCard(
                             brush = Brush.linearGradient(
                                 colors = listOf(
                                     MaterialTheme.colorScheme.surfaceVariant,
-                                    MaterialTheme.colorScheme.surface
+                                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                                    MaterialTheme.colorScheme.surfaceVariant
                                 )
                             )
-                        )
-                )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.Collections,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+                }
             }
 
+            // Smooth multi-stop gradient scrim for text readability
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.65f))
+                            0.0f to Color.Transparent,
+                            0.42f to Color.Transparent,
+                            0.70f to Color(0x66000000),
+                            1.0f to Color(0xDE000000)
                         )
                     )
             )
+
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                )
+            }
 
             if (selectionMode) {
                 SelectionCheckmark(
                     selected = selected,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(12.dp)
+                        .padding(10.dp)
                 )
             }
 
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Surface(
                     shape = WallBaseShapes.pill,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    shadowElevation = 2.dp
                 ) {
-                    Text(
-                        text = "${album.wallpaperCount} wallpapers",
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Collections,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "${album.wallpaperCount} ${if (album.wallpaperCount == 1) "item" else "items"}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
                 Text(
                     text = album.title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -452,26 +522,43 @@ fun AlbumRowCard(
     selected: Boolean,
     selectionMode: Boolean,
     onClick: () -> Unit,
-    onLongPress: () -> Unit
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    }
+
     Card(
         shape = WallBaseShapes.card,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
+        border = BorderStroke(if (selected) 2.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 4.dp else 1.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f)),
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                if (selected) {
+                    scaleX = 0.98f
+                    scaleY = 0.98f
+                }
+            }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
+            )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .combinedClickable(
-                    onClick = onClick,
-                    onLongClick = onLongPress
-                )
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(92.dp)
+                    .size(80.dp)
                     .clip(WallBaseShapes.card)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
@@ -483,12 +570,26 @@ fun AlbumRowCard(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Icon(
-                        imageVector = Icons.Outlined.Wallpaper,
-                        contentDescription = null,
-                        modifier = Modifier.align(Alignment.Center),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                                    )
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Collections,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
@@ -502,15 +603,40 @@ fun AlbumRowCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = "${album.wallpaperCount} wallpapers",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Surface(
+                    shape = WallBaseShapes.pill,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Wallpaper,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "${album.wallpaperCount} ${if (album.wallpaperCount == 1) "wallpaper" else "wallpapers"}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
 
             if (selectionMode) {
                 SelectionCheckmark(selected = selected)
+            } else {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
             }
         }
     }
@@ -532,13 +658,14 @@ fun SelectionCheckmark(selected: Boolean, modifier: Modifier = Modifier) {
         modifier = modifier,
         shape = CircleShape,
         color = containerColor,
-        tonalElevation = if (selected) 6.dp else 2.dp
+        tonalElevation = if (selected) 6.dp else 2.dp,
+        shadowElevation = if (selected) 3.dp else 1.dp
     ) {
         Icon(
-            imageVector = Icons.Outlined.CheckCircle,
+            imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
             contentDescription = null,
             tint = contentColor,
-            modifier = Modifier.padding(6.dp)
+            modifier = Modifier.padding(4.dp).size(18.dp)
         )
     }
 }

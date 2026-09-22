@@ -11,7 +11,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
+import kotlin.math.absoluteValue
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.runtime.mutableFloatStateOf
@@ -22,17 +28,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -67,7 +77,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.luminance
@@ -107,13 +116,28 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun DetailRoute(
+fun WallpaperRoute(
     wallpaper: WallpaperItem,
+    wallpapers: List<WallpaperItem> = listOf(wallpaper),
+    initialIndex: Int = 0,
     onNavigateBack: () -> Unit,
     viewModel: WallpaperDetailViewModel = viewModel(factory = WallpaperDetailViewModel.Factory),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    val safeWallpapers = remember(wallpapers, wallpaper) {
+        if (wallpapers.isNotEmpty()) wallpapers else listOf(wallpaper)
+    }
+    val safeInitialIndex = remember(safeWallpapers, initialIndex, wallpaper) {
+        val index = if (initialIndex in safeWallpapers.indices) initialIndex
+        else safeWallpapers.indexOfFirst { it.id == wallpaper.id }
+        if (index >= 0) index else 0
+    }
+    val pagerState = rememberPagerState(
+        initialPage = safeInitialIndex,
+        pageCount = { safeWallpapers.size }
+    )
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -128,8 +152,10 @@ fun DetailRoute(
         }
     }
 
-    LaunchedEffect(wallpaper.id) {
-        viewModel.setWallpaper(wallpaper)
+    LaunchedEffect(pagerState.currentPage, safeWallpapers) {
+        val currentWallpaper = safeWallpapers.getOrNull(pagerState.currentPage) ?: wallpaper
+        viewModel.setWallpaper(currentWallpaper)
+        viewModel.preloadPalettes(safeWallpapers, pagerState.currentPage)
     }
 
     LaunchedEffect(uiState.pendingPreview) {
@@ -151,8 +177,10 @@ fun DetailRoute(
         viewModel.consumeMessage()
     }
 
-    DetailScreen(
+    WallpaperScreen(
         uiState = uiState,
+        wallpapers = safeWallpapers,
+        pagerState = pagerState,
         onApplyTarget = viewModel::applyWallpaper,
         onConfirmApplyWithoutPreview = viewModel::confirmApplyWithoutPreview,
         onDismissPreviewFallback = viewModel::dismissPreviewFallback,
@@ -171,10 +199,35 @@ fun DetailRoute(
     )
 }
 
+@Deprecated("Use WallpaperRoute instead", ReplaceWith("WallpaperRoute(wallpaper, wallpapers, initialIndex, onNavigateBack, viewModel, sharedTransitionScope, animatedVisibilityScope)"))
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun DetailRoute(
+    wallpaper: WallpaperItem,
+    wallpapers: List<WallpaperItem> = listOf(wallpaper),
+    initialIndex: Int = 0,
+    onNavigateBack: () -> Unit,
+    viewModel: WallpaperDetailViewModel = viewModel(factory = WallpaperDetailViewModel.Factory),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
+) {
+    WallpaperRoute(
+        wallpaper = wallpaper,
+        wallpapers = wallpapers,
+        initialIndex = initialIndex,
+        onNavigateBack = onNavigateBack,
+        viewModel = viewModel,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope
+    )
+}
+
 @Composable
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
-private fun DetailScreen(
+fun WallpaperScreen(
     uiState: WallpaperDetailViewModel.WallpaperDetailUiState,
+    wallpapers: List<WallpaperItem>,
+    pagerState: PagerState,
     onApplyTarget: (WallpaperTarget) -> Unit,
     onConfirmApplyWithoutPreview: () -> Unit,
     onDismissPreviewFallback: () -> Unit,
@@ -195,7 +248,6 @@ private fun DetailScreen(
     val context = LocalContext.current
     var showAlbumPicker by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    val aspectRatio = wallpaper.aspectRatio?.takeIf { it > 0f } ?: DEFAULT_DETAIL_ASPECT_RATIO
     val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
         wallpaper = wallpaper,
         sharedTransitionScope = sharedTransitionScope,
@@ -203,9 +255,9 @@ private fun DetailScreen(
     )
     val vibrantColor = uiState.palette?.vibrantColor?.let { Color(it) }
     val dominantColor = uiState.palette?.dominantColor?.let { Color(it) }
-    var localExtractedColor by remember { mutableStateOf<Color?>(null) }
+    var localExtractedColor by remember(wallpaper.id) { mutableStateOf<Color?>(null) }
     val previewBitmap = uiState.editedPreview
-    LaunchedEffect(previewBitmap) {
+    LaunchedEffect(previewBitmap, wallpaper.id) {
         val bitmap = previewBitmap ?: return@LaunchedEffect
         withContext(Dispatchers.Default) {
             val maxDim = 128
@@ -224,8 +276,18 @@ private fun DetailScreen(
             }
         }
     }
-    val dynamicAccentColor = vibrantColor ?: dominantColor ?: localExtractedColor ?: MaterialTheme.colorScheme.primary
-    val ambientGlowColor = dominantColor ?: vibrantColor ?: localExtractedColor ?: MaterialTheme.colorScheme.primary
+    val targetAccentColor = vibrantColor ?: dominantColor ?: localExtractedColor ?: MaterialTheme.colorScheme.primary
+    val dynamicAccentColor by animateColorAsState(
+        targetValue = targetAccentColor,
+        animationSpec = tween(durationMillis = 350),
+        label = "dynamicAccentColor"
+    )
+    val targetGlowColor = dominantColor ?: vibrantColor ?: localExtractedColor ?: MaterialTheme.colorScheme.primary
+    val ambientGlowColor by animateColorAsState(
+        targetValue = targetGlowColor,
+        animationSpec = tween(durationMillis = 350),
+        label = "ambientGlowColor"
+    )
 
     val scrollState = rememberScrollState()
     var isViewModeOpen by remember { mutableStateOf(false) }
@@ -247,99 +309,126 @@ private fun DetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isViewModeOpen = true },
-                    shape = WallBaseShapes.featured,
-                    color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val previewShape = WallBaseShapes.featured
-                        val previewModifier = sharedModifier.then(
-                            Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(aspectRatio)
-                                .clickable { isViewModeOpen = true }
-                        )
-                        Box(
-                            modifier = previewModifier,
-                            contentAlignment = Alignment.Center
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    pageSpacing = 12.dp,
+                    key = { page -> wallpapers.getOrNull(page)?.id ?: page.toString() }
+                ) { page ->
+                    val item = wallpapers.getOrNull(page)
+                    if (item != null) {
+                        val isCurrent = page == pagerState.currentPage
+                        val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val scale = 1f - (pageOffset * 0.05f).coerceIn(0f, 0.1f)
+                                    scaleX = scale
+                                    scaleY = scale
+                                    alpha = 1f - (pageOffset * 0.25f).coerceIn(0f, 0.4f)
+                                }
+                                .clickable {
+                                    if (isCurrent) {
+                                        isViewModeOpen = true
+                                    }
+                                },
+                            shape = WallBaseShapes.featured,
+                            color = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .matchParentSize()
-                                    .clip(previewShape)
-                                    .background(
-                                        Brush.radialGradient(
-                                            colors = listOf(
-                                                ambientGlowColor.copy(alpha = 0.35f),
-                                                Color.Transparent
-                                            )
-                                        )
-                                    )
-                            )
-                            if (previewBitmap != null) {
-                                Image(
-                                    bitmap = previewBitmap.asImageBitmap(),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .matchParentSize()
-                                        .clip(previewShape),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                WallpaperPreviewImage(
-                                    model = wallpaper.previewModel(),
-                                    contentDescription = wallpaper.title,
-                                    modifier = Modifier.matchParentSize(),
-                                    contentScale = ContentScale.Crop,
-                                    clipShape = previewShape
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .clip(previewShape)
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                Color.Transparent,
-                                                Color.Black.copy(alpha = 0.85f)
-                                            )
-                                        )
-                                    )
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = wallpaper.title.ifBlank { "Untitled wallpaper" },
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = Color.White,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = wallpaper.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White.copy(alpha = 0.8f)
-                                )
+                                val previewShape = WallBaseShapes.featured
+                                val pageSharedModifier = if (isCurrent) {
+                                    sharedModifier
+                                } else {
+                                    Modifier
+                                }
+                                Box(
+                                    modifier = pageSharedModifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .clip(previewShape)
+                                            .background(
+                                                Brush.radialGradient(
+                                                    colors = listOf(
+                                                        (if (isCurrent) ambientGlowColor else MaterialTheme.colorScheme.primary).copy(alpha = 0.35f),
+                                                        Color.Transparent
+                                                    )
+                                                )
+                                            )
+                                    )
+                                    if (isCurrent && previewBitmap != null) {
+                                        Image(
+                                            bitmap = previewBitmap.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .matchParentSize()
+                                                .clip(previewShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        WallpaperPreviewImage(
+                                            model = item.previewModel(),
+                                            contentDescription = item.title,
+                                            modifier = Modifier.matchParentSize(),
+                                            contentScale = ContentScale.Crop,
+                                            clipShape = previewShape
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .clip(previewShape)
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        Color.Transparent,
+                                                        Color.Black.copy(alpha = 0.85f)
+                                                    )
+                                                )
+                                            )
+                                    )
+                                    Column(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = item.title.ifBlank { "Untitled wallpaper" },
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = Color.White,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = item.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = Color.White.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -348,10 +437,10 @@ private fun DetailScreen(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(8.dp),
+                        .padding(12.dp),
                     shape = CircleShape,
                     tonalElevation = 4.dp,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
                 ) {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -603,8 +692,6 @@ private fun DetailScreen(
 }
 
 private const val DEFAULT_DETAIL_ASPECT_RATIO = 9f / 16f
-
-
 
 @Composable
 private fun AssistiveLoadingRow() {
@@ -872,6 +959,4 @@ private fun WallpaperViewModeDialog(
         }
     }
 }
-
-
 

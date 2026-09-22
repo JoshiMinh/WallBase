@@ -132,10 +132,12 @@ import com.joshiminh.wallbase.util.DownloadedFilter
 import com.joshiminh.wallbase.ui.viewmodel.LibraryViewModel
 import androidx.compose.foundation.lazy.grid.items as gridItems
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun LibraryScreen(
-    onWallpaperSelected: (WallpaperItem, Boolean) -> Unit,
+    onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
     onAlbumSelected: (AlbumItem) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     libraryViewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
@@ -387,7 +389,8 @@ fun LibraryScreen(
                     contentDescription = clearLabel,
                     onClick = { selectedWallpaperIds = emptySet() }
                 ),
-                actions = actions
+                actions = actions,
+                autoHideBars = false
             )
         }
 
@@ -438,7 +441,8 @@ fun LibraryScreen(
                     contentDescription = clearLabel,
                     onClick = { selectedAlbumIds = emptySet() }
                 ),
-                actions = actions
+                actions = actions,
+                autoHideBars = false
             )
         }
 
@@ -512,7 +516,8 @@ fun LibraryScreen(
                 navigationIcon = navigationIcon,
                 actions = actions,
                 titleContent = titleContent,
-                bottomContent = tabBottomContent
+                bottomContent = tabBottomContent,
+                autoHideBars = (selectedTab == 0 && !isSearchActive)
             )
         }
     }
@@ -546,6 +551,7 @@ fun LibraryScreen(
             else -> onWallpaperSelected(
                 wallpaper,
                 supportsSharedTransitions,
+                displayedWallpapers
             )
         }
     }
@@ -651,6 +657,7 @@ fun LibraryScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
                     .graphicsLayer {
                         translationY = bottomBarOffsetY * 1.5f
                     }

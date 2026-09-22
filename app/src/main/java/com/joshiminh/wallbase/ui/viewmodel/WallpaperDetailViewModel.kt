@@ -61,6 +61,9 @@ class WallpaperDetailViewModel(
     private var autoDownloadEnabled: Boolean = false
     private var storageLimitBytes: Long = 0L
 
+    private val paletteCache = java.util.concurrent.ConcurrentHashMap<String, WallpaperPalette>()
+    private val preloadingJobs = java.util.concurrent.ConcurrentHashMap<String, Job>()
+
     private val _uiState = MutableStateFlow(
         WallpaperDetailUiState(
             hasWallpaperPermission = hasSetWallpaperPermission(application)
@@ -94,6 +97,7 @@ class WallpaperDetailViewModel(
             resetEditorState()
             persistAdjustmentsJob?.cancel()
         }
+        val cachedPalette = paletteCache[normalizedWallpaper.id]
         _uiState.update { current ->
             if (current.wallpaper?.id == normalizedWallpaper.id) current
             else current.copy(
@@ -114,11 +118,15 @@ class WallpaperDetailViewModel(
                 isEditorReady = false,
                 isProcessingEdits = false,
                 isAddingToAlbum = false,
-                palette = null
+                palette = cachedPalette ?: current.palette
             )
         }
 
-        extractPaletteForWallpaper(normalizedWallpaper)
+        if (cachedPalette != null) {
+            _uiState.update { it.copy(palette = cachedPalette) }
+        } else {
+            extractPaletteForWallpaper(normalizedWallpaper)
+        }
 
         val sourceKey = normalizedWallpaper.sourceKey
         if (sourceKey != null) {
@@ -228,6 +236,58 @@ class WallpaperDetailViewModel(
         )
     }
 
+    fun preloadPalettes(wallpapers: List<WallpaperItem>, currentIndex: Int) {
+        val window = 3
+        val start = (currentIndex - window).coerceAtLeast(0)
+        val end = (currentIndex + window).coerceAtMost(wallpapers.size - 1)
+        for (i in start..end) {
+            val item = wallpapers.getOrNull(i) ?: continue
+            if (paletteCache.containsKey(item.id)) continue
+            if (preloadingJobs.containsKey(item.id)) continue
+            val job = viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    val candidateModels = listOfNotNull(
+                        item.thumbnailUrl?.takeIf { it.isNotBlank() },
+                        item.localUri?.takeIf { it.isNotBlank() }?.toUri(),
+                        item.imageUrl.takeIf { it.isNotBlank() }
+                    )
+                    var loadedBitmap: Bitmap? = null
+                    for (model in candidateModels) {
+                        loadedBitmap = runCatching { editor.loadSampledBitmap(model, maxDimension = 128) }.getOrNull()
+                        if (loadedBitmap != null) break
+                    }
+                    val bitmap = loadedBitmap ?: return@launch
+                    val p = runCatching {
+                        Palette.from(bitmap)
+                            .maximumColorCount(16)
+                            .generate()
+                    }.getOrNull()
+                    if (!bitmap.isRecycled && bitmap !== originalBitmap) {
+                        bitmap.recycle()
+                    }
+                    if (p != null) {
+                        val palette = WallpaperPalette(
+                            dominantColor = p.dominantSwatch?.rgb,
+                            vibrantColor = p.vibrantSwatch?.rgb,
+                            darkVibrantColor = p.darkVibrantSwatch?.rgb,
+                            lightVibrantColor = p.lightVibrantSwatch?.rgb,
+                            mutedColor = p.mutedSwatch?.rgb,
+                            darkMutedColor = p.darkMutedSwatch?.rgb,
+                            lightMutedColor = p.lightMutedSwatch?.rgb,
+                        )
+                        paletteCache[item.id] = palette
+                        if (_uiState.value.wallpaper?.id == item.id) {
+                            _uiState.update { it.copy(palette = palette) }
+                        }
+                    }
+                } finally {
+                    preloadingJobs.remove(item.id)
+                }
+            }
+            preloadingJobs[item.id] = job
+        }
+    }
+
     private fun extractPaletteForWallpaper(wallpaper: WallpaperItem) {
         paletteJob?.cancel()
         paletteJob = viewModelScope.launch(Dispatchers.IO) {
@@ -260,7 +320,10 @@ class WallpaperDetailViewModel(
                     darkMutedColor = p.darkMutedSwatch?.rgb,
                     lightMutedColor = p.lightMutedSwatch?.rgb,
                 )
-                _uiState.update { it.copy(palette = palette) }
+                paletteCache[wallpaper.id] = palette
+                if (_uiState.value.wallpaper?.id == wallpaper.id) {
+                    _uiState.update { it.copy(palette = palette) }
+                }
             }
         }
     }

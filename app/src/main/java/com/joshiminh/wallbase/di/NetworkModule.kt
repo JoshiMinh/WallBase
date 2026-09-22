@@ -2,11 +2,9 @@ package com.joshiminh.wallbase.di
 
 import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.data.repository.SourceCredentialStore
-import com.joshiminh.wallbase.sources.RedditAuthService
 import com.joshiminh.wallbase.sources.RedditService
 import com.joshiminh.wallbase.sources.WallhavenService
 import com.joshiminh.wallbase.util.network.JsoupWebScraper
-import com.joshiminh.wallbase.util.network.RedditTokenManager
 import com.joshiminh.wallbase.util.network.UpdateService
 import com.joshiminh.wallbase.util.network.WebScraper
 import com.squareup.moshi.Moshi
@@ -62,65 +60,13 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    @Named("Reddit")
-    fun provideRedditOkHttpClient(
-        okHttpClient: OkHttpClient,
-        tokenManager: RedditTokenManager,
-    ): OkHttpClient {
-        return okHttpClient.newBuilder()
-            .addInterceptor { chain ->
-                val request = chain.request()
-                if (request.url.encodedPath.contains("api/v1/access_token")) {
-                    return@addInterceptor chain.proceed(request)
-                }
-
-                val token = tokenManager.getRedditAccessToken()
-                val builder = request.newBuilder()
-                if (token.isNotEmpty()) {
-                    val newUrl = request.url.newBuilder().host("oauth.reddit.com").build()
-                    builder.url(newUrl).header("Authorization", "Bearer $token")
-                } else {
-                    val newUrl = request.url.newBuilder().host("www.reddit.com").build()
-                    builder.url(newUrl).removeHeader("Authorization")
-                }
-                chain.proceed(builder.build())
-            }
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    fun provideRedditAuthService(
-        okHttpClient: OkHttpClient,
-        moshi: Moshi
-    ): RedditAuthService {
-        return Retrofit.Builder()
-            .baseUrl("https://www.reddit.com/")
-            .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-            .create(RedditAuthService::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideRedditTokenManager(
-        redditAuthService: RedditAuthService,
-        credentialStore: SourceCredentialStore,
-    ): RedditTokenManager {
-        return RedditTokenManager(redditAuthService) { credentialStore.snapshot().redditClientId }
-    }
-
-    @Provides
-    @Singleton
     fun provideRedditService(
-        @Named("Reddit") redditOkHttpClient: OkHttpClient,
         okHttpClient: OkHttpClient,
         moshi: Moshi
     ): RedditService {
         return Retrofit.Builder()
             .baseUrl("https://www.reddit.com/")
-            .client(redditOkHttpClient)
+            .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
             .create(RedditService::class.java)

@@ -11,7 +11,6 @@ import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.data.repository.settingsDataStore
-import com.joshiminh.wallbase.sources.RedditAuthService
 import com.joshiminh.wallbase.sources.RedditService
 import com.joshiminh.wallbase.sources.WallhavenService
 import com.squareup.moshi.Moshi
@@ -79,49 +78,10 @@ object ServiceLocator {
         builder.build()
     }
 
-    private val redditOkHttpClient: OkHttpClient by lazy {
-        okHttpClient.newBuilder()
-            .addInterceptor { chain ->
-                val request = chain.request()
-                // Avoid recursive token calls for the auth endpoint itself
-                if (request.url.encodedPath.contains("api/v1/access_token")) {
-                    return@addInterceptor chain.proceed(request)
-                }
-
-                val token = redditTokenManager.getRedditAccessToken()
-                val builder = request.newBuilder()
-                if (token.isNotEmpty()) {
-                    val newUrl = request.url.newBuilder().host("oauth.reddit.com").build()
-                    builder.url(newUrl).header("Authorization", "Bearer $token")
-                } else {
-                    val newUrl = request.url.newBuilder().host("www.reddit.com").build()
-                    builder.url(newUrl).removeHeader("Authorization")
-                }
-                chain.proceed(builder.build())
-            }
-            .build()
-    }
-
-    private val redditAuthRetrofit: Retrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl("https://www.reddit.com/")
-            .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-    }
-
-    private val redditAuthService: RedditAuthService by lazy {
-        redditAuthRetrofit.create(RedditAuthService::class.java)
-    }
-
-    private val redditTokenManager: RedditTokenManager by lazy {
-        RedditTokenManager(redditAuthService) { sourceCredentialStore.snapshot().redditClientId }
-    }
-
     private val redditRetrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl("https://www.reddit.com/")
-            .client(redditOkHttpClient)
+            .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }

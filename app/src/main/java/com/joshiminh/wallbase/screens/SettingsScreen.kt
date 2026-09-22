@@ -130,7 +130,7 @@ fun SettingsScreen(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onRequestAppLockChange: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
-    onSaveSourceCredentials: (String, String) -> Unit,
+    onSaveSourceCredentials: (String) -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -795,9 +795,8 @@ private fun SettingsToggleRow(
 @Composable
 private fun SourceConnectionsCard(
     uiState: SettingsViewModel.SettingsUiState,
-    onSave: (String, String) -> Unit,
+    onSave: (String) -> Unit,
 ) {
-    var redditClientId by remember { mutableStateOf("") }
     var wallhavenApiKey by remember { mutableStateOf("") }
 
     SettingsCard {
@@ -806,16 +805,9 @@ private fun SourceConnectionsCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Use your own keys. They are encrypted on this device and excluded from backups.",
+                text = "Use your own API key. It is encrypted on this device and excluded from backups.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            ConnectionField(
-                label = "Reddit client ID",
-                configured = uiState.redditConnected,
-                value = redditClientId,
-                onValueChange = { redditClientId = it },
-                helper = "Required for Reddit browsing and community search.",
             )
             ConnectionField(
                 label = "Wallhaven API key (optional)",
@@ -825,11 +817,11 @@ private fun SourceConnectionsCard(
                 helper = "Enables token-gated Wallhaven results; basic safe browsing works without it.",
             )
             Button(
-                onClick = { onSave(redditClientId, wallhavenApiKey) },
-                enabled = redditClientId.isNotBlank() || wallhavenApiKey.isNotBlank(),
+                onClick = { onSave(wallhavenApiKey) },
+                enabled = wallhavenApiKey.isNotBlank(),
                 modifier = Modifier.align(Alignment.End),
             ) {
-                Text("Save connections")
+                Text("Save connection")
             }
         }
     }
