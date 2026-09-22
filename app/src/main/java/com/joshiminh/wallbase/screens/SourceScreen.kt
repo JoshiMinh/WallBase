@@ -73,11 +73,10 @@ import com.joshiminh.wallbase.navigation.TopBarState
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
-import com.joshiminh.wallbase.ui.components.GridColumnPicker
-import com.joshiminh.wallbase.ui.components.SortBottomSheet
+import com.joshiminh.wallbase.ui.components.SheetTab
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
+import com.joshiminh.wallbase.ui.components.ViewFilterSortBottomSheet
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
-import com.joshiminh.wallbase.ui.components.WallpaperLayoutPicker
 import com.joshiminh.wallbase.util.SortField
 import com.joshiminh.wallbase.util.SortSelection
 import com.joshiminh.wallbase.util.toSelection
@@ -338,29 +337,20 @@ fun SourceRoute(
         animatedVisibilityScope = animatedVisibilityScope
     )
 
-    SortBottomSheet(
+    ViewFilterSortBottomSheet(
         visible = showSortSheet,
-        title = "Sort wallpapers",
-        selection = sortSelection,
-        availableFields = availableSortFields,
-        onSelectionChanged = { selection ->
+        onDismissRequest = { showSortSheet = false },
+        availableTabs = listOf(SheetTab.SORT, SheetTab.DISPLAY),
+        initialTab = SheetTab.SORT,
+        sortSelection = sortSelection,
+        availableSortFields = availableSortFields,
+        onSortSelectionChanged = { selection ->
             viewModel.updateSort(selection.toWallpaperSortOption())
         },
-        onDismissRequest = { showSortSheet = false },
-        additionalContent = {
-            WallpaperLayoutPicker(
-                label = "Wallpaper layout",
-                selectedLayout = wallpaperLayout,
-                onLayoutSelected = viewModel::updateWallpaperLayout
-            )
-            if (wallpaperLayout == WallpaperLayout.GRID) {
-                GridColumnPicker(
-                    label = "Grid columns",
-                    selectedColumns = uiState.wallpaperGridColumns,
-                    onColumnsSelected = viewModel::updateGridColumns
-                )
-            }
-        }
+        wallpaperLayout = wallpaperLayout,
+        onWallpaperLayoutChanged = viewModel::updateWallpaperLayout,
+        gridColumns = uiState.wallpaperGridColumns,
+        onGridColumnsChanged = viewModel::updateGridColumns
     )
 }
 
