@@ -19,14 +19,49 @@ android {
         applicationId = "com.joshiminh.wallbase"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "6.4"
+        versionCode = 11
+        versionName = "6.5"
+    }
+
+    signingConfigs {
+        create("release") {
+            val signingPropsFile = rootProject.file("signing.properties")
+            val properties = Properties()
+            if (signingPropsFile.exists()) {
+                signingPropsFile.inputStream().use { properties.load(it) }
+            }
+
+            val storeFilePath = properties.getProperty("KEYSTORE_PATH")
+                ?: System.getenv("KEYSTORE_PATH")
+                ?: "wallbase-release.jks"
+            val keystoreFile = rootProject.file(storeFilePath)
+
+            val storePass = properties.getProperty("KEYSTORE_PASSWORD")
+                ?: System.getenv("KEYSTORE_PASSWORD")
+            val keyAl = properties.getProperty("KEY_ALIAS")
+                ?: System.getenv("KEY_ALIAS")
+            val keyPass = properties.getProperty("KEY_PASSWORD")
+                ?: System.getenv("KEY_PASSWORD")
+
+            if (keystoreFile.exists() && !storePass.isNullOrBlank() && !keyAl.isNullOrBlank() && !keyPass.isNullOrBlank()) {
+                storeFile = keystoreFile
+                storePassword = storePass
+                keyAlias = keyAl
+                keyPassword = keyPass
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
