@@ -450,6 +450,7 @@ private fun SourceScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 columns = state.wallpaperGridColumns,
                                 layout = state.wallpaperLayout,
+                                showDownloadedBadge = state.showDownloadBadge,
                                 contentPadding = PaddingValues(
                                     start = 4.dp,
                                     top = topBarInsetPadding(4.dp),

@@ -95,7 +95,8 @@ class LibraryViewModel(
                 directAddCompleted = inputs.directAddCompleted,
                 downloadedFilter = inputs.downloadedFilter,
                 favoritesOnly = inputs.favoritesOnly,
-                isRefreshing = inputs.isRefreshing
+                isRefreshing = inputs.isRefreshing,
+                showDownloadBadge = inputs.preferences.showDownloadBadge
             )
         }.stateIn(
             scope = viewModelScope,
@@ -447,7 +448,8 @@ class LibraryViewModel(
         val directAddCompleted: Boolean? = null,
         val downloadedFilter: DownloadedFilter = DownloadedFilter.SHOW_ALL,
         val favoritesOnly: Boolean = false,
-        val isRefreshing: Boolean = false
+        val isRefreshing: Boolean = false,
+        val showDownloadBadge: Boolean = true
     )
 
     enum class SelectionAction {

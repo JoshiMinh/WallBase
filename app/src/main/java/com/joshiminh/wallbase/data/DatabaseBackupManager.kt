@@ -13,6 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.entity.WallpaperEntity
 import com.joshiminh.wallbase.data.repository.LocalStorageCoordinator
+import com.joshiminh.wallbase.data.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -33,8 +34,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 
 @Singleton
 class DatabaseBackupManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val localStorage: LocalStorageCoordinator,
+    private val settingsRepository: SettingsRepository,
 ) {
 
     private val database: WallBaseDatabase by lazy { WallBaseDatabase.getInstance(context) }
@@ -81,6 +83,14 @@ class DatabaseBackupManager @Inject constructor(
                         zip.putNextEntry(ZipEntry(DATABASE_ENTRY))
                         tempFile.inputStream().use { input -> input.copyTo(zip) }
                         zip.closeEntry()
+
+                        // Include user settings in the backup package
+                        runCatching {
+                            val settingsJson = settingsRepository.exportSettingsJson()
+                            zip.putNextEntry(ZipEntry(SETTINGS_ENTRY))
+                            zip.write(settingsJson.toString(2).toByteArray(Charsets.UTF_8))
+                            zip.closeEntry()
+                        }
 
                         if (includeSources && wallpapersWithMedia.isNotEmpty()) {
                             val manifest = JSONArray()
@@ -156,6 +166,7 @@ class DatabaseBackupManager @Inject constructor(
             val extraction = if (isZip) extractBackupPackage(tempFile, extractedMedia) else null
             val databaseFile = extraction?.databaseFile ?: tempFile
             val manifestJson = extraction?.manifestJson
+            val settingsJson = extraction?.settingsJson
 
             val sqliteDb = database.openHelper.writableDatabase
             sqliteDb.execSQL("PRAGMA foreign_keys=OFF")
@@ -195,6 +206,13 @@ class DatabaseBackupManager @Inject constructor(
 
             restoreLocalWallpapers(sqliteDb, manifestJson, extractedMedia)
 
+            if (!settingsJson.isNullOrBlank()) {
+                runCatching {
+                    val json = JSONObject(settingsJson)
+                    settingsRepository.importSettingsJson(json)
+                }
+            }
+
             database.invalidationTracker.refreshVersionsAsync()
 
             Result.success(Unit)
@@ -211,6 +229,7 @@ class DatabaseBackupManager @Inject constructor(
     ): ExtractedPackage {
         var databaseFile: File? = null
         var manifestJson: String? = null
+        var settingsJson: String? = null
 
         ZipInputStream(BufferedInputStream(FileInputStream(packageFile))).use { zip ->
             var entry: ZipEntry? = zip.nextEntry
@@ -222,6 +241,12 @@ class DatabaseBackupManager @Inject constructor(
                         val tempDb = File.createTempFile("wallbase_backup_db_", ".db", context.cacheDir)
                         FileOutputStream(tempDb).use { output -> zip.copyTo(output) }
                         databaseFile = tempDb
+                    }
+
+                    name == SETTINGS_ENTRY -> {
+                        val buffer = ByteArrayOutputStream()
+                        zip.copyTo(buffer)
+                        settingsJson = buffer.toString(Charsets.UTF_8.name())
                     }
 
                     name == LOCAL_MANIFEST_ENTRY -> {
@@ -354,6 +379,7 @@ class DatabaseBackupManager @Inject constructor(
             "album_wallpaper_cross_ref"
         )
         private const val DATABASE_ENTRY = "database/wallbase.db"
+        private const val SETTINGS_ENTRY = "settings.json"
         private const val LOCAL_MEDIA_DIR = "local_wallpapers"
         private const val LOCAL_MANIFEST_ENTRY = "$LOCAL_MEDIA_DIR/manifest.json"
         private const val LOCAL_SOURCE_FOLDER = "Local"
@@ -366,7 +392,8 @@ class DatabaseBackupManager @Inject constructor(
 
     private data class ExtractedPackage(
         val databaseFile: File,
-        val manifestJson: String?
+        val manifestJson: String?,
+        val settingsJson: String? = null
     )
 
     private data class ExtractedMedia(

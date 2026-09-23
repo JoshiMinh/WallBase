@@ -130,7 +130,8 @@ class SourceBrowseViewModel(
                         state.wallpaperLayout != layout ||
                         state.autoDownloadEnabled != preferences.autoDownload ||
                         state.storageLimitBytes != preferences.storageLimitBytes ||
-                        state.showHorizontalWallpapers != preferences.showHorizontalWallpapers
+                        state.showHorizontalWallpapers != preferences.showHorizontalWallpapers ||
+                        state.showDownloadBadge != preferences.showDownloadBadge
                     if (!needsUpdate) {
                         state
                     } else {
@@ -139,7 +140,8 @@ class SourceBrowseViewModel(
                             wallpaperLayout = layout,
                             autoDownloadEnabled = preferences.autoDownload,
                             storageLimitBytes = preferences.storageLimitBytes,
-                            showHorizontalWallpapers = preferences.showHorizontalWallpapers
+                            showHorizontalWallpapers = preferences.showHorizontalWallpapers,
+                            showDownloadBadge = preferences.showDownloadBadge
                         )
                     }
                 }
@@ -371,7 +373,8 @@ class SourceBrowseViewModel(
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
         val autoDownloadEnabled: Boolean = false,
         val storageLimitBytes: Long = 0L,
-        val showHorizontalWallpapers: Boolean = true
+        val showHorizontalWallpapers: Boolean = true,
+        val showDownloadBadge: Boolean = true
     )
 
     companion object {

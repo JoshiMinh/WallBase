@@ -95,6 +95,7 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -421,23 +422,21 @@ fun AlbumSelectionRow(
     onClick: () -> Unit
 ) {
     val containerColor = if (isSelected) {
-        MaterialTheme.colorScheme.secondaryContainer
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
     } else {
-        MaterialTheme.colorScheme.surfaceContainerLow
+        MaterialTheme.colorScheme.surfaceContainer
     }
     val borderColor = if (isSelected) {
-        MaterialTheme.colorScheme.secondary
+        MaterialTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.outlineVariant
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
     }
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = containerColor,
-        tonalElevation = if (isSelected) 6.dp else 1.dp,
-        shadowElevation = if (isSelected) 2.dp else 0.dp,
-        border = BorderStroke(1.dp, borderColor),
+        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor),
         modifier = Modifier.fillMaxWidth()
     ) {
         ListItem(
@@ -445,6 +444,7 @@ fun AlbumSelectionRow(
                 Text(
                     text = album.title,
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -459,7 +459,11 @@ fun AlbumSelectionRow(
             trailingContent = {
                 RadioButton(
                     selected = isSelected,
-                    onClick = onClick
+                    onClick = null,
+                    colors = androidx.compose.material3.RadioButtonDefaults.colors(
+                        selectedColor = MaterialTheme.colorScheme.primary,
+                        unselectedColor = MaterialTheme.colorScheme.outline
+                    )
                 )
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)

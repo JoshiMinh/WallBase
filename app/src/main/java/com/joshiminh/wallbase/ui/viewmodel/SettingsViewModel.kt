@@ -67,6 +67,7 @@ class SettingsViewModel @Inject constructor(
                         appLockEnabled = preferences.appLockEnabled,
                         hasCompletedOnboarding = preferences.onboardingCompleted,
                         showHorizontalWallpapers = preferences.showHorizontalWallpapers,
+                        showDownloadBadge = preferences.showDownloadBadge,
                     )
                 }
             }
@@ -312,6 +313,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setShowDownloadBadge(show: Boolean) {
+        if (_uiState.value.showDownloadBadge == show) return
+        _uiState.update { it.copy(showDownloadBadge = show) }
+        viewModelScope.launch {
+            settingsRepository.setShowDownloadBadge(show)
+        }
+    }
+
     fun showMessage(message: String) {
         _uiState.update { it.copy(message = message) }
     }
@@ -419,6 +428,7 @@ class SettingsViewModel @Inject constructor(
         val dismissedUpdateVersion: String? = null,
         val shouldRestartAfterImport: Boolean = false,
         val showHorizontalWallpapers: Boolean = true,
+        val showDownloadBadge: Boolean = true,
         val wallhavenTokenConfigured: Boolean = false,
     )
 
@@ -479,7 +489,8 @@ class SettingsViewModel @Inject constructor(
                     application = application,
                     backupManager = DatabaseBackupManager(
                         application.applicationContext,
-                        ServiceLocator.localStorageCoordinator
+                        ServiceLocator.localStorageCoordinator,
+                        ServiceLocator.settingsRepository
                     ),
                     settingsRepository = ServiceLocator.settingsRepository,
                     updateRepository = ServiceLocator.updateRepository,

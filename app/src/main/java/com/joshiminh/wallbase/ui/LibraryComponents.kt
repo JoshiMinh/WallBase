@@ -219,7 +219,7 @@ fun LibraryContent(
                             selectionMode = isWallpaperSelectionMode,
                             columns = wallpaperGridColumns,
                             layout = wallpaperLayout,
-                            showDownloadedBadge = true,
+                            showDownloadedBadge = uiState.showDownloadBadge,
                             contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)),
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope

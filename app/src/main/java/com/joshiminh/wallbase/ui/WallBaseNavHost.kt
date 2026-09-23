@@ -123,6 +123,7 @@ fun WallBaseApp(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onSetAppLockEnabled: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
+    onToggleShowDownloadBadge: (Boolean) -> Unit,
     onSaveSourceCredentials: (String) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
@@ -629,6 +630,7 @@ fun WallBaseApp(
                             onToggleIncludeSourcesInBackup = onToggleIncludeSourcesInBackup,
                             onRequestAppLockChange = handleAppLockToggle,
                             onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
+                            onToggleShowDownloadBadge = onToggleShowDownloadBadge,
                             onSaveSourceCredentials = onSaveSourceCredentials,
                         )
                     }

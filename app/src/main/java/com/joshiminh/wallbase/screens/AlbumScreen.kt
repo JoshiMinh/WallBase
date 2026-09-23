@@ -437,6 +437,7 @@ fun AlbumScreen(
                                     .fillMaxWidth(),
                                 columns = state.wallpaperGridColumns,
                                 layout = state.wallpaperLayout,
+                                showDownloadedBadge = state.showDownloadBadge,
                                 contentPadding = PaddingValues(
                                     start = 4.dp,
                                     top = topBarInsetPadding(4.dp),
@@ -455,6 +456,7 @@ fun AlbumScreen(
                                     .fillMaxWidth(),
                                 columns = state.wallpaperGridColumns,
                                 layout = state.wallpaperLayout,
+                                showDownloadedBadge = state.showDownloadBadge,
                                 contentPadding = PaddingValues(
                                     start = 4.dp,
                                     top = topBarInsetPadding(4.dp),

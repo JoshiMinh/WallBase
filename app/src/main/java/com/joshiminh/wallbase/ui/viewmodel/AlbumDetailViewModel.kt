@@ -80,7 +80,8 @@ class AlbumDetailViewModel(
                         isRemovingDownloads = base.isRemoving,
                         message = base.message,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
-                        wallpaperLayout = layout
+                        wallpaperLayout = layout,
+                        showDownloadBadge = preferences.showDownloadBadge
                     )
                 } else {
                     val sorted = base.detail.wallpapers.sortedWith(base.sort)
@@ -95,7 +96,8 @@ class AlbumDetailViewModel(
                         isRemovingDownloads = base.isRemoving,
                         message = base.message,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
-                        wallpaperLayout = layout
+                        wallpaperLayout = layout,
+                        showDownloadBadge = preferences.showDownloadBadge
                     )
                 }
             }
@@ -271,6 +273,7 @@ class AlbumDetailViewModel(
         val showRemoveDownloadsConfirmation: Boolean = false,
         val wallpaperGridColumns: Int = 2,
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,
+        val showDownloadBadge: Boolean = true,
         val isRenamingAlbum: Boolean = false,
         val isDeletingAlbum: Boolean = false,
         val isAlbumDeleted: Boolean = false

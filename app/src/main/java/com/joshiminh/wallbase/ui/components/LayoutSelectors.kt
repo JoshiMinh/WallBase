@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ViewQuilt
 import androidx.compose.material.icons.outlined.Check
@@ -44,8 +45,9 @@ fun GridColumnPicker(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 4.dp)
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -60,16 +62,16 @@ fun GridColumnPicker(
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp),
-                    shape = WallBaseShapes.control,
+                    shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(
-                        1.dp,
+                        if (selected) 1.5.dp else 1.dp,
                         if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                        else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
                     ),
                     color = if (selected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
                     } else {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        MaterialTheme.colorScheme.surfaceContainer
                     }
                 ) {
                     Row(
@@ -92,8 +94,8 @@ fun GridColumnPicker(
                         Text(
                             text = "$count $suffix",
                             style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                            color = MaterialTheme.colorScheme.onSurface
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -113,8 +115,9 @@ fun WallpaperLayoutPicker(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 4.dp)
         )
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             WallpaperLayout.entries.forEach { layout ->
@@ -149,8 +152,9 @@ fun AlbumLayoutPicker(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 4.dp)
         )
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AlbumLayout.entries.forEach { layout ->
@@ -183,14 +187,14 @@ private fun LayoutChoiceCard(
         modifier = Modifier.fillMaxWidth(),
         shape = WallBaseShapes.card,
         border = BorderStroke(
-            1.dp,
+            if (selected) 1.5.dp else 1.dp,
             if (selected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+            else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
         ),
         color = if (selected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
         } else {
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+            MaterialTheme.colorScheme.surfaceContainer
         }
     ) {
         Row(
@@ -212,8 +216,8 @@ private fun LayoutChoiceCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = description,

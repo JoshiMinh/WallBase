@@ -37,6 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Storage
@@ -130,6 +131,7 @@ fun SettingsScreen(
     onToggleIncludeSourcesInBackup: (Boolean) -> Unit,
     onRequestAppLockChange: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
+    onToggleShowDownloadBadge: (Boolean) -> Unit,
     onSaveSourceCredentials: (String) -> Unit,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -226,6 +228,15 @@ fun SettingsScreen(
                                 subtitle = "Hide wallpapers that aren't designed for phone screens.",
                                 checked = !uiState.showHorizontalWallpapers,
                                 onCheckedChange = { onToggleShowHorizontalWallpapers(!it) }
+                            )
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            SettingsToggleRow(
+                                title = "Show download badge",
+                                subtitle = "Display a downloaded icon badge on saved wallpapers.",
+                                checked = uiState.showDownloadBadge,
+                                onCheckedChange = onToggleShowDownloadBadge
                             )
                         }
                     }
@@ -360,48 +371,32 @@ fun SettingsScreen(
 
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(imageVector = Icons.Outlined.CleaningServices, contentDescription = null)
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Outlined.CleaningServices, contentDescription = null)
-                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                        Text(
-                                            text = "Remove",
-                                            style = MaterialTheme.typography.titleMedium
-                                        )
-                                        Text(
-                                            text = "Clear cached wallpaper files.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                                    maxItemsInEachRow = 2
-                                ) {
-                                    CacheActionButton(
-                                        modifier = Modifier.weight(1f),
-                                        text = "Previews",
-                                        icon = Icons.Outlined.Image,
-                                        onClick = onClearPreviewCache,
-                                        enabled = !uiState.isClearingPreviews,
-                                        showProgress = uiState.isClearingPreviews
+                                    Text(
+                                        text = "Remove downloads",
+                                        style = MaterialTheme.typography.titleMedium
                                     )
-                                    CacheActionButton(
-                                        modifier = Modifier.weight(1f),
-                                        text = "Downloads",
-                                        icon = Icons.Outlined.Storage,
-                                        onClick = onClearOriginals,
-                                        enabled = !uiState.isClearingOriginals,
-                                        showProgress = uiState.isClearingOriginals
+                                    Text(
+                                        text = "Clear all downloaded wallpaper files.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
+                                SettingsActionButton(
+                                    text = if (uiState.isClearingOriginals) "Removing…" else "Remove",
+                                    enabled = !uiState.isClearingOriginals,
+                                    showProgress = uiState.isClearingOriginals,
+                                    onClick = onClearOriginals
+                                )
                             }
                         }
                     }
@@ -411,7 +406,7 @@ fun SettingsScreen(
             item {
                 SettingsSection(spacing = 8.dp) {
                     Text(
-                        text = "Backup",
+                        text = "Backup & Restore",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -430,11 +425,11 @@ fun SettingsScreen(
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Text(
-                                        text = "Export library",
+                                        text = "Export data",
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(
-                                        text = "Save your library and albums as a backup file.",
+                                        text = "Save your library, albums, sources, and settings as a backup file.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -452,7 +447,8 @@ fun SettingsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp),
-                                thickness = DividerDefaults.Thickness, color = MaterialTheme.colorScheme.outlineVariant
+                                thickness = DividerDefaults.Thickness,
+                                color = MaterialTheme.colorScheme.outlineVariant
                             )
 
                             Row(
@@ -467,11 +463,11 @@ fun SettingsScreen(
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Text(
-                                        text = "Import backup",
+                                        text = "Import data",
                                         style = MaterialTheme.typography.titleMedium
                                     )
                                     Text(
-                                        text = "Restore your sources, library, and albums from a backup file.",
+                                        text = "Restore your library, albums, sources, and settings from a backup file.",
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -523,6 +519,55 @@ fun SettingsScreen(
                             Switch(
                                 checked = uiState.appLockEnabled,
                                 onCheckedChange = onRequestAppLockChange
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsSection(spacing = 8.dp) {
+                    Text(
+                        text = "Support",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    SettingsCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    uriHandler.openUri("https://ko-fi.com/joshiminh")
+                                }
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Favorite,
+                                contentDescription = "Ko-fi Donation",
+                                tint = AccentPink
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = "Support on Ko-fi",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Buy me a coffee to support WallBase development.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
