@@ -180,7 +180,13 @@ class DatabaseBackupManager @Inject constructor(
                 DATA_TABLES.forEach { table ->
                     sqliteDb.execSQL("DELETE FROM $table")
                     if (sqliteDb.hasTable("backup", table)) {
-                        sqliteDb.execSQL("INSERT INTO $table SELECT * FROM backup.$table")
+                        val mainCols = sqliteDb.getTableColumns("main", table).toSet()
+                        val backupCols = sqliteDb.getTableColumns("backup", table).toSet()
+                        val commonCols = mainCols.intersect(backupCols)
+                        if (commonCols.isNotEmpty()) {
+                            val columnList = commonCols.joinToString(", ") { "`$it`" }
+                            sqliteDb.execSQL("INSERT OR REPLACE INTO `$table` ($columnList) SELECT $columnList FROM backup.`$table`")
+                        }
                     }
                 }
 
@@ -278,7 +284,26 @@ class DatabaseBackupManager @Inject constructor(
         }
 
         val dbFile = databaseFile ?: error("Backup package is missing database contents")
-        return ExtractedPackage(databaseFile = dbFile, manifestJson = manifestJson)
+        return ExtractedPackage(
+            databaseFile = dbFile,
+            manifestJson = manifestJson,
+            settingsJson = settingsJson
+        )
+    }
+
+    private fun SupportSQLiteDatabase.getTableColumns(databaseName: String, tableName: String): List<String> {
+        val columns = mutableListOf<String>()
+        runCatching {
+            query("PRAGMA $databaseName.table_info($tableName)").use { cursor ->
+                val nameIndex = cursor.getColumnIndex("name")
+                while (cursor.moveToNext()) {
+                    if (nameIndex >= 0) {
+                        columns.add(cursor.getString(nameIndex))
+                    }
+                }
+            }
+        }
+        return columns
     }
 
     private fun SupportSQLiteDatabase.hasTable(databaseName: String, tableName: String): Boolean {

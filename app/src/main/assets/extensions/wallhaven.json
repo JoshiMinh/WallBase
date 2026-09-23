@@ -1,0 +1,106 @@
+{
+  "$schema": "https://wallbase.app/schemas/source-v1.json",
+  "id": "wallhaven",
+  "name": "Wallhaven",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=wallhaven.cc",
+  "baseUrl": "https://wallhaven.cc",
+  "description": "High quality community wallpapers and anime artwork from Wallhaven",
+  "author": "WallBase Community",
+  "isNsfw": false,
+  "feeds": [
+    {
+      "id": "toplist",
+      "title": "Toplist",
+      "url": "https://wallhaven.cc/api/v1/search?sorting=toplist&page={page}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "json",
+        "itemSelector": "data",
+        "fields": {
+          "id": { "jsonPath": "id" },
+          "title": { "jsonPath": "id", "defaultValue": "Wallhaven Wallpaper" },
+          "thumbnailUrl": { "jsonPath": "thumbs.large" },
+          "fullUrl": { "jsonPath": "path" },
+          "sourceUrl": { "jsonPath": "url" },
+          "width": { "jsonPath": "dimension_x" },
+          "height": { "jsonPath": "dimension_y" }
+        }
+      }
+    },
+    {
+      "id": "latest",
+      "title": "Latest Wallpapers",
+      "url": "https://wallhaven.cc/api/v1/search?sorting=date_added&page={page}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "json",
+        "itemSelector": "data",
+        "fields": {
+          "id": { "jsonPath": "id" },
+          "title": { "jsonPath": "id", "defaultValue": "Wallhaven Wallpaper" },
+          "thumbnailUrl": { "jsonPath": "thumbs.large" },
+          "fullUrl": { "jsonPath": "path" },
+          "sourceUrl": { "jsonPath": "url" },
+          "width": { "jsonPath": "dimension_x" },
+          "height": { "jsonPath": "dimension_y" }
+        }
+      }
+    },
+    {
+      "id": "random",
+      "title": "Random Wallpapers",
+      "url": "https://wallhaven.cc/api/v1/search?sorting=random&page={page}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "json",
+        "itemSelector": "data",
+        "fields": {
+          "id": { "jsonPath": "id" },
+          "title": { "jsonPath": "id", "defaultValue": "Wallhaven Wallpaper" },
+          "thumbnailUrl": { "jsonPath": "thumbs.large" },
+          "fullUrl": { "jsonPath": "path" },
+          "sourceUrl": { "jsonPath": "url" },
+          "width": { "jsonPath": "dimension_x" },
+          "height": { "jsonPath": "dimension_y" }
+        }
+      }
+    }
+  ],
+  "search": {
+    "id": "search",
+    "title": "Search Wallhaven",
+    "url": "https://wallhaven.cc/api/v1/search?q={query}&page={page}",
+    "pagination": {
+      "type": "page_number",
+      "startPage": 1,
+      "step": 1
+    },
+    "extraction": {
+      "format": "json",
+      "itemSelector": "data",
+      "fields": {
+        "id": { "jsonPath": "id" },
+        "title": { "jsonPath": "id", "defaultValue": "Wallhaven Wallpaper" },
+        "thumbnailUrl": { "jsonPath": "thumbs.large" },
+        "fullUrl": { "jsonPath": "path" },
+        "sourceUrl": { "jsonPath": "url" },
+        "width": { "jsonPath": "dimension_x" },
+        "height": { "jsonPath": "dimension_y" }
+      }
+    }
+  }
+}

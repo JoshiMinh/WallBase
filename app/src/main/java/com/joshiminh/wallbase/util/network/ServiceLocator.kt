@@ -136,12 +136,31 @@ object ServiceLocator {
         WallBaseDatabase.getInstance(context)
     }
 
+    val declarativeScraperEngine: com.joshiminh.wallbase.scraper.engine.DeclarativeScraperEngine by lazy {
+        com.joshiminh.wallbase.scraper.engine.DeclarativeScraperEngine(
+            okHttpClient = okHttpClient,
+            moshi = moshi
+        )
+    }
+
+    val extensionRepositoryManager: com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager by lazy {
+        com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager(
+            context = context,
+            moshi = moshi,
+            okHttpClient = okHttpClient,
+            sourceDao = database.sourceDao(),
+            dataStore = context.settingsDataStore
+        )
+    }
+
     val wallpaperRepository: WallpaperRepository by lazy {
         WallpaperRepository(
             redditService = redditService,
             webScraper = scraper,
             wallhavenService = wallhavenService,
-            credentialStore = sourceCredentialStore
+            credentialStore = sourceCredentialStore,
+            declarativeScraperEngine = declarativeScraperEngine,
+            extensionRepositoryManager = extensionRepositoryManager
         )
     }
 
@@ -149,7 +168,8 @@ object ServiceLocator {
         SourceRepository(
             sourceDao = database.sourceDao(),
             wallpaperDao = database.wallpaperDao(),
-            localStorage = localStorageCoordinator
+            localStorage = localStorageCoordinator,
+            extensionRepositoryManager = extensionRepositoryManager
         )
     }
 

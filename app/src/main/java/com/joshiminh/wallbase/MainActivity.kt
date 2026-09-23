@@ -35,7 +35,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         ServiceLocator.ensureInitialized(this)
         lifecycleScope.launch(Dispatchers.IO) {
-            runCatching { WallBaseDatabase.getInstance(applicationContext) }
+            runCatching {
+                WallBaseDatabase.getInstance(applicationContext)
+                ServiceLocator.extensionRepositoryManager.ensureDefaultExtensionsInstalled()
+            }
         }
         SingletonImageLoader.setSafe { context ->
             ImageLoader.Builder(context)

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://wallbase.app/schemas/source-v1.json",
+  "id": "alphacoders",
+  "name": "AlphaCoders",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "iconUrl": "https://images.alphacoders.com/icons/favicon.ico",
+  "baseUrl": "https://wall.alphacoders.com",
+  "description": "Ultra HD anime, gaming, sci-fi, movies, and pop-culture wallpapers",
+  "author": "WallBase Community",
+  "isNsfw": false,
+  "feeds": [
+    {
+      "id": "newest",
+      "title": "Newest Wallpapers",
+      "url": "https://wall.alphacoders.com/newest_wallpapers.php?page={page}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "html",
+        "itemSelector": ".thumb-container-big",
+        "fields": {
+          "id": { "selector": "a[href*='wallpaper']", "attribute": "href", "regex": "wallpaper/([0-9]+)" },
+          "title": { "selector": "img.thumb-img", "attribute": "alt" },
+          "thumbnailUrl": { "selector": "img.thumb-img", "attribute": "src" },
+          "fullUrl": {
+            "selector": "img.thumb-img",
+            "attribute": "src",
+            "regexReplace": { "find": "/thumb-[^/]+-", "replace": "/" }
+          },
+          "sourceUrl": { "selector": "a[href*='wallpaper']", "attribute": "href" }
+        }
+      }
+    },
+    {
+      "id": "featured",
+      "title": "Featured / Popular",
+      "url": "https://wall.alphacoders.com/featured.php?page={page}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "html",
+        "itemSelector": ".thumb-container-big",
+        "fields": {
+          "id": { "selector": "a[href*='wallpaper']", "attribute": "href", "regex": "wallpaper/([0-9]+)" },
+          "title": { "selector": "img.thumb-img", "attribute": "alt" },
+          "thumbnailUrl": { "selector": "img.thumb-img", "attribute": "src" },
+          "fullUrl": {
+            "selector": "img.thumb-img",
+            "attribute": "src",
+            "regexReplace": { "find": "/thumb-[^/]+-", "replace": "/" }
+          },
+          "sourceUrl": { "selector": "a[href*='wallpaper']", "attribute": "href" }
+        }
+      }
+    }
+  ],
+  "search": {
+    "id": "search",
+    "title": "Search Wallpapers",
+    "url": "https://wall.alphacoders.com/search.php?search={query}&page={page}",
+    "pagination": {
+      "type": "page_number",
+      "startPage": 1,
+      "step": 1
+    },
+    "extraction": {
+      "format": "html",
+      "itemSelector": ".thumb-container-big",
+      "fields": {
+        "id": { "selector": "a[href*='wallpaper']", "attribute": "href", "regex": "wallpaper/([0-9]+)" },
+        "title": { "selector": "img.thumb-img", "attribute": "alt" },
+        "thumbnailUrl": { "selector": "img.thumb-img", "attribute": "src" },
+        "fullUrl": {
+          "selector": "img.thumb-img",
+          "attribute": "src",
+          "regexReplace": { "find": "/thumb-[^/]+-", "replace": "/" }
+        },
+        "sourceUrl": { "selector": "a[href*='wallpaper']", "attribute": "href" }
+      }
+    }
+  }
+}
+

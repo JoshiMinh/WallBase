@@ -1,0 +1,90 @@
+{
+  "$schema": "https://wallbase.app/schemas/source-v1.json",
+  "id": "pexels",
+  "name": "Pexels",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "iconUrl": "https://www.pexels.com/favicon.ico",
+  "baseUrl": "https://www.pexels.com",
+  "description": "Free high-quality 4K stock photos and aesthetic phone wallpapers",
+  "author": "WallBase Community",
+  "isNsfw": false,
+  "feeds": [
+    {
+      "id": "wallpapers",
+      "title": "Aesthetic Wallpapers",
+      "url": "https://www.pexels.com/search/wallpaper/?page={page}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "html",
+        "itemSelector": "article[data-testid='item']",
+        "fields": {
+          "id": { "selector": "a[href*='photo']", "attribute": "href", "regex": "photo/([0-9]+)" },
+          "title": { "selector": "img", "attribute": "alt" },
+          "thumbnailUrl": { "selector": "img", "attribute": "src" },
+          "fullUrl": {
+            "selector": "img",
+            "attribute": "src",
+            "regexReplace": { "find": "auto=compress&cs=tinysrgb&dpr=[0-9]&w=[0-9]+", "replace": "auto=compress&cs=tinysrgb&h=2560" }
+          },
+          "sourceUrl": { "selector": "a[href*='photo']", "attribute": "href" }
+        }
+      }
+    },
+    {
+      "id": "phone_wallpapers",
+      "title": "Phone Wallpapers",
+      "url": "https://www.pexels.com/search/phone%20wallpaper/?page={page}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "html",
+        "itemSelector": "article[data-testid='item']",
+        "fields": {
+          "id": { "selector": "a[href*='photo']", "attribute": "href", "regex": "photo/([0-9]+)" },
+          "title": { "selector": "img", "attribute": "alt" },
+          "thumbnailUrl": { "selector": "img", "attribute": "src" },
+          "fullUrl": {
+            "selector": "img",
+            "attribute": "src",
+            "regexReplace": { "find": "auto=compress&cs=tinysrgb&dpr=[0-9]&w=[0-9]+", "replace": "auto=compress&cs=tinysrgb&h=2560" }
+          },
+          "sourceUrl": { "selector": "a[href*='photo']", "attribute": "href" }
+        }
+      }
+    }
+  ],
+  "search": {
+    "id": "search",
+    "title": "Search Pexels",
+    "url": "https://www.pexels.com/search/{query}/?page={page}",
+    "pagination": {
+      "type": "page_number",
+      "startPage": 1,
+      "step": 1
+    },
+    "extraction": {
+      "format": "html",
+      "itemSelector": "article[data-testid='item']",
+      "fields": {
+        "id": { "selector": "a[href*='photo']", "attribute": "href", "regex": "photo/([0-9]+)" },
+        "title": { "selector": "img", "attribute": "alt" },
+        "thumbnailUrl": { "selector": "img", "attribute": "src" },
+        "fullUrl": {
+          "selector": "img",
+          "attribute": "src",
+          "regexReplace": { "find": "auto=compress&cs=tinysrgb&dpr=[0-9]&w=[0-9]+", "replace": "auto=compress&cs=tinysrgb&h=2560" }
+        },
+        "sourceUrl": { "selector": "a[href*='photo']", "attribute": "href" }
+      }
+    }
+  }
+}
+

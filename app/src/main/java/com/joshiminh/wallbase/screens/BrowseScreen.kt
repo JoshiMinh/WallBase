@@ -27,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.Button
@@ -85,16 +86,23 @@ fun BrowseScreen(
     onRemoveSource: (Source, Boolean) -> Unit,
     onMessageShown: () -> Unit,
     onSourceUrlCopied: (String) -> Unit,
+    onOpenExtensions: () -> Unit = {},
     onConfigureTopBar: (TopBarState) -> TopBarHandle
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingRemoval by remember { mutableStateOf<Source?>(null) }
     var showAddSourceModal by remember { mutableStateOf(false) }
 
-    // Configure TopBar with Add Source button
+    // Configure TopBar with Extensions & Add Source button
     val topBarState = TopBarState(
         title = "Browse",
         actions = {
+            IconButton(onClick = onOpenExtensions) {
+                Icon(
+                    imageVector = Icons.Outlined.Extension,
+                    contentDescription = "Extensions & Community Sources"
+                )
+            }
             IconButton(onClick = { showAddSourceModal = true }) {
                 Icon(
                     imageVector = Icons.Outlined.Add,
@@ -192,7 +200,16 @@ fun BrowseScreen(
                 onAddRedditCommunity(community)
                 showAddSourceModal = false
             },
+            onQuickAdd = { quickInput ->
+                onUpdateSourceInput(quickInput)
+                onAddSourceFromInput()
+                showAddSourceModal = false
+            },
             onClearResults = onClearSearchResults,
+            onOpenExtensions = {
+                showAddSourceModal = false
+                onOpenExtensions()
+            },
             onDismiss = { showAddSourceModal = false }
         )
     }
@@ -222,17 +239,20 @@ private fun AddSourceBottomSheet(
     onSearch: () -> Unit,
     onAddSource: () -> Unit,
     onAddResult: (RedditCommunity) -> Unit,
+    onQuickAdd: (String) -> Unit,
     onClearResults: () -> Unit,
+    onOpenExtensions: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val isReddit = detectedType == SourceRepository.RemoteSourceType.REDDIT
     val canSearch = isReddit && input.trim().length >= 2 && !isSearching
-    val canAdd = detectedType != null && input.isNotBlank() && !isSearching
+    val canAdd = input.trim().isNotBlank() && !isSearching
 
     val sheetTitle = when (detectedType) {
         SourceRepository.RemoteSourceType.REDDIT -> "Add Reddit source"
         SourceRepository.RemoteSourceType.WALLHAVEN -> "Add Wallhaven source"
         SourceRepository.RemoteSourceType.PINTEREST -> "Add Pinterest source"
+        SourceRepository.RemoteSourceType.EXTENSION -> "Add Extension source"
         SourceRepository.RemoteSourceType.WEBSITE -> "Add Website source"
         null -> "Add source"
     }
@@ -240,15 +260,17 @@ private fun AddSourceBottomSheet(
         SourceRepository.RemoteSourceType.REDDIT -> "Enter a subreddit name (e.g. r/wallpapers) or Reddit link."
         SourceRepository.RemoteSourceType.WALLHAVEN -> "Paste a public Wallhaven search or collection link."
         SourceRepository.RemoteSourceType.PINTEREST -> "Enter a Pinterest board, profile (@username), or URL."
+        SourceRepository.RemoteSourceType.EXTENSION -> "Install or enable this community declarative extension."
         SourceRepository.RemoteSourceType.WEBSITE -> "Paste a wallpaper website link."
-        null -> "Enter a subreddit name, or paste a Wallhaven, Pinterest, or website link."
+        null -> "Enter a subreddit name, extension name (e.g. AlphaCoders, Unsplash, Pexels, Pixiv, Safebooru), or paste a wallpaper link."
     }
     val inputLabel = when (detectedType) {
         SourceRepository.RemoteSourceType.REDDIT -> "Subreddit name or URL"
         SourceRepository.RemoteSourceType.WALLHAVEN -> "Wallhaven URL"
         SourceRepository.RemoteSourceType.PINTEREST -> "Pinterest board, @username, or URL"
+        SourceRepository.RemoteSourceType.EXTENSION -> "Extension name or ID"
         SourceRepository.RemoteSourceType.WEBSITE -> "Website URL"
-        null -> "Subreddit, Pinterest, or wallpaper URL"
+        null -> "Subreddit, extension, or wallpaper URL"
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -281,9 +303,6 @@ private fun AddSourceBottomSheet(
                     })
                 )
             }
-            item("supported_sources") {
-                SupportedSourcesList(onSelectSourceInput = onInputChange)
-            }
             item("add_action") {
                 Button(
                     onClick = onAddSource,
@@ -292,6 +311,14 @@ private fun AddSourceBottomSheet(
                 ) {
                     Text("Add Source")
                 }
+            }
+
+            item("supported_sources") {
+                SupportedSourcesList(
+                    onSelectSourceInput = onInputChange,
+                    onQuickAdd = onQuickAdd,
+                    onOpenExtensions = onOpenExtensions
+                )
             }
 
             if (isReddit) {
@@ -306,16 +333,6 @@ private fun AddSourceBottomSheet(
                             }
                         }
                     }
-                }
-            }
-
-            if (input.isNotBlank() && detectedType == null) {
-                item("invalid_hint") {
-                    Text(
-                        text = "Enter a subreddit (e.g. r/wallpapers), or a Wallhaven, Pinterest, or wallpaper website URL.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
                 }
             }
 
@@ -358,20 +375,52 @@ private fun AddSourceBottomSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SupportedSourcesList(
-    onSelectSourceInput: (String) -> Unit
+    onSelectSourceInput: (String) -> Unit,
+    onQuickAdd: (String) -> Unit,
+    onOpenExtensions: () -> Unit
 ) {
     val sources = listOf(
+        SupportedSourceInfo(
+            label = "AlphaCoders",
+            faviconDomain = "wall.alphacoders.com",
+            quickAddInput = "alphacoders",
+            requirement = "Declarative Scraper • Anime & Gaming wallpapers"
+        ),
+        SupportedSourceInfo(
+            label = "Unsplash",
+            faviconDomain = "unsplash.com",
+            quickAddInput = "unsplash",
+            requirement = "Declarative API • High-res curated photography"
+        ),
+        SupportedSourceInfo(
+            label = "Pexels",
+            faviconDomain = "pexels.com",
+            quickAddInput = "pexels",
+            requirement = "Declarative API • Free stock wallpapers"
+        ),
+        SupportedSourceInfo(
+            label = "Pixiv",
+            faviconDomain = "pixiv.net",
+            quickAddInput = "pixiv",
+            requirement = "Declarative Scraper • Japanese anime art catalog"
+        ),
+        SupportedSourceInfo(
+            label = "Safebooru",
+            faviconDomain = "safebooru.org",
+            quickAddInput = "safebooru",
+            requirement = "Declarative API • Tagged anime illustrations"
+        ),
         SupportedSourceInfo(
             label = "Wallhaven",
             faviconDomain = "wallhaven.cc",
             quickAddInput = "https://wallhaven.cc/toplist",
-            requirement = "Public API — no account or key required"
+            requirement = "Declarative API • Toplist & tag searches"
         ),
         SupportedSourceInfo(
             label = "Reddit",
             faviconDomain = "reddit.com",
             quickAddInput = "r/wallpapers",
-            requirement = "Subreddits like r/wallpapers, r/wallpaper"
+            requirement = "Subreddits like r/wallpapers, r/AnimeWallpaper"
         ),
         SupportedSourceInfo(
             label = "Pinterest",
@@ -383,7 +432,7 @@ private fun SupportedSourcesList(
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            text = "Supported sources",
+            text = "Supported sources & extensions",
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -426,6 +475,46 @@ private fun SupportedSourcesList(
                             )
                         }
                     }
+                    if (source.quickAddInput != null) {
+                        TextButton(onClick = { onQuickAdd(source.quickAddInput) }) {
+                            Text("Add")
+                        }
+                    }
+                }
+            }
+        }
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+            onClick = onOpenExtensions
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Extension,
+                    contentDescription = "Extensions & Custom Repos",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Extensions & Community Repos",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "Import custom JSON scrapers or subscribe to repo.json feeds",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    )
                 }
             }
         }

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://wallbase.app/schemas/source-v1.json",
+  "id": "unsplash",
+  "name": "Unsplash",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "iconUrl": "https://unsplash.com/favicon-32x32.png",
+  "baseUrl": "https://unsplash.com",
+  "description": "High-resolution photography and curated aesthetic wallpapers",
+  "author": "WallBase Community",
+  "isNsfw": false,
+  "headers": {
+    "Accept": "application/json"
+  },
+  "feeds": [
+    {
+      "id": "wallpapers",
+      "title": "Wallpapers Editorial",
+      "url": "https://unsplash.com/napi/topics/wallpapers/photos?page={page}&per_page={limit}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "json",
+        "fields": {
+          "id": { "jsonPath": "id" },
+          "title": { "jsonPath": "alt_description", "defaultValue": "Unsplash Photo" },
+          "thumbnailUrl": { "jsonPath": "urls.regular" },
+          "fullUrl": { "jsonPath": "urls.full" },
+          "sourceUrl": { "jsonPath": "links.html" },
+          "width": { "jsonPath": "width" },
+          "height": { "jsonPath": "height" }
+        }
+      }
+    },
+    {
+      "id": "curated",
+      "title": "Curated Photos",
+      "url": "https://unsplash.com/napi/photos?page={page}&per_page={limit}&order_by=popular",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "json",
+        "fields": {
+          "id": { "jsonPath": "id" },
+          "title": { "jsonPath": "alt_description", "defaultValue": "Unsplash Photo" },
+          "thumbnailUrl": { "jsonPath": "urls.regular" },
+          "fullUrl": { "jsonPath": "urls.full" },
+          "sourceUrl": { "jsonPath": "links.html" },
+          "width": { "jsonPath": "width" },
+          "height": { "jsonPath": "height" }
+        }
+      }
+    }
+  ],
+  "search": {
+    "id": "search",
+    "title": "Search Unsplash",
+    "url": "https://unsplash.com/napi/search/photos?query={query}&page={page}&per_page={limit}",
+    "pagination": {
+      "type": "page_number",
+      "startPage": 1,
+      "step": 1
+    },
+    "extraction": {
+      "format": "json",
+      "itemSelector": "results",
+      "fields": {
+        "id": { "jsonPath": "id" },
+        "title": { "jsonPath": "alt_description", "defaultValue": "Unsplash Photo" },
+        "thumbnailUrl": { "jsonPath": "urls.regular" },
+        "fullUrl": { "jsonPath": "urls.full" },
+        "sourceUrl": { "jsonPath": "links.html" },
+        "width": { "jsonPath": "width" },
+        "height": { "jsonPath": "height" }
+      }
+    }
+  }
+}
+

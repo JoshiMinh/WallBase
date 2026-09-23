@@ -133,6 +133,7 @@ fun SettingsScreen(
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
     onToggleShowDownloadBadge: (Boolean) -> Unit,
     onSaveSourceCredentials: (String) -> Unit,
+    onOpenExtensions: () -> Unit = {},
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -398,6 +399,48 @@ fun SettingsScreen(
                                     onClick = onClearOriginals
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            item {
+                SettingsSection(spacing = 8.dp) {
+                    Text(
+                        text = "Extensions & Sources",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    SettingsCard {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Extensions & Scrapers",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = "Browse community catalogs, manage repositories, and test custom scraper rules.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            SettingsActionButton(
+                                text = "Manage",
+                                enabled = true,
+                                showProgress = false,
+                                onClick = onOpenExtensions
+                            )
                         }
                     }
                 }

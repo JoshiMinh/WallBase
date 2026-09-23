@@ -1,0 +1,58 @@
+{
+  "$schema": "https://wallbase.app/schemas/source-v1.json",
+  "id": "safebooru",
+  "name": "Safebooru",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "iconUrl": "https://safebooru.org/favicon.ico",
+  "baseUrl": "https://safebooru.org",
+  "description": "Clean anime wallpaper & illustration tags repository",
+  "author": "WallBase Community",
+  "isNsfw": false,
+  "feeds": [
+    {
+      "id": "recent",
+      "title": "Recent Uploads",
+      "url": "https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&pid={page}&limit={limit}",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 0,
+        "step": 1
+      },
+      "extraction": {
+        "format": "json",
+        "fields": {
+          "id": { "jsonPath": "id" },
+          "title": { "jsonPath": "tags", "defaultValue": "Safebooru Anime Artwork" },
+          "thumbnailUrl": { "jsonPath": "preview_url" },
+          "fullUrl": { "jsonPath": "file_url" },
+          "sourceUrl": { "jsonPath": "id", "defaultValue": "https://safebooru.org" },
+          "width": { "jsonPath": "width" },
+          "height": { "jsonPath": "height" }
+        }
+      }
+    }
+  ],
+  "search": {
+    "id": "search",
+    "title": "Tag Search",
+    "url": "https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1&tags={query}&pid={page}&limit={limit}",
+    "pagination": {
+      "type": "page_number",
+      "startPage": 0,
+      "step": 1
+    },
+    "extraction": {
+      "format": "json",
+      "fields": {
+        "id": { "jsonPath": "id" },
+        "title": { "jsonPath": "tags", "defaultValue": "Safebooru Anime Artwork" },
+        "thumbnailUrl": { "jsonPath": "preview_url" },
+        "fullUrl": { "jsonPath": "file_url" },
+        "width": { "jsonPath": "width" },
+        "height": { "jsonPath": "height" }
+      }
+    }
+  }
+}
+

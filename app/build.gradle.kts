@@ -137,4 +137,79 @@ dependencies {
     // Paging 3
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
+
+    // Unit Tests
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+}
+
+val generateExtensionRepo = tasks.register("generateExtensionRepo") {
+    group = "extensions"
+    description = "Scans all extensions/*.json files and generates extensions/repo.json"
+
+    val extensionsDir = rootProject.file("extensions")
+    val repoFile = File(extensionsDir, "repo.json")
+
+    inputs.dir(extensionsDir)
+    outputs.file(repoFile)
+
+    doLast {
+        val slurper = groovy.json.JsonSlurper()
+        val manifestFiles = extensionsDir.listFiles { _, name -> name.endsWith(".json") && name != "repo.json" }
+            ?.sortedBy { it.name }
+            ?: emptyList()
+
+        val sources = manifestFiles.mapNotNull { file ->
+            try {
+                @Suppress("UNCHECKED_CAST")
+                val json = slurper.parse(file) as? Map<String, Any?> ?: return@mapNotNull null
+                val id = json["id"]?.toString() ?: file.nameWithoutExtension
+                val name = json["name"]?.toString() ?: id
+                val version = json["version"]?.toString() ?: "1.0.0"
+                val versionCode = (json["versionCode"] as? Number)?.toInt() ?: 1
+                val iconUrl = json["iconUrl"]?.toString()
+                val description = json["description"]?.toString() ?: "$name Wallpapers"
+                val author = json["author"]?.toString() ?: "JoshiMinh"
+                val isNsfw = json["isNsfw"] as? Boolean ?: false
+
+                mapOf(
+                    "id" to id,
+                    "name" to name,
+                    "version" to version,
+                    "versionCode" to versionCode,
+                    "iconUrl" to iconUrl,
+                    "description" to description,
+                    "author" to author,
+                    "manifestUrl" to "https://raw.githubusercontent.com/JoshiMinh/WallBase/main/extensions/${file.name}",
+                    "isNsfw" to isNsfw
+                )
+            } catch (e: Exception) {
+                logger.warn("Skipping malformed extension manifest: ${file.name}: ${e.message}")
+                null
+            }
+        }
+
+        val repoData = mapOf(
+            "name" to "WallBase Official Extensions Repository",
+            "author" to "JoshiMinh",
+            "website" to "https://github.com/JoshiMinh/WallBase",
+            "description" to "Official community declarative scraper extensions and source definitions for WallBase.",
+            "version" to 1,
+            "sources" to sources
+        )
+
+        val jsonOutput = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(repoData))
+        repoFile.writeText(jsonOutput + "\n")
+        println("Generated extensions/repo.json with ${sources.size} extensions.")
+    }
+}
+
+val syncRootExtensions = tasks.register<Copy>("syncRootExtensions") {
+    dependsOn(generateExtensionRepo)
+    from(rootProject.file("extensions"))
+    into(file("src/main/assets/extensions"))
+}
+
+tasks.matching { it.name.startsWith("generate") && it.name.contains("Assets") || it.name == "preBuild" }.configureEach {
+    dependsOn(syncRootExtensions)
 }

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://wallbase.app/schemas/source-v1.json",
+  "id": "pixiv",
+  "name": "Pixiv",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "iconUrl": "https://www.pixiv.net/favicon.ico",
+  "baseUrl": "https://www.pixiv.net",
+  "description": "Japanese illustration community, daily rankings, and anime art",
+  "author": "WallBase Community",
+  "isNsfw": false,
+  "headers": {
+    "Referer": "https://www.pixiv.net/"
+  },
+  "feeds": [
+    {
+      "id": "daily_ranking",
+      "title": "Daily Top Ranking",
+      "url": "https://www.pixiv.net/ranking.php?mode=daily&content=illust&p={page}&format=json",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "json",
+        "itemSelector": "contents",
+        "fields": {
+          "id": { "jsonPath": "illust_id" },
+          "title": { "jsonPath": "title" },
+          "thumbnailUrl": { "jsonPath": "url" },
+          "fullUrl": {
+            "jsonPath": "url",
+            "regexReplace": { "find": "/c/[0-9]+x[0-9]+_[0-9]+/custom-thumb/", "replace": "/img-original/" }
+          },
+          "sourceUrl": { "jsonPath": "illust_id", "transform": "prepend_base_url" },
+          "width": { "jsonPath": "width" },
+          "height": { "jsonPath": "height" }
+        }
+      }
+    },
+    {
+      "id": "weekly_ranking",
+      "title": "Weekly Top Ranking",
+      "url": "https://www.pixiv.net/ranking.php?mode=weekly&content=illust&p={page}&format=json",
+      "pagination": {
+        "type": "page_number",
+        "startPage": 1,
+        "step": 1
+      },
+      "extraction": {
+        "format": "json",
+        "itemSelector": "contents",
+        "fields": {
+          "id": { "jsonPath": "illust_id" },
+          "title": { "jsonPath": "title" },
+          "thumbnailUrl": { "jsonPath": "url" },
+          "fullUrl": {
+            "jsonPath": "url",
+            "regexReplace": { "find": "/c/[0-9]+x[0-9]+_[0-9]+/custom-thumb/", "replace": "/img-original/" }
+          },
+          "width": { "jsonPath": "width" },
+          "height": { "jsonPath": "height" }
+        }
+      }
+    }
+  ],
+  "search": {
+    "id": "search",
+    "title": "Search Pixiv",
+    "url": "https://www.pixiv.net/ajax/search/artworks/{query}?word={query}&order=date_d&mode=all&p={page}&s_mode=s_tag",
+    "pagination": {
+      "type": "page_number",
+      "startPage": 1,
+      "step": 1
+    },
+    "extraction": {
+      "format": "json",
+      "itemSelector": "body.illustManga.data",
+      "fields": {
+        "id": { "jsonPath": "id" },
+        "title": { "jsonPath": "title" },
+        "thumbnailUrl": { "jsonPath": "url" },
+        "fullUrl": { "jsonPath": "url" },
+        "width": { "jsonPath": "width" },
+        "height": { "jsonPath": "height" }
+      }
+    }
+  }
+}
+

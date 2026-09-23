@@ -24,14 +24,16 @@ import javax.inject.Singleton
 class SourceRepository @Inject constructor(
     private val sourceDao: SourceDao,
     private val wallpaperDao: WallpaperDao,
-    private val localStorage: LocalStorageCoordinator
+    private val localStorage: LocalStorageCoordinator,
+    private val extensionRepositoryManager: com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
 ) {
 
     enum class RemoteSourceType {
         REDDIT,
         PINTEREST,
         WALLHAVEN,
-        WEBSITE
+        WEBSITE,
+        EXTENSION
     }
 
     fun observeSources(): Flow<List<Source>> =
@@ -55,7 +57,7 @@ class SourceRepository @Inject constructor(
 
     suspend fun addSourceFromInput(input: String): Source {
         val parsed = parseRemoteSourceInput(input)
-            ?: throw IllegalArgumentException("Enter a supported subreddit or wallpaper URL.")
+            ?: throw IllegalArgumentException("Enter a supported subreddit, extension name, or wallpaper URL.")
         return when (parsed) {
             is RemoteSourceInput.Reddit -> addRedditSource(
                 slug = parsed.slug,
@@ -65,7 +67,16 @@ class SourceRepository @Inject constructor(
             is RemoteSourceInput.Wallhaven -> addWallhavenSource(parsed.url)
             is RemoteSourceInput.Pinterest -> addPinterestSource(parsed.url)
             is RemoteSourceInput.Website -> addWebsiteSource(parsed.url)
+            is RemoteSourceInput.Extension -> addExtensionSource(parsed.manifestId)
         }
+    }
+
+    private suspend fun addExtensionSource(manifestId: String): Source {
+        val manifest = extensionRepositoryManager.getManifestById(manifestId)
+            ?: throw IllegalArgumentException("Extension '$manifestId' not found.")
+        val entity = extensionRepositoryManager.installOrUpdateManifest(manifest)
+        sourceDao.setSourceEnabled(entity.key, true)
+        return entity.sanitized().toDomain()
     }
 
     suspend fun addRedditCommunity(community: RedditCommunity): Source {
@@ -152,7 +163,8 @@ class SourceRepository @Inject constructor(
             ?: throw IllegalArgumentException("Enter a subreddit name")
         val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.REDDIT, normalized)
         if (existing != null) {
-            throw IllegalStateException("Subreddit already added")
+            sourceDao.setSourceEnabled(existing.key, true)
+            return existing.sanitized().toDomain()
         }
 
         val entity = SourceEntity(
@@ -174,7 +186,8 @@ class SourceRepository @Inject constructor(
     private suspend fun addPinterestSource(url: NormalizedUrl): Source {
         val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.PINTEREST, url.value)
         if (existing != null) {
-            throw IllegalStateException("Source already added")
+            sourceDao.setSourceEnabled(existing.key, true)
+            return existing.sanitized().toDomain()
         }
 
         val metadata = buildWebsiteMetadata(url, RemoteSourceType.PINTEREST)
@@ -197,7 +210,8 @@ class SourceRepository @Inject constructor(
     private suspend fun addWallhavenSource(url: NormalizedUrl): Source {
         val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.WALLHAVEN, url.value)
         if (existing != null) {
-            throw IllegalStateException("Source already added")
+            sourceDao.setSourceEnabled(existing.key, true)
+            return existing.sanitized().toDomain()
         }
 
         val metadata = buildWebsiteMetadata(url, RemoteSourceType.WALLHAVEN)
@@ -220,7 +234,8 @@ class SourceRepository @Inject constructor(
     private suspend fun addWebsiteSource(url: NormalizedUrl): Source {
         val existing = sourceDao.findSourceByProviderAndConfig(SourceKeys.WEBSITES, url.value)
         if (existing != null) {
-            throw IllegalStateException("Source already added")
+            sourceDao.setSourceEnabled(existing.key, true)
+            return existing.sanitized().toDomain()
         }
 
         val metadata = buildWebsiteMetadata(url, RemoteSourceType.WEBSITE)
@@ -364,6 +379,18 @@ class SourceRepository @Inject constructor(
         val trimmed = input.trim()
         if (trimmed.isBlank()) return null
 
+        val lower = trimmed.lowercase(Locale.ROOT)
+        when (lower) {
+            "alphacoders", "alpha coders", "alpha_coders" -> return RemoteSourceInput.Extension("alphacoders")
+            "unsplash" -> return RemoteSourceInput.Extension("unsplash")
+            "pexels" -> return RemoteSourceInput.Extension("pexels")
+            "pixiv" -> return RemoteSourceInput.Extension("pixiv")
+            "safebooru", "safe booru" -> return RemoteSourceInput.Extension("safebooru")
+            "wallhaven" -> return RemoteSourceInput.Extension("wallhaven")
+            "reddit" -> return RemoteSourceInput.Extension("reddit")
+            "pinterest" -> return RemoteSourceInput.Extension("pinterest")
+        }
+
         if (trimmed.startsWith("@")) {
             val username = trimmed.removePrefix("@").trim()
             val pinterestUrl = "https://www.pinterest.com/$username/".tryNormalizeUrl()
@@ -372,40 +399,72 @@ class SourceRepository @Inject constructor(
             }
         }
 
+        // Subreddit check if prefixed with r/ or /r/
+        if (trimmed.startsWith("r/", ignoreCase = true) || trimmed.startsWith("/r/", ignoreCase = true)) {
+            val subreddit = trimmed.tryNormalizeSubreddit()
+            if (!subreddit.isNullOrBlank()) {
+                return RemoteSourceInput.Reddit(slug = subreddit)
+            }
+        }
+
+        val normalizedUrl = trimmed.tryNormalizeUrl()
+        if (normalizedUrl != null) {
+            val host = normalizedUrl.host
+
+            if (host == "x.com" || host.endsWith(".x.com") ||
+                host == "twitter.com" || host.endsWith(".twitter.com")
+            ) {
+                return null
+            }
+
+            return when {
+                host.contains("reddit", ignoreCase = true) -> {
+                    val slugFromUrl = normalizedUrl.value.tryNormalizeSubreddit()
+                    if (slugFromUrl != null) {
+                        RemoteSourceInput.Reddit(slugFromUrl)
+                    } else {
+                        null
+                    }
+                }
+
+                host.contains("alphacoders", ignoreCase = true) -> {
+                    RemoteSourceInput.Extension("alphacoders")
+                }
+
+                host.contains("unsplash", ignoreCase = true) -> {
+                    RemoteSourceInput.Extension("unsplash")
+                }
+
+                host.contains("pexels", ignoreCase = true) -> {
+                    RemoteSourceInput.Extension("pexels")
+                }
+
+                host.contains("pixiv", ignoreCase = true) -> {
+                    RemoteSourceInput.Extension("pixiv")
+                }
+
+                host.contains("safebooru", ignoreCase = true) -> {
+                    RemoteSourceInput.Extension("safebooru")
+                }
+
+                host.contains("wallhaven", ignoreCase = true) || host == "whvn.cc" -> {
+                    RemoteSourceInput.Wallhaven(normalizedUrl)
+                }
+
+                host.contains("pinterest", ignoreCase = true) || host == "pin.it" -> {
+                    RemoteSourceInput.Pinterest(normalizedUrl)
+                }
+
+                else -> RemoteSourceInput.Website(normalizedUrl)
+            }
+        }
+
         val subreddit = trimmed.tryNormalizeSubreddit()
         if (!subreddit.isNullOrBlank()) {
             return RemoteSourceInput.Reddit(slug = subreddit)
         }
 
-        val normalizedUrl = trimmed.tryNormalizeUrl() ?: return null
-        val host = normalizedUrl.host
-
-        if (host == "x.com" || host.endsWith(".x.com") ||
-            host == "twitter.com" || host.endsWith(".twitter.com")
-        ) {
-            return null
-        }
-
-        return when {
-            host.contains("reddit", ignoreCase = true) -> {
-                val slugFromUrl = normalizedUrl.value.tryNormalizeSubreddit()
-                if (slugFromUrl != null) {
-                    RemoteSourceInput.Reddit(slugFromUrl)
-                } else {
-                    null
-                }
-            }
-
-            host.contains("wallhaven", ignoreCase = true) || host == "whvn.cc" -> {
-                RemoteSourceInput.Wallhaven(normalizedUrl)
-            }
-
-            host.contains("pinterest", ignoreCase = true) || host == "pin.it" -> {
-                RemoteSourceInput.Pinterest(normalizedUrl)
-            }
-
-            else -> RemoteSourceInput.Website(normalizedUrl)
-        }
+        return null
     }
 
     private fun buildRedditKey(config: String): String = "${SourceKeys.REDDIT}:$config"
@@ -620,6 +679,8 @@ class SourceRepository @Inject constructor(
         class Pinterest(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.PINTEREST)
 
         class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
+
+        class Extension(val manifestId: String) : RemoteSourceInput(RemoteSourceType.EXTENSION)
     }
 
     private companion object {
@@ -629,6 +690,7 @@ class SourceRepository @Inject constructor(
             SourceKeys.REDDIT,
             SourceKeys.PINTEREST,
             SourceKeys.WEBSITES,
+            SourceKeys.EXTENSION,
         )
     }
 }

@@ -524,7 +524,16 @@ fun WallBaseApp(
                             onRemoveSource = onRemoveSource,
                             onMessageShown = onSourcesMessageShown,
                             onSourceUrlCopied = onSourceUrlCopied,
+                            onOpenExtensions = { navController.navigateSingleTop("extensions") },
                             onConfigureTopBar = acquireTopBar,
+                        )
+                    }
+
+                    composable("extensions") {
+                        val extensionsViewModel: ExtensionsViewModel = viewModel(factory = ExtensionsViewModel.Factory)
+                        ExtensionsScreen(
+                            viewModel = extensionsViewModel,
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
 
@@ -632,6 +641,7 @@ fun WallBaseApp(
                             onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
                             onToggleShowDownloadBadge = onToggleShowDownloadBadge,
                             onSaveSourceCredentials = onSaveSourceCredentials,
+                            onOpenExtensions = { navController.navigateSingleTop("extensions") },
                         )
                     }
                 }

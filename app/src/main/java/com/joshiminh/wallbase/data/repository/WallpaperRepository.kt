@@ -15,6 +15,8 @@ import com.joshiminh.wallbase.sources.WallhavenService
 import com.joshiminh.wallbase.sources.WallhavenWallpaper
 import com.joshiminh.wallbase.util.network.ScrapePage
 import com.joshiminh.wallbase.util.network.WebScraper
+import com.joshiminh.wallbase.scraper.engine.DeclarativeScraperEngine
+import com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -36,6 +38,8 @@ class WallpaperRepository @Inject constructor(
     private val webScraper: WebScraper,
     private val wallhavenService: WallhavenService,
     private val credentialStore: SourceCredentialStore,
+    private val declarativeScraperEngine: DeclarativeScraperEngine,
+    private val extensionRepositoryManager: ExtensionRepositoryManager,
 ) {
     private val pinterestQuery: String = DEFAULT_PINTEREST_QUERY
     private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
@@ -83,6 +87,11 @@ class WallpaperRepository @Inject constructor(
                 query = trimmedQuery,
                 cursor = cursor
             )
+            SourceKeys.EXTENSION -> fetchExtensionWallpapers(
+                source = source,
+                query = trimmedQuery,
+                cursor = cursor
+            )
             else -> throw UnsupportedSourceException(source.title)
         }
         val mapped = page.wallpapers.map {
@@ -92,6 +101,27 @@ class WallpaperRepository @Inject constructor(
             )
         }
         return WallpaperPage(wallpapers = mapped, nextCursor = page.nextCursor)
+    }
+
+    private suspend fun fetchExtensionWallpapers(
+        source: Source,
+        query: String?,
+        cursor: String?
+    ): WallpaperPage = withContext(Dispatchers.IO) {
+        val extensionId = source.config ?: source.key.removePrefix("${SourceKeys.EXTENSION}:")
+        val manifest = extensionRepositoryManager.getManifestById(extensionId)
+            ?: throw IllegalStateException("Extension manifest not found for '${source.title}'")
+
+        val result = declarativeScraperEngine.scrape(
+            manifest = manifest,
+            query = query,
+            cursor = cursor
+        )
+
+        WallpaperPage(
+            wallpapers = result.wallpapers,
+            nextCursor = result.nextCursor
+        )
     }
 
     private suspend fun fetchWallhavenWallpapers(

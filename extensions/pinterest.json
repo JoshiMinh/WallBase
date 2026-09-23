@@ -1,0 +1,33 @@
+{
+  "$schema": "https://wallbase.app/schemas/source-v1.json",
+  "id": "pinterest",
+  "name": "Pinterest",
+  "version": "1.0.0",
+  "versionCode": 1,
+  "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=pinterest.com",
+  "baseUrl": "https://www.pinterest.com",
+  "description": "Curated Ultra HD aesthetic wallpaper collections from Pinterest",
+  "author": "WallBase Community",
+  "isNsfw": false,
+  "feeds": [
+    {
+      "id": "wallpapers",
+      "title": "Ultra HD Collections",
+      "url": "https://api.pinterest.com/v3/pidgets/boards/wallpapersden/ultra-hd-wallpapers-collections/pins/",
+      "pagination": {
+        "type": "none"
+      },
+      "extraction": {
+        "format": "json",
+        "itemSelector": "data.pins",
+        "fields": {
+          "id": { "jsonPath": "id" },
+          "title": { "jsonPath": "description", "defaultValue": "Pinterest Wallpaper" },
+          "thumbnailUrl": { "jsonPath": "images.237x.url" },
+          "fullUrl": { "jsonPath": "images.orig.url" },
+          "sourceUrl": { "jsonPath": "link" }
+        }
+      }
+    }
+  ]
+}
