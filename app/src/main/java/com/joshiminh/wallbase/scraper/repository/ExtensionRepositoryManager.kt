@@ -46,7 +46,7 @@ class ExtensionRepositoryManager @Inject constructor(
     private companion object {
         val SUBSCRIBED_REPOS_KEY = stringSetPreferencesKey("subscribed_extension_repos")
         val INSTALLED_IDS_KEY = stringSetPreferencesKey("installed_extension_ids")
-        const val DEFAULT_COMMUNITY_REPO = "https://raw.githubusercontent.com/JoshiMinh/WallBase/main/extensions/repo.json"
+        const val DEFAULT_COMMUNITY_REPO = "https://raw.githubusercontent.com/JoshiMinh/WallBase/main/repo.json"
     }
 
     /**
@@ -207,7 +207,9 @@ class ExtensionRepositoryManager @Inject constructor(
             repoAdapter.fromJson(responseBody)
                 ?: throw IllegalArgumentException("Malformed repository JSON manifest")
         }.recoverCatching {
-            context.assets.open("extensions/repo.json").bufferedReader().use { reader ->
+            val stream = runCatching { context.assets.open("repo.json") }
+                .getOrElse { context.assets.open("extensions/repo.json") }
+            stream.bufferedReader().use { reader ->
                 repoAdapter.fromJson(reader.readText())
                     ?: throw IllegalArgumentException("Malformed local repository manifest")
             }

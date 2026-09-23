@@ -145,10 +145,10 @@ dependencies {
 
 val generateExtensionRepo = tasks.register("generateExtensionRepo") {
     group = "extensions"
-    description = "Scans all extensions/*.json files and generates extensions/repo.json"
+    description = "Scans all extensions/*.json files and generates root repo.json"
 
     val extensionsDir = rootProject.file("extensions")
-    val repoFile = File(extensionsDir, "repo.json")
+    val repoFile = rootProject.file("repo.json")
 
     inputs.dir(extensionsDir)
     outputs.file(repoFile)
@@ -200,7 +200,7 @@ val generateExtensionRepo = tasks.register("generateExtensionRepo") {
 
         val jsonOutput = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(repoData))
         repoFile.writeText(jsonOutput + "\n")
-        println("Generated extensions/repo.json with ${sources.size} extensions.")
+        println("Generated root repo.json with ${sources.size} extensions.")
     }
 }
 
@@ -208,6 +208,12 @@ val syncRootExtensions = tasks.register<Copy>("syncRootExtensions") {
     dependsOn(generateExtensionRepo)
     from(rootProject.file("extensions"))
     into(file("src/main/assets/extensions"))
+    doLast {
+        val rootRepo = rootProject.file("repo.json")
+        if (rootRepo.exists()) {
+            rootRepo.copyTo(file("src/main/assets/repo.json"), overwrite = true)
+        }
+    }
 }
 
 tasks.matching { it.name.startsWith("generate") && it.name.contains("Assets") || it.name == "preBuild" }.configureEach {
