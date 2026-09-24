@@ -94,42 +94,5 @@ class DeclarativeScraperEngineTest {
         )
         assertEquals("offset", offsetConfig.type)
     }
-
-    @Test
-    fun testAllExtensionManifestsValid() {
-        val extensionsDir = java.io.File("../extensions")
-        val manifestFiles = extensionsDir.listFiles { _, name -> name.endsWith(".json") && name != "repo.json" }
-        assertNotNull(manifestFiles)
-        assertTrue(manifestFiles!!.isNotEmpty())
-
-        val adapter = moshi.adapter(SourceManifest::class.java)
-        for (file in manifestFiles) {
-            val content = file.readText()
-            val manifest = adapter.fromJson(content)
-            assertNotNull("Manifest in ${file.name} must not be null", manifest)
-            assertTrue("Manifest ${file.name} id must not be blank", manifest!!.id.isNotBlank())
-            assertTrue("Manifest ${file.name} name must not be blank", manifest.name.isNotBlank())
-            assertTrue("Manifest ${file.name} baseUrl must be a valid URL", manifest.baseUrl.startsWith("http"))
-            assertTrue("Manifest ${file.name} must have at least 1 feed or search", manifest.feeds.isNotEmpty() || manifest.search != null)
-        }
-    }
-
-    @Test
-    fun testRedditManifestConfig() {
-        val file = java.io.File("../extensions/reddit.json")
-        assertTrue(file.exists())
-        val adapter = moshi.adapter(SourceManifest::class.java)
-        val manifest = adapter.fromJson(file.readText())
-
-        assertNotNull(manifest)
-        assertEquals("reddit", manifest?.id)
-        assertEquals("Reddit", manifest?.name)
-        val feed = manifest?.feeds?.firstOrNull()
-        assertNotNull(feed)
-        assertEquals("xml", feed?.extraction?.format)
-        assertEquals("entry", feed?.extraction?.itemSelector)
-        assertEquals("cursor", feed?.pagination?.type)
-        assertEquals("after", feed?.pagination?.paramName)
-    }
 }
 

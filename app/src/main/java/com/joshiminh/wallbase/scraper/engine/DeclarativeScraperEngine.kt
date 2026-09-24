@@ -108,13 +108,6 @@ class DeclarativeScraperEngine @Inject constructor(
                 rule = feed.extraction,
                 currentUrl = targetUrl
             )
-            "xml", "rss", "atom" -> extractFromXml(
-                xml = responseBody,
-                manifest = manifest,
-                feed = feed,
-                rule = feed.extraction,
-                currentUrl = targetUrl
-            )
             else -> extractFromHtml(
                 html = responseBody,
                 manifest = manifest,
@@ -124,12 +117,10 @@ class DeclarativeScraperEngine @Inject constructor(
             )
         }
 
-        val determinedNextCursor = when {
-            extracted.isEmpty() -> null
-            pagination.type.equals("cursor", ignoreCase = true) -> {
-                extracted.lastOrNull()?.id ?: nextCursor
-            }
-            else -> nextCursor
+        val determinedNextCursor = if (extracted.isEmpty()) {
+            null
+        } else {
+            nextCursor
         }
 
         ScrapePage(
@@ -202,8 +193,7 @@ class DeclarativeScraperEngine @Inject constructor(
         userSettings: Map<String, String>
     ): Request {
         val headersBuilder = Headers.Builder()
-        headersBuilder.add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
-        headersBuilder.add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+        headersBuilder.add("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 WallBase/6.5")
 
         manifest.headers?.forEach { (k, v) ->
             headersBuilder.set(k, substituteVariables(v, query, pageParam, userSettings))
@@ -240,25 +230,6 @@ class DeclarativeScraperEngine @Inject constructor(
             result = result.replace("{setting:$k}", v)
         }
         return result
-    }
-
-    private fun extractFromXml(
-        xml: String,
-        manifest: SourceManifest,
-        feed: FeedDefinition,
-        rule: ExtractionRule,
-        currentUrl: String
-    ): List<WallpaperItem> {
-        val doc = Jsoup.parse(xml, manifest.baseUrl, org.jsoup.parser.Parser.xmlParser())
-        val itemSelector = rule.itemSelector ?: "entry, item"
-        val elements = doc.select(itemSelector)
-        val sourceKey = "${SourceKeys.EXTENSION}:${manifest.id}"
-
-        return elements.mapNotNull { element ->
-            runCatching {
-                extractHtmlItem(element, rule.fields, manifest, sourceKey, currentUrl)
-            }.getOrNull()
-        }
     }
 
     private fun extractFromHtml(

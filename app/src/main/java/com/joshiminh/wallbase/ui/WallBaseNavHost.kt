@@ -509,7 +509,7 @@ fun WallBaseApp(
                     }
 
                     composable(RootRoute.Browse.route) {
-                        BrowseScreen(
+                        SourcesScreen(
                             uiState = sourcesUiState,
                             onUpdateSourceInput = onUpdateSourceInput,
                             onSearchReddit = onSearchReddit,
@@ -524,14 +524,22 @@ fun WallBaseApp(
                             onRemoveSource = onRemoveSource,
                             onMessageShown = onSourcesMessageShown,
                             onSourceUrlCopied = onSourceUrlCopied,
-                            onOpenExtensions = { navController.navigateSingleTop("extensions") },
+                            onOpenRepoScreen = { navController.navigateSingleTop("repo") },
                             onConfigureTopBar = acquireTopBar,
+                        )
+                    }
+
+                    composable("repo") {
+                        val extensionsViewModel: ExtensionsViewModel = viewModel(factory = ExtensionsViewModel.Factory)
+                        RepoScreen(
+                            viewModel = extensionsViewModel,
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
 
                     composable("extensions") {
                         val extensionsViewModel: ExtensionsViewModel = viewModel(factory = ExtensionsViewModel.Factory)
-                        ExtensionsScreen(
+                        RepoScreen(
                             viewModel = extensionsViewModel,
                             onNavigateBack = { navController.popBackStack() }
                         )
@@ -641,7 +649,7 @@ fun WallBaseApp(
                             onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
                             onToggleShowDownloadBadge = onToggleShowDownloadBadge,
                             onSaveSourceCredentials = onSaveSourceCredentials,
-                            onOpenExtensions = { navController.navigateSingleTop("extensions") },
+                            onOpenExtensions = { navController.navigateSingleTop("repo") },
                         )
                     }
                 }

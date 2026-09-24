@@ -425,11 +425,11 @@ fun SettingsScreen(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = "Extensions & Scrapers",
+                                    text = "Extension Repositories",
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = "Browse community catalogs, manage repositories, and test custom scraper rules.",
+                                    text = "Manage subscribed repo.json URLs, import JSON manifests, and test scraper rules.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
