@@ -94,14 +94,11 @@ class ExtensionRepositoryManager @Inject constructor(
             }
         }
 
-        // Auto subscribe default community repo and clean legacy URL
+        // Auto subscribe default community repo if not already subscribed
         dataStore.edit { prefs ->
             val current = prefs[SUBSCRIBED_REPOS_KEY] ?: emptySet()
-            val cleaned = current.filterNot { it.contains("extensions/repo.json") }.toSet()
-            if (DEFAULT_COMMUNITY_REPO !in cleaned) {
-                prefs[SUBSCRIBED_REPOS_KEY] = cleaned + DEFAULT_COMMUNITY_REPO
-            } else if (cleaned.size != current.size) {
-                prefs[SUBSCRIBED_REPOS_KEY] = cleaned
+            if (DEFAULT_COMMUNITY_REPO !in current) {
+                prefs[SUBSCRIBED_REPOS_KEY] = current + DEFAULT_COMMUNITY_REPO
             }
         }
     }

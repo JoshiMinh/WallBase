@@ -157,7 +157,7 @@ private fun buildJustifiedRows(
 fun topBarInsetPadding(defaultTop: Dp = 8.dp, hasTabBar: Boolean = false): Dp {
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val extraTab = if (hasTabBar) 48.dp else 0.dp
-    return statusBarTop + 64.dp + extraTab + defaultTop
+    return statusBarTop + 48.dp + extraTab + defaultTop
 }
 
 @Composable
