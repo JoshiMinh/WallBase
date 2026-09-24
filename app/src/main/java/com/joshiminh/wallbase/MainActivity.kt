@@ -125,6 +125,11 @@ class MainActivity : ComponentActivity() {
                     onSaveSourceCredentials = settingsViewModel::saveSourceCredentials,
                     onShowSettingsMessage = settingsViewModel::showMessage,
                     onCompleteOnboarding = settingsViewModel::markOnboardingComplete,
+                    onCreateCategory = settingsViewModel::createCategory,
+                    onRenameCategory = settingsViewModel::renameCategory,
+                    onDeleteCategory = settingsViewModel::deleteCategory,
+                    onCheckForUpdates = settingsViewModel::checkForUpdates,
+                    onDismissAvailableUpdate = settingsViewModel::dismissAvailableUpdate,
                 )
             }
         }

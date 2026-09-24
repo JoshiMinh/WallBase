@@ -71,6 +71,7 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.compose.*
+import com.joshiminh.wallbase.data.entity.CategoryItem
 import com.joshiminh.wallbase.data.entity.Source
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.sources.RedditCommunity
@@ -128,6 +129,11 @@ fun WallBaseApp(
     onSaveSourceCredentials: (String) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
+    onCreateCategory: (String) -> Unit = {},
+    onRenameCategory: (CategoryItem, String) -> Unit = { _, _ -> },
+    onDeleteCategory: (CategoryItem) -> Unit = {},
+    onCheckForUpdates: () -> Unit = {},
+    onDismissAvailableUpdate: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
@@ -318,8 +324,6 @@ fun WallBaseApp(
     val autoHideRequested = topBarState?.autoHideBars
     val isWallpaperGridRoute = remember(currentRoute, autoHideRequested) {
         val isGridScreen = currentRoute == RootRoute.Library.route ||
-            currentRoute == RootRoute.Search.route ||
-            currentRoute == RootRoute.Albums.route ||
             currentRoute?.startsWith("sourceBrowse") == true
         isGridScreen && autoHideRequested != false
     }
@@ -660,6 +664,11 @@ fun WallBaseApp(
                             onToggleCategories = onToggleCategories,
                             onSaveSourceCredentials = onSaveSourceCredentials,
                             onOpenExtensions = { navController.navigateSingleTop("repositories") },
+                            onCreateCategory = onCreateCategory,
+                            onRenameCategory = onRenameCategory,
+                            onDeleteCategory = onDeleteCategory,
+                            onCheckForUpdates = onCheckForUpdates,
+                            onDismissAvailableUpdate = onDismissAvailableUpdate,
                         )
                     }
                 }

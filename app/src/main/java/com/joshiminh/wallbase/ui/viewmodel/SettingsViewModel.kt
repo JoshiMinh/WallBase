@@ -20,6 +20,7 @@ import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.SourceCredentialStore
+import com.joshiminh.wallbase.data.entity.CategoryItem
 import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -71,6 +72,12 @@ class SettingsViewModel @Inject constructor(
                         categoriesEnabled = preferences.categoriesEnabled,
                     )
                 }
+            }
+        }
+
+        viewModelScope.launch {
+            libraryRepository.observeCategories().collectLatest { categories ->
+                _uiState.update { it.copy(categories = categories) }
             }
         }
 
@@ -404,6 +411,30 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun createCategory(name: String) {
+        viewModelScope.launch {
+            val trimmed = name.trim()
+            if (trimmed.isNotBlank()) {
+                libraryRepository.createCategory(trimmed)
+            }
+        }
+    }
+
+    fun renameCategory(category: CategoryItem, newName: String) {
+        viewModelScope.launch {
+            val trimmed = newName.trim()
+            if (trimmed.isNotBlank()) {
+                libraryRepository.renameCategory(category.id, trimmed)
+            }
+        }
+    }
+
+    fun deleteCategory(category: CategoryItem) {
+        viewModelScope.launch {
+            libraryRepository.deleteCategory(category.id)
+        }
+    }
+
     @Immutable
     data class SettingsUiState(
         val isBackingUp: Boolean = false,
@@ -440,6 +471,7 @@ class SettingsViewModel @Inject constructor(
         val showDownloadBadge: Boolean = true,
         val categoriesEnabled: Boolean = true,
         val wallhavenTokenConfigured: Boolean = false,
+        val categories: List<CategoryItem> = emptyList(),
     )
 
     private data class StorageUsage(
