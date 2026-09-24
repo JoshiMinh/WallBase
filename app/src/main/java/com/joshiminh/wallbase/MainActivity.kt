@@ -121,6 +121,7 @@ class MainActivity : ComponentActivity() {
                     onSetAppLockEnabled = settingsViewModel::setAppLockEnabled,
                     onToggleShowHorizontalWallpapers = settingsViewModel::setShowHorizontalWallpapers,
                     onToggleShowDownloadBadge = settingsViewModel::setShowDownloadBadge,
+                    onToggleCategories = settingsViewModel::setCategoriesEnabled,
                     onSaveSourceCredentials = settingsViewModel::saveSourceCredentials,
                     onShowSettingsMessage = settingsViewModel::showMessage,
                     onCompleteOnboarding = settingsViewModel::markOnboardingComplete,

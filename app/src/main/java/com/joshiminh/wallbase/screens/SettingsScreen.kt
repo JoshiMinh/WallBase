@@ -133,6 +133,7 @@ fun SettingsScreen(
     onRequestAppLockChange: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
     onToggleShowDownloadBadge: (Boolean) -> Unit,
+    onToggleCategories: (Boolean) -> Unit = {},
     onSaveSourceCredentials: (String) -> Unit,
     onOpenExtensions: () -> Unit = {},
 ) {
@@ -246,6 +247,15 @@ fun SettingsScreen(
                                 subtitle = "Display a downloaded icon badge on saved wallpapers.",
                                 checked = uiState.showDownloadBadge,
                                 onCheckedChange = onToggleShowDownloadBadge
+                            )
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            SettingsToggleRow(
+                                title = "Enable categories",
+                                subtitle = "Display category tabs and organize wallpapers in your Library.",
+                                checked = uiState.categoriesEnabled,
+                                onCheckedChange = onToggleCategories
                             )
                         }
                     }

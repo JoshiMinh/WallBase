@@ -1,0 +1,305 @@
+package com.joshiminh.wallbase.screens
+
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joshiminh.wallbase.data.entity.WallpaperItem
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
+import com.joshiminh.wallbase.navigation.TopBarHandle
+import com.joshiminh.wallbase.navigation.TopBarState
+import com.joshiminh.wallbase.ui.components.SheetTab
+import com.joshiminh.wallbase.ui.components.TopBarSearchField
+import com.joshiminh.wallbase.ui.components.ViewFilterSortBottomSheet
+import com.joshiminh.wallbase.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
+import com.joshiminh.wallbase.ui.components.topBarInsetPadding
+import com.joshiminh.wallbase.ui.viewmodel.GlobalSearchViewModel
+
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun GlobalSearchScreen(
+    onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
+    onConfigureTopBar: (TopBarState) -> TopBarHandle,
+    viewModel: GlobalSearchViewModel = viewModel(factory = GlobalSearchViewModel.Factory),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    bottomBarOffsetY: Float = 0f
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val searchFocusRequester = remember { FocusRequester() }
+    var showSortSheet by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { error ->
+            snackbarHostState.showSnackbar(error)
+            viewModel.consumeError()
+        }
+    }
+
+    val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
+    val topBarState = remember(
+        uiState.searchQuery,
+        uiState.wallpaperGridColumns,
+        uiState.wallpaperLayout,
+        uiState.sources,
+        uiState.selectedSourceKey
+    ) {
+        val actions: @Composable RowScope.() -> Unit = {
+            IconButton(onClick = { showSortSheet = true }) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.Sort,
+                    contentDescription = "View and layout options"
+                )
+            }
+        }
+
+        val titleContent: @Composable () -> Unit = {
+            TopBarSearchField(
+                value = uiState.searchQuery,
+                onValueChange = { viewModel.updateSearchQuery(it) },
+                onClear = { viewModel.updateSearchQuery("") },
+                placeholder = "Search across all sources…",
+                focusRequester = searchFocusRequester,
+                showClearButton = uiState.searchQuery.isNotEmpty()
+            )
+        }
+
+        val filterChipsContent: @Composable () -> Unit = {
+            if (uiState.sources.isNotEmpty()) {
+                val chipScrollState = rememberScrollState()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(chipScrollState)
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = uiState.selectedSourceKey == null,
+                        onClick = { viewModel.selectSourceFilter(null) },
+                        label = { Text("All Sources") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    )
+                    uiState.sources.forEach { source ->
+                        FilterChip(
+                            selected = uiState.selectedSourceKey == source.key,
+                            onClick = {
+                                viewModel.selectSourceFilter(
+                                    if (uiState.selectedSourceKey == source.key) null else source.key
+                                )
+                            },
+                            label = { Text(source.title) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        TopBarState(
+            title = null,
+            navigationIcon = null,
+            actions = actions,
+            titleContent = titleContent,
+            bottomContent = filterChipsContent,
+            autoHideBars = false
+        )
+    }
+
+    SideEffect {
+        val handle = topBarHandleState.value
+        if (handle == null) {
+            topBarHandleState.value = onConfigureTopBar(topBarState)
+        } else {
+            handle.update(topBarState)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            topBarHandleState.value?.clear()
+            topBarHandleState.value = null
+        }
+    }
+
+    val supportsSharedTransitions = sharedTransitionScope != null && animatedVisibilityScope != null
+    val pullRefreshState = rememberPullToRefreshState()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refresh() },
+            state = pullRefreshState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullRefreshState,
+                    isRefreshing = uiState.isRefreshing,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = topBarInsetPadding(16.dp, hasTabBar = true))
+                )
+            },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            when {
+                uiState.isLoading && uiState.wallpapers.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                uiState.wallpapers.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.size(72.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (uiState.isSearching) Icons.Outlined.Search else Icons.Outlined.Explore,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(36.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Text(
+                                text = if (uiState.isSearching) "No wallpapers found for \"${uiState.searchQuery}\""
+                                else "No wallpapers available in explore feed",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Try searching with different keywords or check enabled sources in Browse.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    WallpaperGrid(
+                        wallpapers = uiState.wallpapers,
+                        onWallpaperSelected = { wallpaper ->
+                            onWallpaperSelected(
+                                wallpaper,
+                                supportsSharedTransitions,
+                                uiState.wallpapers
+                            )
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        columns = uiState.wallpaperGridColumns,
+                        layout = uiState.wallpaperLayout,
+                        showDownloadedBadge = uiState.showDownloadBadge,
+                        contentPadding = PaddingValues(
+                            start = 4.dp,
+                            top = topBarInsetPadding(12.dp, hasTabBar = true),
+                            end = 4.dp,
+                            bottom = bottomBarInsetPadding(4.dp, hasBottomNav = true)
+                        ),
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+                }
+            }
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+        )
+    }
+
+    ViewFilterSortBottomSheet(
+        visible = showSortSheet,
+        onDismissRequest = { showSortSheet = false },
+        availableTabs = listOf(SheetTab.DISPLAY),
+        initialTab = SheetTab.DISPLAY,
+        sortSelection = com.joshiminh.wallbase.util.SortSelection(
+            field = com.joshiminh.wallbase.util.SortField.DateAdded,
+            direction = com.joshiminh.wallbase.util.SortDirection.Descending
+        ),
+        availableSortFields = emptyList(),
+        onSortSelectionChanged = {},
+        wallpaperLayout = uiState.wallpaperLayout,
+        onWallpaperLayoutChanged = { viewModel.updateWallpaperLayout(it) },
+        gridColumns = uiState.wallpaperGridColumns,
+        onGridColumnsChanged = { viewModel.updateWallpaperGridColumns(it) }
+    )
+}

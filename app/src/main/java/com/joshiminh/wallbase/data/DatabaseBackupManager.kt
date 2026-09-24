@@ -401,7 +401,9 @@ class DatabaseBackupManager @Inject constructor(
             "sources",
             "wallpapers",
             "albums",
-            "album_wallpaper_cross_ref"
+            "album_wallpaper_cross_ref",
+            "categories",
+            "category_wallpaper_cross_ref"
         )
         private const val DATABASE_ENTRY = "database/wallbase.db"
         private const val SETTINGS_ENTRY = "settings.json"

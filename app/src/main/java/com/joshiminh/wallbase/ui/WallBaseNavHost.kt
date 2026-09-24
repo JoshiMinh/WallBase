@@ -104,6 +104,7 @@ fun WallBaseApp(
     onToggleDynamicColor: (Boolean) -> Unit,
     onToggleAmoledDark: (Boolean) -> Unit,
     onToggleAnimations: (Boolean) -> Unit,
+    onToggleCategories: (Boolean) -> Unit = {},
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
@@ -317,6 +318,8 @@ fun WallBaseApp(
     val autoHideRequested = topBarState?.autoHideBars
     val isWallpaperGridRoute = remember(currentRoute, autoHideRequested) {
         val isGridScreen = currentRoute == RootRoute.Library.route ||
+            currentRoute == RootRoute.Search.route ||
+            currentRoute == RootRoute.Albums.route ||
             currentRoute?.startsWith("sourceBrowse") == true
         isGridScreen && autoHideRequested != false
     }
@@ -493,12 +496,30 @@ fun WallBaseApp(
                         val animatedScope = this.takeIf { sharedScope != null }
                         LibraryScreen(
                             onWallpaperSelected = navigateToWallpaperDetail,
+                            onConfigureTopBar = acquireTopBar,
+                            sharedTransitionScope = sharedScope,
+                            animatedVisibilityScope = animatedScope,
+                            bottomBarOffsetY = bottomBarOffsetY,
+                        )
+                    }
+
+                    composable(RootRoute.Search.route) {
+                        val animatedScope = this.takeIf { sharedScope != null }
+                        GlobalSearchScreen(
+                            onWallpaperSelected = navigateToWallpaperDetail,
+                            onConfigureTopBar = acquireTopBar,
+                            sharedTransitionScope = sharedScope,
+                            animatedVisibilityScope = animatedScope,
+                            bottomBarOffsetY = bottomBarOffsetY,
+                        )
+                    }
+
+                    composable(RootRoute.Albums.route) {
+                        AlbumsScreen(
                             onAlbumSelected = { album ->
                                 navController.navigateSingleTop("album/${album.id}")
                             },
                             onConfigureTopBar = acquireTopBar,
-                            sharedTransitionScope = sharedScope,
-                            animatedVisibilityScope = animatedScope,
                             bottomBarOffsetY = bottomBarOffsetY,
                         )
                     }
@@ -636,6 +657,7 @@ fun WallBaseApp(
                             onRequestAppLockChange = handleAppLockToggle,
                             onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
                             onToggleShowDownloadBadge = onToggleShowDownloadBadge,
+                            onToggleCategories = onToggleCategories,
                             onSaveSourceCredentials = onSaveSourceCredentials,
                             onOpenExtensions = { navController.navigateSingleTop("repositories") },
                         )

@@ -68,6 +68,7 @@ class SettingsViewModel @Inject constructor(
                         hasCompletedOnboarding = preferences.onboardingCompleted,
                         showHorizontalWallpapers = preferences.showHorizontalWallpapers,
                         showDownloadBadge = preferences.showDownloadBadge,
+                        categoriesEnabled = preferences.categoriesEnabled,
                     )
                 }
             }
@@ -321,6 +322,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setCategoriesEnabled(enabled: Boolean) {
+        if (_uiState.value.categoriesEnabled == enabled) return
+        _uiState.update { it.copy(categoriesEnabled = enabled) }
+        viewModelScope.launch {
+            settingsRepository.setCategoriesEnabled(enabled)
+        }
+    }
+
     fun showMessage(message: String) {
         _uiState.update { it.copy(message = message) }
     }
@@ -429,6 +438,7 @@ class SettingsViewModel @Inject constructor(
         val shouldRestartAfterImport: Boolean = false,
         val showHorizontalWallpapers: Boolean = true,
         val showDownloadBadge: Boolean = true,
+        val categoriesEnabled: Boolean = true,
         val wallhavenTokenConfigured: Boolean = false,
     )
 

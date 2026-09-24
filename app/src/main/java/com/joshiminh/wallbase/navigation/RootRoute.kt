@@ -3,9 +3,13 @@ package com.joshiminh.wallbase.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -16,6 +20,8 @@ enum class RootRoute(
     val unselectedIcon: ImageVector,
 ) {
     Library("library", "Library", Icons.Filled.Collections, Icons.Outlined.Collections),
+    Search("search", "Search", Icons.Filled.Search, Icons.Outlined.Search),
+    Albums("albums", "Albums", Icons.Filled.PhotoLibrary, Icons.Outlined.PhotoLibrary),
     Browse("browse", "Browse", Icons.Filled.Explore, Icons.Outlined.Explore),
     Settings("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings);
 

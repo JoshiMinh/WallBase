@@ -8,10 +8,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.joshiminh.wallbase.data.dao.AlbumDao
+import com.joshiminh.wallbase.data.dao.CategoryDao
 import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.AlbumEntity
 import com.joshiminh.wallbase.data.entity.AlbumWallpaperCrossRef
+import com.joshiminh.wallbase.data.entity.CategoryEntity
+import com.joshiminh.wallbase.data.entity.CategoryWallpaperCrossRef
 import com.joshiminh.wallbase.data.entity.DefaultSources
 import com.joshiminh.wallbase.data.entity.SourceEntity
 import com.joshiminh.wallbase.data.entity.SourceSeed
@@ -29,9 +32,11 @@ import java.util.Locale
         AlbumEntity::class,
         WallpaperEntity::class,
         AlbumWallpaperCrossRef::class,
-        SourceEntity::class
+        SourceEntity::class,
+        CategoryEntity::class,
+        CategoryWallpaperCrossRef::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -39,6 +44,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
     abstract fun sourceDao(): SourceDao
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun albumDao(): AlbumDao
+    abstract fun categoryDao(): CategoryDao
 
     companion object {
         @Volatile
@@ -53,7 +59,16 @@ abstract class WallBaseDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): WallBaseDatabase {
             val callback = DefaultSourcesCallback(DefaultSources)
             return Room.databaseBuilder(context, WallBaseDatabase::class.java, "wallbase.db")
-                .addMigrations(MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
+                .addMigrations(
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9,
+                    MIGRATION_9_10,
+                    MIGRATION_10_11,
+                    MIGRATION_11_12
+                )
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
                 .build()
@@ -217,6 +232,51 @@ abstract class WallBaseDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_11_12 = object : androidx.room.migration.Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS categories (
+                        category_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        sort_order INTEGER NOT NULL DEFAULT 0,
+                        is_preset INTEGER NOT NULL DEFAULT 0,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_categories_title ON categories (title)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_categories_sort_order_title ON categories (sort_order, title)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS category_wallpaper_cross_ref (
+                        category_id INTEGER NOT NULL,
+                        wallpaper_id INTEGER NOT NULL,
+                        PRIMARY KEY(category_id, wallpaper_id),
+                        FOREIGN KEY(category_id) REFERENCES categories(category_id) ON DELETE CASCADE,
+                        FOREIGN KEY(wallpaper_id) REFERENCES wallpapers(wallpaper_id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_category_wallpaper_cross_ref_wallpaper_id ON category_wallpaper_cross_ref (wallpaper_id)")
+
+                preloadCategories(db)
+            }
+        }
+
+        private fun preloadCategories(db: SupportSQLiteDatabase) {
+            val now = System.currentTimeMillis()
+            val presets = listOf("Anime", "Nature", "AMOLED", "Minimal", "Art")
+            presets.forEachIndexed { index, name ->
+                db.execSQL(
+                    "INSERT OR IGNORE INTO categories (title, sort_order, is_preset, created_at, updated_at) VALUES (?, ?, 1, ?, ?)",
+                    arrayOf(name, index, now, now)
+                )
+            }
+        }
+
         private fun preloadSources(db: SupportSQLiteDatabase, seeds: List<SourceSeed>) {
             db.beginTransaction()
             try {
@@ -251,6 +311,7 @@ abstract class WallBaseDatabase : RoomDatabase() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             preloadSources(db, seeds)
+            preloadCategories(db)
         }
     }
 }

@@ -189,6 +189,7 @@ object ServiceLocator {
         LibraryRepository(
             wallpaperDao = database.wallpaperDao(),
             albumDao = database.albumDao(),
+            categoryDao = database.categoryDao(),
             localStorage = localStorageCoordinator
         )
     }

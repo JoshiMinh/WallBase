@@ -52,6 +52,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.Edit
@@ -60,6 +61,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Home
 import com.joshiminh.wallbase.ui.components.RenameWallpaperDialog
+import com.joshiminh.wallbase.ui.components.CategoryPickerDialog
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
@@ -195,6 +197,8 @@ fun WallpaperRoute(
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         onRenameWallpaper = viewModel::renameWallpaper,
+        onSetWallpaperCategories = viewModel::setWallpaperCategories,
+        onCreateCategory = viewModel::createCategory,
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
         sharedTransitionScope = sharedTransitionScope,
@@ -243,6 +247,8 @@ fun WallpaperScreen(
     onDismissRemoveDownload: () -> Unit,
     onRequestPermission: () -> Unit,
     onRenameWallpaper: (String?) -> Unit = {},
+    onSetWallpaperCategories: (Set<Long>) -> Unit = {},
+    onCreateCategory: (String) -> Unit = {},
     onNavigateBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
     sharedTransitionScope: SharedTransitionScope?,
@@ -251,6 +257,7 @@ fun WallpaperScreen(
     val wallpaper = uiState.wallpaper ?: return
     val context = LocalContext.current
     var showAlbumPicker by remember { mutableStateOf(false) }
+    var showCategoryPicker by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
         wallpaper = wallpaper,
@@ -616,7 +623,27 @@ fun WallpaperScreen(
                     }
                 }
 
-                // 4. Save (Library Bookmark toggle)
+                // 4. Category
+                IconButton(
+                    onClick = { showCategoryPicker = true },
+                    enabled = !uiState.isAddingToCategory
+                ) {
+                    if (uiState.isAddingToCategory) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Category,
+                            contentDescription = "Assign categories",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+
+                // 5. Save (Library Bookmark toggle)
                 val saveEnabled = !uiState.isAddingToLibrary && !uiState.isRemovingFromLibrary
                 IconButton(
                     onClick = {
@@ -714,6 +741,21 @@ fun WallpaperScreen(
                 ) {
                     Text(text = "Cancel")
                 }
+            }
+        )
+    }
+
+    if (showCategoryPicker) {
+        CategoryPickerDialog(
+            categories = uiState.categories,
+            selectedCategoryIds = uiState.assignedCategoryIds,
+            onConfirm = { categoryIds ->
+                onSetWallpaperCategories(categoryIds)
+                showCategoryPicker = false
+            },
+            onDismiss = { showCategoryPicker = false },
+            onCreateNewCategory = { name ->
+                onCreateCategory(name)
             }
         )
     }
