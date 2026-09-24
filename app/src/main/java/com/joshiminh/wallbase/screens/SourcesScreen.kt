@@ -5,17 +5,20 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,7 +31,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Language
@@ -36,9 +41,9 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Source
-import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -72,10 +77,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -93,6 +101,7 @@ import com.joshiminh.wallbase.navigation.TopBarHandle
 import com.joshiminh.wallbase.navigation.TopBarState
 import com.joshiminh.wallbase.scraper.model.ExtensionRepoItem
 import com.joshiminh.wallbase.sources.RedditCommunity
+import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
 import com.joshiminh.wallbase.ui.components.topBarInsetPadding
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
@@ -121,8 +130,15 @@ fun SourcesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var pendingRemoval by remember { mutableStateOf<Source?>(null) }
+    var pendingUninstallCatalogItem by remember { mutableStateOf<ExtensionRepoItem?>(null) }
     var showAddSourceModal by remember { mutableStateOf(false) }
-    var catalogSearchQuery by rememberSaveable { mutableStateOf("") }
+
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val searchFocusRequester = remember { FocusRequester() }
 
     val visibleSources = remember(uiState.sources) {
         uiState.sources.filterNot(Source::isLocal)
@@ -137,37 +153,132 @@ fun SourcesScreen(
         fromSources + fromManifests
     }
 
-    val filteredCatalog = remember(extensionsState.communityCatalog, catalogSearchQuery) {
-        if (catalogSearchQuery.isBlank()) {
-            extensionsState.communityCatalog
+    val trimmedQuery = remember(searchQuery) { searchQuery.trim().lowercase(Locale.ROOT) }
+
+    val filteredInstalledSources = remember(visibleSources, trimmedQuery, isSearchActive) {
+        if (!isSearchActive || trimmedQuery.isBlank()) {
+            visibleSources
         } else {
-            val q = catalogSearchQuery.trim().lowercase(Locale.ROOT)
-            extensionsState.communityCatalog.filter {
-                it.name.lowercase(Locale.ROOT).contains(q) ||
-                        (it.description?.lowercase(Locale.ROOT)?.contains(q) == true) ||
-                        (it.author?.lowercase(Locale.ROOT)?.contains(q) == true)
+            visibleSources.filter { source ->
+                source.title.lowercase(Locale.ROOT).contains(trimmedQuery) ||
+                        source.providerKey.lowercase(Locale.ROOT).contains(trimmedQuery) ||
+                        (source.config?.lowercase(Locale.ROOT)?.contains(trimmedQuery) == true)
             }
         }
     }
 
-    // Configure TopBar with Repositories & Add Source button
-    val topBarState = remember(selectedTab) {
-        TopBarState(
-            title = "Sources",
-            actions = {
-                IconButton(onClick = onOpenRepoScreen) {
-                    Icon(
-                        imageVector = Icons.Outlined.Storage,
-                        contentDescription = "Manage Repositories"
-                    )
+    val filteredCatalog = remember(extensionsState.communityCatalog, trimmedQuery, isSearchActive) {
+        if (!isSearchActive || trimmedQuery.isBlank()) {
+            extensionsState.communityCatalog
+        } else {
+            extensionsState.communityCatalog.filter { item ->
+                item.name.lowercase(Locale.ROOT).contains(trimmedQuery) ||
+                        (item.description?.lowercase(Locale.ROOT)?.contains(trimmedQuery) == true) ||
+                        (item.author?.lowercase(Locale.ROOT)?.contains(trimmedQuery) == true)
+            }
+        }
+    }
+
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            searchFocusRequester.requestFocus()
+            keyboardController?.show()
+        } else {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+    }
+
+    // Configure TopBar with Search, Add Source, and Repositories puzzle icon
+    val topBarState = remember(
+        selectedTab,
+        isSearchActive,
+        searchQuery,
+        visibleSources.size,
+        extensionsState.communityCatalog.size
+    ) {
+        val actions: @Composable RowScope.() -> Unit = {
+            if (isSearchActive) {
+                IconButton(onClick = {
+                    isSearchActive = false
+                    searchQuery = ""
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }) {
+                    Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
                 }
-                IconButton(onClick = { showAddSourceModal = true }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = "Add custom source"
-                    )
+                IconButton(onClick = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }) {
+                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
+                }
+            } else {
+                IconButton(onClick = { isSearchActive = true }) {
+                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search sources")
                 }
             }
+            IconButton(onClick = { showAddSourceModal = true }) {
+                Icon(
+                    imageVector = Icons.Outlined.Add,
+                    contentDescription = "Add custom source"
+                )
+            }
+            IconButton(onClick = onOpenRepoScreen) {
+                Icon(
+                    imageVector = Icons.Outlined.Extension,
+                    contentDescription = "Repositories"
+                )
+            }
+        }
+
+        val tabBottomContent: @Composable () -> Unit = {
+            PrimaryTabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.background
+            ) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = {
+                        Text(
+                            text = "Installed · ${visibleSources.size}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = {
+                        Text(
+                            text = "Available · ${extensionsState.communityCatalog.size}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                )
+            }
+        }
+
+        TopBarState(
+            title = if (isSearchActive) null else "Sources",
+            actions = actions,
+            titleContent = if (isSearchActive) {
+                {
+                    TopBarSearchField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        onClear = { searchQuery = "" },
+                        placeholder = if (selectedTab == 0) "Search installed sources" else "Search available sources",
+                        focusRequester = searchFocusRequester,
+                        showClearButton = false
+                    )
+                }
+            } else null,
+            bottomContent = tabBottomContent,
+            autoHideBars = false
         )
     }
 
@@ -207,73 +318,44 @@ fun SourcesScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(bottom = 80.dp)
+            )
+        },
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
-            // 2-tab navigation: Installed & Available
-            PrimaryTabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.background,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = topBarInsetPadding(0.dp, hasTabBar = false))
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = {
-                        Text(
-                            text = "Installed (${visibleSources.size})",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
+            when (selectedTab) {
+                0 -> InstalledTabContent(
+                    sources = filteredInstalledSources,
+                    isSearching = isSearchActive && searchQuery.isNotBlank(),
+                    searchQuery = searchQuery,
+                    onOpenSource = onOpenSource,
+                    onRequestRemove = { pendingRemoval = it },
+                    onSourceUrlCopied = onSourceUrlCopied,
+                    onGoToAvailable = { selectedTab = 1 },
+                    onAddSourceClick = { showAddSourceModal = true }
                 )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = {
-                        Text(
-                            text = "Available (${extensionsState.communityCatalog.size})",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
+
+                1 -> AvailableTabContent(
+                    catalog = filteredCatalog,
+                    isSearching = isSearchActive && searchQuery.isNotBlank(),
+                    searchQuery = searchQuery,
+                    installedIds = installedExtensionIds,
+                    isLoading = extensionsState.isLoading,
+                    onInstall = extensionsViewModel::installFromCatalog,
+                    onUninstall = { item -> pendingUninstallCatalogItem = item },
+                    onOpenRepoScreen = onOpenRepoScreen
                 )
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-            ) {
-                when (selectedTab) {
-                    0 -> InstalledTabContent(
-                        sources = visibleSources,
-                        onOpenSource = onOpenSource,
-                        onRequestRemove = { pendingRemoval = it },
-                        onSourceUrlCopied = onSourceUrlCopied,
-                        onGoToAvailable = { selectedTab = 1 },
-                        onAddSourceClick = { showAddSourceModal = true }
-                    )
-
-                    1 -> AvailableTabContent(
-                        catalog = filteredCatalog,
-                        searchQuery = catalogSearchQuery,
-                        onSearchQueryChange = { catalogSearchQuery = it },
-                        installedIds = installedExtensionIds,
-                        isLoading = extensionsState.isLoading,
-                        onInstall = extensionsViewModel::installFromCatalog,
-                        onOpenRepoScreen = onOpenRepoScreen,
-                        onRefresh = extensionsViewModel::refresh
-                    )
-                }
             }
         }
     }
@@ -320,11 +402,36 @@ fun SourcesScreen(
             }
         )
     }
+
+    pendingUninstallCatalogItem?.let { item ->
+        AlertDialog(
+            onDismissRequest = { pendingUninstallCatalogItem = null },
+            title = { Text("Uninstall ${item.name}?") },
+            text = { Text("This will remove ${item.name} from your installed sources.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        extensionsViewModel.uninstallExtension(item.id)
+                        pendingUninstallCatalogItem = null
+                    }
+                ) {
+                    Text("Uninstall", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingUninstallCatalogItem = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun InstalledTabContent(
     sources: List<Source>,
+    isSearching: Boolean,
+    searchQuery: String,
     onOpenSource: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
     onSourceUrlCopied: (String) -> Unit,
@@ -335,54 +442,64 @@ private fun InstalledTabContent(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(WallBaseSpacing.lg),
+                .padding(top = topBarInsetPadding(8.dp, hasTabBar = true), bottom = bottomBarInsetPadding(16.dp, hasBottomNav = true))
+                .padding(horizontal = WallBaseSpacing.lg),
             contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.md)
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(64.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Source,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxSize()
-                    )
-                }
+            if (isSearching) {
                 Text(
-                    text = "No sources installed",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Browse available community sources or add custom feeds like subreddits.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "No installed sources match \"$searchQuery\"",
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)) {
-                    Button(
-                        onClick = onGoToAvailable,
-                        shape = WallBaseShapes.pill
+            } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.md)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(64.dp)
                     ) {
-                        Icon(Icons.Outlined.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Browse Available")
+                        Icon(
+                            imageVector = Icons.Outlined.Source,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .fillMaxSize()
+                        )
                     }
-                    OutlinedButton(
-                        onClick = onAddSourceClick,
-                        shape = WallBaseShapes.pill
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Add Custom")
+                    Text(
+                        text = "No sources installed",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Browse available community sources or add custom feeds like subreddits.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)) {
+                        Button(
+                            onClick = onGoToAvailable,
+                            shape = WallBaseShapes.pill
+                        ) {
+                            Icon(Icons.Outlined.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Browse Available")
+                        }
+                        OutlinedButton(
+                            onClick = onAddSourceClick,
+                            shape = WallBaseShapes.pill
+                        ) {
+                            Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Add Custom")
+                        }
                     }
                 }
             }
@@ -394,7 +511,7 @@ private fun InstalledTabContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = WallBaseSpacing.md,
-            top = WallBaseSpacing.md,
+            top = topBarInsetPadding(8.dp, hasTabBar = true),
             end = WallBaseSpacing.md,
             bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
         ),
@@ -414,93 +531,78 @@ private fun InstalledTabContent(
 @Composable
 private fun AvailableTabContent(
     catalog: List<ExtensionRepoItem>,
+    isSearching: Boolean,
     searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
     installedIds: Set<String>,
     isLoading: Boolean,
     onInstall: (ExtensionRepoItem) -> Unit,
-    onOpenRepoScreen: () -> Unit,
-    onRefresh: () -> Unit
+    onUninstall: (ExtensionRepoItem) -> Unit,
+    onOpenRepoScreen: () -> Unit
 ) {
+    if (catalog.isEmpty() && !isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = topBarInsetPadding(8.dp, hasTabBar = true), bottom = bottomBarInsetPadding(16.dp, hasBottomNav = true))
+                .padding(horizontal = WallBaseSpacing.lg),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
+            ) {
+                Text(
+                    text = if (isSearching) "No sources match \"$searchQuery\"" else "No community sources found in repositories.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                FilledTonalButton(
+                    onClick = onOpenRepoScreen,
+                    shape = WallBaseShapes.pill
+                ) {
+                    Icon(Icons.Outlined.Extension, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Manage Repositories")
+                }
+            }
+        }
+        return
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = WallBaseSpacing.md,
-            top = WallBaseSpacing.md,
+            top = topBarInsetPadding(8.dp, hasTabBar = true),
             end = WallBaseSpacing.md,
             bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
         ),
         verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
     ) {
-        item("search_bar") {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = { Text("Search available sources...") },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                    } else {
-                        IconButton(onClick = onRefresh) {
-                            Icon(Icons.Outlined.Refresh, contentDescription = "Refresh catalog")
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = WallBaseShapes.pill,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 4.dp)
-            )
-        }
-
-        if (catalog.isEmpty() && !isLoading) {
-            item("empty_catalog") {
-                Box(
+        if (isLoading) {
+            item("catalog_loading") {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(WallBaseSpacing.lg),
-                    contentAlignment = Alignment.Center
+                        .padding(WallBaseSpacing.md),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
-                    ) {
-                        Text(
-                            text = if (searchQuery.isBlank()) "No community sources found in repositories." else "No sources match \"$searchQuery\"",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                        FilledTonalButton(
-                            onClick = onOpenRepoScreen,
-                            shape = WallBaseShapes.pill
-                        ) {
-                            Icon(Icons.Outlined.Storage, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Manage Repositories")
-                        }
-                    }
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
                 }
             }
-        } else {
-            items(catalog, key = { it.id }) { item ->
-                val isInstalled = item.id in installedIds ||
-                        installedIds.any { it.equals(item.id, ignoreCase = true) }
+        }
 
-                AvailableSourceCard(
-                    item = item,
-                    isInstalled = isInstalled,
-                    onInstall = { onInstall(item) }
-                )
-            }
+        items(catalog, key = { it.id }) { item ->
+            val isInstalled = item.id in installedIds ||
+                    installedIds.any { it.equals(item.id, ignoreCase = true) }
+
+            AvailableSourceCard(
+                item = item,
+                isInstalled = isInstalled,
+                onInstall = { onInstall(item) },
+                onUninstall = { onUninstall(item) }
+            )
         }
     }
 }
@@ -509,115 +611,115 @@ private fun AvailableTabContent(
 private fun AvailableSourceCard(
     item: ExtensionRepoItem,
     isInstalled: Boolean,
-    onInstall: () -> Unit
+    onInstall: () -> Unit,
+    onUninstall: () -> Unit
 ) {
     Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(WallBaseShapes.card)
+            .clickable {
+                if (isInstalled) onUninstall() else onInstall()
+            },
         shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        modifier = Modifier.fillMaxWidth()
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(WallBaseSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.md)
+            horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
-            if (!item.iconUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = item.iconUrl,
-                    contentDescription = item.name,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(WallBaseShapes.control)
-                )
-            } else {
-                Surface(
-                    shape = WallBaseShapes.control,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    modifier = Modifier.size(42.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Language,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            Surface(
+                shape = WallBaseShapes.control,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.size(42.dp)
+            ) {
+                if (!item.iconUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = item.iconUrl,
+                        contentDescription = item.name,
                         modifier = Modifier
-                            .padding(10.dp)
+                            .fillMaxSize()
+                            .padding(6.dp)
+                            .clip(WallBaseShapes.control)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Extension,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(8.dp)
                             .fillMaxSize()
                     )
                 }
             }
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.xs)
-                ) {
+                Text(
+                    text = item.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                val authorText = item.author?.takeIf { it.isNotBlank() }?.let { "by $it" }
+                val metaText = listOfNotNull(authorText, "v${item.version}").joinToString(" · ")
+                Text(
+                    text = metaText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                item.description?.takeIf { it.isNotBlank() }?.let { desc ->
                     Text(
-                        text = item.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Surface(
-                        shape = WallBaseShapes.pill,
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Text(
-                            text = "v${item.version}",
-                            style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-                item.description?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
+                        text = desc,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 2.dp)
                     )
                 }
-                Text(
-                    text = "by ${item.author ?: "WallBase Community"}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
             }
 
             if (isInstalled) {
-                OutlinedButton(
-                    onClick = onInstall,
+                FilledTonalButton(
+                    onClick = onUninstall,
                     shape = WallBaseShapes.pill,
-                    modifier = Modifier.height(36.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        contentDescription = "Uninstall extension",
+                        modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text("Installed", style = MaterialTheme.typography.labelMedium)
+                    Text(text = "Installed", style = MaterialTheme.typography.labelMedium)
                 }
             } else {
                 Button(
                     onClick = onInstall,
                     shape = WallBaseShapes.pill,
-                    modifier = Modifier.height(36.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.CloudDownload,
-                        contentDescription = null,
+                        contentDescription = "Install extension",
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(4.dp))
-                    Text("Install", style = MaterialTheme.typography.labelMedium)
+                    Text(text = "Install", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -632,8 +734,7 @@ private fun SourceCard(
     onSourceUrlCopied: (String) -> Unit
 ) {
     val clipboardManager = LocalClipboardManager.current
-    val shareUrl = remember(source) { sourceShareUrl(source) }
-    val isRemovable = source.providerKey !in setOf(SourceKeys.LOCAL)
+    val shareUrl = sourceShareUrl(source)
 
     Card(
         modifier = Modifier
@@ -641,102 +742,124 @@ private fun SourceCard(
             .combinedClickable(
                 onClick = { onOpenSource(source) },
                 onLongClick = {
-                    shareUrl?.let {
-                        clipboardManager.setText(AnnotatedString(it))
-                        onSourceUrlCopied(it)
+                    shareUrl?.let { url ->
+                        clipboardManager.setText(AnnotatedString(url))
+                        onSourceUrlCopied(url)
                     }
                 }
             ),
         shape = WallBaseShapes.card,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
-        Column(modifier = Modifier.padding(WallBaseSpacing.md)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(WallBaseSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
+        ) {
+            Surface(
+                shape = WallBaseShapes.control,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                modifier = Modifier.size(42.dp)
             ) {
-                val iconUrl = source.iconUrl?.takeUnless { it.isBlank() }
-                val fallbackPainter = safePainterResource(source.iconRes)
-                val defaultPainter = rememberVectorPainter(image = Icons.Outlined.Public)
-
-                when {
-                    iconUrl != null -> {
-                        AsyncImage(
-                            model = iconUrl,
-                            contentDescription = source.title,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(WallBaseShapes.control),
-                            placeholder = fallbackPainter ?: defaultPainter,
-                            error = fallbackPainter ?: defaultPainter
-                        )
-                    }
-
-                    fallbackPainter != null -> {
+                if (!source.iconUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = source.iconUrl,
+                        contentDescription = source.title,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(6.dp)
+                            .clip(WallBaseShapes.control)
+                    )
+                } else if (source.iconRes != null && source.iconRes != 0) {
+                    val painter = safePainterResource(source.iconRes)
+                    if (painter != null) {
                         Image(
-                            painter = fallbackPainter,
+                            painter = painter,
                             contentDescription = source.title,
                             modifier = Modifier
-                                .size(40.dp)
-                                .clip(WallBaseShapes.control)
+                                .padding(6.dp)
+                                .fillMaxSize()
                         )
-                    }
-
-                    else -> {
-                        Surface(
-                            shape = WallBaseShapes.control,
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Public,
-                                contentDescription = source.title,
-                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxSize()
-                            )
-                        }
-                    }
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = source.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = source.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                if (isRemovable) {
-                    IconButton(onClick = { onRequestRemove(source) }) {
+                    } else {
                         Icon(
-                            imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Remove ${source.title}",
-                            tint = MaterialTheme.colorScheme.error
+                            imageVector = Icons.Outlined.Public,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .fillMaxSize()
                         )
                     }
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.Public,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .fillMaxSize()
+                    )
                 }
             }
 
-            shareUrl?.let { url ->
-                Spacer(Modifier.size(4.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Long-press to copy link",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
+                    text = source.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val subtitle = when {
+                    source.description.isNotBlank() && !source.description.equals(source.title, ignoreCase = true) -> source.description
+                    source.providerKey == SourceKeys.REDDIT && source.config != null -> "r/${source.config}"
+                    else -> providerLabel(source.providerKey)
+                }
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (shareUrl != null) {
+                IconButton(onClick = {
+                    clipboardManager.setText(AnnotatedString(shareUrl))
+                    onSourceUrlCopied(shareUrl)
+                }) {
+                    Icon(
+                        imageVector = Icons.Outlined.ContentCopy,
+                        contentDescription = "Copy source link",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            IconButton(onClick = { onRequestRemove(source) }) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Remove source",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
+}
+
+private fun providerLabel(providerKey: String): String = when (providerKey) {
+    SourceKeys.REDDIT -> "Reddit"
+    SourceKeys.PINTEREST -> "Pinterest"
+    SourceKeys.WALLHAVEN -> "Wallhaven"
+    SourceKeys.WEBSITES -> "Website"
+    SourceKeys.EXTENSION -> "Extension"
+    else -> providerKey.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -757,280 +880,123 @@ private fun AddSourceBottomSheet(
     onOpenRepoScreen: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isReddit = detectedType == SourceRepository.RemoteSourceType.REDDIT
-    val canSearch = isReddit && input.trim().length >= 2 && !isSearching
-    val canAdd = input.trim().isNotBlank() && !isSearching
-
-    val sheetTitle = when (detectedType) {
-        SourceRepository.RemoteSourceType.REDDIT -> "Add Reddit source"
-        SourceRepository.RemoteSourceType.WALLHAVEN -> "Add Wallhaven source"
-        SourceRepository.RemoteSourceType.PINTEREST -> "Add Pinterest source"
-        SourceRepository.RemoteSourceType.EXTENSION -> "Add Extension source"
-        SourceRepository.RemoteSourceType.WEBSITE -> "Add Website source"
-        null -> "Add custom source"
-    }
-    val sheetSubtitle = when (detectedType) {
-        SourceRepository.RemoteSourceType.REDDIT -> "Enter a subreddit name (e.g. r/wallpapers) or Reddit link."
-        SourceRepository.RemoteSourceType.WALLHAVEN -> "Paste a public Wallhaven search or collection link."
-        SourceRepository.RemoteSourceType.PINTEREST -> "Enter a Pinterest board, profile (@username), or URL."
-        SourceRepository.RemoteSourceType.EXTENSION -> "Install or enable this community declarative extension."
-        SourceRepository.RemoteSourceType.WEBSITE -> "Paste a wallpaper website link."
-        null -> "Enter a subreddit name, wallpaper URL, or browse extension repositories."
-    }
-    val inputLabel = when (detectedType) {
-        SourceRepository.RemoteSourceType.REDDIT -> "Subreddit name or URL"
-        SourceRepository.RemoteSourceType.WALLHAVEN -> "Wallhaven URL"
-        SourceRepository.RemoteSourceType.PINTEREST -> "Pinterest board, @username, or URL"
-        SourceRepository.RemoteSourceType.EXTENSION -> "Extension name or ID"
-        SourceRepository.RemoteSourceType.WEBSITE -> "Website URL"
-        null -> "Subreddit, URL, or provider name"
-    }
-
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item("title") {
-                Text(text = sheetTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-            item("subtitle") {
-                Text(
-                    text = sheetSubtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            item("input") {
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = onInputChange,
-                    label = { Text(inputLabel) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = {
-                        if (canAdd) {
-                            onAddSource()
-                        }
-                    })
-                )
-            }
-            item("add_action") {
+            Text(
+                text = "Add Custom Source",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInputChange,
+                label = { Text("URL, Subreddit, or Keywords") },
+                placeholder = { Text("e.g. wallpapers, r/wallpapers, or URL") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                shape = WallBaseShapes.control,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Button(
                     onClick = onAddSource,
-                    enabled = canAdd,
+                    enabled = input.isNotBlank(),
                     shape = WallBaseShapes.pill,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Text("Add Source")
+                    Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add Directly")
+                }
+
+                FilledTonalButton(
+                    onClick = onSearch,
+                    enabled = input.isNotBlank() && !isSearching,
+                    shape = WallBaseShapes.pill,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isSearching) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Outlined.Search, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Search Reddit")
+                    }
                 }
             }
 
-            item("supported_sources") {
-                SupportedSourcesList(
-                    onSelectSourceInput = onInputChange,
-                    onQuickAdd = onQuickAdd,
-                    onOpenRepoScreen = onOpenRepoScreen
+            if (results.isNotEmpty()) {
+                Text(
+                    text = "Reddit Communities Found",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
-            }
-
-            if (isReddit) {
-                item("reddit_actions") {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = onSearch, enabled = canSearch) {
-                            Text("Search communities")
-                        }
-                        if (results.isNotEmpty()) {
-                            TextButton(onClick = onClearResults, enabled = !isSearching) {
-                                Text("Clear")
-                            }
-                        }
-                    }
-                }
-            }
-
-            when {
-                isSearching -> {
-                    item("searching") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(28.dp))
-                        }
-                    }
-                }
-
-                searchError != null -> {
-                    item("search_error") {
-                        Text(
-                            text = searchError,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-
-                results.isNotEmpty() -> {
-                    items(results, key = RedditCommunity::name) { community ->
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(results, key = { it.name }) { community ->
+                        val alreadyAdded = existingConfigs.contains(community.name.lowercase(Locale.ROOT))
                         RedditSearchResult(
                             community = community,
-                            alreadyAdded = existingConfigs.contains(community.name.lowercase(Locale.ROOT)),
+                            alreadyAdded = alreadyAdded,
                             onAdd = onAddResult
                         )
                     }
                 }
             }
-        }
-    }
-}
 
-@Composable
-private fun SupportedSourcesList(
-    onSelectSourceInput: (String) -> Unit,
-    onQuickAdd: (String) -> Unit,
-    onOpenRepoScreen: () -> Unit
-) {
-    val sources = listOf(
-        SupportedSourceInfo(
-            label = "AlphaCoders",
-            faviconDomain = "wall.alphacoders.com",
-            quickAddInput = "alphacoders",
-            requirement = "Anime & Gaming wallpapers"
-        ),
-        SupportedSourceInfo(
-            label = "Unsplash",
-            faviconDomain = "unsplash.com",
-            quickAddInput = "unsplash",
-            requirement = "High-res curated photography"
-        ),
-        SupportedSourceInfo(
-            label = "Pexels",
-            faviconDomain = "pexels.com",
-            quickAddInput = "pexels",
-            requirement = "Free 4K stock wallpapers"
-        ),
-        SupportedSourceInfo(
-            label = "Pixiv",
-            faviconDomain = "pixiv.net",
-            quickAddInput = "pixiv",
-            requirement = "Japanese anime illustration catalog"
-        ),
-        SupportedSourceInfo(
-            label = "Safebooru",
-            faviconDomain = "safebooru.org",
-            quickAddInput = "safebooru",
-            requirement = "Tagged anime art & illustrations"
-        ),
-        SupportedSourceInfo(
-            label = "Wallhaven",
-            faviconDomain = "wallhaven.cc",
-            quickAddInput = "https://wallhaven.cc/toplist",
-            requirement = "Toplist & tag searches"
-        ),
-        SupportedSourceInfo(
-            label = "Reddit",
-            faviconDomain = "reddit.com",
-            quickAddInput = "r/wallpapers",
-            requirement = "Subreddits like r/wallpapers, r/wallpaper"
-        ),
-        SupportedSourceInfo(
-            label = "Pinterest",
-            faviconDomain = "pinterest.com",
-            quickAddInput = "https://www.pinterest.com/wallpapersden/ultra-hd-wallpapers-collections/",
-            requirement = "Boards, profiles (@username), or URLs"
-        ),
-    )
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = "Quick add presets",
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        sources.forEach { source ->
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = WallBaseShapes.control,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-                onClick = { source.quickAddInput?.let(onSelectSourceInput) },
-                enabled = source.quickAddInput != null
+                color = MaterialTheme.colorScheme.primaryContainer,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                onClick = onOpenRepoScreen
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (source.faviconUrl != null) {
-                        AsyncImage(
-                            model = source.faviconUrl,
-                            contentDescription = source.label,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(WallBaseShapes.control)
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.Public,
-                            contentDescription = source.label,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.Extension,
+                        contentDescription = "Manage Repositories",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = source.label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                        source.requirement?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        Text(
+                            text = "Extension Repositories",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Manage subscribed repo.json URLs to discover more sources",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                        )
                     }
-                    if (source.quickAddInput != null) {
-                        TextButton(onClick = { onQuickAdd(source.quickAddInput) }) {
-                            Text("Add")
-                        }
-                    }
-                }
-            }
-        }
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = WallBaseShapes.control,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-            onClick = onOpenRepoScreen
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Storage,
-                    contentDescription = "Manage Repositories",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Extension Repositories",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Manage subscribed repo.json URLs & import custom JSON scrapers",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
                 }
             }
         }
@@ -1085,17 +1051,6 @@ private fun RedditSearchResult(
     }
 }
 
-private data class SupportedSourceInfo(
-    val label: String,
-    val faviconDomain: String? = null,
-    val quickAddInput: String? = null,
-    val requirement: String? = null,
-) {
-    val faviconUrl: String? = faviconDomain?.let { domain ->
-        "https://www.google.com/s2/favicons?sz=128&domain=$domain"
-    }
-}
-
 private fun sourceShareUrl(source: Source): String? {
     val config = source.config?.takeIf { it.isNotBlank() } ?: return null
     return when (source.providerKey) {
@@ -1103,11 +1058,9 @@ private fun sourceShareUrl(source: Source): String? {
             val slug = config.trim('/').ifBlank { return null }
             "https://www.reddit.com/r/$slug/"
         }
-
         SourceKeys.PINTEREST,
         SourceKeys.WALLHAVEN,
         SourceKeys.WEBSITES -> config
-
         else -> null
     }
 }

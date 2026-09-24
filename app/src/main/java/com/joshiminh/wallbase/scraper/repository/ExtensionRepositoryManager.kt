@@ -43,7 +43,7 @@ class ExtensionRepositoryManager @Inject constructor(
         File(context.filesDir, "extensions").apply { if (!exists()) mkdirs() }
     }
 
-    private companion object {
+    companion object {
         val SUBSCRIBED_REPOS_KEY = stringSetPreferencesKey("subscribed_extension_repos")
         val INSTALLED_IDS_KEY = stringSetPreferencesKey("installed_extension_ids")
         const val DEFAULT_COMMUNITY_REPO = "https://raw.githubusercontent.com/JoshiMinh/WallBase/main/repo.json"
@@ -94,11 +94,14 @@ class ExtensionRepositoryManager @Inject constructor(
             }
         }
 
-        // Auto subscribe default community repo if not already subscribed
+        // Auto subscribe default community repo and clean legacy URL
         dataStore.edit { prefs ->
             val current = prefs[SUBSCRIBED_REPOS_KEY] ?: emptySet()
-            if (DEFAULT_COMMUNITY_REPO !in current) {
-                prefs[SUBSCRIBED_REPOS_KEY] = current + DEFAULT_COMMUNITY_REPO
+            val cleaned = current.filterNot { it.contains("extensions/repo.json") }.toSet()
+            if (DEFAULT_COMMUNITY_REPO !in cleaned) {
+                prefs[SUBSCRIBED_REPOS_KEY] = cleaned + DEFAULT_COMMUNITY_REPO
+            } else if (cleaned.size != current.size) {
+                prefs[SUBSCRIBED_REPOS_KEY] = cleaned
             }
         }
     }
@@ -245,6 +248,13 @@ class ExtensionRepositoryManager @Inject constructor(
         dataStore.edit { prefs ->
             val current = prefs[SUBSCRIBED_REPOS_KEY] ?: setOf(DEFAULT_COMMUNITY_REPO)
             prefs[SUBSCRIBED_REPOS_KEY] = current - url.trim()
+        }
+    }
+
+    suspend fun updateSubscribedRepo(oldUrl: String, newUrl: String) {
+        dataStore.edit { prefs ->
+            val current = prefs[SUBSCRIBED_REPOS_KEY] ?: setOf(DEFAULT_COMMUNITY_REPO)
+            prefs[SUBSCRIBED_REPOS_KEY] = (current - oldUrl.trim()) + newUrl.trim()
         }
     }
 

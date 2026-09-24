@@ -729,6 +729,14 @@ fun LibraryScreen(
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp)
         )
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+        )
     }
 
     if (selectedTab == 0) {

@@ -179,6 +179,14 @@ class ExtensionsViewModel @Inject constructor(
         }
     }
 
+    fun editRepository(oldUrl: String, newUrl: String) {
+        if (newUrl.isBlank()) return
+        viewModelScope.launch {
+            repositoryManager.updateSubscribedRepo(oldUrl, newUrl)
+            _uiState.update { it.copy(snackbarMessage = "Updated repository") }
+        }
+    }
+
     fun testScraper(manifestJson: String, testQuery: String? = null) {
         viewModelScope.launch {
             _uiState.update { it.copy(isTestingScraper = true, testError = null, testWallpapers = emptyList()) }

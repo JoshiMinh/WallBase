@@ -316,12 +316,9 @@ fun WallBaseApp(
     val currentRoute = currentDestination?.route
     val autoHideRequested = topBarState?.autoHideBars
     val isWallpaperGridRoute = remember(currentRoute, autoHideRequested) {
-        if (autoHideRequested != null) {
-            autoHideRequested
-        } else {
-            currentRoute == RootRoute.Library.route ||
-                currentRoute?.startsWith("sourceBrowse") == true
-        }
+        val isGridScreen = currentRoute == RootRoute.Library.route ||
+            currentRoute?.startsWith("sourceBrowse") == true
+        isGridScreen && autoHideRequested != false
     }
 
     var isBarsVisible by rememberSaveable { mutableStateOf(true) }
@@ -358,13 +355,13 @@ fun WallBaseApp(
     val bottomBarHeightPx = remember(density) { with(density) { 120.dp.toPx() } }
 
     val topBarOffsetY by animateFloatAsState(
-        targetValue = if (isBarsVisible || !isWallpaperGridRoute) 0f else -topBarHeightPx,
+        targetValue = if (!isWallpaperGridRoute || isBarsVisible) 0f else -topBarHeightPx,
         animationSpec = animationSpec,
         label = "TopBarOffsetY",
     )
 
     val bottomBarOffsetY by animateFloatAsState(
-        targetValue = if (isBarsVisible || !isWallpaperGridRoute) 0f else bottomBarHeightPx,
+        targetValue = if (!isWallpaperGridRoute || isBarsVisible) 0f else bottomBarHeightPx,
         animationSpec = animationSpec,
         label = "BottomBarOffsetY",
     )
@@ -398,9 +395,7 @@ fun WallBaseApp(
                                 .statusBarsPadding()
                         ) {
                             TopAppBar(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(48.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
                                 title = {
                                     val overrideState = topBarState
@@ -516,7 +511,7 @@ fun WallBaseApp(
                             onAddSourceFromInput = onAddSourceFromInput,
                             onAddRedditCommunity = onAddRedditCommunity,
                             onClearSearchResults = onClearRedditSearch,
-                            onOpenSource = { source ->
+                            onOpenSource = { source: Source ->
                                 navController.navigateSingleTop(
                                     "sourceBrowse/${Uri.encode(source.key)}",
                                 )
@@ -524,24 +519,17 @@ fun WallBaseApp(
                             onRemoveSource = onRemoveSource,
                             onMessageShown = onSourcesMessageShown,
                             onSourceUrlCopied = onSourceUrlCopied,
-                            onOpenRepoScreen = { navController.navigateSingleTop("repo") },
+                            onOpenRepoScreen = { navController.navigateSingleTop("repositories") },
                             onConfigureTopBar = acquireTopBar,
                         )
                     }
 
-                    composable("repo") {
+                    composable("repositories") {
                         val extensionsViewModel: ExtensionsViewModel = viewModel(factory = ExtensionsViewModel.Factory)
                         RepoScreen(
                             viewModel = extensionsViewModel,
-                            onNavigateBack = { navController.popBackStack() }
-                        )
-                    }
-
-                    composable("extensions") {
-                        val extensionsViewModel: ExtensionsViewModel = viewModel(factory = ExtensionsViewModel.Factory)
-                        RepoScreen(
-                            viewModel = extensionsViewModel,
-                            onNavigateBack = { navController.popBackStack() }
+                            onNavigateBack = { navController.popBackStack() },
+                            onConfigureTopBar = acquireTopBar
                         )
                     }
 
@@ -649,7 +637,7 @@ fun WallBaseApp(
                             onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
                             onToggleShowDownloadBadge = onToggleShowDownloadBadge,
                             onSaveSourceCredentials = onSaveSourceCredentials,
-                            onOpenExtensions = { navController.navigateSingleTop("repo") },
+                            onOpenExtensions = { navController.navigateSingleTop("repositories") },
                         )
                     }
                 }
