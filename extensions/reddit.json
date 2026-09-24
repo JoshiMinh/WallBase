@@ -9,64 +9,68 @@
   "description": "Community wallpapers from popular Reddit wallpaper communities",
   "author": "WallBase Community",
   "isNsfw": false,
+  "headers": {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+  },
   "feeds": [
     {
       "id": "wallpapers",
       "title": "r/wallpapers",
-      "url": "https://www.reddit.com/r/wallpapers/hot.json?limit={limit}&after={cursor}",
+      "url": "https://www.reddit.com/r/wallpapers/hot.rss?limit={limit}&after={cursor}",
       "pagination": {
         "type": "cursor",
         "paramName": "after"
       },
       "extraction": {
-        "format": "json",
-        "itemSelector": "data.children",
+        "format": "xml",
+        "itemSelector": "entry",
         "fields": {
-          "id": { "jsonPath": "data.id" },
-          "title": { "jsonPath": "data.title" },
-          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "defaultValue": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink" }
+          "id": { "selector": "id" },
+          "title": { "selector": "title" },
+          "thumbnailUrl": { "selector": "media\\:thumbnail, thumbnail, img", "attribute": "url" },
+          "fullUrl": { "selector": "content", "regex": "href=\"([^\"]*(?:i\\.redd\\.it|preview\\.redd\\.it|i\\.imgur\\.com)[^\"]*)\"" },
+          "sourceUrl": { "selector": "link", "attribute": "href" }
         }
       }
     },
     {
       "id": "wallpaper",
       "title": "r/wallpaper",
-      "url": "https://www.reddit.com/r/wallpaper/hot.json?limit={limit}&after={cursor}",
+      "url": "https://www.reddit.com/r/wallpaper/hot.rss?limit={limit}&after={cursor}",
       "pagination": {
         "type": "cursor",
         "paramName": "after"
       },
       "extraction": {
-        "format": "json",
-        "itemSelector": "data.children",
+        "format": "xml",
+        "itemSelector": "entry",
         "fields": {
-          "id": { "jsonPath": "data.id" },
-          "title": { "jsonPath": "data.title" },
-          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "defaultValue": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink" }
+          "id": { "selector": "id" },
+          "title": { "selector": "title" },
+          "thumbnailUrl": { "selector": "media\\:thumbnail, thumbnail, img", "attribute": "url" },
+          "fullUrl": { "selector": "content", "regex": "href=\"([^\"]*(?:i\\.redd\\.it|preview\\.redd\\.it|i\\.imgur\\.com)[^\"]*)\"" },
+          "sourceUrl": { "selector": "link", "attribute": "href" }
         }
       }
     },
     {
       "id": "phonewallpapers",
       "title": "r/phonewallpapers",
-      "url": "https://www.reddit.com/r/phonewallpapers/hot.json?limit={limit}&after={cursor}",
+      "url": "https://www.reddit.com/r/phonewallpapers/hot.rss?limit={limit}&after={cursor}",
       "pagination": {
         "type": "cursor",
         "paramName": "after"
       },
       "extraction": {
-        "format": "json",
-        "itemSelector": "data.children",
+        "format": "xml",
+        "itemSelector": "entry",
         "fields": {
-          "id": { "jsonPath": "data.id" },
-          "title": { "jsonPath": "data.title" },
-          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "defaultValue": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink" }
+          "id": { "selector": "id" },
+          "title": { "selector": "title" },
+          "thumbnailUrl": { "selector": "media\\:thumbnail, thumbnail, img", "attribute": "url" },
+          "fullUrl": { "selector": "content", "regex": "href=\"([^\"]*(?:i\\.redd\\.it|preview\\.redd\\.it|i\\.imgur\\.com)[^\"]*)\"" },
+          "sourceUrl": { "selector": "link", "attribute": "href" }
         }
       }
     }
@@ -74,20 +78,20 @@
   "search": {
     "id": "search",
     "title": "Search Reddit Wallpapers",
-    "url": "https://www.reddit.com/r/wallpapers/search.json?q={query}&restrict_sr=1&limit={limit}&after={cursor}",
+    "url": "https://www.reddit.com/r/wallpapers/search.rss?q={query}&restrict_sr=1&sort=relevance&limit={limit}&after={cursor}",
     "pagination": {
       "type": "cursor",
       "paramName": "after"
     },
     "extraction": {
-      "format": "json",
-      "itemSelector": "data.children",
+      "format": "xml",
+      "itemSelector": "entry",
       "fields": {
-        "id": { "jsonPath": "data.id" },
-        "title": { "jsonPath": "data.title" },
-        "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-        "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "defaultValue": "data.url" },
-        "sourceUrl": { "jsonPath": "data.permalink" }
+        "id": { "selector": "id" },
+        "title": { "selector": "title" },
+        "thumbnailUrl": { "selector": "media\\:thumbnail, thumbnail, img", "attribute": "url" },
+        "fullUrl": { "selector": "content", "regex": "href=\"([^\"]*(?:i\\.redd\\.it|preview\\.redd\\.it|i\\.imgur\\.com)[^\"]*)\"" },
+        "sourceUrl": { "selector": "link", "attribute": "href" }
       }
     }
   }

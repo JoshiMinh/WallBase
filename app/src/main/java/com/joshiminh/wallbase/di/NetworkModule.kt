@@ -41,9 +41,13 @@ object NetworkModule {
         val builder = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request()
-                val updatedRequest = request.newBuilder()
-                    .header("User-Agent", USER_AGENT)
-                    .build()
+                val updatedRequest = if (request.header("User-Agent") == null) {
+                    request.newBuilder()
+                        .header("User-Agent", USER_AGENT)
+                        .build()
+                } else {
+                    request
+                }
                 chain.proceed(updatedRequest)
             }
 
