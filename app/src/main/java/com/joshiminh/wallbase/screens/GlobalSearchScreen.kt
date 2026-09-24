@@ -195,7 +195,7 @@ fun GlobalSearchScreen(
                     isRefreshing = uiState.isRefreshing,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = topBarInsetPadding(16.dp, hasTabBar = true))
+                        .padding(top = topBarInsetPadding(16.dp, hasTabBar = uiState.sources.isNotEmpty()))
                 )
             },
             modifier = Modifier.fillMaxSize()
@@ -266,7 +266,7 @@ fun GlobalSearchScreen(
                         showDownloadedBadge = uiState.showDownloadBadge,
                         contentPadding = PaddingValues(
                             start = 4.dp,
-                            top = topBarInsetPadding(12.dp, hasTabBar = true),
+                            top = topBarInsetPadding(12.dp, hasTabBar = uiState.sources.isNotEmpty()),
                             end = 4.dp,
                             bottom = bottomBarInsetPadding(4.dp, hasBottomNav = true)
                         ),

@@ -128,6 +128,7 @@ class MainActivity : ComponentActivity() {
                     onCreateCategory = settingsViewModel::createCategory,
                     onRenameCategory = settingsViewModel::renameCategory,
                     onDeleteCategory = settingsViewModel::deleteCategory,
+                    onReorderCategories = settingsViewModel::reorderCategories,
                     onCheckForUpdates = settingsViewModel::checkForUpdates,
                     onDismissAvailableUpdate = settingsViewModel::dismissAvailableUpdate,
                 )

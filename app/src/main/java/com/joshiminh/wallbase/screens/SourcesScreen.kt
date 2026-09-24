@@ -144,13 +144,11 @@ fun SourcesScreen(
         uiState.sources.filterNot(Source::isLocal)
     }
 
-    val installedExtensionIds = remember(visibleSources, extensionsState.installedExtensions) {
-        val fromSources = visibleSources.mapNotNull {
+    val installedExtensionIds = remember(visibleSources) {
+        visibleSources.mapNotNull {
             if (it.providerKey == SourceKeys.EXTENSION) it.config ?: it.key.removePrefix("${SourceKeys.EXTENSION}:")
             else it.providerKey
         }.toSet()
-        val fromManifests = extensionsState.installedExtensions.map { it.id }.toSet()
-        fromSources + fromManifests
     }
 
     val trimmedQuery = remember(searchQuery) { searchQuery.trim().lowercase(Locale.ROOT) }

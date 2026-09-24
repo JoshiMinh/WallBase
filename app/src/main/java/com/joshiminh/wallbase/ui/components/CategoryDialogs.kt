@@ -13,12 +13,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
@@ -258,6 +261,7 @@ fun ManageCategoriesDialog(
     onCreateCategory: (String) -> Unit,
     onRenameCategory: (CategoryItem, String) -> Unit,
     onDeleteCategory: (CategoryItem) -> Unit,
+    onReorderCategories: (List<Long>) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     var showCreateDialog by rememberSaveable { mutableStateOf(false) }
@@ -333,15 +337,57 @@ fun ManageCategoriesDialog(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 350.dp)
+                        .heightIn(max = 380.dp)
                 ) {
-                    items(categories, key = { it.id }) { category ->
+                    itemsIndexed(categories, key = { _, item -> item.id }) { index, category ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        if (index > 0) {
+                                            val reordered = categories.toMutableList()
+                                            val item = reordered.removeAt(index)
+                                            reordered.add(index - 1, item)
+                                            onReorderCategories(reordered.map { it.id })
+                                        }
+                                    },
+                                    enabled = index > 0,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.KeyboardArrowUp,
+                                        contentDescription = "Move Up",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (index < categories.size - 1) {
+                                            val reordered = categories.toMutableList()
+                                            val item = reordered.removeAt(index)
+                                            reordered.add(index + 1, item)
+                                            onReorderCategories(reordered.map { it.id })
+                                        }
+                                    },
+                                    enabled = index < categories.size - 1,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.KeyboardArrowDown,
+                                        contentDescription = "Move Down",
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = category.title,
@@ -354,18 +400,18 @@ fun ManageCategoriesDialog(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            IconButton(onClick = { categoryToRename = category }) {
+                            IconButton(onClick = { categoryToRename = category }, modifier = Modifier.size(32.dp)) {
                                 Icon(
                                     imageVector = Icons.Outlined.Edit,
                                     contentDescription = "Rename",
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
-                            IconButton(onClick = { categoryToDelete = category }) {
+                            IconButton(onClick = { categoryToDelete = category }, modifier = Modifier.size(32.dp)) {
                                 Icon(
                                     imageVector = Icons.Outlined.Delete,
                                     contentDescription = "Delete",
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }

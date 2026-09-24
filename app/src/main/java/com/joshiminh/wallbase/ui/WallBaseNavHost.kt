@@ -132,6 +132,7 @@ fun WallBaseApp(
     onCreateCategory: (String) -> Unit = {},
     onRenameCategory: (CategoryItem, String) -> Unit = { _, _ -> },
     onDeleteCategory: (CategoryItem) -> Unit = {},
+    onReorderCategories: (List<Long>) -> Unit = {},
     onCheckForUpdates: () -> Unit = {},
     onDismissAvailableUpdate: () -> Unit = {},
 ) {
@@ -667,6 +668,7 @@ fun WallBaseApp(
                             onCreateCategory = onCreateCategory,
                             onRenameCategory = onRenameCategory,
                             onDeleteCategory = onDeleteCategory,
+                            onReorderCategories = onReorderCategories,
                             onCheckForUpdates = onCheckForUpdates,
                             onDismissAvailableUpdate = onDismissAvailableUpdate,
                         )

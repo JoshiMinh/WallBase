@@ -494,6 +494,12 @@ class LibraryViewModel(
         }
     }
 
+    fun reorderCategories(categoryIds: List<Long>) {
+        viewModelScope.launch {
+            repository.reorderCategories(categoryIds)
+        }
+    }
+
     fun addWallpapersToCategory(categoryId: Long, wallpapers: List<WallpaperItem>) {
         if (wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {

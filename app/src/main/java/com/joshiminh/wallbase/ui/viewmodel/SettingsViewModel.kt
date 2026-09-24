@@ -435,6 +435,12 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun reorderCategories(categoryIds: List<Long>) {
+        viewModelScope.launch {
+            libraryRepository.reorderCategories(categoryIds)
+        }
+    }
+
     @Immutable
     data class SettingsUiState(
         val isBackingUp: Boolean = false,

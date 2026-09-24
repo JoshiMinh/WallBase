@@ -3,6 +3,7 @@ package com.joshiminh.wallbase.scraper.repository
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -46,6 +47,7 @@ class ExtensionRepositoryManager @Inject constructor(
     companion object {
         val SUBSCRIBED_REPOS_KEY = stringSetPreferencesKey("subscribed_extension_repos")
         val INSTALLED_IDS_KEY = stringSetPreferencesKey("installed_extension_ids")
+        val INITIALIZED_DEFAULTS_KEY = booleanPreferencesKey("initialized_default_extensions")
         const val DEFAULT_COMMUNITY_REPO = "https://raw.githubusercontent.com/JoshiMinh/WallBase/main/repo.json"
     }
 
@@ -66,45 +68,58 @@ class ExtensionRepositoryManager @Inject constructor(
     }
 
     /**
-     * Initializes default extension sources into Room DB if not already added.
+     * Initializes default extension sources into Room DB only once on first run.
      */
     suspend fun ensureDefaultExtensionsInstalled() = withContext(Dispatchers.IO) {
-        val builtIns = getBuiltInManifests()
-        val existingKeys = sourceDao.getSourceKeys().toSet()
+        val prefs = dataStore.data.first()
+        val alreadyInitialized = prefs[INITIALIZED_DEFAULTS_KEY] ?: false
 
-        builtIns.forEach { manifest ->
-            val sourceKey = "${SourceKeys.EXTENSION}:${manifest.id}"
-            if (sourceKey !in existingKeys) {
-                // Save manifest file
-                saveManifestToFile(manifest)
-                // Register in Room Database
-                val entity = SourceEntity(
-                    key = sourceKey,
-                    providerKey = SourceKeys.EXTENSION,
-                    title = manifest.name,
-                    description = manifest.description ?: "${manifest.name} Wallpapers",
-                    iconRes = null,
-                    iconUrl = manifest.iconUrl,
-                    showInExplore = true,
-                    isEnabled = true,
-                    isLocal = false,
-                    config = manifest.id
-                )
-                sourceDao.insertSource(entity)
+        if (!alreadyInitialized) {
+            val builtIns = getBuiltInManifests()
+            val existingKeys = sourceDao.getSourceKeys().toSet()
+            val installedIds = mutableSetOf<String>()
+
+            builtIns.forEach { manifest ->
+                val sourceKey = "${SourceKeys.EXTENSION}:${manifest.id}"
+                installedIds.add(manifest.id)
+                if (sourceKey !in existingKeys) {
+                    // Save manifest file
+                    saveManifestToFile(manifest)
+                    // Register in Room Database
+                    val entity = SourceEntity(
+                        key = sourceKey,
+                        providerKey = SourceKeys.EXTENSION,
+                        title = manifest.name,
+                        description = manifest.description ?: "${manifest.name} Wallpapers",
+                        iconRes = null,
+                        iconUrl = manifest.iconUrl,
+                        showInExplore = true,
+                        isEnabled = true,
+                        isLocal = false,
+                        config = manifest.id
+                    )
+                    sourceDao.insertSource(entity)
+                }
+            }
+
+            dataStore.edit { editPrefs ->
+                editPrefs[INITIALIZED_DEFAULTS_KEY] = true
+                val current = editPrefs[INSTALLED_IDS_KEY] ?: emptySet()
+                editPrefs[INSTALLED_IDS_KEY] = current + installedIds
             }
         }
 
         // Auto subscribe default community repo if not already subscribed
-        dataStore.edit { prefs ->
-            val current = prefs[SUBSCRIBED_REPOS_KEY] ?: emptySet()
+        dataStore.edit { editPrefs ->
+            val current = editPrefs[SUBSCRIBED_REPOS_KEY] ?: emptySet()
             if (DEFAULT_COMMUNITY_REPO !in current) {
-                prefs[SUBSCRIBED_REPOS_KEY] = current + DEFAULT_COMMUNITY_REPO
+                editPrefs[SUBSCRIBED_REPOS_KEY] = current + DEFAULT_COMMUNITY_REPO
             }
         }
     }
 
     /**
-     * Observe list of all installed SourceManifests (built-in + user imported).
+     * Observe list of all installed SourceManifests that are currently active in SourceDao.
      */
     fun observeInstalledManifests(): Flow<List<SourceManifest>> =
         dataStore.data.map {
@@ -112,19 +127,30 @@ class ExtensionRepositoryManager @Inject constructor(
         }.distinctUntilChanged()
 
     suspend fun getInstalledManifestsList(): List<SourceManifest> = withContext(Dispatchers.IO) {
-        val builtInMap = getBuiltInManifests().associateBy { it.id }.toMutableMap()
-        val customFiles = extensionsDir.listFiles { _, name -> name.endsWith(".json") } ?: emptyArray()
+        val allSources = sourceDao.getSources()
+        val extensionSources = allSources.filter {
+            it.providerKey == SourceKeys.EXTENSION || it.key.startsWith("${SourceKeys.EXTENSION}:")
+        }
+        val installedExtensionIds = extensionSources.mapNotNull {
+            it.config ?: it.key.removePrefix("${SourceKeys.EXTENSION}:")
+        }.toSet()
 
-        customFiles.forEach { file ->
-            runCatching {
-                val json = file.readText()
-                val manifest = manifestAdapter.fromJson(json)
-                if (manifest != null) {
-                    builtInMap[manifest.id] = manifest
-                }
+        val builtIns = getBuiltInManifests().associateBy { it.id }
+        val manifests = mutableListOf<SourceManifest>()
+
+        installedExtensionIds.forEach { id ->
+            val file = File(extensionsDir, "$id.json")
+            val manifest = if (file.exists()) {
+                runCatching { manifestAdapter.fromJson(file.readText()) }.getOrNull()
+            } else null
+
+            val finalManifest = manifest ?: builtIns[id] ?: builtIns.values.firstOrNull { it.id.equals(id, ignoreCase = true) }
+            if (finalManifest != null) {
+                manifests.add(finalManifest)
             }
         }
-        builtInMap.values.toList()
+
+        manifests
     }
 
     suspend fun getManifestById(id: String): SourceManifest? = withContext(Dispatchers.IO) {
@@ -181,10 +207,13 @@ class ExtensionRepositoryManager @Inject constructor(
             file.delete()
         }
         val sourceKey = "${SourceKeys.EXTENSION}:$id"
-        val existing = sourceDao.getSourceByKey(sourceKey)
-        if (existing != null) {
-            sourceDao.deleteSourceById(existing.id)
+        sourceDao.deleteSourceByKey(sourceKey)
+
+        val allSources = sourceDao.getSources()
+        allSources.filter { it.config == id || it.key == sourceKey }.forEach {
+            sourceDao.deleteSourceById(it.id)
         }
+
         dataStore.edit { prefs ->
             val current = prefs[INSTALLED_IDS_KEY] ?: emptySet()
             prefs[INSTALLED_IDS_KEY] = current - id

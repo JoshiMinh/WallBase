@@ -603,6 +603,7 @@ fun LibraryScreen(
             onCreateCategory = { name -> libraryViewModel.createCategory(name) },
             onRenameCategory = { category, newName -> libraryViewModel.renameCategory(category, newName) },
             onDeleteCategory = { category -> libraryViewModel.deleteCategory(category) },
+            onReorderCategories = { ids -> libraryViewModel.reorderCategories(ids) },
             onDismiss = { showManageCategoriesDialog = false }
         )
     }

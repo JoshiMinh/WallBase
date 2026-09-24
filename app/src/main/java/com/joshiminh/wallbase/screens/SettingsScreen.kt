@@ -9,6 +9,7 @@ import android.text.format.Formatter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import coil3.compose.AsyncImage
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -148,6 +149,7 @@ fun SettingsScreen(
     onCreateCategory: (String) -> Unit = {},
     onRenameCategory: (CategoryItem, String) -> Unit = { _, _ -> },
     onDeleteCategory: (CategoryItem) -> Unit = {},
+    onReorderCategories: (List<Long>) -> Unit = {},
     onCheckForUpdates: () -> Unit = {},
     onDismissAvailableUpdate: () -> Unit = {},
 ) {
@@ -212,8 +214,8 @@ fun SettingsScreen(
                         .padding(vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Image(
-                        painter = painterResource(id = R.mipmap.ic_launcher),
+                    AsyncImage(
+                        model = R.mipmap.ic_launcher_round,
                         contentDescription = "WallBase Icon",
                         modifier = Modifier
                             .size(76.dp)
@@ -414,6 +416,7 @@ fun SettingsScreen(
             onCreateCategory = onCreateCategory,
             onRenameCategory = onRenameCategory,
             onDeleteCategory = onDeleteCategory,
+            onReorderCategories = onReorderCategories,
             onDismiss = { showManageCategoriesDialog = false }
         )
     }
@@ -1453,8 +1456,8 @@ private fun AboutDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher),
+                AsyncImage(
+                    model = R.mipmap.ic_launcher_round,
                     contentDescription = "WallBase Icon",
                     modifier = Modifier
                         .size(64.dp)

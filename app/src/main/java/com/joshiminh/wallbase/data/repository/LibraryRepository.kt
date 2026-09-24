@@ -121,6 +121,12 @@ class LibraryRepository @Inject constructor(
         if (deleted > 0) Result.success(Unit) else Result.failure(IllegalStateException("Category not found"))
     }
 
+    suspend fun reorderCategories(categoryIds: List<Long>) = withContext(Dispatchers.IO) {
+        categoryIds.forEachIndexed { index, id ->
+            categoryDao.updateCategorySortOrder(id, index)
+        }
+    }
+
     suspend fun addWallpapersToCategory(
         categoryId: Long,
         wallpapers: List<WallpaperItem>

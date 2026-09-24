@@ -13,6 +13,7 @@ import com.joshiminh.wallbase.data.entity.Source
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
+import com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
 import com.joshiminh.wallbase.util.network.ServiceLocator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,8 @@ class SourcesViewModel @Inject constructor(
     application: Application,
     private val sourceRepository: SourceRepository,
     private val libraryRepository: LibraryRepository,
-    private val wallpaperRepository: WallpaperRepository
+    private val wallpaperRepository: WallpaperRepository,
+    private val extensionRepositoryManager: ExtensionRepositoryManager
 ) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(SourcesUiState())
@@ -214,6 +216,10 @@ class SourcesViewModel @Inject constructor(
 
     fun removeSource(source: Source, deleteWallpapers: Boolean) {
         viewModelScope.launch {
+            if (source.providerKey == SourceKeys.EXTENSION || source.key.startsWith("${SourceKeys.EXTENSION}:")) {
+                val extensionId = source.config ?: source.key.removePrefix("${SourceKeys.EXTENSION}:")
+                extensionRepositoryManager.uninstallManifest(extensionId)
+            }
             runCatching { sourceRepository.removeSource(source, deleteWallpapers) }
                 .onSuccess { removedWallpapers ->
                     val message = when {

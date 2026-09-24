@@ -40,6 +40,12 @@ interface SourceDao {
     @Query("SELECT * FROM sources WHERE provider_key = :provider AND config = :config LIMIT 1")
     suspend fun findSourceByProviderAndConfig(provider: String, config: String): SourceEntity?
 
+    @Query("SELECT * FROM sources")
+    suspend fun getSources(): List<SourceEntity>
+
+    @Query("DELETE FROM sources WHERE key = :key")
+    suspend fun deleteSourceByKey(key: String): Int
+
     @Query("DELETE FROM sources WHERE source_id = :id")
     suspend fun deleteSourceById(id: Long)
 }
