@@ -43,13 +43,13 @@ class SettingsRepository @Inject constructor(
             val wallpaperLayout = WallpaperLayout.fromStorage(prefs[Keys.WALLPAPER_LAYOUT])
 
             val appThemeStr = prefs[Keys.APP_THEME]
-            val legacyDarkTheme = prefs[Keys.DARK_THEME] ?: false
+            val legacyDarkTheme = prefs[Keys.DARK_THEME] ?: true
             val appTheme = if (appThemeStr != null) {
                 AppTheme.fromStorage(appThemeStr)
             } else if (legacyDarkTheme) {
                 AppTheme.DARK
             } else {
-                AppTheme.LIGHT
+                AppTheme.DARK
             }
 
             val dynamicPref = prefs[Keys.DYNAMIC_COLOR] ?: false

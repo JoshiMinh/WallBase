@@ -330,119 +330,16 @@ fun WallBaseApp(
         navController.previousBackStackEntry != null && currentDestination?.route !in topLevelRoutes
     val showTopBar = currentDestination?.route != "wallpaperDetail"
 
-    Box(Modifier.fillMaxSize()) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background,
-            contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
-            topBar = {
-                if (showTopBar) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.background,
-                        tonalElevation = 0.dp,
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.background)
-                                .statusBarsPadding()
-                        ) {
-                            TopAppBar(
-                                modifier = Modifier.fillMaxWidth(),
-                                windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
-                                title = {
-                                    val overrideState = topBarState
-                                    val customTitle = overrideState?.titleContent
-                                    when {
-                                        customTitle != null -> customTitle()
-                                        else -> Text(
-                                            text = overrideState?.title ?: currentTitle(currentDestination),
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                    }
-                                },
-                                navigationIcon = {
-                                    val overrideState = topBarState
-                                    val overrideNav = overrideState?.navigationIcon
-                                    when {
-                                        overrideNav != null -> IconButton(onClick = overrideNav.onClick) {
-                                            Icon(
-                                                imageVector = overrideNav.icon,
-                                                contentDescription = overrideNav.contentDescription,
-                                                modifier = Modifier.size(24.dp),
-                                            )
-                                        }
-                                        overrideState != null -> Unit // no nav icon when state provided
-                                        canNavigateBack -> IconButton(onClick = { navController.navigateUp() }) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                                contentDescription = "Back",
-                                                modifier = Modifier.size(24.dp),
-                                            )
-                                        }
-                                        else -> Unit
-                                    }
-                                },
-                                actions = { topBarState?.actions?.invoke(this) },
-                                colors = TopAppBarDefaults.topAppBarColors(
-                                    containerColor = MaterialTheme.colorScheme.background,
-                                    scrolledContainerColor = MaterialTheme.colorScheme.background,
-                                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
-                                    actionIconContentColor = MaterialTheme.colorScheme.onBackground,
-                                ),
-                            )
-                            topBarState?.bottomContent?.invoke()
-                        }
-                    }
-                }
-            },
-            bottomBar = {
-                if (currentDestination?.route in topLevelRoutes) {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 0.dp,
-                    ) {
-                        RootRoute.entries.forEach { item ->
-                            val isSelected = currentDestination.isTopDestination(item)
-                            NavigationBarItem(
-                                selected = isSelected,
-                                onClick = {
-                                    if (!isSelected) {
-                                        navController.navigate(item.route) {
-                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                },
-                                icon = {
-                                    AnimatedBottomBarIcon(
-                                        item = item,
-                                        isSelected = isSelected,
-                                        animationsEnabled = settingsUiState.animationsEnabled,
-                                    )
-                                },
-                                label = {
-                                    Text(
-                                        text = item.label,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    )
-                                },
-                            )
-                        }
-                    }
-                }
-            },
-        ) { _ ->
-            val navContainerModifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        val navContainerModifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
 
-            val renderNavHost: @Composable (SharedTransitionScope?) -> Unit = { sharedScope ->
+        val renderNavHost: @Composable (SharedTransitionScope?) -> Unit = { sharedScope ->
                 val rootRouteOrder = remember {
                     listOf(
                         RootRoute.Library.route,
@@ -734,11 +631,134 @@ fun WallBaseApp(
                 }
             }
 
-            SharedTransitionHost(
-                enabled = sharedTransitionsEnabled,
-                modifier = navContainerModifier,
-                content = renderNavHost,
-            )
+        SharedTransitionHost(
+            enabled = sharedTransitionsEnabled,
+            modifier = navContainerModifier,
+            content = renderNavHost,
+        )
+
+        if (showTopBar) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                tonalElevation = 0.dp,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                ) {
+                    TopAppBar(
+                        modifier = Modifier.fillMaxWidth(),
+                        windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
+                        title = {
+                            val overrideState = topBarState
+                            val customTitle = overrideState?.titleContent
+                            when {
+                                customTitle != null -> customTitle()
+                                else -> Text(
+                                    text = overrideState?.title ?: currentTitle(currentDestination),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        },
+                        navigationIcon = {
+                            val overrideState = topBarState
+                            val overrideNav = overrideState?.navigationIcon
+                            when {
+                                overrideNav != null -> IconButton(onClick = overrideNav.onClick) {
+                                    Icon(
+                                        imageVector = overrideNav.icon,
+                                        contentDescription = overrideNav.contentDescription,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                overrideState != null -> Unit // no nav icon when state provided
+                                canNavigateBack -> IconButton(onClick = { navController.navigateUp() }) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                else -> Unit
+                            }
+                        },
+                        actions = { topBarState?.actions?.invoke(this) },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                            actionIconContentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                    )
+                    topBarState?.bottomContent?.invoke()
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        thickness = 0.5.dp
+                    )
+                }
+            }
+        }
+
+        if (currentDestination?.route in topLevelRoutes) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                tonalElevation = 0.dp,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                ) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        thickness = 0.5.dp
+                    )
+                    NavigationBar(
+                        containerColor = Color.Transparent,
+                        tonalElevation = 0.dp,
+                        windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
+                    ) {
+                        RootRoute.entries.forEach { item ->
+                            val isSelected = currentDestination.isTopDestination(item)
+                            NavigationBarItem(
+                                selected = isSelected,
+                                onClick = {
+                                    if (!isSelected) {
+                                        navController.navigate(item.route) {
+                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                            launchSingleTop = true
+                                            restoreState = true
+                                        }
+                                    }
+                                },
+                                icon = {
+                                    AnimatedBottomBarIcon(
+                                        item = item,
+                                        isSelected = isSelected,
+                                        animationsEnabled = settingsUiState.animationsEnabled,
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = item.label,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         when {

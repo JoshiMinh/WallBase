@@ -43,6 +43,10 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
+import com.joshiminh.wallbase.ui.theme.AccentPink
+import com.joshiminh.wallbase.ui.theme.AccentBlue
+import com.joshiminh.wallbase.ui.theme.AccentRed
+import com.joshiminh.wallbase.ui.theme.AccentGreen
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -246,25 +250,25 @@ fun AppearanceSettingsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             AccentColorDot(
-                                color = Color(0xFFE91E63),
+                                color = AccentPink,
                                 label = "Pink",
                                 selected = uiState.appAccentColor == AppAccentColor.PINK,
                                 onClick = { onSetAppAccentColor(AppAccentColor.PINK) }
                             )
                             AccentColorDot(
-                                color = Color(0xFF1976D2),
+                                color = AccentBlue,
                                 label = "Blue",
                                 selected = uiState.appAccentColor == AppAccentColor.BLUE,
                                 onClick = { onSetAppAccentColor(AppAccentColor.BLUE) }
                             )
                             AccentColorDot(
-                                color = Color(0xFFE53935),
+                                color = AccentRed,
                                 label = "Red",
                                 selected = uiState.appAccentColor == AppAccentColor.RED,
                                 onClick = { onSetAppAccentColor(AppAccentColor.RED) }
                             )
                             AccentColorDot(
-                                color = Color(0xFF43A047),
+                                color = AccentGreen,
                                 label = "Green",
                                 selected = uiState.appAccentColor == AppAccentColor.GREEN,
                                 onClick = { onSetAppAccentColor(AppAccentColor.GREEN) }
