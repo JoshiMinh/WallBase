@@ -7,7 +7,6 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.request.crossfade
-import com.joshiminh.wallbase.util.network.ServiceLocator
 import dagger.hilt.android.HiltAndroidApp
 import okio.Path.Companion.toOkioPath
 
@@ -15,7 +14,6 @@ import okio.Path.Companion.toOkioPath
 class WallBaseApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
-        ServiceLocator.initialize(this)
     }
 
     override fun newImageLoader(context: Context): ImageLoader {

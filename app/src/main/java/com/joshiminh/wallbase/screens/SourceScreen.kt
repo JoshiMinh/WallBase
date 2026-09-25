@@ -82,6 +82,7 @@ import com.joshiminh.wallbase.util.SortField
 import com.joshiminh.wallbase.util.SortSelection
 import com.joshiminh.wallbase.util.toSelection
 import com.joshiminh.wallbase.util.toWallpaperSortOption
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
 import com.joshiminh.wallbase.ui.viewmodel.SourceBrowseViewModel
@@ -92,7 +93,7 @@ fun SourceRoute(
     sourceKey: String,
     onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
-    viewModel: SourceBrowseViewModel = viewModel(factory = SourceBrowseViewModel.provideFactory(sourceKey)),
+    viewModel: SourceBrowseViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {

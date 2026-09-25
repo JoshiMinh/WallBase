@@ -11,18 +11,21 @@ import androidx.lifecycle.lifecycleScope
 import com.joshiminh.wallbase.MainActivity
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.LibraryRepository.DirectAddResult
-import com.joshiminh.wallbase.util.network.ServiceLocator
+import dagger.hilt.android.AndroidEntryPoint
 import java.util.LinkedHashSet
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class ShareReceiverActivity : ComponentActivity() {
 
-    private val libraryRepository: LibraryRepository by lazy { ServiceLocator.libraryRepository }
+    @Inject
+    lateinit var libraryRepository: LibraryRepository
+
     private var isProcessing = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        ServiceLocator.ensureInitialized(applicationContext)
         processShareIntent(intent)
     }
 

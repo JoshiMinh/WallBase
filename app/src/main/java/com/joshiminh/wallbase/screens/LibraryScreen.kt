@@ -65,8 +65,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
@@ -96,7 +96,7 @@ import com.joshiminh.wallbase.util.toWallpaperSortOption
 fun LibraryScreen(
     onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
-    libraryViewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
+    libraryViewModel: LibraryViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     bottomBarOffsetY: Float = 0f

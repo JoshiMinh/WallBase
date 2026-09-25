@@ -105,8 +105,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.entity.WallpaperItem
@@ -125,7 +125,7 @@ fun WallpaperRoute(
     wallpapers: List<WallpaperItem> = listOf(wallpaper),
     initialIndex: Int = 0,
     onNavigateBack: () -> Unit,
-    viewModel: WallpaperDetailViewModel = viewModel(factory = WallpaperDetailViewModel.Factory),
+    viewModel: WallpaperDetailViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -214,7 +214,7 @@ fun DetailRoute(
     wallpapers: List<WallpaperItem> = listOf(wallpaper),
     initialIndex: Int = 0,
     onNavigateBack: () -> Unit,
-    viewModel: WallpaperDetailViewModel = viewModel(factory = WallpaperDetailViewModel.Factory),
+    viewModel: WallpaperDetailViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {

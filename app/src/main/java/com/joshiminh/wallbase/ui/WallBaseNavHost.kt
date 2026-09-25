@@ -88,7 +88,7 @@ import com.joshiminh.wallbase.ui.theme.WallBaseMotion
 import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.data.repository.AppTheme
 import com.joshiminh.wallbase.data.repository.AppAccentColor
-import com.joshiminh.wallbase.util.network.ServiceLocator
+import androidx.hilt.navigation.compose.hiltViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -649,7 +649,7 @@ fun WallBaseApp(
                     }
 
                     composable("repositories") {
-                        val extensionsViewModel: ExtensionsViewModel = viewModel(factory = ExtensionsViewModel.Factory)
+                        val extensionsViewModel: ExtensionsViewModel = hiltViewModel()
                         RepoScreen(
                             viewModel = extensionsViewModel,
                             onNavigateBack = { navController.popBackStack() },
@@ -718,8 +718,7 @@ fun WallBaseApp(
 
                             BackHandler(onBack = navigateBack)
 
-                            val viewModel: WallpaperDetailViewModel =
-                                viewModel(factory = WallpaperDetailViewModel.Factory)
+                            val viewModel: WallpaperDetailViewModel = hiltViewModel()
 
                             val detailSharedScope =
                                 sharedScope.takeIf { enableSharedTransition }

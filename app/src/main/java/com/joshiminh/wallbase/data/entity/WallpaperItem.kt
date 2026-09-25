@@ -1,12 +1,14 @@
 package com.joshiminh.wallbase.data.entity
 
 import android.os.Parcelable
+import androidx.compose.runtime.Immutable
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import kotlinx.parcelize.Parcelize
 
 /**
  * Simple representation of a wallpaper entry shown in browsing screens.
  */
+@Immutable
 @Parcelize
 data class WallpaperItem(
     val id: String,

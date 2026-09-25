@@ -1,11 +1,8 @@
 package com.joshiminh.wallbase.ui.viewmodel
 
-import android.app.Application
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
@@ -20,9 +17,9 @@ import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.util.AlbumSortOption
 import com.joshiminh.wallbase.util.WallpaperSortOption
 import com.joshiminh.wallbase.util.matchesHorizontalPreference
-import com.joshiminh.wallbase.util.network.ServiceLocator
 import com.joshiminh.wallbase.util.sortedWith
 import androidx.compose.runtime.Immutable
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,15 +31,21 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import javax.inject.Inject
 import kotlinx.coroutines.launch
 
-class SourceBrowseViewModel(
-    private val sourceKey: String,
+private const val UNKNOWN_PROVIDER_KEY = "unknown"
+
+@HiltViewModel
+class SourceBrowseViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val sourceRepository: SourceRepository,
     private val wallpaperRepository: WallpaperRepository,
     private val libraryRepository: LibraryRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+
+    private val sourceKey: String = savedStateHandle.get<String>("sourceKey").orEmpty()
 
     private val _uiState = MutableStateFlow(SourceBrowseUiState())
     val uiState: StateFlow<SourceBrowseUiState> = _uiState.asStateFlow()
@@ -376,22 +379,4 @@ class SourceBrowseViewModel(
         val showHorizontalWallpapers: Boolean = true,
         val showDownloadBadge: Boolean = true
     )
-
-    companion object {
-        private const val UNKNOWN_PROVIDER_KEY = ""
-
-        fun provideFactory(sourceKey: String) = viewModelFactory {
-            initializer {
-                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ServiceLocator.ensureInitialized(application)
-                SourceBrowseViewModel(
-                    sourceKey = sourceKey,
-                    sourceRepository = ServiceLocator.sourceRepository,
-                    wallpaperRepository = ServiceLocator.wallpaperRepository,
-                    libraryRepository = ServiceLocator.libraryRepository,
-                    settingsRepository = ServiceLocator.settingsRepository
-                )
-            }
-        }
-    }
 }

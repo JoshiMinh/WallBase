@@ -1,5 +1,8 @@
 package com.joshiminh.wallbase.data.entity
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class Source(
     val id: Long,
     val iconRes: Int?,

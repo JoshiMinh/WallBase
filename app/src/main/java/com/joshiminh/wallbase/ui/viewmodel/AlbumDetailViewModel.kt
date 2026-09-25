@@ -1,11 +1,8 @@
 package com.joshiminh.wallbase.ui.viewmodel
 
-import android.app.Application
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.AlbumDetail
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.entity.WallpaperItem
@@ -14,7 +11,7 @@ import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.util.WallpaperSortOption
 import com.joshiminh.wallbase.util.sortedWith
-import com.joshiminh.wallbase.util.network.ServiceLocator
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,12 +19,18 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class AlbumDetailViewModel(
-    private val albumId: Long,
+@HiltViewModel
+class AlbumDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val repository: LibraryRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+
+    private val albumId: Long = savedStateHandle.get<Long>("albumId")
+        ?: savedStateHandle.get<String>("albumId")?.toLongOrNull()
+        ?: 0L
 
     private val sortOption = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
     private val downloading = MutableStateFlow(false)
@@ -278,20 +281,6 @@ class AlbumDetailViewModel(
         val isDeletingAlbum: Boolean = false,
         val isAlbumDeleted: Boolean = false
     )
-
-    companion object {
-        fun provideFactory(albumId: Long) = viewModelFactory {
-            initializer {
-                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ServiceLocator.ensureInitialized(application)
-                AlbumDetailViewModel(
-                    albumId = albumId,
-                    repository = ServiceLocator.libraryRepository,
-                    settingsRepository = ServiceLocator.settingsRepository
-                )
-            }
-        }
-    }
 }
 
 private fun List<WallpaperItem>.isAlbumFullyDownloaded(): Boolean {

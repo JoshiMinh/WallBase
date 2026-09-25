@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.ui.components.SheetTab
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.ViewFilterSortBottomSheet
 import com.joshiminh.wallbase.ui.components.WallpaperGrid
@@ -69,7 +70,7 @@ fun AlbumRoute(
     onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
     onAlbumDeleted: () -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
-    viewModel: AlbumDetailViewModel = viewModel(factory = AlbumDetailViewModel.provideFactory(albumId)),
+    viewModel: AlbumDetailViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {

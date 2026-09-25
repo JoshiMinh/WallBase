@@ -3,10 +3,7 @@ package com.joshiminh.wallbase.ui.viewmodel
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.sources.RedditCommunity
 import com.joshiminh.wallbase.data.entity.Source
@@ -14,7 +11,6 @@ import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
-import com.joshiminh.wallbase.util.network.ServiceLocator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

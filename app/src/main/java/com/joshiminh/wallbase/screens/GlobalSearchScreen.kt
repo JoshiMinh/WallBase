@@ -55,8 +55,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.navigation.TopBarHandle
@@ -74,7 +74,7 @@ import com.joshiminh.wallbase.ui.viewmodel.GlobalSearchViewModel
 fun GlobalSearchScreen(
     onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
-    viewModel: GlobalSearchViewModel = viewModel(factory = GlobalSearchViewModel.Factory),
+    viewModel: GlobalSearchViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     bottomBarOffsetY: Float = 0f

@@ -2,12 +2,8 @@
 
 package com.joshiminh.wallbase.ui.viewmodel
 
-import android.app.Application
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.CategoryItem
 import com.joshiminh.wallbase.data.entity.CategoryWithWallpapers
@@ -23,7 +19,7 @@ import com.joshiminh.wallbase.util.WallpaperSortOption
 import com.joshiminh.wallbase.util.sortedWith
 import com.joshiminh.wallbase.util.DownloadedFilter
 import com.joshiminh.wallbase.util.filterByDownloadStatus
-import com.joshiminh.wallbase.util.network.ServiceLocator
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,8 +28,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class LibraryViewModel(
+@HiltViewModel
+class LibraryViewModel @Inject constructor(
     private val repository: LibraryRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
@@ -577,18 +575,6 @@ class LibraryViewModel(
         DELETE_ALBUMS
     }
 
-    companion object {
-        val Factory = viewModelFactory {
-            initializer {
-                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ServiceLocator.ensureInitialized(application)
-                LibraryViewModel(
-                    repository = ServiceLocator.libraryRepository,
-                    settingsRepository = ServiceLocator.settingsRepository
-                )
-            }
-        }
-    }
 }
 
 private data class LibraryStateInputs(

@@ -47,6 +47,7 @@ data class ExtractionRule(
     @Json(name = "format") val format: String = "html", // "html", "json", "regex"
     @Json(name = "itemSelector") val itemSelector: String? = null,
     @Json(name = "nextCursorSelector") val nextCursorSelector: String? = null,
+    @Json(name = "nextCursorJsonPath") val nextCursorJsonPath: String? = null,
     @Json(name = "fields") val fields: Map<String, FieldExtractor> = emptyMap()
 )
 
@@ -55,10 +56,12 @@ data class FieldExtractor(
     @Json(name = "selector") val selector: String? = null,
     @Json(name = "attribute") val attribute: String? = null, // "href", "src", "text", "alt", etc.
     @Json(name = "jsonPath") val jsonPath: String? = null,
+    @Json(name = "fallbackJsonPath") val fallbackJsonPath: String? = null,
+    @Json(name = "fallbackSelector") val fallbackSelector: String? = null,
     @Json(name = "regex") val regex: String? = null,
     @Json(name = "regexReplace") val regexReplace: RegexReplaceRule? = null,
     @Json(name = "defaultValue") val defaultValue: String? = null,
-    @Json(name = "transform") val transform: String? = null // "prepend_base_url", "trim", "url_decode"
+    @Json(name = "transform") val transform: String? = null // "prepend_base_url", "ensure_https", "trim", "url_decode"
 )
 
 @JsonClass(generateAdapter = true)

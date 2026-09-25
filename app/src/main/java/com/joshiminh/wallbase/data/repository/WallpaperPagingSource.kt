@@ -30,6 +30,9 @@ class WallpaperPagingSource(
                 nextKey = if (page.wallpapers.isEmpty()) null else page.nextCursor
             )
         } catch (e: Exception) {
+            if (e is java.util.concurrent.CancellationException || e is kotlinx.coroutines.CancellationException) {
+                throw e
+            }
             LoadResult.Error(e)
         }
     }

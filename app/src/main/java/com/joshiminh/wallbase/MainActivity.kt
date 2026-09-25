@@ -12,32 +12,35 @@ import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.lifecycleScope
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
-import com.joshiminh.wallbase.data.WallBaseDatabase
+import com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
 import com.joshiminh.wallbase.ui.WallBaseApp
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.*
-import com.joshiminh.wallbase.util.network.ServiceLocator
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okio.Path.Companion.toOkioPath
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var extensionRepositoryManager: ExtensionRepositoryManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        ServiceLocator.ensureInitialized(this)
         lifecycleScope.launch(Dispatchers.IO) {
             runCatching {
-                WallBaseDatabase.getInstance(applicationContext)
-                ServiceLocator.extensionRepositoryManager.ensureDefaultExtensionsInstalled()
+                extensionRepositoryManager.ensureDefaultExtensionsInstalled()
             }
         }
         SingletonImageLoader.setSafe { context ->
@@ -52,8 +55,8 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
-            val sourcesViewModel: SourcesViewModel = viewModel()
-            val settingsViewModel: SettingsViewModel = viewModel()
+            val sourcesViewModel: SourcesViewModel = hiltViewModel()
+            val settingsViewModel: SettingsViewModel = hiltViewModel()
 
             val sourcesUiState by sourcesViewModel.uiState.collectAsStateWithLifecycle()
             val settingsUiState by settingsViewModel.uiState.collectAsStateWithLifecycle()

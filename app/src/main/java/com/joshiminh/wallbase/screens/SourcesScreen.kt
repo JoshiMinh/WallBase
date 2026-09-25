@@ -105,6 +105,7 @@ import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
 import com.joshiminh.wallbase.ui.components.topBarInsetPadding
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
 import com.joshiminh.wallbase.ui.viewmodel.ExtensionsViewModel
 import com.joshiminh.wallbase.ui.viewmodel.SourcesViewModel
@@ -113,7 +114,7 @@ import java.util.Locale
 @Composable
 fun SourcesScreen(
     uiState: SourcesViewModel.SourcesUiState,
-    extensionsViewModel: ExtensionsViewModel = viewModel(factory = ExtensionsViewModel.Factory),
+    extensionsViewModel: ExtensionsViewModel = hiltViewModel(),
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,

@@ -1,5 +1,3 @@
-@file:Suppress("unused", "UnusedVariable")
-
 package com.joshiminh.wallbase.ui.viewmodel
 
 import android.Manifest
@@ -12,10 +10,7 @@ import androidx.compose.runtime.Immutable
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.palette.graphics.Palette
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.CategoryItem
@@ -23,7 +18,6 @@ import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
-import com.joshiminh.wallbase.util.network.ServiceLocator
 import com.joshiminh.wallbase.util.wallpapers.EditedWallpaper
 import com.joshiminh.wallbase.util.wallpapers.PreviewData
 import com.joshiminh.wallbase.util.wallpapers.WallpaperAdjustments
@@ -33,6 +27,7 @@ import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import com.joshiminh.wallbase.util.wallpapers.WallpaperEditor
 import com.joshiminh.wallbase.util.wallpapers.WallpaperFilter
 import com.joshiminh.wallbase.util.wallpapers.WallpaperTarget
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,14 +39,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-class WallpaperDetailViewModel(
+@HiltViewModel
+class WallpaperDetailViewModel @Inject constructor(
     application: Application,
-    private val applier: WallpaperApplier = WallpaperApplier(application.applicationContext),
-    private val libraryRepository: LibraryRepository = ServiceLocator.libraryRepository,
-    private val editor: WallpaperEditor = WallpaperEditor(application.applicationContext),
-    private val settingsRepository: SettingsRepository = ServiceLocator.settingsRepository
+    private val libraryRepository: LibraryRepository,
+    private val settingsRepository: SettingsRepository
 ) : AndroidViewModel(application) {
+
+    private val applier: WallpaperApplier = WallpaperApplier(application.applicationContext)
+    private val editor: WallpaperEditor = WallpaperEditor(application.applicationContext)
 
     private var originalBitmap: Bitmap? = null
     private var processedWallpaper: EditedWallpaper? = null
@@ -1053,18 +1051,6 @@ class WallpaperDetailViewModel(
     )
 
     companion object {
-        val Factory = viewModelFactory {
-            initializer {
-                val application = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ServiceLocator.ensureInitialized(application)
-                WallpaperDetailViewModel(
-                    application = application,
-                    applier = WallpaperApplier(application.applicationContext),
-                    libraryRepository = ServiceLocator.libraryRepository
-                )
-            }
-        }
-
         private fun hasSetWallpaperPermission(application: Application): Boolean {
             val granted = ContextCompat.checkSelfPermission(
                 application.applicationContext,

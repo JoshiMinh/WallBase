@@ -87,7 +87,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.repository.AlbumLayout
@@ -113,7 +113,7 @@ import com.joshiminh.wallbase.util.toSelection
 fun AlbumsScreen(
     onAlbumSelected: (AlbumItem) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
-    libraryViewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
+    libraryViewModel: LibraryViewModel = hiltViewModel(),
     bottomBarOffsetY: Float = 0f
 ) {
     val uiState by libraryViewModel.uiState.collectAsStateWithLifecycle()

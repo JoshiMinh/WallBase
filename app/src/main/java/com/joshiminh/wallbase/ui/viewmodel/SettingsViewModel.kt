@@ -7,10 +7,7 @@ import android.net.Uri
 import android.os.StatFs
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import coil3.SingletonImageLoader
 import com.joshiminh.wallbase.data.DatabaseBackupManager
 import com.joshiminh.wallbase.data.repository.AppTheme
@@ -22,7 +19,6 @@ import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.SourceCredentialStore
 import com.joshiminh.wallbase.data.entity.CategoryItem
 import com.joshiminh.wallbase.data.repository.UpdateRepository
-import com.joshiminh.wallbase.util.network.ServiceLocator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -527,27 +523,6 @@ class SettingsViewModel @Inject constructor(
 
     companion object {
         private const val DEFAULT_RELEASES_URL = "https://github.com/JoshiMinh/WallBase/releases"
-
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                val application =
-                    this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as Application
-                ServiceLocator.ensureInitialized(application)
-                SettingsViewModel(
-                    application = application,
-                    backupManager = DatabaseBackupManager(
-                        application.applicationContext,
-                        ServiceLocator.localStorageCoordinator,
-                        ServiceLocator.settingsRepository
-                    ),
-                    settingsRepository = ServiceLocator.settingsRepository,
-                    updateRepository = ServiceLocator.updateRepository,
-                    localStorage = ServiceLocator.localStorageCoordinator,
-                    libraryRepository = ServiceLocator.libraryRepository,
-                    credentialStore = ServiceLocator.sourceCredentialStore
-                )
-            }
-        }
     }
 
     private fun refreshStorageSnapshot() {

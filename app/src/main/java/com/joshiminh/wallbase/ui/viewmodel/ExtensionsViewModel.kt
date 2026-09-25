@@ -4,15 +4,11 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.scraper.engine.DeclarativeScraperEngine
 import com.joshiminh.wallbase.scraper.model.ExtensionRepoItem
 import com.joshiminh.wallbase.scraper.model.SourceManifest
 import com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
-import com.joshiminh.wallbase.util.network.ServiceLocator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -241,17 +237,6 @@ class ExtensionsViewModel @Inject constructor(
 
     fun consumeMessage() {
         _uiState.update { it.copy(snackbarMessage = null) }
-    }
-
-    companion object {
-        val Factory = viewModelFactory {
-            initializer {
-                ExtensionsViewModel(
-                    repositoryManager = ServiceLocator.extensionRepositoryManager,
-                    scraperEngine = ServiceLocator.declarativeScraperEngine
-                )
-            }
-        }
     }
 }
 

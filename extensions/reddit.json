@@ -2,8 +2,8 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "reddit",
   "name": "Reddit",
-  "version": "1.0.0",
-  "versionCode": 1,
+  "version": "1.1.0",
+  "versionCode": 2,
   "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=reddit.com",
   "baseUrl": "https://www.reddit.com",
   "description": "Community wallpapers from popular Reddit wallpaper communities",
@@ -21,12 +21,13 @@
       "extraction": {
         "format": "json",
         "itemSelector": "data.children",
+        "nextCursorJsonPath": "data.after",
         "fields": {
           "id": { "jsonPath": "data.id" },
           "title": { "jsonPath": "data.title" },
           "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "defaultValue": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink" }
+          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
         }
       }
     },
@@ -41,12 +42,13 @@
       "extraction": {
         "format": "json",
         "itemSelector": "data.children",
+        "nextCursorJsonPath": "data.after",
         "fields": {
           "id": { "jsonPath": "data.id" },
           "title": { "jsonPath": "data.title" },
           "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "defaultValue": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink" }
+          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
         }
       }
     },
@@ -61,12 +63,55 @@
       "extraction": {
         "format": "json",
         "itemSelector": "data.children",
+        "nextCursorJsonPath": "data.after",
         "fields": {
           "id": { "jsonPath": "data.id" },
           "title": { "jsonPath": "data.title" },
           "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "defaultValue": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink" }
+          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
+        }
+      }
+    },
+    {
+      "id": "amoledbackgrounds",
+      "title": "r/Amoledbackgrounds",
+      "url": "https://www.reddit.com/r/Amoledbackgrounds/hot.json?limit={limit}&after={cursor}",
+      "pagination": {
+        "type": "cursor",
+        "paramName": "after"
+      },
+      "extraction": {
+        "format": "json",
+        "itemSelector": "data.children",
+        "nextCursorJsonPath": "data.after",
+        "fields": {
+          "id": { "jsonPath": "data.id" },
+          "title": { "jsonPath": "data.title" },
+          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
+          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
+        }
+      }
+    },
+    {
+      "id": "wallpaperrequests",
+      "title": "r/WallpaperRequests",
+      "url": "https://www.reddit.com/r/WallpaperRequests/hot.json?limit={limit}&after={cursor}",
+      "pagination": {
+        "type": "cursor",
+        "paramName": "after"
+      },
+      "extraction": {
+        "format": "json",
+        "itemSelector": "data.children",
+        "nextCursorJsonPath": "data.after",
+        "fields": {
+          "id": { "jsonPath": "data.id" },
+          "title": { "jsonPath": "data.title" },
+          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
+          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
         }
       }
     }
@@ -82,12 +127,13 @@
     "extraction": {
       "format": "json",
       "itemSelector": "data.children",
+      "nextCursorJsonPath": "data.after",
       "fields": {
         "id": { "jsonPath": "data.id" },
         "title": { "jsonPath": "data.title" },
         "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-        "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "defaultValue": "data.url" },
-        "sourceUrl": { "jsonPath": "data.permalink" }
+        "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
+        "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
       }
     }
   }

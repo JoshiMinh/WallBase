@@ -1,17 +1,15 @@
 package com.joshiminh.wallbase.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import com.joshiminh.wallbase.data.entity.Source
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
-import com.joshiminh.wallbase.util.network.ServiceLocator
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -24,8 +22,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class GlobalSearchViewModel(
+@HiltViewModel
+class GlobalSearchViewModel @Inject constructor(
     private val sourceRepository: SourceRepository,
     private val wallpaperRepository: WallpaperRepository,
     private val settingsRepository: SettingsRepository
@@ -297,17 +297,5 @@ class GlobalSearchViewModel(
 
     fun consumeError() {
         _errorMessage.value = null
-    }
-
-    companion object {
-        val Factory: ViewModelProvider.Factory = viewModelFactory {
-            initializer {
-                GlobalSearchViewModel(
-                    sourceRepository = ServiceLocator.sourceRepository,
-                    wallpaperRepository = ServiceLocator.wallpaperRepository,
-                    settingsRepository = ServiceLocator.settingsRepository
-                )
-            }
-        }
     }
 }
