@@ -28,5 +28,7 @@ object WallBaseShapes {
 object WallBaseMotion {
     const val microMillis = 120
     const val shortMillis = 180
+    const val mediumMillis = 240
+    const val standardMillis = 280
     const val reducedMillis = 0
 }

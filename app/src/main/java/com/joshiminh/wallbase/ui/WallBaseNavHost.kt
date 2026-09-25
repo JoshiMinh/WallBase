@@ -24,6 +24,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -33,11 +34,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Collections
@@ -413,6 +418,7 @@ fun WallBaseApp(
                                         else -> Text(
                                             text = overrideState?.title ?: currentTitle(currentDestination),
                                             style = MaterialTheme.typography.titleLarge,
+                                            fontWeight = FontWeight.Bold,
                                         )
                                     }
                                 },
@@ -424,7 +430,7 @@ fun WallBaseApp(
                                             Icon(
                                                 imageVector = overrideNav.icon,
                                                 contentDescription = overrideNav.contentDescription,
-                                                modifier = Modifier.size(26.dp),
+                                                modifier = Modifier.size(24.dp),
                                             )
                                         }
                                         overrideState != null -> Unit // no nav icon when state provided
@@ -432,7 +438,7 @@ fun WallBaseApp(
                                             Icon(
                                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                                 contentDescription = "Back",
-                                                modifier = Modifier.size(26.dp),
+                                                modifier = Modifier.size(24.dp),
                                             )
                                         }
                                         else -> Unit
@@ -481,7 +487,13 @@ fun WallBaseApp(
                                         animationsEnabled = settingsUiState.animationsEnabled,
                                     )
                                 },
-                                label = { Text(item.label) },
+                                label = {
+                                    Text(
+                                        text = item.label,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    )
+                                },
                             )
                         }
                     }
@@ -493,9 +505,95 @@ fun WallBaseApp(
                 .background(MaterialTheme.colorScheme.background)
 
             val renderNavHost: @Composable (SharedTransitionScope?) -> Unit = { sharedScope ->
+                val rootRouteOrder = remember {
+                    listOf(
+                        RootRoute.Library.route,
+                        RootRoute.Search.route,
+                        RootRoute.Albums.route,
+                        RootRoute.Browse.route,
+                        RootRoute.Settings.route,
+                    )
+                }
+
                 NavHost(
                     navController = navController,
                     startDestination = RootRoute.Library.route,
+                    enterTransition = {
+                        if (settingsUiState.animationsEnabled) {
+                            val initialRoute = initialState.destination.route
+                            val targetRoute = targetState.destination.route
+                            val initialIdx = rootRouteOrder.indexOf(initialRoute)
+                            val targetIdx = rootRouteOrder.indexOf(targetRoute)
+                            if (initialIdx >= 0 && targetIdx >= 0) {
+                                if (targetIdx > initialIdx) {
+                                    slideInHorizontally(
+                                        initialOffsetX = { (it * 0.15f).toInt() },
+                                        animationSpec = tween(WallBaseMotion.mediumMillis),
+                                    ) + fadeIn(animationSpec = tween(WallBaseMotion.mediumMillis))
+                                } else {
+                                    slideInHorizontally(
+                                        initialOffsetX = { -(it * 0.15f).toInt() },
+                                        animationSpec = tween(WallBaseMotion.mediumMillis),
+                                    ) + fadeIn(animationSpec = tween(WallBaseMotion.mediumMillis))
+                                }
+                            } else {
+                                slideInHorizontally(
+                                    initialOffsetX = { (it * 0.25f).toInt() },
+                                    animationSpec = tween(WallBaseMotion.mediumMillis),
+                                ) + fadeIn(animationSpec = tween(WallBaseMotion.mediumMillis))
+                            }
+                        } else {
+                            fadeIn(animationSpec = snap())
+                        }
+                    },
+                    exitTransition = {
+                        if (settingsUiState.animationsEnabled) {
+                            val initialRoute = initialState.destination.route
+                            val targetRoute = targetState.destination.route
+                            val initialIdx = rootRouteOrder.indexOf(initialRoute)
+                            val targetIdx = rootRouteOrder.indexOf(targetRoute)
+                            if (initialIdx >= 0 && targetIdx >= 0) {
+                                if (targetIdx > initialIdx) {
+                                    slideOutHorizontally(
+                                        targetOffsetX = { -(it * 0.15f).toInt() },
+                                        animationSpec = tween(WallBaseMotion.shortMillis),
+                                    ) + fadeOut(animationSpec = tween(WallBaseMotion.shortMillis))
+                                } else {
+                                    slideOutHorizontally(
+                                        targetOffsetX = { (it * 0.15f).toInt() },
+                                        animationSpec = tween(WallBaseMotion.shortMillis),
+                                    ) + fadeOut(animationSpec = tween(WallBaseMotion.shortMillis))
+                                }
+                            } else {
+                                slideOutHorizontally(
+                                    targetOffsetX = { -(it * 0.25f).toInt() },
+                                    animationSpec = tween(WallBaseMotion.shortMillis),
+                                ) + fadeOut(animationSpec = tween(WallBaseMotion.shortMillis))
+                            }
+                        } else {
+                            fadeOut(animationSpec = snap())
+                        }
+                    },
+                    popEnterTransition = {
+                        if (settingsUiState.animationsEnabled) {
+                            slideInHorizontally(
+                                initialOffsetX = { -(it * 0.25f).toInt() },
+                                animationSpec = tween(WallBaseMotion.mediumMillis),
+                            ) + fadeIn(animationSpec = tween(WallBaseMotion.mediumMillis))
+                        } else {
+                            fadeIn(animationSpec = snap())
+                        }
+                    },
+                    popExitTransition = {
+                        if (settingsUiState.animationsEnabled) {
+                            slideOutHorizontally(
+                                targetOffsetX = { (it * 0.25f).toInt() },
+                                animationSpec = tween(WallBaseMotion.shortMillis),
+                            ) + fadeOut(animationSpec = tween(WallBaseMotion.shortMillis))
+                        } else {
+                            fadeOut(animationSpec = snap())
+                        }
+                    },
                 ) {
                     composable(RootRoute.Library.route) {
                         val animatedScope = this.takeIf { sharedScope != null }
@@ -645,32 +743,58 @@ fun WallBaseApp(
                     composable(RootRoute.Settings.route) {
                         SettingsScreen(
                             uiState = settingsUiState,
+                            onRequestAppLockChange = handleAppLockToggle,
+                            onToggleCategories = onToggleCategories,
+                            onToggleAutoDownload = onToggleAutoDownload,
+                            onOpenCategories = { navController.navigateSingleTop("settings/categories") },
+                            onOpenAppearance = { navController.navigateSingleTop("settings/appearance") },
+                            onOpenDataStorage = { navController.navigateSingleTop("settings/data_storage") },
+                            onOpenExtensions = { navController.navigateSingleTop("repositories") },
+                            onCheckForUpdates = onCheckForUpdates,
+                            onDismissAvailableUpdate = onDismissAvailableUpdate,
+                            onMessageShown = onSettingsMessageShown,
+                            onRestartConsumed = onSettingsRestartConsumed,
+                        )
+                    }
+
+                    composable("settings/categories") {
+                        ManageCategoriesScreen(
+                            categories = settingsUiState.categories,
+                            onCreateCategory = onCreateCategory,
+                            onRenameCategory = onRenameCategory,
+                            onDeleteCategory = onDeleteCategory,
+                            onReorderCategories = onReorderCategories,
+                            onNavigateBack = { navController.popBackStack() },
+                            onConfigureTopBar = acquireTopBar,
+                        )
+                    }
+
+                    composable("settings/appearance") {
+                        AppearanceSettingsScreen(
+                            uiState = settingsUiState,
                             onSetAppTheme = onSetAppTheme,
                             onSetAppAccentColor = onSetAppAccentColor,
                             onToggleDynamicColor = onToggleDynamicColor,
                             onToggleAmoledDark = onToggleAmoledDark,
                             onToggleAnimations = onToggleAnimations,
-                            onExportBackup = onExportBackup,
-                            onImportBackup = onImportBackup,
-                            onMessageShown = onSettingsMessageShown,
-                            onRestartConsumed = onSettingsRestartConsumed,
-                            onToggleAutoDownload = onToggleAutoDownload,
+                            onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
+                            onToggleShowDownloadBadge = onToggleShowDownloadBadge,
+                            onNavigateBack = { navController.popBackStack() },
+                            onConfigureTopBar = acquireTopBar,
+                        )
+                    }
+
+                    composable("settings/data_storage") {
+                        DataAndStorageSettingsScreen(
+                            uiState = settingsUiState,
                             onUpdateStorageLimit = onUpdateStorageLimit,
                             onClearPreviewCache = onClearPreviewCache,
                             onClearOriginals = onClearOriginals,
+                            onExportBackup = onExportBackup,
+                            onImportBackup = onImportBackup,
                             onToggleIncludeSourcesInBackup = onToggleIncludeSourcesInBackup,
-                            onRequestAppLockChange = handleAppLockToggle,
-                            onToggleShowHorizontalWallpapers = onToggleShowHorizontalWallpapers,
-                            onToggleShowDownloadBadge = onToggleShowDownloadBadge,
-                            onToggleCategories = onToggleCategories,
-                            onSaveSourceCredentials = onSaveSourceCredentials,
-                            onOpenExtensions = { navController.navigateSingleTop("repositories") },
-                            onCreateCategory = onCreateCategory,
-                            onRenameCategory = onRenameCategory,
-                            onDeleteCategory = onDeleteCategory,
-                            onReorderCategories = onReorderCategories,
-                            onCheckForUpdates = onCheckForUpdates,
-                            onDismissAvailableUpdate = onDismissAvailableUpdate,
+                            onNavigateBack = { navController.popBackStack() },
+                            onConfigureTopBar = acquireTopBar,
                         )
                     }
                 }
@@ -707,47 +831,6 @@ fun WallBaseApp(
     }
 }
 
-@Composable
-private fun AnimatedNavigationIcon(
-    item: RootRoute,
-    selected: Boolean,
-    animationsEnabled: Boolean,
-) {
-    /* Hallmark · component: bottom navigation · genre: editorial · theme: editorial gallery
-     * states: selected · unselected · pressed · focus · animations-disabled
-     * critique: P5 H5 E4 S5 R5 V4
-     */
-    val duration = if (animationsEnabled) WallBaseMotion.shortMillis else WallBaseMotion.reducedMillis
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.12f else 1f,
-        animationSpec = tween(durationMillis = duration),
-        label = "navigation icon scale",
-    )
-    val translationY by animateFloatAsState(
-        targetValue = if (selected) -2f else 0f,
-        animationSpec = tween(durationMillis = duration),
-        label = "navigation icon lift",
-    )
-
-    Crossfade(
-        targetState = selected,
-        animationSpec = tween(durationMillis = duration),
-        label = "navigation icon state",
-    ) { isSelected ->
-        Icon(
-            imageVector = if (isSelected) item.selectedIcon else item.icon,
-            contentDescription = null,
-            modifier = Modifier
-                .size(24.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    this.translationY = translationY
-                },
-        )
-    }
-}
-
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun SharedTransitionHost(
@@ -772,28 +855,46 @@ private fun AnimatedBottomBarIcon(
     isSelected: Boolean,
     animationsEnabled: Boolean,
 ) {
-    val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.15f else 1.0f,
-        animationSpec = if (animationsEnabled) {
-            spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow,
-            )
+    val scale = remember { Animatable(1f) }
+    val translationY = remember { Animatable(0f) }
+
+    LaunchedEffect(isSelected) {
+        if (isSelected && animationsEnabled) {
+            scale.snapTo(0.72f)
+            translationY.snapTo(3.5f)
+            launch {
+                scale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                )
+            }
+            launch {
+                translationY.animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                )
+            }
         } else {
-            snap()
-        },
-        label = "BottomBarIconScale_${item.name}",
-    )
+            scale.snapTo(1f)
+            translationY.snapTo(0f)
+        }
+    }
 
     AnimatedContent(
         targetState = isSelected,
         transitionSpec = {
             if (animationsEnabled) {
-                (fadeIn(animationSpec = tween(200, delayMillis = 40)) +
-                    scaleIn(initialScale = 0.8f, animationSpec = tween(200)))
+                (fadeIn(animationSpec = tween(180, delayMillis = 30)) +
+                    scaleIn(initialScale = 0.82f, animationSpec = tween(180)))
                     .togetherWith(
-                        fadeOut(animationSpec = tween(150)) +
-                            scaleOut(targetScale = 0.8f, animationSpec = tween(150))
+                        fadeOut(animationSpec = tween(120)) +
+                            scaleOut(targetScale = 0.82f, animationSpec = tween(120))
                     )
             } else {
                 fadeIn(animationSpec = snap()).togetherWith(fadeOut(animationSpec = snap()))
@@ -801,8 +902,9 @@ private fun AnimatedBottomBarIcon(
         },
         label = "BottomBarIconContent_${item.name}",
         modifier = Modifier.graphicsLayer {
-            scaleX = scale
-            scaleY = scale
+            scaleX = scale.value
+            scaleY = scale.value
+            this.translationY = translationY.value
         },
     ) { selected ->
         Icon(
@@ -812,5 +914,6 @@ private fun AnimatedBottomBarIcon(
         )
     }
 }
+
 
 

@@ -632,10 +632,9 @@ private fun AvailableSourceCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
-            Surface(
-                shape = WallBaseShapes.control,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier.size(42.dp)
+            Box(
+                modifier = Modifier.size(36.dp),
+                contentAlignment = Alignment.Center
             ) {
                 if (!item.iconUrl.isNullOrBlank()) {
                     AsyncImage(
@@ -643,17 +642,14 @@ private fun AvailableSourceCard(
                         contentDescription = item.name,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(6.dp)
-                            .clip(WallBaseShapes.control)
+                            .clip(RoundedCornerShape(8.dp))
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Outlined.Extension,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .fillMaxSize()
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
@@ -675,50 +671,25 @@ private fun AvailableSourceCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                item.description?.takeIf { it.isNotBlank() }?.let { desc ->
-                    Text(
-                        text = desc,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
+                val displayUrl = extensionDisplayUrl(item)
+                Text(
+                    text = displayUrl,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
             }
 
-            if (isInstalled) {
-                FilledTonalButton(
-                    onClick = onUninstall,
-                    shape = WallBaseShapes.pill,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Check,
-                        contentDescription = "Uninstall extension",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(text = "Installed", style = MaterialTheme.typography.labelMedium)
-                }
-            } else {
-                Button(
-                    onClick = onInstall,
-                    shape = WallBaseShapes.pill,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.CloudDownload,
-                        contentDescription = "Install extension",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(text = "Install", style = MaterialTheme.typography.labelMedium)
-                }
+            IconButton(
+                onClick = if (isInstalled) onUninstall else onInstall
+            ) {
+                Icon(
+                    imageVector = if (isInstalled) Icons.Outlined.Check else Icons.Outlined.CloudDownload,
+                    contentDescription = if (isInstalled) "Uninstall extension" else "Install extension",
+                    tint = if (isInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -759,10 +730,9 @@ private fun SourceCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
-            Surface(
-                shape = WallBaseShapes.control,
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier.size(42.dp)
+            Box(
+                modifier = Modifier.size(36.dp),
+                contentAlignment = Alignment.Center
             ) {
                 if (!source.iconUrl.isNullOrBlank()) {
                     AsyncImage(
@@ -770,8 +740,7 @@ private fun SourceCard(
                         contentDescription = source.title,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(6.dp)
-                            .clip(WallBaseShapes.control)
+                            .clip(RoundedCornerShape(8.dp))
                     )
                 } else if (source.iconRes != null && source.iconRes != 0) {
                     val painter = safePainterResource(source.iconRes)
@@ -780,17 +749,15 @@ private fun SourceCard(
                             painter = painter,
                             contentDescription = source.title,
                             modifier = Modifier
-                                .padding(6.dp)
                                 .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp))
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Outlined.Public,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .fillMaxSize()
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                 } else {
@@ -798,9 +765,7 @@ private fun SourceCard(
                         imageVector = Icons.Outlined.Public,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(8.dp)
-                            .fillMaxSize()
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
@@ -813,13 +778,9 @@ private fun SourceCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                val subtitle = when {
-                    source.description.isNotBlank() && !source.description.equals(source.title, ignoreCase = true) -> source.description
-                    source.providerKey == SourceKeys.REDDIT && source.config != null -> "r/${source.config}"
-                    else -> providerLabel(source.providerKey)
-                }
+                val displayUrl = sourceDisplayUrl(source)
                 Text(
-                    text = subtitle,
+                    text = displayUrl,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -848,6 +809,51 @@ private fun SourceCard(
                 )
             }
         }
+    }
+}
+
+private fun sourceDisplayUrl(source: Source): String {
+    val config = source.config?.trim()
+    if (!config.isNullOrBlank()) {
+        if (config.startsWith("http://") || config.startsWith("https://")) {
+            return config
+        }
+        if (source.providerKey == SourceKeys.REDDIT) {
+            val slug = config.trim('/')
+            return if (slug.isNotBlank()) "https://reddit.com/r/$slug" else "https://reddit.com"
+        }
+        return when (config.lowercase(Locale.ROOT)) {
+            "alphacoders" -> "https://wall.alphacoders.com"
+            "pexels" -> "https://pexels.com"
+            "pinterest" -> "https://pinterest.com"
+            "pixiv" -> "https://pixiv.net"
+            "safebooru" -> "https://safebooru.org"
+            "unsplash" -> "https://unsplash.com"
+            "wallhaven" -> "https://wallhaven.cc"
+            "reddit" -> "https://reddit.com"
+            else -> if (config.contains(".")) "https://$config" else "https://$config.com"
+        }
+    }
+    return when (source.providerKey) {
+        SourceKeys.REDDIT -> "https://reddit.com"
+        SourceKeys.WALLHAVEN -> "https://wallhaven.cc"
+        SourceKeys.PINTEREST -> "https://pinterest.com"
+        else -> "https://${source.providerKey}.com"
+    }
+}
+
+private fun extensionDisplayUrl(item: ExtensionRepoItem): String {
+    val key = item.id.lowercase(Locale.ROOT)
+    return when {
+        key.contains("alphacoders") -> "https://wall.alphacoders.com"
+        key.contains("pexels") -> "https://pexels.com"
+        key.contains("pinterest") -> "https://pinterest.com"
+        key.contains("pixiv") -> "https://pixiv.net"
+        key.contains("safebooru") -> "https://safebooru.org"
+        key.contains("unsplash") -> "https://unsplash.com"
+        key.contains("wallhaven") -> "https://wallhaven.cc"
+        key.contains("reddit") -> "https://reddit.com"
+        else -> "https://$key.com"
     }
 }
 
@@ -1050,15 +1056,31 @@ private fun RedditSearchResult(
 }
 
 private fun sourceShareUrl(source: Source): String? {
-    val config = source.config?.takeIf { it.isNotBlank() } ?: return null
-    return when (source.providerKey) {
-        SourceKeys.REDDIT -> {
-            val slug = config.trim('/').ifBlank { return null }
-            "https://www.reddit.com/r/$slug/"
+    val config = source.config?.takeIf { it.isNotBlank() }
+    if (config != null) {
+        if (config.startsWith("http://") || config.startsWith("https://")) {
+            return config
         }
-        SourceKeys.PINTEREST,
-        SourceKeys.WALLHAVEN,
-        SourceKeys.WEBSITES -> config
+        if (source.providerKey == SourceKeys.REDDIT) {
+            val slug = config.trim('/').ifBlank { return null }
+            return "https://www.reddit.com/r/$slug/"
+        }
+        return when (config.lowercase(Locale.ROOT)) {
+            "alphacoders" -> "https://wall.alphacoders.com"
+            "pexels" -> "https://pexels.com"
+            "pinterest" -> "https://pinterest.com"
+            "pixiv" -> "https://pixiv.net"
+            "safebooru" -> "https://safebooru.org"
+            "unsplash" -> "https://unsplash.com"
+            "wallhaven" -> "https://wallhaven.cc"
+            "reddit" -> "https://reddit.com"
+            else -> if (config.contains(".")) "https://$config" else "https://$config.com"
+        }
+    }
+    return when (source.providerKey) {
+        SourceKeys.REDDIT -> "https://www.reddit.com"
+        SourceKeys.PINTEREST -> "https://www.pinterest.com"
+        SourceKeys.WALLHAVEN -> "https://wallhaven.cc"
         else -> null
     }
 }
