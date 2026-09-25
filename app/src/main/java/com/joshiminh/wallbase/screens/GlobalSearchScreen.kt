@@ -1,8 +1,10 @@
 package com.joshiminh.wallbase.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,24 +20,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.foundation.Image
-import androidx.compose.ui.draw.clip
-import androidx.compose.material.icons.outlined.Public
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.Tab
-import coil3.compose.AsyncImage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -51,6 +51,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
@@ -58,6 +59,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.navigation.TopBarHandle
@@ -84,7 +86,25 @@ fun GlobalSearchScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFocusRequester = remember { FocusRequester() }
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
+
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        viewModel.updateSearchQuery("")
+        focusManager.clearFocus()
+        keyboardController?.hide()
+    }
+
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            searchFocusRequester.requestFocus()
+            keyboardController?.show()
+        } else {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+    }
 
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let { error ->
@@ -93,15 +113,41 @@ fun GlobalSearchScreen(
         }
     }
 
+    val currentSelectedSource = remember(uiState.sources, uiState.selectedSourceKey) {
+        uiState.sources.find { it.key == uiState.selectedSourceKey }
+    }
+
     val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
     val topBarState = remember(
+        isSearchActive,
         uiState.searchQuery,
         uiState.wallpaperGridColumns,
         uiState.wallpaperLayout,
         uiState.sources,
-        uiState.selectedSourceKey
+        uiState.selectedSourceKey,
+        currentSelectedSource
     ) {
         val actions: @Composable RowScope.() -> Unit = {
+            if (isSearchActive) {
+                IconButton(onClick = {
+                    isSearchActive = false
+                    viewModel.updateSearchQuery("")
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close search"
+                    )
+                }
+            } else {
+                IconButton(onClick = { isSearchActive = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = "Search wallpapers"
+                    )
+                }
+            }
             IconButton(onClick = { showSortSheet = true }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.Sort,
@@ -110,16 +156,37 @@ fun GlobalSearchScreen(
             }
         }
 
-        val titleContent: @Composable () -> Unit = {
-            TopBarSearchField(
-                value = uiState.searchQuery,
-                onValueChange = { viewModel.updateSearchQuery(it) },
-                onClear = { viewModel.updateSearchQuery("") },
-                placeholder = "Search across all sources…",
-                focusRequester = searchFocusRequester,
-                showClearButton = uiState.searchQuery.isNotEmpty()
-            )
+        val searchPlaceholder = if (currentSelectedSource != null) {
+            "Search ${currentSelectedSource.title}…"
+        } else {
+            "Search across all sources…"
         }
+
+        val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
+            {
+                TopBarSearchField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.updateSearchQuery(it) },
+                    onClear = { viewModel.updateSearchQuery("") },
+                    placeholder = searchPlaceholder,
+                    focusRequester = searchFocusRequester,
+                    showClearButton = uiState.searchQuery.isNotEmpty()
+                )
+            }
+        } else null
+
+        val navigationIcon = if (isSearchActive) {
+            TopBarState.NavigationIcon(
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Close search",
+                onClick = {
+                    isSearchActive = false
+                    viewModel.updateSearchQuery("")
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
+            )
+        } else null
 
         val sourceTabsContent: (@Composable () -> Unit)? = if (uiState.sources.isNotEmpty()) {
             {
@@ -204,8 +271,8 @@ fun GlobalSearchScreen(
         } else null
 
         TopBarState(
-            title = null,
-            navigationIcon = null,
+            title = if (isSearchActive) null else "Browse",
+            navigationIcon = navigationIcon,
             actions = actions,
             titleContent = titleContent,
             bottomContent = sourceTabsContent,
@@ -285,12 +352,12 @@ fun GlobalSearchScreen(
                             }
                             Text(
                                 text = if (uiState.isSearching) "No wallpapers found for \"${uiState.searchQuery}\""
-                                else "No wallpapers available in explore feed",
+                                else "No wallpapers available in ${currentSelectedSource?.title ?: "explore feed"}",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "Try searching with different keywords or check enabled sources in Browse.",
+                                text = "Try searching with different keywords or check enabled sources in Sources.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -312,6 +379,9 @@ fun GlobalSearchScreen(
                         columns = uiState.wallpaperGridColumns,
                         layout = uiState.wallpaperLayout,
                         showDownloadedBadge = uiState.showDownloadBadge,
+                        onLoadMore = { viewModel.loadMore() },
+                        isLoadingMore = uiState.isLoadingMore,
+                        canLoadMore = !uiState.isLoading && !uiState.isLoadingMore && uiState.wallpapers.isNotEmpty(),
                         contentPadding = PaddingValues(
                             start = 4.dp,
                             top = topBarInsetPadding(12.dp, hasTabBar = uiState.sources.isNotEmpty()),

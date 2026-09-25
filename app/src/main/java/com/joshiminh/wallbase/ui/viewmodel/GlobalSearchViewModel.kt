@@ -52,72 +52,45 @@ class GlobalSearchViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     private val _isLoading = MutableStateFlow(false)
     private val _isLoadingMore = MutableStateFlow(false)
-    private val _wallpapers = MutableStateFlow<List<WallpaperItem>>(emptyList())
     private val _errorMessage = MutableStateFlow<String?>(null)
     private val _isRefreshing = MutableStateFlow(false)
 
-    private var searchDebounceJob: Job? = null
+    // Map of tab key (null for "All", or source.key) -> List<WallpaperItem>
+    private val _tabWallpapers = MutableStateFlow<Map<String?, List<WallpaperItem>>>(emptyMap())
     private val sourceCursors = mutableMapOf<String, String?>()
 
-    private data class SearchFlowData(
-        val sources: List<Source>,
-        val selectedKey: String?,
-        val query: String,
-        val wallpapers: List<WallpaperItem>
-    )
-
-    private data class LoadingFlowData(
-        val loading: Boolean,
-        val loadingMore: Boolean,
-        val error: String?,
-        val refreshing: Boolean
-    )
-
-    private val searchFlowData = combine(
-        _sources,
-        _selectedSourceKey,
-        _searchQuery,
-        _wallpapers
-    ) { sources, selectedKey, query, wallpapers ->
-        SearchFlowData(sources, selectedKey, query, wallpapers)
-    }
-
-    private val loadingFlowData = combine(
-        _isLoading,
-        _isLoadingMore,
-        _errorMessage,
-        _isRefreshing
-    ) { loading, loadingMore, error, refreshing ->
-        LoadingFlowData(loading, loadingMore, error, refreshing)
-    }
+    private var searchDebounceJob: Job? = null
+    private var loadFeedJob: Job? = null
 
     val uiState: StateFlow<GlobalSearchUiState> = combine(
-        searchFlowData,
-        loadingFlowData,
+        combine(_sources, _selectedSourceKey, _searchQuery, _tabWallpapers) { sources, selectedKey, query, tabWallpapers ->
+            val wallpapers = tabWallpapers[selectedKey] ?: emptyList()
+            val trimmed = query.trim()
+            val isExplore = trimmed.isEmpty()
+            Triple(sources, selectedKey, Pair(query, isExplore)) to wallpapers
+        },
+        combine(_isLoading, _isLoadingMore, _errorMessage, _isRefreshing) { loading, loadingMore, error, refreshing ->
+            Quad(loading, loadingMore, error, refreshing)
+        },
         settingsRepository.preferences
-    ) { searchData, loadingData, prefs ->
-        val trimmed = searchData.query.trim()
-        val isExplore = trimmed.isEmpty()
-        val filteredWallpapers = if (searchData.selectedKey == null) {
-            searchData.wallpapers
-        } else {
-            searchData.wallpapers.filter { it.sourceKey == searchData.selectedKey }
-        }
+    ) { (searchInfo, wallpapers), loadingData, prefs ->
+        val (sources, selectedKey, queryInfo) = searchInfo
+        val (query, isExplore) = queryInfo
 
         GlobalSearchUiState(
-            sources = searchData.sources,
-            selectedSourceKey = searchData.selectedKey,
-            searchQuery = searchData.query,
+            sources = sources,
+            selectedSourceKey = selectedKey,
+            searchQuery = query,
             isSearching = !isExplore,
             isExploreMode = isExplore,
-            isLoading = loadingData.loading,
-            isLoadingMore = loadingData.loadingMore,
-            wallpapers = filteredWallpapers,
-            errorMessage = loadingData.error,
+            isLoading = loadingData.first,
+            isLoadingMore = loadingData.second,
+            wallpapers = wallpapers,
+            errorMessage = loadingData.third,
             wallpaperGridColumns = prefs.wallpaperGridColumns,
             wallpaperLayout = prefs.wallpaperLayout,
             showDownloadBadge = prefs.showDownloadBadge,
-            isRefreshing = loadingData.refreshing
+            isRefreshing = loadingData.fourth
         )
     }.stateIn(
         scope = viewModelScope,
@@ -130,8 +103,15 @@ class GlobalSearchViewModel @Inject constructor(
             sourceRepository.observeSources().collect { allSources ->
                 val activeSources = allSources.filter { it.enabled && !it.isLocal }
                 _sources.value = activeSources
-                if (_wallpapers.value.isEmpty()) {
-                    loadExploreFeed(activeSources)
+
+                if (_selectedSourceKey.value != null && activeSources.none { it.key == _selectedSourceKey.value }) {
+                    _selectedSourceKey.value = null
+                }
+
+                val currentKey = _selectedSourceKey.value
+                val currentTabWallpapers = _tabWallpapers.value[currentKey]
+                if (currentTabWallpapers.isNullOrEmpty() && activeSources.isNotEmpty() && !_isLoading.value) {
+                    loadFeedForTab(currentKey, activeSources)
                 }
             }
         }
@@ -143,16 +123,31 @@ class GlobalSearchViewModel @Inject constructor(
         searchDebounceJob = viewModelScope.launch {
             delay(400)
             val trimmed = query.trim()
+            val currentKey = _selectedSourceKey.value
+            val activeSources = _sources.value
             if (trimmed.isEmpty()) {
-                loadExploreFeed(_sources.value)
+                loadFeedForTab(currentKey, activeSources)
             } else {
-                performSearch(trimmed, _sources.value)
+                performSearchForTab(currentKey, trimmed, activeSources)
             }
         }
     }
 
     fun selectSourceFilter(sourceKey: String?) {
+        if (_selectedSourceKey.value == sourceKey) return
         _selectedSourceKey.value = sourceKey
+
+        val activeSources = _sources.value
+        val existingWallpapers = _tabWallpapers.value[sourceKey]
+
+        if (existingWallpapers.isNullOrEmpty() && activeSources.isNotEmpty()) {
+            val query = _searchQuery.value.trim()
+            if (query.isEmpty()) {
+                loadFeedForTab(sourceKey, activeSources)
+            } else {
+                performSearchForTab(sourceKey, query, activeSources)
+            }
+        }
     }
 
     fun refresh() {
@@ -160,11 +155,13 @@ class GlobalSearchViewModel @Inject constructor(
         viewModelScope.launch {
             _isRefreshing.value = true
             try {
+                val currentKey = _selectedSourceKey.value
+                val activeSources = _sources.value
                 val query = _searchQuery.value.trim()
                 if (query.isEmpty()) {
-                    loadExploreFeed(_sources.value, isRefresh = true)
+                    loadFeedForTab(currentKey, activeSources, isRefresh = true)
                 } else {
-                    performSearch(query, _sources.value, isRefresh = true)
+                    performSearchForTab(currentKey, query, activeSources, isRefresh = true)
                 }
             } finally {
                 _isRefreshing.value = false
@@ -172,109 +169,186 @@ class GlobalSearchViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadExploreFeed(sources: List<Source>, isRefresh: Boolean = false) {
+    private fun loadFeedForTab(tabKey: String?, sources: List<Source>, isRefresh: Boolean = false) {
         if (sources.isEmpty()) {
-            _wallpapers.value = emptyList()
+            _tabWallpapers.update { it + (tabKey to emptyList()) }
             return
         }
-        if (!isRefresh) _isLoading.value = true
-        sourceCursors.clear()
 
-        try {
-            coroutineScope {
-                val deferreds = sources.map { source ->
-                    async {
-                        runCatching {
-                            val page = wallpaperRepository.fetchWallpapersFor(source = source, cursor = null)
-                            source.key to page
-                        }.getOrNull()
-                    }
-                }
-                val results = deferreds.awaitAll().filterNotNull()
-                val aggregated = mutableListOf<WallpaperItem>()
-                results.forEach { (sourceKey, page) ->
-                    sourceCursors[sourceKey] = page.nextCursor
-                    aggregated.addAll(page.wallpapers)
-                }
-                // Shuffle/interleave nicely for explore feed
-                _wallpapers.value = aggregated.shuffled()
-            }
-        } catch (e: Exception) {
-            _errorMessage.value = e.localizedMessage ?: "Unable to load explore feed"
-        } finally {
-            _isLoading.value = false
-        }
-    }
-
-    private suspend fun performSearch(query: String, sources: List<Source>, isRefresh: Boolean = false) {
-        if (sources.isEmpty()) return
-        if (!isRefresh) _isLoading.value = true
-        sourceCursors.clear()
-
-        try {
-            coroutineScope {
-                val deferreds = sources.map { source ->
-                    async {
-                        runCatching {
-                            val page = wallpaperRepository.fetchWallpapersFor(
-                                source = source,
-                                query = query,
-                                cursor = null
-                            )
-                            source.key to page
-                        }.getOrNull()
-                    }
-                }
-                val results = deferreds.awaitAll().filterNotNull()
-                val aggregated = mutableListOf<WallpaperItem>()
-                results.forEach { (sourceKey, page) ->
-                    sourceCursors[sourceKey] = page.nextCursor
-                    aggregated.addAll(page.wallpapers)
-                }
-                _wallpapers.value = aggregated
-            }
-        } catch (e: Exception) {
-            _errorMessage.value = e.localizedMessage ?: "Search failed"
-        } finally {
-            _isLoading.value = false
-        }
-    }
-
-    fun loadMore() {
-        if (_isLoadingMore.value || _isLoading.value || _wallpapers.value.isEmpty()) return
-        val currentSources = _sources.value
-        val currentQuery = _searchQuery.value.trim().takeIf { it.isNotBlank() }
-
-        viewModelScope.launch {
-            _isLoadingMore.value = true
+        loadFeedJob?.cancel()
+        loadFeedJob = viewModelScope.launch {
+            if (!isRefresh) _isLoading.value = true
             try {
-                coroutineScope {
-                    val deferreds = currentSources.mapNotNull { source ->
-                        val cursor = sourceCursors[source.key]
-                        if (cursor == null && sourceCursors.containsKey(source.key)) null
-                        else {
+                if (tabKey == null) {
+                    // "All" tab: fetch first page of all active sources
+                    coroutineScope {
+                        val deferreds = sources.map { source ->
+                            async {
+                                runCatching {
+                                    val page = wallpaperRepository.fetchWallpapersFor(source = source, cursor = null)
+                                    source.key to page
+                                }.getOrNull()
+                            }
+                        }
+                        val results = deferreds.awaitAll().filterNotNull()
+                        val aggregated = mutableListOf<WallpaperItem>()
+                        results.forEach { (sourceKey, page) ->
+                            sourceCursors[sourceKey] = page.nextCursor
+                            aggregated.addAll(page.wallpapers)
+                        }
+                        val shuffled = aggregated.shuffled()
+                        _tabWallpapers.update { it + (null to shuffled) }
+                    }
+                } else {
+                    // Specific source tab: ONLY fetch this source!
+                    val targetSource = sources.find { it.key == tabKey }
+                    if (targetSource != null) {
+                        val pageResult = runCatching {
+                            wallpaperRepository.fetchWallpapersFor(source = targetSource, cursor = null)
+                        }.getOrNull()
+
+                        if (pageResult != null) {
+                            sourceCursors[tabKey] = pageResult.nextCursor
+                            _tabWallpapers.update { it + (tabKey to pageResult.wallpapers) }
+                        } else {
+                            _tabWallpapers.update { it + (tabKey to emptyList()) }
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _errorMessage.value = e.localizedMessage ?: "Unable to load feed"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun performSearchForTab(tabKey: String?, query: String, sources: List<Source>, isRefresh: Boolean = false) {
+        if (sources.isEmpty()) return
+
+        loadFeedJob?.cancel()
+        loadFeedJob = viewModelScope.launch {
+            if (!isRefresh) _isLoading.value = true
+            try {
+                if (tabKey == null) {
+                    // Search across all sources
+                    coroutineScope {
+                        val deferreds = sources.map { source ->
                             async {
                                 runCatching {
                                     val page = wallpaperRepository.fetchWallpapersFor(
                                         source = source,
-                                        query = currentQuery,
-                                        cursor = cursor
+                                        query = query,
+                                        cursor = null
                                     )
                                     source.key to page
                                 }.getOrNull()
                             }
                         }
+                        val results = deferreds.awaitAll().filterNotNull()
+                        val aggregated = mutableListOf<WallpaperItem>()
+                        results.forEach { (sourceKey, page) ->
+                            sourceCursors[sourceKey] = page.nextCursor
+                            aggregated.addAll(page.wallpapers)
+                        }
+                        _tabWallpapers.update { it + (null to aggregated) }
                     }
-                    val results = deferreds.awaitAll().filterNotNull()
-                    val newItems = mutableListOf<WallpaperItem>()
-                    results.forEach { (sourceKey, page) ->
-                        sourceCursors[sourceKey] = page.nextCursor
-                        newItems.addAll(page.wallpapers)
+                } else {
+                    // Search ONLY the selected source!
+                    val targetSource = sources.find { it.key == tabKey }
+                    if (targetSource != null) {
+                        val pageResult = runCatching {
+                            wallpaperRepository.fetchWallpapersFor(
+                                source = targetSource,
+                                query = query,
+                                cursor = null
+                            )
+                        }.getOrNull()
+
+                        if (pageResult != null) {
+                            sourceCursors[tabKey] = pageResult.nextCursor
+                            _tabWallpapers.update { it + (tabKey to pageResult.wallpapers) }
+                        } else {
+                            _tabWallpapers.update { it + (tabKey to emptyList()) }
+                        }
                     }
-                    if (newItems.isNotEmpty()) {
-                        val existingIds = _wallpapers.value.map { it.id }.toSet()
-                        val distinctNew = newItems.filter { it.id !in existingIds }
-                        _wallpapers.value = _wallpapers.value + distinctNew
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _errorMessage.value = e.localizedMessage ?: "Search failed"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun loadMore() {
+        if (_isLoadingMore.value || _isLoading.value) return
+        val currentKey = _selectedSourceKey.value
+        val currentWallpapers = _tabWallpapers.value[currentKey] ?: emptyList()
+        if (currentWallpapers.isEmpty()) return
+
+        val activeSources = _sources.value
+        val currentQuery = _searchQuery.value.trim().takeIf { it.isNotBlank() }
+
+        viewModelScope.launch {
+            _isLoadingMore.value = true
+            try {
+                if (currentKey == null) {
+                    // Load more for All tab
+                    coroutineScope {
+                        val deferreds = activeSources.mapNotNull { source ->
+                            val cursor = sourceCursors[source.key]
+                            if (cursor == null && sourceCursors.containsKey(source.key)) null
+                            else {
+                                async {
+                                    runCatching {
+                                        val page = wallpaperRepository.fetchWallpapersFor(
+                                            source = source,
+                                            query = currentQuery,
+                                            cursor = cursor
+                                        )
+                                        source.key to page
+                                    }.getOrNull()
+                                }
+                            }
+                        }
+                        val results = deferreds.awaitAll().filterNotNull()
+                        val newItems = mutableListOf<WallpaperItem>()
+                        results.forEach { (sourceKey, page) ->
+                            sourceCursors[sourceKey] = page.nextCursor
+                            newItems.addAll(page.wallpapers)
+                        }
+                        if (newItems.isNotEmpty()) {
+                            val existingIds = currentWallpapers.map { it.id }.toSet()
+                            val distinctNew = newItems.filter { it.id !in existingIds }
+                            _tabWallpapers.update { it + (null to (currentWallpapers + distinctNew)) }
+                        }
+                    }
+                } else {
+                    // Load more for specific source tab ONLY
+                    val targetSource = activeSources.find { it.key == currentKey }
+                    if (targetSource != null) {
+                        val cursor = sourceCursors[currentKey]
+                        if (cursor != null || !sourceCursors.containsKey(currentKey)) {
+                            val pageResult = runCatching {
+                                wallpaperRepository.fetchWallpapersFor(
+                                    source = targetSource,
+                                    query = currentQuery,
+                                    cursor = cursor
+                                )
+                            }.getOrNull()
+
+                            if (pageResult != null) {
+                                sourceCursors[currentKey] = pageResult.nextCursor
+                                val existingIds = currentWallpapers.map { it.id }.toSet()
+                                val distinctNew = pageResult.wallpapers.filter { it.id !in existingIds }
+                                _tabWallpapers.update { it + (currentKey to (currentWallpapers + distinctNew)) }
+                            }
+                        }
                     }
                 }
             } finally {
@@ -299,3 +373,10 @@ class GlobalSearchViewModel @Inject constructor(
         _errorMessage.value = null
     }
 }
+
+private data class Quad<A, B, C, D>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D
+)

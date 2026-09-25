@@ -132,8 +132,8 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt)
-    implementation(libs.androidx.hilt.navigation.compose)
     kapt(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     // Paging 3
     implementation(libs.androidx.paging.runtime)
