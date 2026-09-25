@@ -210,13 +210,20 @@ class ExtensionRepositoryManager @Inject constructor(
         sourceDao.deleteSourceByKey(sourceKey)
 
         val allSources = sourceDao.getSources()
-        allSources.filter { it.config == id || it.key == sourceKey }.forEach {
+        allSources.filter { source ->
+            source.config?.equals(id, ignoreCase = true) == true ||
+                source.key.equals(sourceKey, ignoreCase = true) ||
+                source.key.equals(id, ignoreCase = true) ||
+                source.providerKey.equals(id, ignoreCase = true) ||
+                source.key.startsWith("$id:", ignoreCase = true) ||
+                source.key.startsWith("${SourceKeys.EXTENSION}:$id", ignoreCase = true)
+        }.forEach {
             sourceDao.deleteSourceById(it.id)
         }
 
         dataStore.edit { prefs ->
             val current = prefs[INSTALLED_IDS_KEY] ?: emptySet()
-            prefs[INSTALLED_IDS_KEY] = current - id
+            prefs[INSTALLED_IDS_KEY] = current.filterNot { it.equals(id, ignoreCase = true) }.toSet()
         }
         true
     }

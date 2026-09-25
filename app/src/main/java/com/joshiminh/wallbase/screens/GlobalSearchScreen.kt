@@ -24,8 +24,12 @@ import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material3.PrimaryScrollableTabRow
+import androidx.compose.material3.Tab
+import coil3.compose.AsyncImage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -117,50 +121,94 @@ fun GlobalSearchScreen(
             )
         }
 
-        val filterChipsContent: @Composable () -> Unit = {
-            if (uiState.sources.isNotEmpty()) {
-                val chipScrollState = rememberScrollState()
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(chipScrollState)
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+        val sourceTabsContent: (@Composable () -> Unit)? = if (uiState.sources.isNotEmpty()) {
+            {
+                val sources = uiState.sources
+                val selectedIndex = if (uiState.selectedSourceKey == null) 0
+                else (sources.indexOfFirst { it.key == uiState.selectedSourceKey } + 1).coerceAtLeast(0)
+
+                PrimaryScrollableTabRow(
+                    selectedTabIndex = selectedIndex,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    edgePadding = 12.dp
                 ) {
-                    FilterChip(
+                    Tab(
                         selected = uiState.selectedSourceKey == null,
                         onClick = { viewModel.selectSourceFilter(null) },
-                        label = { Text("All Sources") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    )
-                    uiState.sources.forEach { source ->
-                        FilterChip(
-                            selected = uiState.selectedSourceKey == source.key,
-                            onClick = {
-                                viewModel.selectSourceFilter(
-                                    if (uiState.selectedSourceKey == source.key) null else source.key
+                        text = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Public,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (uiState.selectedSourceKey == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            },
-                            label = { Text(source.title) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                                Text("All")
+                            }
+                        }
+                    )
+                    sources.forEach { source ->
+                        val isSelected = uiState.selectedSourceKey == source.key
+                        Tab(
+                            selected = isSelected,
+                            onClick = { viewModel.selectSourceFilter(source.key) },
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    if (!source.iconUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = source.iconUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clip(CircleShape)
+                                        )
+                                    } else if (source.iconRes != null && source.iconRes != 0) {
+                                        val painter = safePainterResource(source.iconRes)
+                                        if (painter != null) {
+                                            Image(
+                                                painter = painter,
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                    .size(16.dp)
+                                                    .clip(CircleShape)
+                                            )
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Public,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Public,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(source.title)
+                                }
+                            }
                         )
                     }
                 }
             }
-        }
+        } else null
 
         TopBarState(
             title = null,
             navigationIcon = null,
             actions = actions,
             titleContent = titleContent,
-            bottomContent = filterChipsContent,
+            bottomContent = sourceTabsContent,
             autoHideBars = false
         )
     }

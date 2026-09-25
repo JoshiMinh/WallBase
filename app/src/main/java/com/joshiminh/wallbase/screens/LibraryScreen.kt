@@ -106,7 +106,6 @@ fun LibraryScreen(
 
     var showSelectionAlbumDialog by rememberSaveable { mutableStateOf(false) }
     var showCategoryPickerDialog by rememberSaveable { mutableStateOf(false) }
-    var showManageCategoriesDialog by rememberSaveable { mutableStateOf(false) }
     var selectedWallpaperIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showRemoveDownloadsDialog by rememberSaveable { mutableStateOf(false) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
@@ -335,11 +334,6 @@ fun LibraryScreen(
                 } else {
                     IconButton(onClick = { isSearchActive = true }) {
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
-                    }
-                }
-                if (uiState.categoriesEnabled) {
-                    IconButton(onClick = { showManageCategoriesDialog = true }) {
-                        Icon(imageVector = Icons.Outlined.Category, contentDescription = "Manage categories")
                     }
                 }
                 IconButton(onClick = { showSortSheet = true }) {
@@ -594,17 +588,6 @@ fun LibraryScreen(
             onCreateNewCategory = { name ->
                 libraryViewModel.createCategory(name)
             }
-        )
-    }
-
-    if (showManageCategoriesDialog) {
-        ManageCategoriesDialog(
-            categories = uiState.categories,
-            onCreateCategory = { name -> libraryViewModel.createCategory(name) },
-            onRenameCategory = { category, newName -> libraryViewModel.renameCategory(category, newName) },
-            onDeleteCategory = { category -> libraryViewModel.deleteCategory(category) },
-            onReorderCategories = { ids -> libraryViewModel.reorderCategories(ids) },
-            onDismiss = { showManageCategoriesDialog = false }
         )
     }
 

@@ -32,9 +32,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Public
@@ -144,11 +144,13 @@ fun SourcesScreen(
         uiState.sources.filterNot(Source::isLocal)
     }
 
-    val installedExtensionIds = remember(visibleSources) {
-        visibleSources.mapNotNull {
+    val installedExtensionIds = remember(visibleSources, extensionsState.installedExtensions) {
+        val fromSources = visibleSources.mapNotNull {
             if (it.providerKey == SourceKeys.EXTENSION) it.config ?: it.key.removePrefix("${SourceKeys.EXTENSION}:")
             else it.providerKey
-        }.toSet()
+        }
+        val fromManifests = extensionsState.installedExtensions.map { it.id }
+        (fromSources + fromManifests).toSet()
     }
 
     val trimmedQuery = remember(searchQuery) { searchQuery.trim().lowercase(Locale.ROOT) }
@@ -349,6 +351,7 @@ fun SourcesScreen(
                     isSearching = isSearchActive && searchQuery.isNotBlank(),
                     searchQuery = searchQuery,
                     installedIds = installedExtensionIds,
+                    installingIds = extensionsState.installingItemIds,
                     isLoading = extensionsState.isLoading,
                     onInstall = extensionsViewModel::installFromCatalog,
                     onUninstall = { item -> pendingUninstallCatalogItem = item },
@@ -486,7 +489,7 @@ private fun InstalledTabContent(
                             onClick = onGoToAvailable,
                             shape = WallBaseShapes.pill
                         ) {
-                            Icon(Icons.Outlined.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Browse Available")
                         }
@@ -532,6 +535,7 @@ private fun AvailableTabContent(
     isSearching: Boolean,
     searchQuery: String,
     installedIds: Set<String>,
+    installingIds: Set<String>,
     isLoading: Boolean,
     onInstall: (ExtensionRepoItem) -> Unit,
     onUninstall: (ExtensionRepoItem) -> Unit,
@@ -594,10 +598,12 @@ private fun AvailableTabContent(
         items(catalog, key = { it.id }) { item ->
             val isInstalled = item.id in installedIds ||
                     installedIds.any { it.equals(item.id, ignoreCase = true) }
+            val isInstalling = item.id in installingIds
 
             AvailableSourceCard(
                 item = item,
                 isInstalled = isInstalled,
+                isInstalling = isInstalling,
                 onInstall = { onInstall(item) },
                 onUninstall = { onUninstall(item) }
             )
@@ -609,6 +615,7 @@ private fun AvailableTabContent(
 private fun AvailableSourceCard(
     item: ExtensionRepoItem,
     isInstalled: Boolean,
+    isInstalling: Boolean = false,
     onInstall: () -> Unit,
     onUninstall: () -> Unit
 ) {
@@ -616,7 +623,7 @@ private fun AvailableSourceCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(WallBaseShapes.card)
-            .clickable {
+            .clickable(enabled = !isInstalling) {
                 if (isInstalled) onUninstall() else onInstall()
             },
         shape = WallBaseShapes.card,
@@ -683,13 +690,22 @@ private fun AvailableSourceCard(
             }
 
             IconButton(
-                onClick = if (isInstalled) onUninstall else onInstall
+                onClick = if (isInstalled) onUninstall else onInstall,
+                enabled = !isInstalling
             ) {
-                Icon(
-                    imageVector = if (isInstalled) Icons.Outlined.Check else Icons.Outlined.CloudDownload,
-                    contentDescription = if (isInstalled) "Uninstall extension" else "Install extension",
-                    tint = if (isInstalled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (isInstalling) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (isInstalled) Icons.Outlined.Check else Icons.Outlined.Download,
+                        contentDescription = if (isInstalled) "Uninstall extension" else "Install extension",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

@@ -34,6 +34,7 @@ class ExtensionsViewModel @Inject constructor(
         val subscribedRepos: Set<String> = emptySet(),
         val selectedTab: Int = 0,
         val isLoading: Boolean = false,
+        val installingItemIds: Set<String> = emptySet(),
         val searchQuery: String = "",
         val snackbarMessage: String? = null,
         val testWallpapers: List<WallpaperItem> = emptyList(),
@@ -94,13 +95,15 @@ class ExtensionsViewModel @Inject constructor(
 
     fun installFromCatalog(item: ExtensionRepoItem) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(installingItemIds = it.installingItemIds + item.id) }
             val result = repositoryManager.downloadAndInstallFromUrl(item.manifestUrl)
+            val updatedManifests = repositoryManager.getInstalledManifestsList()
             result.fold(
                 onSuccess = { manifest ->
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
+                            installingItemIds = it.installingItemIds - item.id,
+                            installedExtensions = updatedManifests,
                             snackbarMessage = "Installed ${manifest.name}"
                         )
                     }
@@ -108,7 +111,7 @@ class ExtensionsViewModel @Inject constructor(
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(
-                            isLoading = false,
+                            installingItemIds = it.installingItemIds - item.id,
                             snackbarMessage = "Install failed: ${error.localizedMessage}"
                         )
                     }

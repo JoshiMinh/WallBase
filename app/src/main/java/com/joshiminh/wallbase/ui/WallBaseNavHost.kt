@@ -857,32 +857,131 @@ private fun AnimatedBottomBarIcon(
 ) {
     val scale = remember { Animatable(1f) }
     val translationY = remember { Animatable(0f) }
+    val rotation = remember { Animatable(0f) }
 
     LaunchedEffect(isSelected) {
         if (isSelected && animationsEnabled) {
-            scale.snapTo(0.72f)
-            translationY.snapTo(3.5f)
-            launch {
-                scale.animateTo(
-                    targetValue = 1f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                )
-            }
-            launch {
-                translationY.animateTo(
-                    targetValue = 0f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                )
+            when (item) {
+                RootRoute.Library -> {
+                    scale.snapTo(0.72f)
+                    translationY.snapTo(-5f)
+                    rotation.snapTo(-14f)
+                    launch {
+                        scale.animateTo(
+                            1f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        translationY.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        rotation.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                }
+                RootRoute.Search -> {
+                    scale.snapTo(0.75f)
+                    translationY.snapTo(-4f)
+                    rotation.snapTo(-180f)
+                    launch {
+                        scale.animateTo(
+                            1f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        translationY.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        rotation.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                }
+                RootRoute.Albums -> {
+                    scale.snapTo(0.72f)
+                    translationY.snapTo(-5f)
+                    rotation.snapTo(12f)
+                    launch {
+                        scale.animateTo(
+                            1f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        translationY.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        rotation.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                }
+                RootRoute.Browse -> {
+                    scale.snapTo(0.72f)
+                    translationY.snapTo(-5f)
+                    rotation.snapTo(18f)
+                    launch {
+                        scale.animateTo(
+                            1f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        translationY.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        rotation.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                }
+                RootRoute.Settings -> {
+                    scale.snapTo(0.75f)
+                    translationY.snapTo(-4f)
+                    rotation.snapTo(-120f)
+                    launch {
+                        scale.animateTo(
+                            1f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        translationY.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    launch {
+                        rotation.animateTo(
+                            0f,
+                            spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                }
             }
         } else {
             scale.snapTo(1f)
             translationY.snapTo(0f)
+            rotation.snapTo(0f)
         }
     }
 
@@ -905,6 +1004,7 @@ private fun AnimatedBottomBarIcon(
             scaleX = scale.value
             scaleY = scale.value
             this.translationY = translationY.value
+            rotationZ = rotation.value
         },
     ) { selected ->
         Icon(
