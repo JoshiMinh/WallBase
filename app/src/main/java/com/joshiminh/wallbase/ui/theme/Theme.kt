@@ -18,13 +18,21 @@ import com.joshiminh.wallbase.data.repository.AppAccentColor
 import com.joshiminh.wallbase.data.repository.AppTheme
 
 private val BaseDarkColorScheme = darkColorScheme(
+    primary = AccentPink,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF4E1428),
+    onPrimaryContainer = Color(0xFFFFD8E4),
     surface = DarkSurface,
     onSurface = DarkOnSurface,
     surfaceVariant = DarkSurfaceVariant,
     onSurfaceVariant = DarkOnSurfaceVariant,
+    surfaceContainerLowest = DarkSurfaceContainerLowest,
+    surfaceContainerLow = DarkSurfaceContainerLow,
     surfaceContainer = DarkSurfaceContainer,
     surfaceContainerHigh = DarkSurfaceContainerHigh,
     surfaceContainerHighest = DarkSurfaceContainerHighest,
+    surfaceDim = DarkSurface,
+    surfaceBright = Color(0xFF353840),
     background = DarkBackground,
     onBackground = DarkOnBackground,
     outline = DarkOutline,
@@ -32,13 +40,21 @@ private val BaseDarkColorScheme = darkColorScheme(
 )
 
 private val BaseLightColorScheme = lightColorScheme(
+    primary = AccentPink,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFD8E4),
+    onPrimaryContainer = Color(0xFF3B071B),
     surface = LightSurface,
     onSurface = LightOnSurface,
     surfaceVariant = LightSurfaceVariant,
     onSurfaceVariant = LightOnSurfaceVariant,
+    surfaceContainerLowest = LightSurfaceContainerLowest,
+    surfaceContainerLow = LightSurfaceContainerLow,
     surfaceContainer = LightSurfaceContainer,
     surfaceContainerHigh = LightSurfaceContainerHigh,
     surfaceContainerHighest = LightSurfaceContainerHighest,
+    surfaceDim = Color(0xFFDFE2E7),
+    surfaceBright = Color(0xFFFFFFFF),
     background = LightBackground,
     onBackground = LightOnBackground,
     outline = LightOutline,
@@ -122,7 +138,8 @@ fun WallBaseTheme(
     }
     val isAmoled = appTheme == AppTheme.AMOLED || (isDark && amoledDark)
 
-    val useDynamicColor = (dynamicColor || appAccentColor == AppAccentColor.DYNAMIC) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    // Dynamic color only applies if explicitly turned on AND using dynamic accent mode
+    val useDynamicColor = dynamicColor && (appAccentColor == AppAccentColor.DYNAMIC) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val colorScheme = when {
         useDynamicColor && isDark -> dynamicDarkColorScheme(context)
@@ -134,13 +151,17 @@ fun WallBaseTheme(
     val finalColorScheme = if (isAmoled) {
         colorScheme.copy(
             background = Color.Black,
-            surface = Color(0xFF141414),
+            surface = Color(0xFF0F0F12),
             onSurface = DarkOnSurface,
-            surfaceVariant = Color(0xFF1E1E1E),
+            surfaceVariant = Color(0xFF17181C),
             onSurfaceVariant = DarkOnSurfaceVariant,
-            surfaceContainer = Color(0xFF181818),
-            surfaceContainerHigh = Color(0xFF222222),
-            surfaceContainerHighest = Color(0xFF2C2C2C),
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color(0xFF0A0A0C),
+            surfaceContainer = Color(0xFF121316),
+            surfaceContainerHigh = Color(0xFF1B1C20),
+            surfaceContainerHighest = Color(0xFF24252A),
+            surfaceDim = Color.Black,
+            surfaceBright = Color(0xFF28292E),
         )
     } else {
         colorScheme

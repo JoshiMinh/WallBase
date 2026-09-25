@@ -326,78 +326,19 @@ fun WallBaseApp(
         }
     }
 
-    val currentRoute = currentDestination?.route
-    val autoHideRequested = topBarState?.autoHideBars
-    val isWallpaperGridRoute = remember(currentRoute, autoHideRequested) {
-        val isGridScreen = currentRoute == RootRoute.Library.route ||
-            currentRoute?.startsWith("sourceBrowse") == true
-        isGridScreen && autoHideRequested != false
-    }
-
-    var isBarsVisible by rememberSaveable { mutableStateOf(true) }
-
-    LaunchedEffect(currentRoute, isWallpaperGridRoute) {
-        if (!isWallpaperGridRoute) {
-            isBarsVisible = true
-        }
-    }
-
-    val nestedScrollConnection = remember(isWallpaperGridRoute) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (!isWallpaperGridRoute) {
-                    if (!isBarsVisible) isBarsVisible = true
-                    return Offset.Zero
-                }
-                val delta = available.y
-                if (delta < -12f && isBarsVisible) {
-                    isBarsVisible = false
-                } else if (delta > 12f && !isBarsVisible) {
-                    isBarsVisible = true
-                }
-                return Offset.Zero
-            }
-        }
-    }
-
-    val density = LocalDensity.current
-    val animationDuration = if (settingsUiState.animationsEnabled) WallBaseMotion.shortMillis else WallBaseMotion.reducedMillis
-    val animationSpec = if (animationDuration > 0) tween<Float>(durationMillis = animationDuration) else snap()
-
-    val topBarHeightPx = remember(density) { with(density) { 200.dp.toPx() } }
-    val bottomBarHeightPx = remember(density) { with(density) { 120.dp.toPx() } }
-
-    val topBarOffsetY by animateFloatAsState(
-        targetValue = if (!isWallpaperGridRoute || isBarsVisible) 0f else -topBarHeightPx,
-        animationSpec = animationSpec,
-        label = "TopBarOffsetY",
-    )
-
-    val bottomBarOffsetY by animateFloatAsState(
-        targetValue = if (!isWallpaperGridRoute || isBarsVisible) 0f else bottomBarHeightPx,
-        animationSpec = animationSpec,
-        label = "BottomBarOffsetY",
-    )
-
     val canNavigateBack =
         navController.previousBackStackEntry != null && currentDestination?.route !in topLevelRoutes
     val showTopBar = currentDestination?.route != "wallpaperDetail"
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .nestedScroll(nestedScrollConnection),
+            modifier = Modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
             topBar = {
                 if (showTopBar) {
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer {
-                                translationY = topBarOffsetY
-                            },
+                        modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.background,
                         tonalElevation = 0.dp,
                     ) {
@@ -461,9 +402,6 @@ fun WallBaseApp(
             bottomBar = {
                 if (currentDestination?.route in topLevelRoutes) {
                     NavigationBar(
-                        modifier = Modifier.graphicsLayer {
-                            translationY = bottomBarOffsetY
-                        },
                         containerColor = MaterialTheme.colorScheme.surface,
                         tonalElevation = 0.dp,
                     ) {
@@ -602,7 +540,6 @@ fun WallBaseApp(
                             onConfigureTopBar = acquireTopBar,
                             sharedTransitionScope = sharedScope,
                             animatedVisibilityScope = animatedScope,
-                            bottomBarOffsetY = bottomBarOffsetY,
                         )
                     }
 
@@ -613,7 +550,6 @@ fun WallBaseApp(
                             onConfigureTopBar = acquireTopBar,
                             sharedTransitionScope = sharedScope,
                             animatedVisibilityScope = animatedScope,
-                            bottomBarOffsetY = bottomBarOffsetY,
                         )
                     }
 
@@ -623,7 +559,6 @@ fun WallBaseApp(
                                 navController.navigateSingleTop("album/${album.id}")
                             },
                             onConfigureTopBar = acquireTopBar,
-                            bottomBarOffsetY = bottomBarOffsetY,
                         )
                     }
 

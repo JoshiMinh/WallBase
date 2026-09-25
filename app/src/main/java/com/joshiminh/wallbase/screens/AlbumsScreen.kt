@@ -114,7 +114,6 @@ fun AlbumsScreen(
     onAlbumSelected: (AlbumItem) -> Unit,
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     libraryViewModel: LibraryViewModel = hiltViewModel(),
-    bottomBarOffsetY: Float = 0f
 ) {
     val uiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -413,9 +412,6 @@ fun AlbumsScreen(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .graphicsLayer {
-                        translationY = bottomBarOffsetY * 1.5f
-                    }
                     .padding(end = 16.dp, bottom = 96.dp)
             ) {
                 val creating = uiState.isCreatingAlbum

@@ -99,7 +99,6 @@ fun LibraryScreen(
     libraryViewModel: LibraryViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
-    bottomBarOffsetY: Float = 0f
 ) {
     val uiState by libraryViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -519,9 +518,6 @@ fun LibraryScreen(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .graphicsLayer {
-                        translationY = bottomBarOffsetY * 1.5f
-                    }
                     .padding(end = 16.dp, bottom = 96.dp)
             ) {
                 FloatingActionButton(onClick = { showDirectAddDialog = true }) {

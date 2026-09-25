@@ -52,18 +52,17 @@ class SettingsRepository @Inject constructor(
                 AppTheme.LIGHT
             }
 
+            val dynamicPref = prefs[Keys.DYNAMIC_COLOR] ?: false
             val accentColorStr = prefs[Keys.APP_ACCENT_COLOR]
-            val legacyDynamic = prefs[Keys.DYNAMIC_COLOR] ?: false
             val appAccentColor = if (accentColorStr != null) {
                 AppAccentColor.fromStorage(accentColorStr)
-            } else if (legacyDynamic) {
+            } else if (dynamicPref) {
                 AppAccentColor.DYNAMIC
             } else {
                 AppAccentColor.PINK
             }
 
-            val isAndroid12Plus = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-            val dynamicColor = appAccentColor == AppAccentColor.DYNAMIC
+            val dynamicColor = dynamicPref && (appAccentColor == AppAccentColor.DYNAMIC)
             val amoledDark = prefs[Keys.AMOLED_DARK] ?: false
 
             val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES
@@ -99,6 +98,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setAppAccentColor(color: AppAccentColor) {
         dataStore.edit { prefs ->
             prefs[Keys.APP_ACCENT_COLOR] = color.storageValue
+            if (color != AppAccentColor.DYNAMIC) {
+                prefs[Keys.DYNAMIC_COLOR] = false
+            } else {
+                prefs[Keys.DYNAMIC_COLOR] = true
+            }
         }
     }
 
@@ -171,6 +175,11 @@ class SettingsRepository @Inject constructor(
     suspend fun setDynamicColor(enabled: Boolean) {
         dataStore.edit { prefs ->
             prefs[Keys.DYNAMIC_COLOR] = enabled
+            if (enabled) {
+                prefs[Keys.APP_ACCENT_COLOR] = AppAccentColor.DYNAMIC.storageValue
+            } else if (prefs[Keys.APP_ACCENT_COLOR] == AppAccentColor.DYNAMIC.storageValue) {
+                prefs[Keys.APP_ACCENT_COLOR] = AppAccentColor.PINK.storageValue
+            }
         }
     }
 

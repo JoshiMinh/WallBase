@@ -77,7 +77,6 @@ fun GlobalSearchScreen(
     viewModel: GlobalSearchViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
-    bottomBarOffsetY: Float = 0f
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
