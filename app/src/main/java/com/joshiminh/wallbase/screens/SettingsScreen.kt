@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Storage
@@ -51,7 +52,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -66,10 +70,12 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.R
+import com.joshiminh.wallbase.ui.components.MinResolutionDialog
 import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
 import com.joshiminh.wallbase.ui.components.topBarInsetPadding
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
+import com.joshiminh.wallbase.util.MinResolution
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +84,7 @@ fun SettingsScreen(
     uiState: SettingsViewModel.SettingsUiState,
     onRequestAppLockChange: (Boolean) -> Unit,
     onToggleAutoDownload: (Boolean) -> Unit,
+    onSetMinResolution: (MinResolution) -> Unit = {},
     onOpenAppearance: () -> Unit,
     onOpenDataStorage: () -> Unit,
     onOpenExtensions: () -> Unit,
@@ -90,6 +97,15 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    var showMinResolutionDialog by remember { mutableStateOf(false) }
+
+    if (showMinResolutionDialog) {
+        MinResolutionDialog(
+            currentResolution = uiState.minResolution,
+            onSelectResolution = onSetMinResolution,
+            onDismiss = { showMinResolutionDialog = false }
+        )
+    }
 
     LaunchedEffect(uiState.message) {
         val message = uiState.message ?: return@LaunchedEffect
@@ -165,6 +181,16 @@ fun SettingsScreen(
                             subtitle = "Save original resolution when viewing",
                             checked = uiState.autoDownload,
                             onCheckedChange = onToggleAutoDownload
+                        )
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        SettingsNavRow(
+                            icon = Icons.Outlined.HighQuality,
+                            title = "Minimum resolution",
+                            subtitle = uiState.minResolution.label,
+                            onClick = { showMinResolutionDialog = true }
                         )
                     }
                 }

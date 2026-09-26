@@ -370,7 +370,9 @@ class WallpaperDetailViewModel @Inject constructor(
 
     private fun generatePreviewForAdjustments(adjustments: WallpaperAdjustments) {
         val source = originalBitmap ?: run {
-            _uiState.update { it.copy(isProcessingEdits = false, isEditorReady = false) }
+            viewModelScope.launch {
+                ensureEditorLoaded()
+            }
             return
         }
         previewJob?.cancel()

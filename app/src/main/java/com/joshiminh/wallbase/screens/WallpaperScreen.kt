@@ -52,6 +52,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.Edit
@@ -60,7 +61,9 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Home
 import com.joshiminh.wallbase.ui.components.RenameWallpaperDialog
+import com.joshiminh.wallbase.ui.components.WallpaperCropDialog
 import com.joshiminh.wallbase.ui.AlbumPickerDialog
+import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
@@ -197,6 +200,7 @@ fun WallpaperRoute(
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         onRenameWallpaper = viewModel::renameWallpaper,
+        onUpdateCrop = viewModel::updateCrop,
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
         sharedTransitionScope = sharedTransitionScope,
@@ -246,6 +250,7 @@ fun WallpaperScreen(
     onDismissRemoveDownload: () -> Unit,
     onRequestPermission: () -> Unit,
     onRenameWallpaper: (String?) -> Unit = {},
+    onUpdateCrop: (WallpaperCrop) -> Unit = {},
     onNavigateBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
     sharedTransitionScope: SharedTransitionScope?,
@@ -299,6 +304,7 @@ fun WallpaperScreen(
     val scrollState = rememberScrollState()
     var isViewModeOpen by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showCropDialog by remember { mutableStateOf(false) }
 
     if (isViewModeOpen) {
         WallpaperViewModeDialog(
@@ -317,6 +323,17 @@ fun WallpaperScreen(
                 showRenameDialog = false
             },
             onDismiss = { showRenameDialog = false }
+        )
+    }
+
+    if (showCropDialog) {
+        WallpaperCropDialog(
+            currentCrop = uiState.adjustments.crop,
+            wallpaper = wallpaper,
+            onSelectCrop = { crop ->
+                onUpdateCrop(crop)
+            },
+            onDismiss = { showCropDialog = false }
         )
     }
 
@@ -442,6 +459,19 @@ fun WallpaperScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
+                                        val resolutionText = when {
+                                            item.width != null && item.height != null && item.width > 0 && item.height > 0 -> "${item.width} × ${item.height}"
+                                            isCurrent && previewBitmap != null && previewBitmap.width > 0 && previewBitmap.height > 0 -> "${previewBitmap.width} × ${previewBitmap.height}"
+                                            else -> null
+                                        }
+                                        val subtitleText = buildString {
+                                            append(item.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source")
+                                            if (!resolutionText.isNullOrBlank()) {
+                                                append(" • ")
+                                                append(resolutionText)
+                                            }
+                                        }
+
                                         Column(
                                             modifier = Modifier
                                                 .weight(1f)
@@ -460,22 +490,38 @@ fun WallpaperScreen(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                             Text(
-                                                text = item.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
+                                                text = subtitleText,
                                                 style = MaterialTheme.typography.bodyMedium,
-                                                color = Color.White.copy(alpha = 0.8f)
+                                                color = Color.White.copy(alpha = 0.8f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
 
                                         if (isCurrent) {
-                                            IconButton(
-                                                onClick = { showRenameDialog = true },
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                                                 modifier = Modifier.padding(start = 8.dp)
                                             ) {
-                                                Icon(
-                                                    imageVector = Icons.Outlined.Edit,
-                                                    contentDescription = "Rename wallpaper",
-                                                    tint = Color.White
-                                                )
+                                                IconButton(
+                                                    onClick = { showCropDialog = true }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Crop,
+                                                        contentDescription = "Set crop",
+                                                        tint = Color.White
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = { showRenameDialog = true }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Outlined.Edit,
+                                                        contentDescription = "Rename wallpaper",
+                                                        tint = Color.White
+                                                    )
+                                                }
                                             }
                                         }
                                     }

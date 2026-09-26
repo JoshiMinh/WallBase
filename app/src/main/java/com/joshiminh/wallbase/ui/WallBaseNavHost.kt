@@ -89,6 +89,7 @@ import com.joshiminh.wallbase.ui.theme.WallBaseMotion
 import com.joshiminh.wallbase.ui.viewmodel.*
 import com.joshiminh.wallbase.data.repository.AppTheme
 import com.joshiminh.wallbase.data.repository.AppAccentColor
+import com.joshiminh.wallbase.util.MinResolution
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -131,6 +132,7 @@ fun WallBaseApp(
     onSetAppLockEnabled: (Boolean) -> Unit,
     onToggleShowHorizontalWallpapers: (Boolean) -> Unit,
     onToggleShowDownloadBadge: (Boolean) -> Unit,
+    onSetMinResolution: (MinResolution) -> Unit = {},
     onSaveSourceCredentials: (String) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
@@ -579,6 +581,7 @@ fun WallBaseApp(
                             uiState = settingsUiState,
                             onRequestAppLockChange = handleAppLockToggle,
                             onToggleAutoDownload = onToggleAutoDownload,
+                            onSetMinResolution = onSetMinResolution,
                             onOpenAppearance = { navController.navigateSingleTop("settings/appearance") },
                             onOpenDataStorage = { navController.navigateSingleTop("settings/data_storage") },
                             onOpenExtensions = { navController.navigateSingleTop("repositories") },

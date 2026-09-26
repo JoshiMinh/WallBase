@@ -17,6 +17,7 @@ import com.joshiminh.wallbase.data.repository.WallpaperRepository
 import com.joshiminh.wallbase.util.AlbumSortOption
 import com.joshiminh.wallbase.util.WallpaperSortOption
 import com.joshiminh.wallbase.util.matchesHorizontalPreference
+import com.joshiminh.wallbase.util.matchesMinResolution
 import com.joshiminh.wallbase.util.sortedWith
 import androidx.compose.runtime.Immutable
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -58,17 +59,18 @@ class SourceBrowseViewModel @Inject constructor(
     val wallpaperPagingFlow: Flow<PagingData<WallpaperItem>> = combine(
         sourceRepository.observeSource(sourceKey),
         _searchQuery,
-        settingsRepository.preferences.map { it.showHorizontalWallpapers }
-    ) { source, query, showHorizontal ->
-        Triple(source, query, showHorizontal)
-    }.flatMapLatest { (source, query, showHorizontal) ->
+        settingsRepository.preferences
+    ) { source, query, prefs ->
+        Triple(source, query, prefs)
+    }.flatMapLatest { (source, query, prefs) ->
         if (source == null) {
             flowOf(PagingData.empty())
         } else {
             wallpaperRepository.getWallpaperPagingData(source, query)
                 .map { pagingData ->
                     pagingData.filter { item ->
-                        item.matchesHorizontalPreference(showHorizontal)
+                        item.matchesHorizontalPreference(prefs.showHorizontalWallpapers) &&
+                            item.matchesMinResolution(prefs.minResolution)
                     }
                 }
         }

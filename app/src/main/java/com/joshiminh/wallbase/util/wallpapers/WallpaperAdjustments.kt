@@ -193,6 +193,19 @@ data class WallpaperCropSettings(
         }
 
         fun minFraction(): Float = MIN_FRACTION
+
+        fun centeredForAspectRatio(targetRatio: Float, originalRatio: Float): WallpaperCropSettings {
+            if (targetRatio <= 0f || originalRatio <= 0f) return Full
+            return if (targetRatio < originalRatio) {
+                val widthFraction = (targetRatio / originalRatio).coerceIn(MIN_FRACTION, 1f)
+                val left = ((1f - widthFraction) / 2f).coerceIn(0f, 1f - widthFraction)
+                WallpaperCropSettings(left = left, top = 0f, right = left + widthFraction, bottom = 1f)
+            } else {
+                val heightFraction = (originalRatio / targetRatio).coerceIn(MIN_FRACTION, 1f)
+                val top = ((1f - heightFraction) / 2f).coerceIn(0f, 1f - heightFraction)
+                WallpaperCropSettings(left = 0f, top = top, right = 1f, bottom = top + heightFraction)
+            }
+        }
     }
 }
 

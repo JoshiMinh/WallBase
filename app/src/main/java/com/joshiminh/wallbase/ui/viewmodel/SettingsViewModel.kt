@@ -18,6 +18,7 @@ import com.joshiminh.wallbase.data.repository.LibraryRepository
 import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.SourceCredentialStore
 import com.joshiminh.wallbase.data.repository.UpdateRepository
+import com.joshiminh.wallbase.util.MinResolution
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -64,6 +65,7 @@ class SettingsViewModel @Inject constructor(
                         hasCompletedOnboarding = preferences.onboardingCompleted,
                         showHorizontalWallpapers = preferences.showHorizontalWallpapers,
                         showDownloadBadge = preferences.showDownloadBadge,
+                        minResolution = preferences.minResolution,
                     )
                 }
             }
@@ -71,6 +73,14 @@ class SettingsViewModel @Inject constructor(
 
         refreshStorageSnapshot()
         refreshSourceConnectionState()
+    }
+
+    fun setMinResolution(minResolution: MinResolution) {
+        if (_uiState.value.minResolution == minResolution) return
+        _uiState.update { it.copy(minResolution = minResolution) }
+        viewModelScope.launch {
+            settingsRepository.setMinResolution(minResolution)
+        }
     }
 
     fun exportBackup(destination: Uri, includeSources: Boolean) {
@@ -425,6 +435,7 @@ class SettingsViewModel @Inject constructor(
         val shouldRestartAfterImport: Boolean = false,
         val showHorizontalWallpapers: Boolean = true,
         val showDownloadBadge: Boolean = true,
+        val minResolution: MinResolution = MinResolution.ANY,
         val wallhavenTokenConfigured: Boolean = false,
     )
 

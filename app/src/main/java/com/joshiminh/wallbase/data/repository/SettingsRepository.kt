@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 import java.io.IOException
+import com.joshiminh.wallbase.util.MinResolution
 
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -64,6 +65,7 @@ class SettingsRepository @Inject constructor(
 
             val dynamicColor = dynamicPref && (appAccentColor == AppAccentColor.DYNAMIC)
             val amoledDark = prefs[Keys.AMOLED_DARK] ?: false
+            val minResolution = MinResolution.fromStorage(prefs[Keys.MIN_RESOLUTION])
 
             val storageLimit = prefs[Keys.STORAGE_LIMIT_BYTES] ?: DEFAULT_STORAGE_LIMIT_BYTES
             SettingsPreferences(
@@ -84,6 +86,7 @@ class SettingsRepository @Inject constructor(
                 onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: false,
                 showHorizontalWallpapers = prefs[Keys.SHOW_HORIZONTAL_WALLPAPERS] ?: true,
                 showDownloadBadge = prefs[Keys.SHOW_DOWNLOAD_BADGE] ?: true,
+                minResolution = minResolution,
             )
         }
 
@@ -200,6 +203,12 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    suspend fun setMinResolution(minResolution: MinResolution) {
+        dataStore.edit { prefs ->
+            prefs[Keys.MIN_RESOLUTION] = minResolution.storageValue
+        }
+    }
+
     suspend fun exportSettingsJson(): JSONObject {
         val prefs = preferences.first()
         return JSONObject().apply {
@@ -216,6 +225,7 @@ class SettingsRepository @Inject constructor(
             put("storage_limit_bytes", prefs.storageLimitBytes)
             put("show_horizontal_wallpapers", prefs.showHorizontalWallpapers)
             put("show_download_badge", prefs.showDownloadBadge)
+            put("min_resolution", prefs.minResolution.storageValue)
         }
     }
 
@@ -260,6 +270,9 @@ class SettingsRepository @Inject constructor(
             if (json.has("show_download_badge")) {
                 prefs[Keys.SHOW_DOWNLOAD_BADGE] = json.optBoolean("show_download_badge", true)
             }
+            if (json.has("min_resolution")) {
+                prefs[Keys.MIN_RESOLUTION] = MinResolution.fromStorage(json.optString("min_resolution")).storageValue
+            }
         }
     }
 
@@ -281,6 +294,7 @@ class SettingsRepository @Inject constructor(
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val SHOW_HORIZONTAL_WALLPAPERS = booleanPreferencesKey("show_horizontal_wallpapers")
         val SHOW_DOWNLOAD_BADGE = booleanPreferencesKey("show_download_badge")
+        val MIN_RESOLUTION = stringPreferencesKey("min_resolution")
     }
 
     companion object {
@@ -310,6 +324,7 @@ data class SettingsPreferences(
     val onboardingCompleted: Boolean,
     val showHorizontalWallpapers: Boolean,
     val showDownloadBadge: Boolean,
+    val minResolution: MinResolution = MinResolution.ANY,
 )
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")

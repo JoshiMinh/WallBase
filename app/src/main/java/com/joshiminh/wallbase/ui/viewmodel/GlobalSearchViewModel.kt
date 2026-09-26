@@ -8,6 +8,8 @@ import com.joshiminh.wallbase.data.repository.SettingsRepository
 import com.joshiminh.wallbase.data.repository.SourceRepository
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.data.repository.WallpaperRepository
+import com.joshiminh.wallbase.util.filterByHorizontalPreference
+import com.joshiminh.wallbase.util.filterByMinResolution
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -85,7 +87,9 @@ class GlobalSearchViewModel @Inject constructor(
             isExploreMode = isExplore,
             isLoading = loadingData.first,
             isLoadingMore = loadingData.second,
-            wallpapers = wallpapers,
+            wallpapers = wallpapers
+                .filterByHorizontalPreference(prefs.showHorizontalWallpapers)
+                .filterByMinResolution(prefs.minResolution),
             errorMessage = loadingData.third,
             wallpaperGridColumns = prefs.wallpaperGridColumns,
             wallpaperLayout = prefs.wallpaperLayout,
