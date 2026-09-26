@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.Delete
@@ -38,12 +37,9 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryScrollableTabRow
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -76,9 +72,7 @@ import com.joshiminh.wallbase.navigation.TopBarState
 import com.joshiminh.wallbase.ui.AlbumPickerDialog
 import com.joshiminh.wallbase.ui.DirectAddDialog
 import com.joshiminh.wallbase.ui.DownloadProgressToast
-import com.joshiminh.wallbase.ui.components.CategoryPickerDialog
 import com.joshiminh.wallbase.ui.components.GridColumnPicker
-import com.joshiminh.wallbase.ui.components.ManageCategoriesDialog
 import com.joshiminh.wallbase.ui.components.RenameWallpaperDialog
 import com.joshiminh.wallbase.ui.components.SheetTab
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
@@ -105,7 +99,6 @@ fun LibraryScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showSelectionAlbumDialog by rememberSaveable { mutableStateOf(false) }
-    var showCategoryPickerDialog by rememberSaveable { mutableStateOf(false) }
     var selectedWallpaperIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showRemoveDownloadsDialog by rememberSaveable { mutableStateOf(false) }
     var showSortSheet by rememberSaveable { mutableStateOf(false) }
@@ -282,16 +275,6 @@ fun LibraryScreen(
                 IconButton(
                     onClick = {
                         if (!uiState.isSelectionActionInProgress) {
-                            showCategoryPickerDialog = true
-                        }
-                    },
-                    enabled = !uiState.isSelectionActionInProgress
-                ) {
-                    Icon(imageVector = Icons.Outlined.Category, contentDescription = "Add to category")
-                }
-                IconButton(
-                    onClick = {
-                        if (!uiState.isSelectionActionInProgress) {
                             showSelectionAlbumDialog = true
                         }
                     },
@@ -355,39 +338,12 @@ fun LibraryScreen(
                 null
             }
 
-            val categoryTabsContent: (@Composable () -> Unit)? = if (uiState.categoriesEnabled && uiState.categories.isNotEmpty()) {
-                {
-                    val categories = uiState.categories
-                    val selectedIndex = if (uiState.selectedCategoryId == null) 0
-                    else (categories.indexOfFirst { it.id == uiState.selectedCategoryId } + 1).coerceAtLeast(0)
-
-                    PrimaryScrollableTabRow(
-                        selectedTabIndex = selectedIndex,
-                        containerColor = Color.Transparent,
-                        edgePadding = 12.dp
-                    ) {
-                        Tab(
-                            selected = uiState.selectedCategoryId == null,
-                            onClick = { libraryViewModel.selectCategory(null) },
-                            text = { Text("All · ${uiState.allWallpapersCount}") }
-                        )
-                        categories.forEach { category ->
-                            Tab(
-                                selected = uiState.selectedCategoryId == category.id,
-                                onClick = { libraryViewModel.selectCategory(category.id) },
-                                text = { Text("${category.title} · ${category.wallpaperCount}") }
-                            )
-                        }
-                    }
-                }
-            } else null
-
             TopBarState(
                 title = if (isSearchActive) null else baseTitle,
                 navigationIcon = null,
                 actions = actions,
                 titleContent = titleContent,
-                bottomContent = categoryTabsContent,
+                bottomContent = null,
                 autoHideBars = !isSearchActive
             )
         }
@@ -427,7 +383,6 @@ fun LibraryScreen(
     val availableSortFields = remember { listOf(SortField.Alphabet, SortField.DateAdded) }
 
     val pullRefreshState = rememberPullToRefreshState()
-    val hasTabBar = uiState.categoriesEnabled && uiState.categories.isNotEmpty()
 
     Box(modifier = Modifier.fillMaxSize()) {
         PullToRefreshBox(
@@ -440,7 +395,7 @@ fun LibraryScreen(
                     isRefreshing = uiState.isRefreshing,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = topBarInsetPadding(8.dp, hasTabBar = hasTabBar))
+                        .padding(top = topBarInsetPadding(8.dp, hasTabBar = false))
                 )
             },
             modifier = Modifier.fillMaxSize()
@@ -472,12 +427,11 @@ fun LibraryScreen(
                         }
                         Text(
                             text = if (isSearchActive) "No wallpapers match \"$trimmedQuery\""
-                            else if (uiState.selectedCategoryId != null) "No wallpapers in this category"
                             else "Your library is empty",
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        if (!isSearchActive && uiState.selectedCategoryId == null) {
+                        if (!isSearchActive) {
                             Text(
                                 text = "Save wallpapers from Browse, Search, or add directly using the + button.",
                                 style = MaterialTheme.typography.bodyMedium,
@@ -503,7 +457,7 @@ fun LibraryScreen(
                     showDownloadedBadge = uiState.showDownloadBadge,
                     contentPadding = PaddingValues(
                         start = 4.dp,
-                        top = topBarInsetPadding(4.dp, hasTabBar = hasTabBar),
+                        top = topBarInsetPadding(4.dp, hasTabBar = false),
                         end = 4.dp,
                         bottom = bottomBarInsetPadding(4.dp, hasBottomNav = true)
                     ),
@@ -567,24 +521,6 @@ fun LibraryScreen(
                 libraryViewModel.createAlbum(title)
             },
             onDismiss = { showSelectionAlbumDialog = false }
-        )
-    }
-
-    if (showCategoryPickerDialog && selectedWallpapers.isNotEmpty()) {
-        CategoryPickerDialog(
-            categories = uiState.categories,
-            selectedCategoryIds = emptySet(),
-            onConfirm = { categoryIds ->
-                categoryIds.forEach { catId ->
-                    libraryViewModel.addWallpapersToCategory(catId, selectedWallpapers)
-                }
-                showCategoryPickerDialog = false
-                selectedWallpaperIds = emptySet()
-            },
-            onDismiss = { showCategoryPickerDialog = false },
-            onCreateNewCategory = { name ->
-                libraryViewModel.createCategory(name)
-            }
         )
     }
 

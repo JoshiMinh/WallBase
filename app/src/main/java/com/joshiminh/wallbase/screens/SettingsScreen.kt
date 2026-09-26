@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Lock
@@ -78,9 +77,7 @@ import kotlin.system.exitProcess
 fun SettingsScreen(
     uiState: SettingsViewModel.SettingsUiState,
     onRequestAppLockChange: (Boolean) -> Unit,
-    onToggleCategories: (Boolean) -> Unit,
     onToggleAutoDownload: (Boolean) -> Unit,
-    onOpenCategories: () -> Unit,
     onOpenAppearance: () -> Unit,
     onOpenDataStorage: () -> Unit,
     onOpenExtensions: () -> Unit,
@@ -163,17 +160,6 @@ fun SettingsScreen(
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                         QuickToggleRow(
-                            icon = Icons.Outlined.Category,
-                            title = "Enable categories",
-                            subtitle = "Show category tabs in Library",
-                            checked = uiState.categoriesEnabled,
-                            onCheckedChange = onToggleCategories
-                        )
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                        QuickToggleRow(
                             icon = Icons.Outlined.Download,
                             title = "Auto download",
                             subtitle = "Save original resolution when viewing",
@@ -199,19 +185,6 @@ fun SettingsScreen(
                     )
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        // Categories
-                        SettingsNavRow(
-                            icon = Icons.Outlined.Category,
-                            title = "Categories",
-                            subtitle = if (uiState.categories.isEmpty()) "Manage wallpaper categories" else "${uiState.categories.size} categories configured",
-                            onClick = onOpenCategories
-                        )
-
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-
                         // Appearance
                         SettingsNavRow(
                             icon = Icons.Outlined.Palette,

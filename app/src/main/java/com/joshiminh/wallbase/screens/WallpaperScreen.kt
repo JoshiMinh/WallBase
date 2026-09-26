@@ -52,7 +52,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.Edit
@@ -61,7 +60,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Home
 import com.joshiminh.wallbase.ui.components.RenameWallpaperDialog
-import com.joshiminh.wallbase.ui.components.CategoryPickerDialog
+import com.joshiminh.wallbase.ui.AlbumPickerDialog
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
@@ -190,6 +189,7 @@ fun WallpaperRoute(
         onDismissPreviewFallback = viewModel::dismissPreviewFallback,
         onAddToLibrary = viewModel::addToLibrary,
         onAddToAlbum = viewModel::addToAlbum,
+        onCreateAlbumAndAdd = viewModel::createAlbumAndAddWallpaper,
         onRemoveFromLibrary = viewModel::removeFromLibrary,
         onDownload = viewModel::downloadWallpaper,
         onRequestRemoveDownload = viewModel::promptRemoveDownload,
@@ -197,8 +197,6 @@ fun WallpaperRoute(
         onDismissRemoveDownload = viewModel::dismissRemoveDownloadPrompt,
         onRequestPermission = { permissionLauncher.launch(Manifest.permission.SET_WALLPAPER) },
         onRenameWallpaper = viewModel::renameWallpaper,
-        onSetWallpaperCategories = viewModel::setWallpaperCategories,
-        onCreateCategory = viewModel::createCategory,
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
         sharedTransitionScope = sharedTransitionScope,
@@ -240,6 +238,7 @@ fun WallpaperScreen(
     onDismissPreviewFallback: () -> Unit,
     onAddToLibrary: () -> Unit,
     onAddToAlbum: (Long) -> Unit,
+    onCreateAlbumAndAdd: (String) -> Unit = {},
     onRemoveFromLibrary: () -> Unit,
     onDownload: () -> Unit,
     onRequestRemoveDownload: () -> Unit,
@@ -247,8 +246,6 @@ fun WallpaperScreen(
     onDismissRemoveDownload: () -> Unit,
     onRequestPermission: () -> Unit,
     onRenameWallpaper: (String?) -> Unit = {},
-    onSetWallpaperCategories: (Set<Long>) -> Unit = {},
-    onCreateCategory: (String) -> Unit = {},
     onNavigateBack: () -> Unit,
     snackbarHostState: SnackbarHostState,
     sharedTransitionScope: SharedTransitionScope?,
@@ -257,7 +254,6 @@ fun WallpaperScreen(
     val wallpaper = uiState.wallpaper ?: return
     val context = LocalContext.current
     var showAlbumPicker by remember { mutableStateOf(false) }
-    var showCategoryPicker by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val sharedModifier = Modifier.sharedWallpaperTransitionModifier(
         wallpaper = wallpaper,
@@ -623,27 +619,7 @@ fun WallpaperScreen(
                     }
                 }
 
-                // 4. Category
-                IconButton(
-                    onClick = { showCategoryPicker = true },
-                    enabled = !uiState.isAddingToCategory
-                ) {
-                    if (uiState.isAddingToCategory) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.Category,
-                            contentDescription = "Assign categories",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-
-                // 5. Save (Library Bookmark toggle)
+                // 4. Save (Library Bookmark toggle)
                 val saveEnabled = !uiState.isAddingToLibrary && !uiState.isRemovingFromLibrary
                 IconButton(
                     onClick = {
@@ -745,26 +721,16 @@ fun WallpaperScreen(
         )
     }
 
-    if (showCategoryPicker) {
-        CategoryPickerDialog(
-            categories = uiState.categories,
-            selectedCategoryIds = uiState.assignedCategoryIds,
-            onConfirm = { categoryIds ->
-                onSetWallpaperCategories(categoryIds)
-                showCategoryPicker = false
-            },
-            onDismiss = { showCategoryPicker = false },
-            onCreateNewCategory = { name ->
-                onCreateCategory(name)
-            }
-        )
-    }
-
     if (showAlbumPicker) {
         AlbumPickerDialog(
             albums = uiState.albums,
-            onAlbumSelected = { album ->
-                onAddToAlbum(album.id)
+            isBusy = uiState.isAddingToAlbum,
+            onAddToExisting = { albumId ->
+                onAddToAlbum(albumId)
+                showAlbumPicker = false
+            },
+            onCreateNew = { title ->
+                onCreateAlbumAndAdd(title)
                 showAlbumPicker = false
             },
             onDismiss = { showAlbumPicker = false }
@@ -889,53 +855,7 @@ private fun PreviewFallbackDialog(
     )
 }
 
-@Composable
-private fun AlbumPickerDialog(
-    albums: List<AlbumItem>,
-    onAlbumSelected: (AlbumItem) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = "Add to album") },
-        text = {
-            if (albums.isEmpty()) {
-                Text(text = "Create an album in your library to start organizing wallpapers.")
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    albums.forEach { album ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = WallBaseShapes.card,
-                            tonalElevation = 1.dp,
-                            onClick = { onAlbumSelected(album) }
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Text(
-                                    text = album.title,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "${album.wallpaperCount} wallpapers",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "Cancel")
-            }
-        }
-    )
-}
+
 
 @Composable
 private fun WallpaperViewModeDialog(

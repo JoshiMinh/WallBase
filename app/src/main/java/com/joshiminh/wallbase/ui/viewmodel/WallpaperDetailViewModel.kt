@@ -13,7 +13,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.palette.graphics.Palette
 import com.joshiminh.wallbase.data.entity.AlbumItem
-import com.joshiminh.wallbase.data.entity.CategoryItem
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.LibraryRepository
@@ -80,11 +79,6 @@ class WallpaperDetailViewModel @Inject constructor(
         viewModelScope.launch {
             libraryRepository.observeAlbums().collectLatest { albums ->
                 _uiState.update { it.copy(albums = albums) }
-            }
-        }
-        viewModelScope.launch {
-            libraryRepository.observeCategories().collectLatest { categories ->
-                _uiState.update { it.copy(categories = categories) }
             }
         }
     }
@@ -939,40 +933,39 @@ class WallpaperDetailViewModel @Inject constructor(
         }
     }
 
-    fun setWallpaperCategories(categoryIds: Set<Long>) {
+    fun createAlbumAndAddWallpaper(title: String) {
         val wallpaper = _uiState.value.wallpaper ?: return
-        viewModelScope.launch {
-            _uiState.update { it.copy(isAddingToCategory = true) }
-            runCatching {
-                libraryRepository.setWallpaperCategories(wallpaper, categoryIds)
-            }.onSuccess {
-                _uiState.update {
-                    it.copy(
-                        assignedCategoryIds = categoryIds,
-                        isAddingToCategory = false,
-                        isInLibrary = true,
-                        message = "Categories updated"
-                    )
-                }
-            }.onFailure { t ->
-                _uiState.update {
-                    it.copy(
-                        isAddingToCategory = false,
-                        message = t.localizedMessage ?: "Unable to update categories"
-                    )
-                }
-            }
+        val trimmed = title.trim()
+        if (trimmed.isBlank()) {
+            _uiState.update { it.copy(message = "Album name cannot be blank") }
+            return
         }
-    }
-
-    fun createCategory(title: String) {
         viewModelScope.launch {
-            val result = libraryRepository.createCategory(title)
-            result.onSuccess { cat ->
-                _uiState.update { it.copy(message = "Created category \"${cat.title}\"") }
-            }.onFailure { t ->
-                _uiState.update { it.copy(message = t.localizedMessage ?: "Unable to create category") }
-            }
+            _uiState.update { it.copy(isAddingToAlbum = true, message = null) }
+            runCatching {
+                val album = libraryRepository.createAlbum(trimmed)
+                libraryRepository.addWallpaper(wallpaper)
+                libraryRepository.addWallpapersToAlbum(album.id, listOf(wallpaper))
+                album
+            }.fold(
+                onSuccess = { album ->
+                    _uiState.update {
+                        it.copy(
+                            isAddingToAlbum = false,
+                            isInLibrary = true,
+                            message = "Created album \"${album.title}\" and added wallpaper"
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isAddingToAlbum = false,
+                            message = error.localizedMessage ?: "Unable to create album"
+                        )
+                    }
+                }
+            )
         }
     }
 
@@ -1034,9 +1027,6 @@ class WallpaperDetailViewModel @Inject constructor(
         val message: String? = null,
         val albums: List<AlbumItem> = emptyList(),
         val isAddingToAlbum: Boolean = false,
-        val categories: List<CategoryItem> = emptyList(),
-        val assignedCategoryIds: Set<Long> = emptySet(),
-        val isAddingToCategory: Boolean = false,
         val palette: WallpaperPalette? = null
     )
 

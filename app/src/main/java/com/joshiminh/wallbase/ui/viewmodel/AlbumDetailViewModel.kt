@@ -28,9 +28,12 @@ class AlbumDetailViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    private val albumId: Long = savedStateHandle.get<Long>("albumId")
-        ?: savedStateHandle.get<String>("albumId")?.toLongOrNull()
-        ?: 0L
+    private val albumId: Long = when (val arg = savedStateHandle.get<Any>("albumId")) {
+        is Long -> arg
+        is Number -> arg.toLong()
+        is String -> arg.toLongOrNull() ?: 0L
+        else -> 0L
+    }
 
     private val sortOption = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
     private val downloading = MutableStateFlow(false)

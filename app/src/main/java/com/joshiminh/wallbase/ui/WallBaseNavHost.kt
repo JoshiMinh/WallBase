@@ -75,8 +75,9 @@ import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavOptionsBuilder
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.*
-import com.joshiminh.wallbase.data.entity.CategoryItem
 import com.joshiminh.wallbase.data.entity.Source
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.sources.RedditCommunity
@@ -110,7 +111,6 @@ fun WallBaseApp(
     onToggleDynamicColor: (Boolean) -> Unit,
     onToggleAmoledDark: (Boolean) -> Unit,
     onToggleAnimations: (Boolean) -> Unit,
-    onToggleCategories: (Boolean) -> Unit = {},
     onUpdateSourceInput: (String) -> Unit,
     onSearchReddit: () -> Unit,
     onAddSourceFromInput: () -> Unit,
@@ -134,10 +134,6 @@ fun WallBaseApp(
     onSaveSourceCredentials: (String) -> Unit,
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
-    onCreateCategory: (String) -> Unit = {},
-    onRenameCategory: (CategoryItem, String) -> Unit = { _, _ -> },
-    onDeleteCategory: (CategoryItem) -> Unit = {},
-    onReorderCategories: (List<Long>) -> Unit = {},
     onCheckForUpdates: () -> Unit = {},
     onDismissAvailableUpdate: () -> Unit = {},
 ) {
@@ -505,8 +501,14 @@ fun WallBaseApp(
                         }
                     }
 
-                    composable("album/{albumId}") { backStackEntry ->
-                        val id = backStackEntry.arguments?.getString("albumId")?.toLongOrNull()
+                    composable(
+                        route = "album/{albumId}",
+                        arguments = listOf(
+                            navArgument("albumId") { type = NavType.LongType }
+                        )
+                    ) { backStackEntry ->
+                        val id = backStackEntry.arguments?.getLong("albumId")
+                            ?: backStackEntry.arguments?.getString("albumId")?.toLongOrNull()
                         if (id == null) {
                             LaunchedEffect(Unit) { navController.popBackStack() }
                         } else {
@@ -515,6 +517,7 @@ fun WallBaseApp(
                                 albumId = id,
                                 onWallpaperSelected = navigateToWallpaperDetail,
                                 onAlbumDeleted = { navController.popBackStack() },
+                                onNavigateBack = { navController.popBackStack() },
                                 onConfigureTopBar = acquireTopBar,
                                 sharedTransitionScope = sharedScope,
                                 animatedVisibilityScope = animatedScope,
@@ -575,9 +578,7 @@ fun WallBaseApp(
                         SettingsScreen(
                             uiState = settingsUiState,
                             onRequestAppLockChange = handleAppLockToggle,
-                            onToggleCategories = onToggleCategories,
                             onToggleAutoDownload = onToggleAutoDownload,
-                            onOpenCategories = { navController.navigateSingleTop("settings/categories") },
                             onOpenAppearance = { navController.navigateSingleTop("settings/appearance") },
                             onOpenDataStorage = { navController.navigateSingleTop("settings/data_storage") },
                             onOpenExtensions = { navController.navigateSingleTop("repositories") },
@@ -585,18 +586,6 @@ fun WallBaseApp(
                             onDismissAvailableUpdate = onDismissAvailableUpdate,
                             onMessageShown = onSettingsMessageShown,
                             onRestartConsumed = onSettingsRestartConsumed,
-                        )
-                    }
-
-                    composable("settings/categories") {
-                        ManageCategoriesScreen(
-                            categories = settingsUiState.categories,
-                            onCreateCategory = onCreateCategory,
-                            onRenameCategory = onRenameCategory,
-                            onDeleteCategory = onDeleteCategory,
-                            onReorderCategories = onReorderCategories,
-                            onNavigateBack = { navController.popBackStack() },
-                            onConfigureTopBar = acquireTopBar,
                         )
                     }
 

@@ -7,17 +7,12 @@ import android.net.Uri
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import com.joshiminh.wallbase.data.dao.AlbumDao
-import com.joshiminh.wallbase.data.dao.CategoryDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.AlbumDetail
 import com.joshiminh.wallbase.data.entity.AlbumEntity
 import com.joshiminh.wallbase.data.entity.AlbumItem
 import com.joshiminh.wallbase.data.entity.AlbumWallpaperCrossRef
 import com.joshiminh.wallbase.data.entity.AlbumWithWallpapers
-import com.joshiminh.wallbase.data.entity.CategoryEntity
-import com.joshiminh.wallbase.data.entity.CategoryItem
-import com.joshiminh.wallbase.data.entity.CategoryWallpaperCrossRef
-import com.joshiminh.wallbase.data.entity.CategoryWithWallpapers
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.data.entity.WallpaperEntity
 import com.joshiminh.wallbase.data.entity.WallpaperItem
@@ -50,121 +45,12 @@ import javax.inject.Singleton
 class LibraryRepository @Inject constructor(
     private val wallpaperDao: WallpaperDao,
     private val albumDao: AlbumDao,
-    private val categoryDao: CategoryDao,
     private val localStorage: LocalStorageCoordinator
 ) {
 
     fun observeSavedWallpapers(): Flow<List<WallpaperItem>> {
         return wallpaperDao.observeWallpapersWithAlbums()
             .map { entries -> entries.map { it.toWallpaperItem() } }
-    }
-
-    fun observeCategoriesWithWallpapers(): Flow<List<CategoryWithWallpapers>> {
-        return categoryDao.observeCategoriesWithWallpapers()
-    }
-
-    fun observeCategories(): Flow<List<CategoryItem>> {
-        return categoryDao.observeCategoriesWithWallpapers()
-            .map { list -> list.map { it.toCategoryItem() } }
-    }
-
-    fun observeCategoryWallpapers(categoryId: Long): Flow<List<WallpaperItem>> {
-        return categoryDao.observeCategoryWithWallpapers(categoryId)
-            .map { entry -> entry?.wallpapers.orEmpty().map { it.toLibraryWallpaperItem() } }
-    }
-
-    fun observeCategoryIdsForWallpaper(wallpaperId: Long): Flow<List<Long>> {
-        return categoryDao.observeCategoryIdsForWallpaper(wallpaperId)
-    }
-
-    suspend fun getCategoryIdsForWallpaper(wallpaperId: Long): List<Long> {
-        return withContext(Dispatchers.IO) {
-            categoryDao.getCategoryIdsForWallpaper(wallpaperId)
-        }
-    }
-
-    suspend fun createCategory(title: String): Result<CategoryItem> = withContext(Dispatchers.IO) {
-        val trimmed = title.trim()
-        if (trimmed.isBlank()) {
-            return@withContext Result.failure(IllegalArgumentException("Category title cannot be blank"))
-        }
-        val existing = categoryDao.findCategoryByTitle(trimmed)
-        if (existing != null) {
-            return@withContext Result.failure(IllegalStateException("Category \"$trimmed\" already exists"))
-        }
-        val now = System.currentTimeMillis()
-        val entity = CategoryEntity(
-            title = trimmed,
-            createdAt = now,
-            updatedAt = now
-        )
-        val id = categoryDao.upsertCategory(entity)
-        Result.success(CategoryItem(id = id, title = trimmed, wallpaperCount = 0))
-    }
-
-    suspend fun renameCategory(categoryId: Long, title: String): Result<Unit> = withContext(Dispatchers.IO) {
-        val trimmed = title.trim()
-        if (trimmed.isBlank()) {
-            return@withContext Result.failure(IllegalArgumentException("Category title cannot be blank"))
-        }
-        val existing = categoryDao.findCategoryByTitle(trimmed)
-        if (existing != null && existing.id != categoryId) {
-            return@withContext Result.failure(IllegalStateException("Category \"$trimmed\" already exists"))
-        }
-        val now = System.currentTimeMillis()
-        val updated = categoryDao.updateCategoryTitle(categoryId, trimmed, now)
-        if (updated > 0) Result.success(Unit) else Result.failure(IllegalStateException("Category not found"))
-    }
-
-    suspend fun deleteCategory(categoryId: Long): Result<Unit> = withContext(Dispatchers.IO) {
-        val deleted = categoryDao.deleteCategory(categoryId)
-        if (deleted > 0) Result.success(Unit) else Result.failure(IllegalStateException("Category not found"))
-    }
-
-    suspend fun reorderCategories(categoryIds: List<Long>) = withContext(Dispatchers.IO) {
-        categoryIds.forEachIndexed { index, id ->
-            categoryDao.updateCategorySortOrder(id, index)
-        }
-    }
-
-    suspend fun addWallpapersToCategory(
-        categoryId: Long,
-        wallpapers: List<WallpaperItem>
-    ): CategoryAssociationResult {
-        if (wallpapers.isEmpty()) return CategoryAssociationResult(0, 0, 0)
-        return withContext(Dispatchers.IO) {
-            val refs = mutableListOf<CategoryWallpaperCrossRef>()
-            var skipped = 0
-            wallpapers.forEach { wallpaper ->
-                when (val result = ensureWallpaperSaved(wallpaper)) {
-                    is EnsureResult.Inserted -> refs += CategoryWallpaperCrossRef(categoryId, result.id)
-                    is EnsureResult.Existing -> refs += CategoryWallpaperCrossRef(categoryId, result.id)
-                    EnsureResult.Skipped, EnsureResult.Failed -> skipped++
-                }
-            }
-
-            if (refs.isEmpty()) {
-                return@withContext CategoryAssociationResult(addedToCategory = 0, alreadyPresent = 0, skipped = skipped)
-            }
-
-            val insertResults = categoryDao.insertCrossRefs(refs)
-            val added = insertResults.count { it != -1L }
-            val alreadyPresent = insertResults.size - added
-            CategoryAssociationResult(addedToCategory = added, alreadyPresent = alreadyPresent, skipped = skipped)
-        }
-    }
-
-    suspend fun setWallpaperCategories(wallpaper: WallpaperItem, categoryIds: Set<Long>) = withContext(Dispatchers.IO) {
-        val wallpaperId = when (val result = ensureWallpaperSaved(wallpaper)) {
-            is EnsureResult.Inserted -> result.id
-            is EnsureResult.Existing -> result.id
-            else -> return@withContext
-        }
-        categoryDao.deleteCrossRefsForWallpaper(wallpaperId)
-        val refs = categoryIds.map { CategoryWallpaperCrossRef(categoryId = it, wallpaperId = wallpaperId) }
-        if (refs.isNotEmpty()) {
-            categoryDao.insertCrossRefs(refs)
-        }
     }
 
     fun observeAlbums(): Flow<List<AlbumItem>> {
@@ -1440,11 +1326,5 @@ private fun AlbumWithWallpapers.toAlbumDetail(): AlbumDetail {
         wallpapers = wallpapers.map { it.toLibraryWallpaperItem() }
     )
 }
-
-data class CategoryAssociationResult(
-    val addedToCategory: Int,
-    val alreadyPresent: Int,
-    val skipped: Int
-)
 
 

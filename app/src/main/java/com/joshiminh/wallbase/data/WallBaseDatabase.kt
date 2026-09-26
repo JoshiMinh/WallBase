@@ -8,13 +8,10 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.joshiminh.wallbase.data.dao.AlbumDao
-import com.joshiminh.wallbase.data.dao.CategoryDao
 import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.entity.AlbumEntity
 import com.joshiminh.wallbase.data.entity.AlbumWallpaperCrossRef
-import com.joshiminh.wallbase.data.entity.CategoryEntity
-import com.joshiminh.wallbase.data.entity.CategoryWallpaperCrossRef
 import com.joshiminh.wallbase.data.entity.DefaultSources
 import com.joshiminh.wallbase.data.entity.SourceEntity
 import com.joshiminh.wallbase.data.entity.SourceSeed
@@ -32,11 +29,9 @@ import java.util.Locale
         AlbumEntity::class,
         WallpaperEntity::class,
         AlbumWallpaperCrossRef::class,
-        SourceEntity::class,
-        CategoryEntity::class,
-        CategoryWallpaperCrossRef::class
+        SourceEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class WallBaseDatabase : RoomDatabase() {
@@ -44,7 +39,6 @@ abstract class WallBaseDatabase : RoomDatabase() {
     abstract fun sourceDao(): SourceDao
     abstract fun wallpaperDao(): WallpaperDao
     abstract fun albumDao(): AlbumDao
-    abstract fun categoryDao(): CategoryDao
 
     companion object {
         @Volatile
@@ -67,7 +61,8 @@ abstract class WallBaseDatabase : RoomDatabase() {
                     MIGRATION_8_9,
                     MIGRATION_9_10,
                     MIGRATION_10_11,
-                    MIGRATION_11_12
+                    MIGRATION_11_12,
+                    MIGRATION_12_13
                 )
                 .addCallback(callback)
                 .fallbackToDestructiveMigration(false)
@@ -261,19 +256,47 @@ abstract class WallBaseDatabase : RoomDatabase() {
                     """.trimIndent()
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_category_wallpaper_cross_ref_wallpaper_id ON category_wallpaper_cross_ref (wallpaper_id)")
-
-                preloadCategories(db)
             }
         }
 
-        private fun preloadCategories(db: SupportSQLiteDatabase) {
-            val now = System.currentTimeMillis()
-            val presets = listOf("Anime", "Nature", "AMOLED", "Minimal", "Art")
-            presets.forEachIndexed { index, name ->
-                db.execSQL(
-                    "INSERT OR IGNORE INTO categories (title, sort_order, is_preset, created_at, updated_at) VALUES (?, ?, 1, ?, ?)",
-                    arrayOf(name, index, now, now)
-                )
+        val MIGRATION_12_13 = object : androidx.room.migration.Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                val now = System.currentTimeMillis()
+
+                // Check if categories table exists before attempting migration
+                var hasCategories = false
+                db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='categories'").use { cursor ->
+                    hasCategories = cursor.moveToFirst()
+                }
+
+                if (hasCategories) {
+                    // 1. Insert existing categories as albums if not already present by title
+                    db.execSQL("""
+                        INSERT INTO albums (title, description, cover_wallpaper_id, sort_order, is_pinned, created_at, updated_at, sync_token)
+                        SELECT c.title, NULL, NULL, c.sort_order, 0, $now, $now, NULL
+                        FROM categories c
+                        WHERE NOT EXISTS (SELECT 1 FROM albums a WHERE a.title = c.title)
+                    """.trimIndent())
+
+                    // 2. Migrate category-wallpaper relations into album_wallpaper_cross_ref
+                    var hasCategoryCrossRef = false
+                    db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='category_wallpaper_cross_ref'").use { cursor ->
+                        hasCategoryCrossRef = cursor.moveToFirst()
+                    }
+
+                    if (hasCategoryCrossRef) {
+                        db.execSQL("""
+                            INSERT OR IGNORE INTO album_wallpaper_cross_ref (album_id, wallpaper_id)
+                            SELECT a.album_id, cw.wallpaper_id
+                            FROM category_wallpaper_cross_ref cw
+                            JOIN categories c ON cw.category_id = c.category_id
+                            JOIN albums a ON a.title = c.title
+                        """.trimIndent())
+                        db.execSQL("DROP TABLE IF EXISTS category_wallpaper_cross_ref")
+                    }
+
+                    db.execSQL("DROP TABLE IF EXISTS categories")
+                }
             }
         }
 
@@ -311,7 +334,6 @@ abstract class WallBaseDatabase : RoomDatabase() {
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
             preloadSources(db, seeds)
-            preloadCategories(db)
         }
     }
 }

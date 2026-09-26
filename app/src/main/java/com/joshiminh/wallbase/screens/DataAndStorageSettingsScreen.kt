@@ -105,7 +105,7 @@ fun DataAndStorageSettingsScreen(
             .fillMaxSize()
             .padding(
                 top = topBarInsetPadding(8.dp),
-                bottom = bottomBarInsetPadding(16.dp, hasBottomNav = true)
+                bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)
             ),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)

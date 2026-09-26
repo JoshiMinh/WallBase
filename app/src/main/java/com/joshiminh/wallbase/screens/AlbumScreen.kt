@@ -18,9 +18,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Search
@@ -36,6 +39,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,6 +73,7 @@ fun AlbumRoute(
     albumId: Long,
     onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
     onAlbumDeleted: () -> Unit,
+    onNavigateBack: () -> Unit = {},
     onConfigureTopBar: (TopBarState) -> TopBarHandle,
     viewModel: AlbumDetailViewModel = hiltViewModel(),
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -212,7 +217,11 @@ fun AlbumRoute(
 
     val topBarState = TopBarState(
         title = if (isSearchActive) null else title,
-        navigationIcon = null,
+        navigationIcon = TopBarState.NavigationIcon(
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            onClick = onNavigateBack
+        ),
         actions = topBarActions,
         titleContent = titleContent,
         autoHideBars = false
@@ -424,10 +433,43 @@ fun AlbumScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .weight(1f),
+                                .weight(1f)
+                                .padding(horizontal = 32.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = message, style = MaterialTheme.typography.bodyLarge)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Surface(
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.size(72.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Collections,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(36.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                if (state.wallpapers.isEmpty() && !hasQuery) {
+                                    Text(
+                                        text = "Add wallpapers to this album from your library or wallpaper details.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            }
                         }
                     } else {
                         if (sharedTransitionScope != null && animatedVisibilityScope != null) {

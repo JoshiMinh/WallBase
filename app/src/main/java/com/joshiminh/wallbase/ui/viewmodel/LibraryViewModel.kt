@@ -5,8 +5,6 @@ package com.joshiminh.wallbase.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.joshiminh.wallbase.data.entity.AlbumItem
-import com.joshiminh.wallbase.data.entity.CategoryItem
-import com.joshiminh.wallbase.data.entity.CategoryWithWallpapers
 import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.data.repository.AlbumLayout
 import com.joshiminh.wallbase.data.repository.LibraryRepository
@@ -38,7 +36,6 @@ class LibraryViewModel @Inject constructor(
 
     private val messageFlow = MutableStateFlow<String?>(null)
     private val isCreatingAlbum = MutableStateFlow(false)
-    private val selectedCategoryId = MutableStateFlow<Long?>(null)
     private val selectionActionInProgress = MutableStateFlow(false)
     private val selectionAction = MutableStateFlow<SelectionAction?>(null)
     private val directAddInProgress = MutableStateFlow(false)
@@ -54,8 +51,6 @@ class LibraryViewModel @Inject constructor(
         combine(
             repository.observeSavedWallpapers(),
             repository.observeAlbums(),
-            repository.observeCategoriesWithWallpapers(),
-            selectedCategoryId,
             isCreatingAlbum,
             selectionActionInProgress,
             selectionAction,
@@ -73,9 +68,6 @@ class LibraryViewModel @Inject constructor(
         }.map { inputs ->
             storageLimitBytes = inputs.preferences.storageLimitBytes
 
-            val categoryItems = inputs.categoriesWithWallpapers.map { it.toCategoryItem() }
-            val categoriesEnabled = inputs.preferences.categoriesEnabled
-
             val baseWallpapers = inputs.wallpapers
                 .sortedWith(inputs.wallpaperSortOption)
                 .filterByDownloadStatus(inputs.downloadedFilter)
@@ -85,22 +77,10 @@ class LibraryViewModel @Inject constructor(
                 baseWallpapers
             }
 
-            val categoryFilteredWallpapers = if (categoriesEnabled && inputs.selectedCategoryId != null) {
-                val category = inputs.categoriesWithWallpapers.find { it.category.id == inputs.selectedCategoryId }
-                val allowedWallpaperIds = category?.wallpapers.orEmpty().map { it.id }.toSet()
-                val allowedKeys = category?.wallpapers.orEmpty().map { "${it.sourceKey}:${it.remoteId ?: it.id}" }.toSet()
-                filteredWallpapers.filter { it.id in allowedKeys || it.remoteIdentifierWithinSource()?.toLongOrNull() in allowedWallpaperIds }
-            } else {
-                filteredWallpapers
-            }
-
             LibraryUiState(
-                wallpapers = categoryFilteredWallpapers,
+                wallpapers = filteredWallpapers,
                 allWallpapersCount = filteredWallpapers.size,
                 albums = inputs.albums.sortedWith(inputs.albumSortOption),
-                categories = categoryItems,
-                selectedCategoryId = inputs.selectedCategoryId,
-                categoriesEnabled = categoriesEnabled,
                 isCreatingAlbum = inputs.isCreatingAlbum,
                 isSelectionActionInProgress = inputs.isSelectionActionInProgress,
                 selectionAction = inputs.selectionAction,
@@ -442,97 +422,6 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun selectCategory(categoryId: Long?) {
-        selectedCategoryId.value = categoryId
-    }
-
-    fun createCategory(title: String) {
-        val trimmed = title.trim()
-        if (trimmed.isEmpty()) {
-            messageFlow.value = "Enter a name for your category"
-            return
-        }
-        viewModelScope.launch {
-            val result = repository.createCategory(trimmed)
-            messageFlow.update {
-                result.fold(
-                    onSuccess = { cat -> "Created category \"${cat.title}\"" },
-                    onFailure = { t -> t.localizedMessage ?: "Unable to create category" }
-                )
-            }
-        }
-    }
-
-    fun renameCategory(category: CategoryItem, title: String) {
-        val trimmed = title.trim()
-        if (trimmed.isEmpty()) return
-        viewModelScope.launch {
-            val result = repository.renameCategory(category.id, trimmed)
-            messageFlow.update {
-                result.fold(
-                    onSuccess = { "Category renamed to \"$trimmed\"" },
-                    onFailure = { t -> t.localizedMessage ?: "Unable to rename category" }
-                )
-            }
-        }
-    }
-
-    fun deleteCategory(category: CategoryItem) {
-        viewModelScope.launch {
-            val result = repository.deleteCategory(category.id)
-            if (selectedCategoryId.value == category.id) {
-                selectedCategoryId.value = null
-            }
-            messageFlow.update {
-                result.fold(
-                    onSuccess = { "Deleted category \"${category.title}\"" },
-                    onFailure = { t -> t.localizedMessage ?: "Unable to delete category" }
-                )
-            }
-        }
-    }
-
-    fun reorderCategories(categoryIds: List<Long>) {
-        viewModelScope.launch {
-            repository.reorderCategories(categoryIds)
-        }
-    }
-
-    fun addWallpapersToCategory(categoryId: Long, wallpapers: List<WallpaperItem>) {
-        if (wallpapers.isEmpty() || selectionActionInProgress.value) return
-        viewModelScope.launch {
-            selectionAction.value = SelectionAction.ADD_TO_CATEGORY
-            selectionActionInProgress.value = true
-            val result = runCatching { repository.addWallpapersToCategory(categoryId, wallpapers) }
-            selectionActionInProgress.value = false
-            selectionAction.value = null
-            messageFlow.update {
-                result.fold(
-                    onSuccess = { res ->
-                        when {
-                            res.addedToCategory > 0 -> "Added ${res.addedToCategory} wallpapers to category"
-                            res.alreadyPresent > 0 -> "Wallpapers already in category"
-                            else -> "No wallpapers added"
-                        }
-                    },
-                    onFailure = { t -> t.localizedMessage ?: "Unable to add to category" }
-                )
-            }
-        }
-    }
-
-    fun setWallpaperCategories(wallpaper: WallpaperItem, categoryIds: Set<Long>) {
-        viewModelScope.launch {
-            runCatching {
-                repository.setWallpaperCategories(wallpaper, categoryIds)
-            }.onSuccess {
-                messageFlow.value = "Categories updated"
-            }.onFailure { t ->
-                messageFlow.value = t.localizedMessage ?: "Failed to update categories"
-            }
-        }
-    }
-
     fun consumeMessage() {
         messageFlow.value = null
     }
@@ -546,9 +435,6 @@ class LibraryViewModel @Inject constructor(
         val wallpapers: List<WallpaperItem> = emptyList(),
         val allWallpapersCount: Int = 0,
         val albums: List<AlbumItem> = emptyList(),
-        val categories: List<CategoryItem> = emptyList(),
-        val selectedCategoryId: Long? = null,
-        val categoriesEnabled: Boolean = true,
         val isCreatingAlbum: Boolean = false,
         val isSelectionActionInProgress: Boolean = false,
         val selectionAction: SelectionAction? = null,
@@ -570,7 +456,6 @@ class LibraryViewModel @Inject constructor(
         DOWNLOAD,
         REMOVE_FROM_LIBRARY,
         ADD_TO_ALBUM,
-        ADD_TO_CATEGORY,
         REMOVE_DOWNLOADS,
         DELETE_ALBUMS
     }
@@ -580,8 +465,6 @@ class LibraryViewModel @Inject constructor(
 private data class LibraryStateInputs(
     val wallpapers: List<WallpaperItem>,
     val albums: List<AlbumItem>,
-    val categoriesWithWallpapers: List<CategoryWithWallpapers>,
-    val selectedCategoryId: Long?,
     val isCreatingAlbum: Boolean,
     val isSelectionActionInProgress: Boolean,
     val selectionAction: LibraryViewModel.SelectionAction?,
@@ -600,20 +483,18 @@ private fun Array<Any?>.toLibraryStateInputs(): LibraryStateInputs {
     return LibraryStateInputs(
         wallpapers = this[0] as List<WallpaperItem>,
         albums = this[1] as List<AlbumItem>,
-        categoriesWithWallpapers = this[2] as List<CategoryWithWallpapers>,
-        selectedCategoryId = this[3] as Long?,
-        isCreatingAlbum = this[4] as Boolean,
-        isSelectionActionInProgress = this[5] as Boolean,
-        selectionAction = this[6] as LibraryViewModel.SelectionAction?,
-        message = this[7] as String?,
-        wallpaperSortOption = this[8] as WallpaperSortOption,
-        albumSortOption = this[9] as AlbumSortOption,
-        preferences = this[10] as SettingsPreferences,
-        isDirectAddInProgress = this[11] as Boolean,
-        directAddCompleted = this[12] as Boolean?,
-        downloadedFilter = this[13] as DownloadedFilter,
-        favoritesOnly = this[14] as Boolean,
-        isRefreshing = this[15] as Boolean
+        isCreatingAlbum = this[2] as Boolean,
+        isSelectionActionInProgress = this[3] as Boolean,
+        selectionAction = this[4] as LibraryViewModel.SelectionAction?,
+        message = this[5] as String?,
+        wallpaperSortOption = this[6] as WallpaperSortOption,
+        albumSortOption = this[7] as AlbumSortOption,
+        preferences = this[8] as SettingsPreferences,
+        isDirectAddInProgress = this[9] as Boolean,
+        directAddCompleted = this[10] as Boolean?,
+        downloadedFilter = this[11] as DownloadedFilter,
+        favoritesOnly = this[12] as Boolean,
+        isRefreshing = this[13] as Boolean
     )
 }
 

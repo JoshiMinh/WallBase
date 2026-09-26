@@ -5,7 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.joshiminh.wallbase.data.WallBaseDatabase
 import com.joshiminh.wallbase.data.dao.AlbumDao
-import com.joshiminh.wallbase.data.dao.CategoryDao
 import com.joshiminh.wallbase.data.dao.SourceDao
 import com.joshiminh.wallbase.data.dao.WallpaperDao
 import com.joshiminh.wallbase.data.repository.settingsDataStore
@@ -36,9 +35,6 @@ object DatabaseModule {
 
     @Provides
     fun provideAlbumDao(database: WallBaseDatabase): AlbumDao = database.albumDao()
-
-    @Provides
-    fun provideCategoryDao(database: WallBaseDatabase): CategoryDao = database.categoryDao()
 
     @Provides
     @Singleton

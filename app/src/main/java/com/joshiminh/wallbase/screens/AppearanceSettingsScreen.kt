@@ -117,7 +117,7 @@ fun AppearanceSettingsScreen(
             .fillMaxSize()
             .padding(
                 top = topBarInsetPadding(8.dp),
-                bottom = bottomBarInsetPadding(16.dp, hasBottomNav = true)
+                bottom = bottomBarInsetPadding(16.dp, hasBottomNav = false)
             ),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -338,10 +338,10 @@ private fun ThemeOptionChip(
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(
             1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
     ) {
         Column(

@@ -84,7 +84,6 @@ class SettingsRepository @Inject constructor(
                 onboardingCompleted = prefs[Keys.ONBOARDING_COMPLETED] ?: false,
                 showHorizontalWallpapers = prefs[Keys.SHOW_HORIZONTAL_WALLPAPERS] ?: true,
                 showDownloadBadge = prefs[Keys.SHOW_DOWNLOAD_BADGE] ?: true,
-                categoriesEnabled = prefs[Keys.CATEGORIES_ENABLED] ?: true,
             )
         }
 
@@ -201,12 +200,6 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun setCategoriesEnabled(enabled: Boolean) {
-        dataStore.edit { prefs ->
-            prefs[Keys.CATEGORIES_ENABLED] = enabled
-        }
-    }
-
     suspend fun exportSettingsJson(): JSONObject {
         val prefs = preferences.first()
         return JSONObject().apply {
@@ -223,7 +216,6 @@ class SettingsRepository @Inject constructor(
             put("storage_limit_bytes", prefs.storageLimitBytes)
             put("show_horizontal_wallpapers", prefs.showHorizontalWallpapers)
             put("show_download_badge", prefs.showDownloadBadge)
-            put("categories_enabled", prefs.categoriesEnabled)
         }
     }
 
@@ -268,9 +260,6 @@ class SettingsRepository @Inject constructor(
             if (json.has("show_download_badge")) {
                 prefs[Keys.SHOW_DOWNLOAD_BADGE] = json.optBoolean("show_download_badge", true)
             }
-            if (json.has("categories_enabled")) {
-                prefs[Keys.CATEGORIES_ENABLED] = json.optBoolean("categories_enabled", true)
-            }
         }
     }
 
@@ -292,7 +281,6 @@ class SettingsRepository @Inject constructor(
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         val SHOW_HORIZONTAL_WALLPAPERS = booleanPreferencesKey("show_horizontal_wallpapers")
         val SHOW_DOWNLOAD_BADGE = booleanPreferencesKey("show_download_badge")
-        val CATEGORIES_ENABLED = booleanPreferencesKey("categories_enabled")
     }
 
     companion object {
@@ -322,7 +310,6 @@ data class SettingsPreferences(
     val onboardingCompleted: Boolean,
     val showHorizontalWallpapers: Boolean,
     val showDownloadBadge: Boolean,
-    val categoriesEnabled: Boolean = true,
 )
 
 val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
