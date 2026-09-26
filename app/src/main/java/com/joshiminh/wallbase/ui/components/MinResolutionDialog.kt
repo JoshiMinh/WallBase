@@ -1,13 +1,15 @@
 package com.joshiminh.wallbase.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material3.AlertDialog
@@ -21,6 +23,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
@@ -32,6 +35,8 @@ fun MinResolutionDialog(
     onSelectResolution: (MinResolution) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val scrollState = rememberScrollState()
+
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = WallBaseShapes.dialog,
@@ -52,7 +57,9 @@ fun MinResolutionDialog(
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 MinResolution.entries.forEach { option ->
@@ -68,10 +75,14 @@ fun MinResolutionDialog(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                onSelectResolution(option)
-                                onDismiss()
-                            },
+                            .selectable(
+                                selected = isSelected,
+                                role = Role.RadioButton,
+                                onClick = {
+                                    onSelectResolution(option)
+                                    onDismiss()
+                                }
+                            ),
                         shape = WallBaseShapes.card,
                         color = if (isSelected) {
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
@@ -113,10 +124,7 @@ fun MinResolutionDialog(
                             }
                             RadioButton(
                                 selected = isSelected,
-                                onClick = {
-                                    onSelectResolution(option)
-                                    onDismiss()
-                                },
+                                onClick = null,
                                 colors = RadioButtonDefaults.colors(
                                     selectedColor = MaterialTheme.colorScheme.primary
                                 )

@@ -148,15 +148,6 @@ fun AlbumRoute(
             }) {
                 Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
             }
-            IconButton(
-                onClick = {
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                },
-                enabled = canSort
-            ) {
-                Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
-            }
         } else {
             IconButton(
                 onClick = { isSearchActive = true },
@@ -164,40 +155,40 @@ fun AlbumRoute(
             ) {
                 Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
             }
-        }
-        IconButton(
-            onClick = { showSortSheet = true },
-            enabled = canSort
-        ) {
-            Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
-        }
-        Box {
             IconButton(
-                onClick = { showAlbumMenu = true },
-                enabled = !uiState.isRenamingAlbum && !uiState.isDeletingAlbum && !uiState.notFound
+                onClick = { showSortSheet = true },
+                enabled = canSort
             ) {
-                Icon(imageVector = Icons.Outlined.Edit, contentDescription = "Edit album")
+                Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
             }
-            DropdownMenu(
-                expanded = showAlbumMenu,
-                onDismissRequest = { showAlbumMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Rename album") },
-                    leadingIcon = { Icon(imageVector = Icons.Outlined.Edit, contentDescription = null) },
-                    onClick = {
-                        showAlbumMenu = false
-                        showRenameDialog = true
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Delete album") },
-                    leadingIcon = { Icon(imageVector = Icons.Outlined.Delete, contentDescription = null) },
-                    onClick = {
-                        showAlbumMenu = false
-                        showDeleteDialog = true
-                    }
-                )
+            Box {
+                IconButton(
+                    onClick = { showAlbumMenu = true },
+                    enabled = !uiState.isRenamingAlbum && !uiState.isDeletingAlbum && !uiState.notFound
+                ) {
+                    Icon(imageVector = Icons.Outlined.Edit, contentDescription = "Edit album")
+                }
+                DropdownMenu(
+                    expanded = showAlbumMenu,
+                    onDismissRequest = { showAlbumMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Rename album") },
+                        leadingIcon = { Icon(imageVector = Icons.Outlined.Edit, contentDescription = null) },
+                        onClick = {
+                            showAlbumMenu = false
+                            showRenameDialog = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete album") },
+                        leadingIcon = { Icon(imageVector = Icons.Outlined.Delete, contentDescription = null) },
+                        onClick = {
+                            showAlbumMenu = false
+                            showDeleteDialog = true
+                        }
+                    )
+                }
             }
         }
     }

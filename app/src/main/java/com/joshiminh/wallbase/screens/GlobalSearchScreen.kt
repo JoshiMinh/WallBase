@@ -147,12 +147,12 @@ fun GlobalSearchScreen(
                         contentDescription = "Search wallpapers"
                     )
                 }
-            }
-            IconButton(onClick = { showSortSheet = true }) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.Sort,
-                    contentDescription = "View and layout options"
-                )
+                IconButton(onClick = { showSortSheet = true }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Sort,
+                        contentDescription = "View and layout options"
+                    )
+                }
             }
         }
 
@@ -170,23 +170,12 @@ fun GlobalSearchScreen(
                     onClear = { viewModel.updateSearchQuery("") },
                     placeholder = searchPlaceholder,
                     focusRequester = searchFocusRequester,
-                    showClearButton = uiState.searchQuery.isNotEmpty()
+                    showClearButton = false
                 )
             }
         } else null
 
-        val navigationIcon = if (isSearchActive) {
-            TopBarState.NavigationIcon(
-                icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Close search",
-                onClick = {
-                    isSearchActive = false
-                    viewModel.updateSearchQuery("")
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                }
-            )
-        } else null
+        val navigationIcon: TopBarState.NavigationIcon? = null
 
         val sourceTabsContent: (@Composable () -> Unit)? = if (uiState.sources.isNotEmpty()) {
             {

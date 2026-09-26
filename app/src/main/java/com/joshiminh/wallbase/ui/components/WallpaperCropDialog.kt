@@ -1,21 +1,26 @@
+@file:Suppress("DEPRECATION")
+
 package com.joshiminh.wallbase.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AspectRatio
-import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.AlignHorizontalLeft
+import androidx.compose.material.icons.outlined.AlignHorizontalRight
+import androidx.compose.material.icons.outlined.CenterFocusStrong
 import androidx.compose.material.icons.outlined.Crop
-import androidx.compose.material.icons.outlined.Crop169
 import androidx.compose.material.icons.outlined.CropOriginal
-import androidx.compose.material.icons.outlined.CropPortrait
 import androidx.compose.material.icons.outlined.CropSquare
+import androidx.compose.material.icons.outlined.VerticalAlignBottom
+import androidx.compose.material.icons.outlined.VerticalAlignTop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.data.entity.WallpaperItem
@@ -35,35 +41,53 @@ import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 
-private enum class CropPresetOption(
+private enum class FramingPresetOption(
     val title: String,
     val subtitle: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val crop: WallpaperCrop
 ) {
-    AUTO(
-        title = "Auto (Fit Screen)",
-        subtitle = "Crop to match device screen aspect ratio",
-        icon = Icons.Outlined.AspectRatio
+    CENTER(
+        title = "Center (Default)",
+        subtitle = "Center the image inside the wallpaper box",
+        icon = Icons.Outlined.CenterFocusStrong,
+        crop = WallpaperCrop.Auto
     ),
-    ORIGINAL(
-        title = "Original (No Crop)",
-        subtitle = "Preserve full uncropped image",
-        icon = Icons.Outlined.CropOriginal
+    TOP(
+        title = "Top",
+        subtitle = "Align towards the top portion of the image",
+        icon = Icons.Outlined.VerticalAlignTop,
+        crop = WallpaperCrop.Custom(WallpaperCropSettings.FramingTop)
+    ),
+    BOTTOM(
+        title = "Bottom",
+        subtitle = "Align towards the bottom portion of the image",
+        icon = Icons.Outlined.VerticalAlignBottom,
+        crop = WallpaperCrop.Custom(WallpaperCropSettings.FramingBottom)
+    ),
+    LEFT(
+        title = "Left / Start",
+        subtitle = "Align towards the left portion of the image",
+        icon = Icons.Outlined.AlignHorizontalLeft,
+        crop = WallpaperCrop.Custom(WallpaperCropSettings.FramingLeft)
+    ),
+    RIGHT(
+        title = "Right / End",
+        subtitle = "Align towards the right portion of the image",
+        icon = Icons.Outlined.AlignHorizontalRight,
+        crop = WallpaperCrop.Custom(WallpaperCropSettings.FramingRight)
     ),
     SQUARE(
-        title = "Square (1:1)",
-        subtitle = "Centered square crop",
-        icon = Icons.Outlined.CropSquare
+        title = "Square Frame (1:1)",
+        subtitle = "Display inside a 1:1 square frame",
+        icon = Icons.Outlined.CropSquare,
+        crop = WallpaperCrop.Square
     ),
-    PORTRAIT_9_16(
-        title = "Portrait (9:16)",
-        subtitle = "Standard vertical phone aspect ratio",
-        icon = Icons.Outlined.CropPortrait
-    ),
-    LANDSCAPE_16_9(
-        title = "Landscape (16:9)",
-        subtitle = "Standard widescreen aspect ratio",
-        icon = Icons.Outlined.Crop169
+    ORIGINAL(
+        title = "Original Fit",
+        subtitle = "Fit the entire uncropped image within the frame",
+        icon = Icons.Outlined.CropOriginal,
+        crop = WallpaperCrop.Original
     )
 }
 
@@ -74,19 +98,20 @@ fun WallpaperCropDialog(
     onSelectCrop: (WallpaperCrop) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val imageAspectRatio = wallpaper.aspectRatio ?: 1f
+    val scrollState = rememberScrollState()
 
-    val currentPreset = when (currentCrop) {
-        WallpaperCrop.Auto -> CropPresetOption.AUTO
-        WallpaperCrop.Original -> CropPresetOption.ORIGINAL
-        WallpaperCrop.Square -> CropPresetOption.SQUARE
+    val currentOption = when (currentCrop) {
+        WallpaperCrop.Auto -> FramingPresetOption.CENTER
+        WallpaperCrop.Original -> FramingPresetOption.ORIGINAL
+        WallpaperCrop.Square -> FramingPresetOption.SQUARE
         is WallpaperCrop.Custom -> {
-            val ratio = currentCrop.settings.aspectRatio()
+            val s = currentCrop.settings
             when {
-                kotlin.math.abs(ratio - (9f / 16f)) < 0.05f -> CropPresetOption.PORTRAIT_9_16
-                kotlin.math.abs(ratio - (16f / 9f)) < 0.05f -> CropPresetOption.LANDSCAPE_16_9
-                kotlin.math.abs(ratio - 1f) < 0.05f -> CropPresetOption.SQUARE
-                else -> null
+                s.top == 0f && s.bottom < 0.95f -> FramingPresetOption.TOP
+                s.top > 0.05f && s.bottom >= 0.99f -> FramingPresetOption.BOTTOM
+                s.left == 0f && s.right < 0.95f -> FramingPresetOption.LEFT
+                s.left > 0.05f && s.right >= 0.99f -> FramingPresetOption.RIGHT
+                else -> FramingPresetOption.CENTER
             }
         }
     }
@@ -104,37 +129,32 @@ fun WallpaperCropDialog(
         },
         title = {
             Text(
-                text = "Set Wallpaper Crop",
+                text = "Frame Alignment",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold
             )
         },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                CropPresetOption.entries.forEach { option ->
-                    val isSelected = currentPreset == option
-                    val targetCrop: WallpaperCrop = when (option) {
-                        CropPresetOption.AUTO -> WallpaperCrop.Auto
-                        CropPresetOption.ORIGINAL -> WallpaperCrop.Original
-                        CropPresetOption.SQUARE -> WallpaperCrop.Square
-                        CropPresetOption.PORTRAIT_9_16 -> WallpaperCrop.Custom(
-                            WallpaperCropSettings.centeredForAspectRatio(9f / 16f, imageAspectRatio)
-                        )
-                        CropPresetOption.LANDSCAPE_16_9 -> WallpaperCrop.Custom(
-                            WallpaperCropSettings.centeredForAspectRatio(16f / 9f, imageAspectRatio)
-                        )
-                    }
+                FramingPresetOption.entries.forEach { option ->
+                    val isSelected = currentOption == option
 
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                onSelectCrop(targetCrop)
-                                onDismiss()
-                            },
+                            .selectable(
+                                selected = isSelected,
+                                role = Role.RadioButton,
+                                onClick = {
+                                    onSelectCrop(option.crop)
+                                    onDismiss()
+                                }
+                            ),
                         shape = WallBaseShapes.card,
                         color = if (isSelected) {
                             MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
@@ -186,10 +206,7 @@ fun WallpaperCropDialog(
                             }
                             RadioButton(
                                 selected = isSelected,
-                                onClick = {
-                                    onSelectCrop(targetCrop)
-                                    onDismiss()
-                                },
+                                onClick = null,
                                 colors = RadioButtonDefaults.colors(
                                     selectedColor = MaterialTheme.colorScheme.primary
                                 )

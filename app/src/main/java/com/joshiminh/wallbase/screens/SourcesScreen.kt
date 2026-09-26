@@ -209,28 +209,22 @@ fun SourcesScreen(
                 }) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
                 }
-                IconButton(onClick = {
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                }) {
-                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
-                }
             } else {
                 IconButton(onClick = { isSearchActive = true }) {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search sources")
                 }
-            }
-            IconButton(onClick = { showAddSourceModal = true }) {
-                Icon(
-                    imageVector = Icons.Outlined.Add,
-                    contentDescription = "Add custom source"
-                )
-            }
-            IconButton(onClick = onOpenRepoScreen) {
-                Icon(
-                    imageVector = Icons.Outlined.Extension,
-                    contentDescription = "Repositories"
-                )
+                IconButton(onClick = { showAddSourceModal = true }) {
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = "Add custom source"
+                    )
+                }
+                IconButton(onClick = onOpenRepoScreen) {
+                    Icon(
+                        imageVector = Icons.Outlined.Extension,
+                        contentDescription = "Repositories"
+                    )
+                }
             }
         }
 

@@ -41,11 +41,15 @@ fun TopBarSearchField(
             .fillMaxWidth()
             .focusRequester(focusRequester),
         singleLine = true,
+        maxLines = 1,
         placeholder = {
             Text(
                 text = placeholder,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         },
         trailingIcon = {

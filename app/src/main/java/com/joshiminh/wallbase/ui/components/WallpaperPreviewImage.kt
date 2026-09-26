@@ -26,6 +26,7 @@ fun WallpaperPreviewImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
+    alignment: Alignment = Alignment.Center,
     clipShape: RoundedCornerShape = RoundedCornerShape(0.dp),
     showOverlay: Boolean = false
 ) {
@@ -50,7 +51,8 @@ fun WallpaperPreviewImage(
             model = imageRequest,
             contentDescription = contentDescription,
             modifier = Modifier.fillMaxSize(),
-            contentScale = contentScale
+            contentScale = contentScale,
+            alignment = alignment
         )
         if (showOverlay) {
             val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant

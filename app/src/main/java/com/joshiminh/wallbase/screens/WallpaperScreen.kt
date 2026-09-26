@@ -60,10 +60,12 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.rounded.Home
+import androidx.compose.ui.text.font.FontWeight
 import com.joshiminh.wallbase.ui.components.RenameWallpaperDialog
 import com.joshiminh.wallbase.ui.components.WallpaperCropDialog
 import com.joshiminh.wallbase.ui.AlbumPickerDialog
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCrop
+import com.joshiminh.wallbase.util.wallpapers.toBiasAlignment
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.AlertDialog
@@ -354,7 +356,7 @@ fun WallpaperScreen(
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(start = 8.dp, top = 6.dp, end = 8.dp, bottom = 18.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -373,6 +375,12 @@ fun WallpaperScreen(
                     if (item != null) {
                         val isCurrent = page == pagerState.currentPage
                         val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
+                        val currentAlignment = if (isCurrent) {
+                            uiState.adjustments.crop.toBiasAlignment()
+                        } else {
+                            Alignment.Center
+                        }
+
                         Surface(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -426,7 +434,8 @@ fun WallpaperScreen(
                                             modifier = Modifier
                                                 .matchParentSize()
                                                 .clip(previewShape),
-                                            contentScale = ContentScale.Crop
+                                            contentScale = ContentScale.Crop,
+                                            alignment = currentAlignment
                                         )
                                     } else {
                                         WallpaperPreviewImage(
@@ -434,6 +443,7 @@ fun WallpaperScreen(
                                             contentDescription = item.title,
                                             modifier = Modifier.matchParentSize(),
                                             contentScale = ContentScale.Crop,
+                                            alignment = currentAlignment,
                                             clipShape = previewShape
                                         )
                                     }
@@ -464,13 +474,6 @@ fun WallpaperScreen(
                                             isCurrent && previewBitmap != null && previewBitmap.width > 0 && previewBitmap.height > 0 -> "${previewBitmap.width} × ${previewBitmap.height}"
                                             else -> null
                                         }
-                                        val subtitleText = buildString {
-                                            append(item.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source")
-                                            if (!resolutionText.isNullOrBlank()) {
-                                                append(" • ")
-                                                append(resolutionText)
-                                            }
-                                        }
 
                                         Column(
                                             modifier = Modifier
@@ -489,13 +492,39 @@ fun WallpaperScreen(
                                                 maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis
                                             )
-                                            Text(
-                                                text = subtitleText,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = Color.White.copy(alpha = 0.8f),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                Text(
+                                                    text = item.sourceName?.takeIf { it.isNotBlank() } ?: "Unknown source",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Color.White.copy(alpha = 0.85f),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                if (!resolutionText.isNullOrBlank()) {
+                                                    Text(
+                                                        text = "•",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = Color.White.copy(alpha = 0.5f)
+                                                    )
+                                                    Surface(
+                                                        shape = RoundedCornerShape(4.dp),
+                                                        color = Color.White.copy(alpha = 0.2f),
+                                                    ) {
+                                                        Text(
+                                                            text = resolutionText,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Color.White,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
 
                                         if (isCurrent) {
@@ -509,7 +538,7 @@ fun WallpaperScreen(
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Outlined.Crop,
-                                                        contentDescription = "Set crop",
+                                                        contentDescription = "Set frame alignment",
                                                         tint = Color.White
                                                     )
                                                 }
@@ -564,7 +593,7 @@ fun WallpaperScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
+                    .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

@@ -157,20 +157,13 @@ fun SourceRoute(
                     }) {
                         Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
                     }
-                    IconButton(onClick = {
-                        viewModel.search()
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    }) {
-                        Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
-                    }
                 } else {
                     IconButton(onClick = { isSearchActive = true }) {
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                     }
-                }
-                IconButton(onClick = { showSortSheet = true }) {
-                    Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
+                    IconButton(onClick = { showSortSheet = true }) {
+                        Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
+                    }
                 }
             }
             val navigationIcon: TopBarState.NavigationIcon? = null

@@ -81,6 +81,11 @@ fun WallpaperCrop.displayName(): String = when (this) {
     is WallpaperCrop.Custom -> "Custom"
 }
 
+fun WallpaperCrop.toBiasAlignment(): androidx.compose.ui.Alignment = when (this) {
+    is WallpaperCrop.Custom -> settings.toBiasAlignment()
+    else -> androidx.compose.ui.Alignment.Center
+}
+
 @Parcelize
 data class WallpaperCropSettings(
     val left: Float = 0f,
@@ -194,6 +199,12 @@ data class WallpaperCropSettings(
 
         fun minFraction(): Float = MIN_FRACTION
 
+        val FramingCenter: WallpaperCropSettings = WallpaperCropSettings(0f, 0f, 1f, 1f)
+        val FramingTop: WallpaperCropSettings = WallpaperCropSettings(0f, 0f, 1f, 0.8f)
+        val FramingBottom: WallpaperCropSettings = WallpaperCropSettings(0f, 0.2f, 1f, 1f)
+        val FramingLeft: WallpaperCropSettings = WallpaperCropSettings(0f, 0f, 0.8f, 1f)
+        val FramingRight: WallpaperCropSettings = WallpaperCropSettings(0.2f, 0f, 1f, 1f)
+
         fun centeredForAspectRatio(targetRatio: Float, originalRatio: Float): WallpaperCropSettings {
             if (targetRatio <= 0f || originalRatio <= 0f) return Full
             return if (targetRatio < originalRatio) {
@@ -206,6 +217,20 @@ data class WallpaperCropSettings(
                 WallpaperCropSettings(left = 0f, top = top, right = 1f, bottom = top + heightFraction)
             }
         }
+    }
+
+    fun toBiasAlignment(): androidx.compose.ui.Alignment {
+        val widthFrac = widthFraction()
+        val heightFrac = heightFraction()
+        val hBias = if (widthFrac >= 0.99f) 0f else {
+            val maxLeft = 1f - widthFrac
+            if (maxLeft <= 0.001f) 0f else ((left / maxLeft) * 2f - 1f).coerceIn(-1f, 1f)
+        }
+        val vBias = if (heightFrac >= 0.99f) 0f else {
+            val maxTop = 1f - heightFrac
+            if (maxTop <= 0.001f) 0f else ((top / maxTop) * 2f - 1f).coerceIn(-1f, 1f)
+        }
+        return androidx.compose.ui.BiasAlignment(hBias, vBias)
     }
 }
 

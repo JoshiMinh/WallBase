@@ -308,19 +308,13 @@ fun LibraryScreen(
                     }) {
                         Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
                     }
-                    IconButton(onClick = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    }) {
-                        Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
-                    }
                 } else {
                     IconButton(onClick = { isSearchActive = true }) {
                         Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
                     }
-                }
-                IconButton(onClick = { showSortSheet = true }) {
-                    Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
+                    IconButton(onClick = { showSortSheet = true }) {
+                        Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
+                    }
                 }
             }
             val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
