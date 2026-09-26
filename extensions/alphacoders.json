@@ -2,13 +2,17 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "alphacoders",
   "name": "AlphaCoders",
-  "version": "1.1.0",
-  "versionCode": 2,
+  "version": "1.2.0",
+  "versionCode": 3,
   "iconUrl": "https://images.alphacoders.com/icons/favicon.ico",
   "baseUrl": "https://wall.alphacoders.com",
   "description": "Ultra HD anime, gaming, sci-fi, movies, and pop-culture wallpapers",
   "author": "WallBase Community",
   "isNsfw": false,
+  "headers": {
+    "Referer": "https://wall.alphacoders.com/",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
+  },
   "feeds": [
     {
       "id": "newest",
@@ -21,17 +25,17 @@
       },
       "extraction": {
         "format": "html",
-        "itemSelector": ".thumb-container-big",
+        "itemSelector": ".thumb-container-big, .thumb-container, div.boxgrid, div.wallpaper-thumb",
         "fields": {
-          "id": { "selector": "a[href*='wallpaper']", "attribute": "href", "regex": "wallpaper/([0-9]+)" },
-          "title": { "selector": "img.thumb-img", "attribute": "alt" },
-          "thumbnailUrl": { "selector": "img.thumb-img", "attribute": "src" },
+          "id": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "regex": "(?:wallpaper/|i=)([0-9]+)" },
+          "title": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "alt", "transform": "html_unescape" },
+          "thumbnailUrl": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src" },
           "fullUrl": {
-            "selector": "img.thumb-img",
+            "selector": "img.thumb-img, img.img-responsive, img",
             "attribute": "src",
-            "regexReplace": { "find": "/thumb-[^/]+-", "replace": "/" }
+            "regexReplace": { "find": "thumb-[0-9]+-|thumbbig-|thumb-", "replace": "" }
           },
-          "sourceUrl": { "selector": "a[href*='wallpaper']", "attribute": "href", "transform": "prepend_base_url" }
+          "sourceUrl": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "transform": "prepend_base_url" }
         }
       }
     },
@@ -46,17 +50,17 @@
       },
       "extraction": {
         "format": "html",
-        "itemSelector": ".thumb-container-big",
+        "itemSelector": ".thumb-container-big, .thumb-container, div.boxgrid, div.wallpaper-thumb",
         "fields": {
-          "id": { "selector": "a[href*='wallpaper']", "attribute": "href", "regex": "wallpaper/([0-9]+)" },
-          "title": { "selector": "img.thumb-img", "attribute": "alt" },
-          "thumbnailUrl": { "selector": "img.thumb-img", "attribute": "src" },
+          "id": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "regex": "(?:wallpaper/|i=)([0-9]+)" },
+          "title": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "alt", "transform": "html_unescape" },
+          "thumbnailUrl": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src" },
           "fullUrl": {
-            "selector": "img.thumb-img",
+            "selector": "img.thumb-img, img.img-responsive, img",
             "attribute": "src",
-            "regexReplace": { "find": "/thumb-[^/]+-", "replace": "/" }
+            "regexReplace": { "find": "thumb-[0-9]+-|thumbbig-|thumb-", "replace": "" }
           },
-          "sourceUrl": { "selector": "a[href*='wallpaper']", "attribute": "href", "transform": "prepend_base_url" }
+          "sourceUrl": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "transform": "prepend_base_url" }
         }
       }
     }
@@ -72,17 +76,17 @@
     },
     "extraction": {
       "format": "html",
-      "itemSelector": ".thumb-container-big",
+      "itemSelector": ".thumb-container-big, .thumb-container, div.boxgrid, div.wallpaper-thumb",
       "fields": {
-        "id": { "selector": "a[href*='wallpaper']", "attribute": "href", "regex": "wallpaper/([0-9]+)" },
-        "title": { "selector": "img.thumb-img", "attribute": "alt" },
-        "thumbnailUrl": { "selector": "img.thumb-img", "attribute": "src" },
+        "id": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "regex": "(?:wallpaper/|i=)([0-9]+)" },
+        "title": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "alt", "transform": "html_unescape" },
+        "thumbnailUrl": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src" },
         "fullUrl": {
-          "selector": "img.thumb-img",
+          "selector": "img.thumb-img, img.img-responsive, img",
           "attribute": "src",
-          "regexReplace": { "find": "/thumb-[^/]+-", "replace": "/" }
+          "regexReplace": { "find": "thumb-[0-9]+-|thumbbig-|thumb-", "replace": "" }
         },
-        "sourceUrl": { "selector": "a[href*='wallpaper']", "attribute": "href", "transform": "prepend_base_url" }
+        "sourceUrl": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "transform": "prepend_base_url" }
       }
     }
   }

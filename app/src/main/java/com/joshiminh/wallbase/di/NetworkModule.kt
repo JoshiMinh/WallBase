@@ -25,7 +25,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val USER_AGENT = "android:com.joshiminh.wallbase:v1.1.0 (by /u/JoshiMinh)"
+    private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 WallBase/6.5"
 
     @Provides
     @Singleton
@@ -41,10 +41,20 @@ object NetworkModule {
         val builder = OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val request = chain.request()
-                val updatedRequest = request.newBuilder()
-                    .header("User-Agent", USER_AGENT)
-                    .build()
-                chain.proceed(updatedRequest)
+                val host = request.url.host.lowercase(java.util.Locale.ROOT)
+                val requestBuilder = request.newBuilder()
+
+                if (request.header("User-Agent") == null) {
+                    requestBuilder.header("User-Agent", USER_AGENT)
+                }
+
+                if (host.contains("pximg.net") || host.contains("pixiv.net")) {
+                    requestBuilder.header("Referer", "https://www.pixiv.net/")
+                } else if (host.contains("alphacoders.com")) {
+                    requestBuilder.header("Referer", "https://wall.alphacoders.com/")
+                }
+
+                chain.proceed(requestBuilder.build())
             }
 
         if (BuildConfig.DEBUG) {

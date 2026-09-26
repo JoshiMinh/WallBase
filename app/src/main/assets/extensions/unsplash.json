@@ -2,15 +2,16 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "unsplash",
   "name": "Unsplash",
-  "version": "1.1.0",
-  "versionCode": 2,
+  "version": "1.2.0",
+  "versionCode": 3,
   "iconUrl": "https://unsplash.com/favicon-32x32.png",
   "baseUrl": "https://unsplash.com",
   "description": "High-resolution photography and curated aesthetic wallpapers",
   "author": "WallBase Community",
   "isNsfw": false,
   "headers": {
-    "Accept": "application/json"
+    "Accept": "application/json",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
   },
   "feeds": [
     {
@@ -26,8 +27,8 @@
         "format": "json",
         "fields": {
           "id": { "jsonPath": "id" },
-          "title": { "jsonPath": "alt_description", "defaultValue": "Unsplash Photo" },
-          "thumbnailUrl": { "jsonPath": "urls.regular" },
+          "title": { "jsonPath": "alt_description", "fallbackJsonPath": "description", "defaultValue": "Unsplash Wallpaper", "transform": "html_unescape" },
+          "thumbnailUrl": { "jsonPath": "urls.small", "fallbackJsonPath": "urls.thumb" },
           "fullUrl": { "jsonPath": "urls.full", "fallbackJsonPath": "urls.regular" },
           "sourceUrl": { "jsonPath": "links.html" },
           "width": { "jsonPath": "width" },
@@ -48,8 +49,8 @@
         "format": "json",
         "fields": {
           "id": { "jsonPath": "id" },
-          "title": { "jsonPath": "alt_description", "defaultValue": "Unsplash Photo" },
-          "thumbnailUrl": { "jsonPath": "urls.regular" },
+          "title": { "jsonPath": "alt_description", "fallbackJsonPath": "description", "defaultValue": "Unsplash Wallpaper", "transform": "html_unescape" },
+          "thumbnailUrl": { "jsonPath": "urls.small", "fallbackJsonPath": "urls.thumb" },
           "fullUrl": { "jsonPath": "urls.full", "fallbackJsonPath": "urls.regular" },
           "sourceUrl": { "jsonPath": "links.html" },
           "width": { "jsonPath": "width" },
@@ -72,8 +73,8 @@
       "itemSelector": "results",
       "fields": {
         "id": { "jsonPath": "id" },
-        "title": { "jsonPath": "alt_description", "defaultValue": "Unsplash Photo" },
-        "thumbnailUrl": { "jsonPath": "urls.regular" },
+        "title": { "jsonPath": "alt_description", "fallbackJsonPath": "description", "defaultValue": "Unsplash Wallpaper", "transform": "html_unescape" },
+        "thumbnailUrl": { "jsonPath": "urls.small", "fallbackJsonPath": "urls.thumb" },
         "fullUrl": { "jsonPath": "urls.full", "fallbackJsonPath": "urls.regular" },
         "sourceUrl": { "jsonPath": "links.html" },
         "width": { "jsonPath": "width" },

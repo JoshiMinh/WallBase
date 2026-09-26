@@ -2,15 +2,16 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "pixiv",
   "name": "Pixiv",
-  "version": "1.1.0",
-  "versionCode": 2,
+  "version": "1.2.0",
+  "versionCode": 3,
   "iconUrl": "https://www.pixiv.net/favicon.ico",
   "baseUrl": "https://www.pixiv.net",
   "description": "Japanese illustration community, daily rankings, and anime art",
   "author": "WallBase Community",
   "isNsfw": false,
   "headers": {
-    "Referer": "https://www.pixiv.net/"
+    "Referer": "https://www.pixiv.net/",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
   },
   "feeds": [
     {
@@ -27,11 +28,11 @@
         "itemSelector": "contents",
         "fields": {
           "id": { "jsonPath": "illust_id" },
-          "title": { "jsonPath": "title" },
+          "title": { "jsonPath": "title", "transform": "html_unescape" },
           "thumbnailUrl": { "jsonPath": "url" },
           "fullUrl": {
             "jsonPath": "url",
-            "regexReplace": { "find": "/c/[0-9]+x[0-9]+_[0-9]+/custom-thumb/", "replace": "/img-original/" }
+            "regexReplace": { "find": "/c/[^/]+/", "replace": "/" }
           },
           "sourceUrl": { "jsonPath": "illust_id", "transform": "pixiv_artwork" },
           "width": { "jsonPath": "width" },
@@ -53,11 +54,11 @@
         "itemSelector": "contents",
         "fields": {
           "id": { "jsonPath": "illust_id" },
-          "title": { "jsonPath": "title" },
+          "title": { "jsonPath": "title", "transform": "html_unescape" },
           "thumbnailUrl": { "jsonPath": "url" },
           "fullUrl": {
             "jsonPath": "url",
-            "regexReplace": { "find": "/c/[0-9]+x[0-9]+_[0-9]+/custom-thumb/", "replace": "/img-original/" }
+            "regexReplace": { "find": "/c/[^/]+/", "replace": "/" }
           },
           "sourceUrl": { "jsonPath": "illust_id", "transform": "pixiv_artwork" },
           "width": { "jsonPath": "width" },
@@ -80,9 +81,12 @@
       "itemSelector": "body.illustManga.data",
       "fields": {
         "id": { "jsonPath": "id" },
-        "title": { "jsonPath": "title" },
+        "title": { "jsonPath": "title", "transform": "html_unescape" },
         "thumbnailUrl": { "jsonPath": "url" },
-        "fullUrl": { "jsonPath": "url" },
+        "fullUrl": {
+          "jsonPath": "url",
+          "regexReplace": { "find": "/c/[^/]+/", "replace": "/" }
+        },
         "sourceUrl": { "jsonPath": "id", "transform": "pixiv_artwork" },
         "width": { "jsonPath": "width" },
         "height": { "jsonPath": "height" }

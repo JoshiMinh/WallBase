@@ -268,20 +268,24 @@ class DeclarativeScraperEngine @Inject constructor(
         sourceKey: String,
         currentUrl: String
     ): WallpaperItem? {
-        val imageUrl = extractFieldValue(element, fields["imageUrl"] ?: fields["fullUrl"], manifest.baseUrl)
+        val rawImageUrl = extractFieldValue(element, fields["imageUrl"] ?: fields["fullUrl"], manifest.baseUrl)
             ?: extractFieldValue(element, fields["thumbnailUrl"], manifest.baseUrl)
             ?: return null
 
-        val thumbnailUrl = extractFieldValue(element, fields["thumbnailUrl"], manifest.baseUrl) ?: imageUrl
-        val title = extractFieldValue(element, fields["title"], manifest.baseUrl) ?: "${manifest.name} Wallpaper"
-        val sourceUrl = extractFieldValue(element, fields["sourceUrl"], manifest.baseUrl) ?: currentUrl
-        val id = extractFieldValue(element, fields["id"], manifest.baseUrl) ?: UUID.nameUUIDFromBytes(imageUrl.toByteArray()).toString()
+        val imageUrl = rawImageUrl.sanitizeUrl() ?: return null
+        val rawThumb = extractFieldValue(element, fields["thumbnailUrl"], manifest.baseUrl)?.sanitizeUrl()
+        val thumbnailUrl = if (rawThumb != null && rawThumb.isHttpUrl()) rawThumb else imageUrl
+        val rawTitle = extractFieldValue(element, fields["title"], manifest.baseUrl)
+        val title = unescapeHtml(rawTitle)?.ifBlank { manifest.name } ?: manifest.name
+        val sourceUrl = extractFieldValue(element, fields["sourceUrl"], manifest.baseUrl)?.sanitizeUrl() ?: currentUrl
+        val id = extractFieldValue(element, fields["id"], manifest.baseUrl)?.takeIf { it.isNotBlank() }
+            ?: UUID.nameUUIDFromBytes(imageUrl.toByteArray()).toString()
         val width = extractFieldValue(element, fields["width"], manifest.baseUrl)?.toIntOrNull()
         val height = extractFieldValue(element, fields["height"], manifest.baseUrl)?.toIntOrNull()
 
         return WallpaperItem(
             id = id,
-            title = title.ifBlank { manifest.name },
+            title = title,
             imageUrl = imageUrl,
             thumbnailUrl = thumbnailUrl,
             sourceUrl = sourceUrl,
@@ -301,12 +305,17 @@ class DeclarativeScraperEngine @Inject constructor(
                 ?: return extractor.defaultValue
         }
 
-        var rawValue = when (extractor.attribute?.lowercase(Locale.ROOT)) {
+        val requestedAttr = extractor.attribute?.lowercase(Locale.ROOT)
+        var rawValue: String = when (requestedAttr) {
             null, "", "text" -> targetElement.text()
             "html" -> targetElement.html()
             "href", "abs:href" -> targetElement.absUrl("href").ifBlank { targetElement.attr("href") }
-            "src", "abs:src" -> targetElement.absUrl("src").ifBlank { targetElement.attr("src") }
+            "src", "abs:src" -> extractImageSrc(targetElement)
             else -> targetElement.attr(extractor.attribute)
+        }
+
+        if (rawValue.isBlank() && (requestedAttr == "src" || requestedAttr == "abs:src" || requestedAttr == null)) {
+            rawValue = extractImageSrc(targetElement)
         }
 
         if (rawValue.isBlank() && extractor.defaultValue != null) {
@@ -315,7 +324,7 @@ class DeclarativeScraperEngine @Inject constructor(
 
         if (!extractor.regex.isNullOrBlank()) {
             val match = Regex(extractor.regex).find(rawValue)
-            rawValue = match?.groupValues?.getOrNull(1) ?: match?.value.orEmpty()
+            rawValue = match?.groupValues?.drop(1)?.firstOrNull { it.isNotBlank() } ?: match?.value.orEmpty()
         }
 
         if (extractor.regexReplace != null) {
@@ -323,6 +332,48 @@ class DeclarativeScraperEngine @Inject constructor(
         }
 
         return applyTransform(rawValue, extractor.transform, baseUrl)
+    }
+
+    private fun extractImageSrc(element: Element): String {
+        val candidates = listOf(
+            "abs:data-src", "abs:data-lazy-src", "abs:data-original", "abs:data-actualsrc",
+            "abs:data-big-image", "abs:data-src-retina", "abs:src",
+            "data-src", "data-lazy-src", "data-original", "data-actualsrc",
+            "data-big-image", "data-src-retina", "src"
+        )
+        for (attr in candidates) {
+            val v = if (attr.startsWith("abs:")) element.absUrl(attr.removePrefix("abs:")) else element.attr(attr)
+            if (v.isNotBlank() && !v.startsWith("data:image", ignoreCase = true) && !v.contains("blank.gif", ignoreCase = true)) {
+                return v
+            }
+        }
+
+        // Try srcset
+        val srcset = element.attr("srcset").ifBlank { element.attr("data-srcset") }
+        if (srcset.isNotBlank()) {
+            val parsed = parseBestSrcFromSrcset(srcset)
+            if (parsed.isNotBlank()) return parsed
+        }
+
+        // Check child img in case of picture or wrapper container
+        val childImg = element.selectFirst("img, picture source")
+        if (childImg != null && childImg != element) {
+            return extractImageSrc(childImg)
+        }
+
+        return element.absUrl("src").ifBlank { element.attr("src") }
+    }
+
+    private fun parseBestSrcFromSrcset(srcset: String): String {
+        return srcset.split(',')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .mapNotNull { entry ->
+                val parts = entry.split(Regex("\\s+"))
+                if (parts.isNotEmpty() && parts[0].isNotBlank()) parts[0] else null
+            }
+            .lastOrNull()
+            .orEmpty()
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -358,14 +409,14 @@ class DeclarativeScraperEngine @Inject constructor(
 
         val cursorPath = rule.nextCursorJsonPath ?: rule.nextCursorSelector
         val nextCursor = if (!cursorPath.isNullOrBlank()) {
-            resolveJsonPath(rootData, cursorPath)?.toString()
+            resolveJsonPath(rootData, cursorPath)?.toJsonString()
         } else if (rootData is Map<*, *>) {
             // Auto detect common cursor fields
             (resolveJsonPath(rootData, "data.after")
                 ?: resolveJsonPath(rootData, "after")
                 ?: resolveJsonPath(rootData, "next_cursor")
                 ?: resolveJsonPath(rootData, "meta.next_cursor")
-                ?: resolveJsonPath(rootData, "next_page"))?.toString()
+                ?: resolveJsonPath(rootData, "next_page"))?.toJsonString()
         } else {
             null
         }
@@ -380,20 +431,24 @@ class DeclarativeScraperEngine @Inject constructor(
         sourceKey: String,
         currentUrl: String
     ): WallpaperItem? {
-        val imageUrl = extractJsonFieldValue(itemNode, fields["imageUrl"] ?: fields["fullUrl"], manifest.baseUrl)
+        val rawImageUrl = extractJsonFieldValue(itemNode, fields["imageUrl"] ?: fields["fullUrl"], manifest.baseUrl)
             ?: extractJsonFieldValue(itemNode, fields["thumbnailUrl"], manifest.baseUrl)
             ?: return null
 
-        val thumbnailUrl = extractJsonFieldValue(itemNode, fields["thumbnailUrl"], manifest.baseUrl) ?: imageUrl
-        val title = extractJsonFieldValue(itemNode, fields["title"], manifest.baseUrl) ?: "${manifest.name} Wallpaper"
-        val sourceUrl = extractJsonFieldValue(itemNode, fields["sourceUrl"], manifest.baseUrl) ?: currentUrl
-        val id = extractJsonFieldValue(itemNode, fields["id"], manifest.baseUrl) ?: UUID.nameUUIDFromBytes(imageUrl.toByteArray()).toString()
+        val imageUrl = rawImageUrl.sanitizeUrl() ?: return null
+        val rawThumb = extractJsonFieldValue(itemNode, fields["thumbnailUrl"], manifest.baseUrl)?.sanitizeUrl()
+        val thumbnailUrl = if (rawThumb != null && rawThumb.isHttpUrl()) rawThumb else imageUrl
+        val rawTitle = extractJsonFieldValue(itemNode, fields["title"], manifest.baseUrl)
+        val title = unescapeHtml(rawTitle)?.ifBlank { manifest.name } ?: manifest.name
+        val sourceUrl = extractJsonFieldValue(itemNode, fields["sourceUrl"], manifest.baseUrl)?.sanitizeUrl() ?: currentUrl
+        val id = extractJsonFieldValue(itemNode, fields["id"], manifest.baseUrl)?.takeIf { it.isNotBlank() }
+            ?: UUID.nameUUIDFromBytes(imageUrl.toByteArray()).toString()
         val width = extractJsonFieldValue(itemNode, fields["width"], manifest.baseUrl)?.toIntOrNull()
         val height = extractJsonFieldValue(itemNode, fields["height"], manifest.baseUrl)?.toIntOrNull()
 
         return WallpaperItem(
             id = id,
-            title = title.ifBlank { manifest.name },
+            title = title,
             imageUrl = imageUrl,
             thumbnailUrl = thumbnailUrl,
             sourceUrl = sourceUrl,
@@ -408,25 +463,25 @@ class DeclarativeScraperEngine @Inject constructor(
         if (extractor == null) return null
         val targetPath = extractor.jsonPath ?: extractor.selector
         var rawValue: String? = if (!targetPath.isNullOrBlank()) {
-            resolveJsonPath(node, targetPath)?.toString()
+            resolveJsonPath(node, targetPath).toJsonString()
         } else null
 
         if (rawValue.isNullOrBlank()) {
             val fallbackPath = extractor.fallbackJsonPath ?: extractor.fallbackSelector
             if (!fallbackPath.isNullOrBlank()) {
-                rawValue = resolveJsonPath(node, fallbackPath)?.toString()
+                rawValue = resolveJsonPath(node, fallbackPath).toJsonString()
             }
         }
 
         if (rawValue.isNullOrBlank()) {
-            rawValue = if (targetPath.isNullOrBlank()) node.toString() else extractor.defaultValue
+            rawValue = if (targetPath.isNullOrBlank()) node.toJsonString() else extractor.defaultValue
         }
 
         if (rawValue.isNullOrBlank()) return extractor.defaultValue
 
         if (!extractor.regex.isNullOrBlank()) {
             val match = Regex(extractor.regex).find(rawValue)
-            rawValue = match?.groupValues?.getOrNull(1) ?: match?.value.orEmpty()
+            rawValue = match?.groupValues?.drop(1)?.firstOrNull { it.isNotBlank() } ?: match?.value.orEmpty()
         }
 
         if (extractor.regexReplace != null) {
@@ -434,6 +489,21 @@ class DeclarativeScraperEngine @Inject constructor(
         }
 
         return applyTransform(rawValue, extractor.transform, baseUrl)
+    }
+
+    private fun Any?.toJsonString(): String? {
+        if (this == null) return null
+        return when (this) {
+            is Number -> {
+                val d = this.toDouble()
+                if (d % 1.0 == 0.0 && d >= Long.MIN_VALUE && d <= Long.MAX_VALUE) {
+                    this.toLong().toString()
+                } else {
+                    this.toString()
+                }
+            }
+            else -> this.toString()
+        }
     }
 
     private fun extractFromRegex(
@@ -447,8 +517,9 @@ class DeclarativeScraperEngine @Inject constructor(
         val sourceKey = "${SourceKeys.EXTENSION}:${manifest.id}"
 
         val items = matches.mapNotNull { match ->
-            val imageUrl = match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val title = match.groupValues.getOrNull(2) ?: manifest.name
+            val rawImageUrl = match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val imageUrl = rawImageUrl.sanitizeUrl() ?: return@mapNotNull null
+            val title = unescapeHtml(match.groupValues.getOrNull(2)) ?: manifest.name
             val id = UUID.nameUUIDFromBytes(imageUrl.toByteArray()).toString()
             WallpaperItem(
                 id = id,
@@ -512,8 +583,44 @@ class DeclarativeScraperEngine @Inject constructor(
             "pixiv_artwork" -> {
                 if (value.all { it.isDigit() }) "https://www.pixiv.net/artworks/$value" else value
             }
+            "html_unescape" -> unescapeHtml(value) ?: value
+            "strip_query" -> value.substringBefore('?')
             else -> value
         }
+    }
+
+    private fun String.sanitizeUrl(): String? {
+        val trimmed = trim()
+        if (trimmed.isBlank()) return null
+        return trimmed
+            .replace("&amp;", "&")
+            .replace("\\/", "/")
+            .replace(" ", "%20")
+    }
+
+    private fun String.isHttpUrl(): Boolean {
+        val lower = lowercase(Locale.ROOT)
+        return (lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("//")) &&
+            !lower.endsWith("/default") &&
+            !lower.equals("default", ignoreCase = true) &&
+            !lower.equals("self", ignoreCase = true) &&
+            !lower.equals("nsfw", ignoreCase = true) &&
+            !lower.equals("image", ignoreCase = true) &&
+            !lower.equals("spoiler", ignoreCase = true)
+    }
+
+    private fun unescapeHtml(text: String?): String? {
+        if (text == null) return null
+        return text
+            .replace("&amp;", "&")
+            .replace("&quot;", "\"")
+            .replace("&#39;", "'")
+            .replace("&apos;", "'")
+            .replace("&lt;", "<")
+            .replace("&gt;", ">")
+            .replace("&#x2F;", "/")
+            .replace("&#x27;", "'")
+            .trim()
     }
 }
 

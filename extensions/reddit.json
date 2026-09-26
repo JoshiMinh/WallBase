@@ -2,8 +2,8 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "reddit",
   "name": "Reddit",
-  "version": "1.1.0",
-  "versionCode": 2,
+  "version": "1.2.0",
+  "versionCode": 3,
   "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=reddit.com",
   "baseUrl": "https://www.reddit.com",
   "description": "Community wallpapers from popular Reddit wallpaper communities",
@@ -24,10 +24,12 @@
         "nextCursorJsonPath": "data.after",
         "fields": {
           "id": { "jsonPath": "data.id" },
-          "title": { "jsonPath": "data.title" },
-          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
+          "title": { "jsonPath": "data.title", "transform": "html_unescape" },
+          "thumbnailUrl": { "jsonPath": "data.preview.images.0.resolutions.1.url", "fallbackJsonPath": "data.thumbnail" },
+          "fullUrl": { "jsonPath": "data.preview.images.0.source.url", "fallbackJsonPath": "data.url_overridden_by_dest" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" },
+          "width": { "jsonPath": "data.preview.images.0.source.width" },
+          "height": { "jsonPath": "data.preview.images.0.source.height" }
         }
       }
     },
@@ -45,10 +47,12 @@
         "nextCursorJsonPath": "data.after",
         "fields": {
           "id": { "jsonPath": "data.id" },
-          "title": { "jsonPath": "data.title" },
-          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
+          "title": { "jsonPath": "data.title", "transform": "html_unescape" },
+          "thumbnailUrl": { "jsonPath": "data.preview.images.0.resolutions.1.url", "fallbackJsonPath": "data.thumbnail" },
+          "fullUrl": { "jsonPath": "data.preview.images.0.source.url", "fallbackJsonPath": "data.url_overridden_by_dest" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" },
+          "width": { "jsonPath": "data.preview.images.0.source.width" },
+          "height": { "jsonPath": "data.preview.images.0.source.height" }
         }
       }
     },
@@ -66,10 +70,12 @@
         "nextCursorJsonPath": "data.after",
         "fields": {
           "id": { "jsonPath": "data.id" },
-          "title": { "jsonPath": "data.title" },
-          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
+          "title": { "jsonPath": "data.title", "transform": "html_unescape" },
+          "thumbnailUrl": { "jsonPath": "data.preview.images.0.resolutions.1.url", "fallbackJsonPath": "data.thumbnail" },
+          "fullUrl": { "jsonPath": "data.preview.images.0.source.url", "fallbackJsonPath": "data.url_overridden_by_dest" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" },
+          "width": { "jsonPath": "data.preview.images.0.source.width" },
+          "height": { "jsonPath": "data.preview.images.0.source.height" }
         }
       }
     },
@@ -87,10 +93,12 @@
         "nextCursorJsonPath": "data.after",
         "fields": {
           "id": { "jsonPath": "data.id" },
-          "title": { "jsonPath": "data.title" },
-          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
+          "title": { "jsonPath": "data.title", "transform": "html_unescape" },
+          "thumbnailUrl": { "jsonPath": "data.preview.images.0.resolutions.1.url", "fallbackJsonPath": "data.thumbnail" },
+          "fullUrl": { "jsonPath": "data.preview.images.0.source.url", "fallbackJsonPath": "data.url_overridden_by_dest" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" },
+          "width": { "jsonPath": "data.preview.images.0.source.width" },
+          "height": { "jsonPath": "data.preview.images.0.source.height" }
         }
       }
     },
@@ -108,10 +116,12 @@
         "nextCursorJsonPath": "data.after",
         "fields": {
           "id": { "jsonPath": "data.id" },
-          "title": { "jsonPath": "data.title" },
-          "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-          "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
-          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
+          "title": { "jsonPath": "data.title", "transform": "html_unescape" },
+          "thumbnailUrl": { "jsonPath": "data.preview.images.0.resolutions.1.url", "fallbackJsonPath": "data.thumbnail" },
+          "fullUrl": { "jsonPath": "data.preview.images.0.source.url", "fallbackJsonPath": "data.url_overridden_by_dest" },
+          "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" },
+          "width": { "jsonPath": "data.preview.images.0.source.width" },
+          "height": { "jsonPath": "data.preview.images.0.source.height" }
         }
       }
     }
@@ -130,10 +140,12 @@
       "nextCursorJsonPath": "data.after",
       "fields": {
         "id": { "jsonPath": "data.id" },
-        "title": { "jsonPath": "data.title" },
-        "thumbnailUrl": { "jsonPath": "data.thumbnail" },
-        "fullUrl": { "jsonPath": "data.url_overridden_by_dest", "fallbackJsonPath": "data.url" },
-        "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" }
+        "title": { "jsonPath": "data.title", "transform": "html_unescape" },
+        "thumbnailUrl": { "jsonPath": "data.preview.images.0.resolutions.1.url", "fallbackJsonPath": "data.thumbnail" },
+        "fullUrl": { "jsonPath": "data.preview.images.0.source.url", "fallbackJsonPath": "data.url_overridden_by_dest" },
+        "sourceUrl": { "jsonPath": "data.permalink", "transform": "prepend_base_url" },
+        "width": { "jsonPath": "data.preview.images.0.source.width" },
+        "height": { "jsonPath": "data.preview.images.0.source.height" }
       }
     }
   }
