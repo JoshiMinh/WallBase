@@ -10,6 +10,7 @@ import android.util.DisplayMetrics
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toBitmap
 import coil3.ImageLoader
+import coil3.SingletonImageLoader
 import coil3.asDrawable
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -20,9 +21,7 @@ import kotlin.math.roundToInt
 
 class WallpaperEditor(
     private val context: Context,
-    private val imageLoader: ImageLoader = ImageLoader.Builder(context)
-        .diskCachePolicy(CachePolicy.DISABLED)
-        .build(),
+    private val imageLoader: ImageLoader = SingletonImageLoader.get(context),
 ) {
 
     private val metrics: DisplayMetrics

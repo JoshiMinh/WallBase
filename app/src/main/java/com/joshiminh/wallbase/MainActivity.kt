@@ -43,16 +43,6 @@ class MainActivity : ComponentActivity() {
                 extensionRepositoryManager.ensureDefaultExtensionsInstalled()
             }
         }
-        SingletonImageLoader.setSafe { context ->
-            ImageLoader.Builder(context)
-                .diskCache {
-                    DiskCache.Builder()
-                        .directory(context.cacheDir.resolve("coil_previews").toOkioPath())
-                        .maxSizeBytes(50L * 1024 * 1024)
-                        .build()
-                }
-                .build()
-        }
 
         setContent {
             val sourcesViewModel: SourcesViewModel = hiltViewModel()
@@ -124,7 +114,6 @@ class MainActivity : ComponentActivity() {
                     onSetAppLockEnabled = settingsViewModel::setAppLockEnabled,
                     onToggleShowHorizontalWallpapers = settingsViewModel::setShowHorizontalWallpapers,
                     onToggleShowDownloadBadge = settingsViewModel::setShowDownloadBadge,
-                    onSetMinResolution = settingsViewModel::setMinResolution,
                     onSaveSourceCredentials = settingsViewModel::saveSourceCredentials,
                     onShowSettingsMessage = settingsViewModel::showMessage,
                     onCompleteOnboarding = settingsViewModel::markOnboardingComplete,

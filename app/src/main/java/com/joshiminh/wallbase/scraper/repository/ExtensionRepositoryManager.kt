@@ -74,8 +74,20 @@ class ExtensionRepositoryManager @Inject constructor(
         val prefs = dataStore.data.first()
         val alreadyInitialized = prefs[INITIALIZED_DEFAULTS_KEY] ?: false
 
+        val builtIns = getBuiltInManifests()
+        // Sync any updated built-in manifests to disk if version is newer
+        builtIns.forEach { builtIn ->
+            val file = File(extensionsDir, "${builtIn.id}.json")
+            val currentOnDisk = if (file.exists()) {
+                runCatching { manifestAdapter.fromJson(file.readText()) }.getOrNull()
+            } else null
+
+            if (currentOnDisk == null || builtIn.versionCode > currentOnDisk.versionCode) {
+                saveManifestToFile(builtIn)
+            }
+        }
+
         if (!alreadyInitialized) {
-            val builtIns = getBuiltInManifests()
             val existingKeys = sourceDao.getSourceKeys().toSet()
             val installedIds = mutableSetOf<String>()
 
@@ -83,8 +95,6 @@ class ExtensionRepositoryManager @Inject constructor(
                 val sourceKey = "${SourceKeys.EXTENSION}:${manifest.id}"
                 installedIds.add(manifest.id)
                 if (sourceKey !in existingKeys) {
-                    // Save manifest file
-                    saveManifestToFile(manifest)
                     // Register in Room Database
                     val entity = SourceEntity(
                         key = sourceKey,

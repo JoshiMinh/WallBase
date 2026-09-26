@@ -1,10 +1,12 @@
 package com.joshiminh.wallbase.di
 
+import android.content.Context
 import com.joshiminh.wallbase.BuildConfig
 import com.joshiminh.wallbase.data.repository.SourceCredentialStore
 import com.joshiminh.wallbase.sources.RedditService
 import com.joshiminh.wallbase.sources.WallhavenService
 import com.joshiminh.wallbase.util.network.JsoupWebScraper
+import com.joshiminh.wallbase.util.network.ResilientDns
 import com.joshiminh.wallbase.util.network.UpdateService
 import com.joshiminh.wallbase.util.network.WebScraper
 import com.squareup.moshi.Moshi
@@ -12,12 +14,14 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import okhttp3.Dns
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import retrofit2.create
+import java.util.concurrent.TimeUnit
 import javax.inject.Named
 import javax.inject.Singleton
 
@@ -26,6 +30,7 @@ import javax.inject.Singleton
 object NetworkModule {
 
     private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 WallBase/6.5"
+    private const val REDDIT_USER_AGENT = "android:com.joshiminh.wallbase:v6.5 (by /u/JoshiMinh)"
 
     @Provides
     @Singleton
@@ -37,14 +42,31 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideDns(
+        @ApplicationContext context: Context
+    ): Dns {
+        return ResilientDns.create(context.cacheDir)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        dns: Dns
+    ): OkHttpClient {
         val builder = OkHttpClient.Builder()
+            .dns(dns)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(20, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .addInterceptor { chain ->
                 val request = chain.request()
                 val host = request.url.host.lowercase(java.util.Locale.ROOT)
                 val requestBuilder = request.newBuilder()
 
-                if (request.header("User-Agent") == null) {
+                if (host.contains("reddit.com") || host.contains("redd.it")) {
+                    requestBuilder.header("User-Agent", REDDIT_USER_AGENT)
+                } else if (request.header("User-Agent") == null) {
                     requestBuilder.header("User-Agent", USER_AGENT)
                 }
 
@@ -134,12 +156,14 @@ object NetworkModule {
             .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
-            .create()
+            .create(UpdateService::class.java)
     }
 
     @Provides
     @Singleton
-    fun provideWebScraper(): WebScraper {
-        return JsoupWebScraper()
+    fun provideWebScraper(
+        okHttpClient: OkHttpClient
+    ): WebScraper {
+        return JsoupWebScraper(okHttpClient)
     }
 }

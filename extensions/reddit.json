@@ -2,10 +2,13 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "reddit",
   "name": "Reddit",
-  "version": "1.2.0",
-  "versionCode": 3,
+  "version": "1.2.1",
+  "versionCode": 4,
   "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=reddit.com",
   "baseUrl": "https://www.reddit.com",
+  "defaultHeaders": {
+    "User-Agent": "android:com.joshiminh.wallbase:v6.5 (by /u/JoshiMinh)"
+  },
   "description": "Community wallpapers from popular Reddit wallpaper communities",
   "author": "WallBase Community",
   "isNsfw": false,

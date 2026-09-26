@@ -8,7 +8,8 @@ import java.util.LinkedHashSet
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.jsoup.Connection
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -18,7 +19,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class JsoupWebScraper @Inject constructor() : WebScraper {
+class JsoupWebScraper @Inject constructor(
+    private val okHttpClient: OkHttpClient
+) : WebScraper {
 
     override suspend fun scrapePinterest(
         query: String,
@@ -64,12 +67,18 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
                 baseUrl
             }
 
-            val document = Jsoup.connect(targetUrl)
-                .userAgent(USER_AGENT)
-                .referrer("https://www.google.com")
-                .timeout(TIMEOUT_MS)
-                .parser(org.jsoup.parser.Parser.xmlParser())
-                .get()
+            val request = Request.Builder()
+                .url(targetUrl)
+                .header("User-Agent", USER_AGENT)
+                .header("Referer", "https://www.google.com")
+                .build()
+
+            val responseBody = okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}")
+                response.body?.string().orEmpty()
+            }
+
+            val document = Jsoup.parse(responseBody, targetUrl, org.jsoup.parser.Parser.xmlParser())
 
             val entries = document.select("entry")
             val items = mutableListOf<WallpaperItem>()
@@ -182,12 +191,18 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
         ScrapePage(pageItems, nextCursor)
     }
 
-    private fun fetch(url: String): Document =
-        Jsoup.connect(url)
-            .userAgent(USER_AGENT)
-            .referrer("https://www.google.com")
-            .timeout(TIMEOUT_MS)
-            .get()
+    private fun fetch(url: String): Document {
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", USER_AGENT)
+            .header("Referer", "https://www.google.com")
+            .build()
+        val responseBody = okHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw java.io.IOException("HTTP ${response.code}")
+            response.body?.string().orEmpty()
+        }
+        return Jsoup.parse(responseBody, url)
+    }
 
     private suspend fun scrapePinterestUrl(
         pageUrl: String,
@@ -228,16 +243,18 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
 
     private fun fetchPidgetsPins(endpoint: String): List<WallpaperItem> {
         return runCatching {
-            val response = Jsoup.connect(endpoint)
-                .ignoreContentType(true)
-                .userAgent(USER_AGENT)
-                .referrer("https://www.google.com")
-                .timeout(TIMEOUT_MS)
+            val request = Request.Builder()
+                .url(endpoint)
+                .header("User-Agent", USER_AGENT)
+                .header("Referer", "https://www.google.com")
                 .header("Accept", "application/json, text/plain, */*")
-                .method(Connection.Method.GET)
-                .execute()
+                .build()
 
-            val body = response.body()
+            val body = okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return emptyList()
+                response.body?.string().orEmpty()
+            }
+
             val json = JSONObject(body)
             val data = json.optJSONObject("data") ?: return@runCatching emptyList()
             val pinsArray = data.optJSONArray("pins") ?: return@runCatching emptyList()
@@ -253,12 +270,18 @@ class JsoupWebScraper @Inject constructor() : WebScraper {
         runCatching {
             val encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString())
             val searchUrl = "https://www.pinterest.com/search/pins/?q=$encodedQuery"
-            val document = Jsoup.connect(searchUrl)
-                .userAgent(MOBILE_USER_AGENT)
-                .referrer("https://www.google.com")
-                .timeout(TIMEOUT_MS)
+            val request = Request.Builder()
+                .url(searchUrl)
+                .header("User-Agent", MOBILE_USER_AGENT)
+                .header("Referer", "https://www.google.com")
                 .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-                .get()
+                .build()
+
+            val body = okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}")
+                response.body?.string().orEmpty()
+            }
+            val document = Jsoup.parse(body, searchUrl)
 
             val imgElements = document.select("img[elementtiming=grid-gated-pin-image-search], img[src*='i.pinimg.com/236x/'], img[src*='i.pinimg.com/474x/'], img[src*='i.pinimg.com/736x/']")
             val items = mutableListOf<WallpaperItem>()

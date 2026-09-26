@@ -28,6 +28,7 @@ class WallBaseApplication : Application(), SingletonImageLoader.Factory {
             okHttpClient
         } else {
             OkHttpClient.Builder()
+                .dns(com.joshiminh.wallbase.util.network.ResilientDns.create(context.cacheDir))
                 .addInterceptor { chain ->
                     val request = chain.request()
                     val host = request.url.host.lowercase(java.util.Locale.ROOT)
