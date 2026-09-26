@@ -511,14 +511,19 @@ fun LibraryScreen(
     if (showSelectionAlbumDialog && selectedWallpapers.isNotEmpty()) {
         AlbumPickerDialog(
             albums = uiState.albums,
-            isBusy = uiState.isCreatingAlbum,
-            onAddToExisting = { albumId ->
-                libraryViewModel.addWallpapersToAlbum(albumId, selectedWallpapers)
+            initialSelectedAlbumIds = emptySet(),
+            isBusy = uiState.isCreatingAlbum || uiState.isSelectionActionInProgress,
+            onConfirm = { albumIds ->
+                if (albumIds.isNotEmpty()) {
+                    libraryViewModel.addWallpapersToAlbums(albumIds, selectedWallpapers)
+                }
                 showSelectionAlbumDialog = false
                 selectedWallpaperIds = emptySet()
             },
             onCreateNew = { title ->
-                libraryViewModel.createAlbum(title)
+                libraryViewModel.createAlbumAndAdd(title, selectedWallpapers)
+                showSelectionAlbumDialog = false
+                selectedWallpaperIds = emptySet()
             },
             onDismiss = { showSelectionAlbumDialog = false }
         )

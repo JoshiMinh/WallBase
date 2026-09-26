@@ -242,12 +242,12 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun addWallpapersToAlbum(albumId: Long, wallpapers: List<WallpaperItem>) {
-        if (wallpapers.isEmpty() || selectionActionInProgress.value) return
+    fun addWallpapersToAlbums(albumIds: Set<Long>, wallpapers: List<WallpaperItem>) {
+        if (albumIds.isEmpty() || wallpapers.isEmpty() || selectionActionInProgress.value) return
         viewModelScope.launch {
             selectionAction.value = SelectionAction.ADD_TO_ALBUM
             selectionActionInProgress.value = true
-            val result = runCatching { repository.addWallpapersToAlbum(albumId, wallpapers) }
+            val result = runCatching { repository.addWallpapersToAlbums(albumIds, wallpapers) }
             selectionActionInProgress.value = false
             selectionAction.value = null
             messageFlow.update {
@@ -257,18 +257,22 @@ class LibraryViewModel @Inject constructor(
                             outcome.addedToAlbum > 0 && (outcome.alreadyPresent > 0 || outcome.skipped > 0) ->
                                 "Added ${outcome.addedToAlbum} wallpapers (skipped ${outcome.alreadyPresent + outcome.skipped})"
                             outcome.addedToAlbum > 0 ->
-                                "Added ${outcome.addedToAlbum} wallpapers to the album"
+                                "Added wallpapers to ${albumIds.size} album${if (albumIds.size == 1) "" else "s"}"
                             outcome.alreadyPresent > 0 && outcome.skipped == 0 ->
-                                "All selected wallpapers are already in this album"
+                                "All selected wallpapers are already in these albums"
                             outcome.skipped > 0 ->
-                                "Unable to add ${outcome.skipped} wallpapers to the album"
-                            else -> "All selected wallpapers are already in this album"
+                                "Unable to add ${outcome.skipped} wallpapers to albums"
+                            else -> "All selected wallpapers are already in these albums"
                         }
                     },
-                    onFailure = { t -> t.localizedMessage ?: "Unable to update album" }
+                    onFailure = { t -> t.localizedMessage ?: "Unable to update albums" }
                 )
             }
         }
+    }
+
+    fun addWallpapersToAlbum(albumId: Long, wallpapers: List<WallpaperItem>) {
+        addWallpapersToAlbums(setOf(albumId), wallpapers)
     }
 
     fun downloadWallpapers(wallpapers: List<WallpaperItem>) {

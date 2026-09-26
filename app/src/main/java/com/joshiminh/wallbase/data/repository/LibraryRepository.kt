@@ -535,6 +535,50 @@ class LibraryRepository @Inject constructor(
         }
     }
 
+    suspend fun getAlbumIdsForWallpaper(wallpaper: WallpaperItem): Set<Long> {
+        return withContext(Dispatchers.IO) {
+            val wallpaperId = resolveWallpaperId(wallpaper) ?: return@withContext emptySet()
+            albumDao.getAlbumIdsForWallpaper(wallpaperId).toSet()
+        }
+    }
+
+    suspend fun setWallpaperAlbums(wallpaper: WallpaperItem, albumIds: Set<Long>) {
+        withContext(Dispatchers.IO) {
+            ensureWallpaperSaved(wallpaper)
+            val wallpaperId = resolveWallpaperId(wallpaper) ?: return@withContext
+            val currentIds = albumDao.getAlbumIdsForWallpaper(wallpaperId).toSet()
+            val toRemove = currentIds - albumIds
+            val toAdd = albumIds - currentIds
+
+            for (albumId in toRemove) {
+                albumDao.deleteCrossRef(albumId, wallpaperId)
+            }
+            if (toAdd.isNotEmpty()) {
+                val refs = toAdd.map { AlbumWallpaperCrossRef(it, wallpaperId) }
+                albumDao.insertCrossRefs(refs)
+            }
+        }
+    }
+
+    suspend fun addWallpapersToAlbums(
+        albumIds: Set<Long>,
+        wallpapers: List<WallpaperItem>
+    ): AlbumAssociationResult {
+        if (albumIds.isEmpty() || wallpapers.isEmpty()) return AlbumAssociationResult(0, 0, 0)
+        return withContext(Dispatchers.IO) {
+            var added = 0
+            var alreadyPresent = 0
+            var skipped = 0
+            for (albumId in albumIds) {
+                val res = addWallpapersToAlbum(albumId, wallpapers)
+                added += res.addedToAlbum
+                alreadyPresent += res.alreadyPresent
+                skipped += res.skipped
+            }
+            AlbumAssociationResult(added, alreadyPresent, skipped)
+        }
+    }
+
     suspend fun addWallpapersToAlbum(
         albumId: Long,
         wallpapers: List<WallpaperItem>

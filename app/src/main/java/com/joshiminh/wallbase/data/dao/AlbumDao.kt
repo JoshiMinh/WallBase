@@ -45,6 +45,15 @@ interface AlbumDao {
     @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
     fun observeAlbumWithWallpapers(albumId: Long): Flow<AlbumWithWallpapers?>
 
+    @Query("SELECT album_id FROM album_wallpaper_cross_ref WHERE wallpaper_id = :wallpaperId")
+    suspend fun getAlbumIdsForWallpaper(wallpaperId: Long): List<Long>
+
+    @Query("SELECT album_id FROM album_wallpaper_cross_ref WHERE wallpaper_id = :wallpaperId")
+    fun observeAlbumIdsForWallpaper(wallpaperId: Long): Flow<List<Long>>
+
+    @Query("DELETE FROM album_wallpaper_cross_ref WHERE album_id = :albumId AND wallpaper_id = :wallpaperId")
+    suspend fun deleteCrossRef(albumId: Long, wallpaperId: Long): Int
+
     @Query("DELETE FROM album_wallpaper_cross_ref WHERE wallpaper_id = :wallpaperId")
     suspend fun deleteCrossRefsForWallpaper(wallpaperId: Long): Int
 

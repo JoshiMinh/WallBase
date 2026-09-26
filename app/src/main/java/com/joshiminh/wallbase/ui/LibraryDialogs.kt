@@ -46,6 +46,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -301,34 +303,35 @@ fun CreateAlbumDialog(
 @Composable
 fun AlbumPickerDialog(
     albums: List<AlbumItem>,
-    isBusy: Boolean,
-    onAddToExisting: (Long) -> Unit,
+    initialSelectedAlbumIds: Set<Long> = emptySet(),
+    isBusy: Boolean = false,
+    onConfirm: (Set<Long>) -> Unit,
     onCreateNew: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableIntStateOf(if (albums.isEmpty()) 1 else 0) }
-    var selectedAlbumId by rememberSaveable { mutableStateOf(albums.firstOrNull()?.id) }
+    var selectedAlbumIds by rememberSaveable { mutableStateOf(initialSelectedAlbumIds) }
     var newAlbumTitle by rememberSaveable { mutableStateOf("") }
 
     val existingTab = "Existing"
     val newTab = "New"
-    val addLabel = "Add"
 
     val tabs = listOf(existingTab, newTab)
 
+    LaunchedEffect(initialSelectedAlbumIds) {
+        selectedAlbumIds = initialSelectedAlbumIds
+    }
+
     LaunchedEffect(albums) {
-        selectedAlbumId = when {
-            albums.isEmpty() -> null
-            selectedAlbumId != null && albums.any { it.id == selectedAlbumId } -> selectedAlbumId
-            else -> albums.firstOrNull()?.id
-        }
         if (albums.isEmpty() && selectedTab == 0) {
             selectedTab = 1
         }
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!isBusy) onDismiss()
+        },
         title = { Text(text = "Add to album") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -349,19 +352,55 @@ fun AlbumPickerDialog(
                         }
                     }
                 }
-                when {
-                    selectedTab == 0 -> {
-                        LazyColumn(
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.heightIn(max = 280.dp),
-                            contentPadding = PaddingValues(vertical = 4.dp)
-                        ) {
-                            items(albums, key = AlbumItem::id) { album ->
-                                AlbumSelectionRow(
-                                    album = album,
-                                    isSelected = album.id == selectedAlbumId,
-                                    onClick = { selectedAlbumId = album.id }
-                                )
+                when (selectedTab) {
+                    0 -> {
+                        if (albums.isEmpty()) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Album,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "No albums created yet. Switch to the New tab to create your first album.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.heightIn(max = 280.dp),
+                                contentPadding = PaddingValues(vertical = 4.dp)
+                            ) {
+                                items(albums, key = AlbumItem::id) { album ->
+                                    val isSelected = album.id in selectedAlbumIds
+                                    AlbumSelectionRow(
+                                        album = album,
+                                        isSelected = isSelected,
+                                        onToggle = {
+                                            selectedAlbumIds = if (isSelected) {
+                                                selectedAlbumIds - album.id
+                                            } else {
+                                                selectedAlbumIds + album.id
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -393,17 +432,17 @@ fun AlbumPickerDialog(
             TextButton(
                 onClick = {
                     if (selectedTab == 0 && albums.isNotEmpty()) {
-                        selectedAlbumId?.let(onAddToExisting)
+                        onConfirm(selectedAlbumIds)
                     } else {
-                        onCreateNew(newAlbumTitle)
+                        onCreateNew(newAlbumTitle.trim())
                     }
                 },
                 enabled = when {
-                    selectedTab == 0 -> selectedAlbumId != null && !isBusy
-                    else -> newAlbumTitle.isNotBlank() && !isBusy
+                    selectedTab == 0 -> !isBusy && (initialSelectedAlbumIds.isNotEmpty() || selectedAlbumIds.isNotEmpty())
+                    else -> newAlbumTitle.trim().isNotBlank() && !isBusy
                 }
             ) {
-                Text(text = addLabel)
+                Text(text = if (selectedTab == 0) "Save" else "Create")
             }
         },
         dismissButton = {
@@ -419,7 +458,7 @@ fun AlbumPickerDialog(
 fun AlbumSelectionRow(
     album: AlbumItem,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onToggle: () -> Unit
 ) {
     val containerColor = if (isSelected) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
@@ -433,7 +472,7 @@ fun AlbumSelectionRow(
     }
 
     Surface(
-        onClick = onClick,
+        onClick = onToggle,
         shape = RoundedCornerShape(16.dp),
         color = containerColor,
         border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor),
@@ -457,12 +496,12 @@ fun AlbumSelectionRow(
                 )
             },
             trailingContent = {
-                RadioButton(
-                    selected = isSelected,
-                    onClick = null,
-                    colors = androidx.compose.material3.RadioButtonDefaults.colors(
-                        selectedColor = MaterialTheme.colorScheme.primary,
-                        unselectedColor = MaterialTheme.colorScheme.outline
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = null,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primary,
+                        uncheckedColor = MaterialTheme.colorScheme.outline
                     )
                 )
             },

@@ -269,18 +269,13 @@ class SourceBrowseViewModel @Inject constructor(
         }
     }
 
-    fun addSelectedToAlbum(albumId: Long) {
-        val albums = _uiState.value.albums
-        if (albums.none { it.id == albumId }) {
-            setMessage("Album not available")
-            return
-        }
+    fun addSelectedToAlbums(albumIds: Set<Long>) {
         val current = selectedWallpapers()
-        if (current.isEmpty() || _uiState.value.isActionInProgress) return
+        if (current.isEmpty() || albumIds.isEmpty() || _uiState.value.isActionInProgress) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isActionInProgress = true) }
-            val result = runCatching { libraryRepository.addWallpapersToAlbum(albumId, current) }
+            val result = runCatching { libraryRepository.addWallpapersToAlbums(albumIds, current) }
             _uiState.update { state ->
                 val (message, clearSelection) = result.fold(
                     onSuccess = { outcome ->
@@ -288,20 +283,69 @@ class SourceBrowseViewModel @Inject constructor(
                             outcome.addedToAlbum > 0 && (outcome.alreadyPresent > 0 || outcome.skipped > 0) ->
                                 "Added ${outcome.addedToAlbum} wallpapers (skipped ${outcome.alreadyPresent + outcome.skipped} others)"
 
-                            outcome.addedToAlbum > 0 -> "Added ${outcome.addedToAlbum} wallpapers to the album"
+                            outcome.addedToAlbum > 0 -> "Added wallpapers to ${albumIds.size} album${if (albumIds.size == 1) "" else "s"}"
 
                             outcome.alreadyPresent > 0 && outcome.skipped == 0 ->
-                                "All selected wallpapers are already in this album"
+                                "All selected wallpapers are already in these albums"
 
-                            outcome.skipped > 0 -> "Unable to add ${outcome.skipped} wallpapers to the album"
+                            outcome.skipped > 0 -> "Unable to add ${outcome.skipped} wallpapers to albums"
 
-                            else -> "All selected wallpapers are already in this album"
+                            else -> "Wallpapers added to albums"
                         }
                         message to true
                     },
                     onFailure = { error ->
                         val message = error.localizedMessage?.takeIf { it.isNotBlank() }
-                            ?: "Unable to update album"
+                            ?: "Unable to update albums"
+                        message to false
+                    }
+                )
+                val updatedMap = if (clearSelection) emptyMap() else state.selectedWallpapers
+                state.copy(
+                    isActionInProgress = false,
+                    message = message,
+                    selectedWallpapers = updatedMap,
+                    selectedIds = updatedMap.keys,
+                    isSelectionMode = updatedMap.isNotEmpty()
+                )
+            }
+        }
+    }
+
+    fun addSelectedToAlbum(albumId: Long) {
+        addSelectedToAlbums(setOf(albumId))
+    }
+
+    fun createAlbumAndAddSelected(title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) {
+            setMessage("Enter a name for your album")
+            return
+        }
+        val current = selectedWallpapers()
+        if (current.isEmpty() || _uiState.value.isActionInProgress) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isActionInProgress = true) }
+            val result = runCatching {
+                val album = libraryRepository.createAlbum(trimmed)
+                val association = libraryRepository.addWallpapersToAlbum(album.id, current)
+                album to association
+            }
+            _uiState.update { state ->
+                val (message, clearSelection) = result.fold(
+                    onSuccess = { (album, outcome) ->
+                        val message = when {
+                            outcome.addedToAlbum > 0 -> "Added ${outcome.addedToAlbum} wallpapers to \"${album.title}\""
+                            outcome.alreadyPresent > 0 -> "Wallpapers are already in \"${album.title}\""
+                            outcome.skipped > 0 -> "Unable to add ${outcome.skipped} wallpapers to \"${album.title}\""
+                            else -> "Updated \"${album.title}\""
+                        }
+                        message to true
+                    },
+                    onFailure = { error ->
+                        val message = error.localizedMessage?.takeIf { it.isNotBlank() }
+                            ?: "Unable to create album"
                         message to false
                     }
                 )

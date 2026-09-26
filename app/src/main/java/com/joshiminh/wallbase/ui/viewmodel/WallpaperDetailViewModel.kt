@@ -116,6 +116,7 @@ class WallpaperDetailViewModel @Inject constructor(
                 isEditorReady = false,
                 isProcessingEdits = false,
                 isAddingToAlbum = false,
+                assignedAlbumIds = emptySet(),
                 palette = cachedPalette ?: current.palette
             )
         }
@@ -124,6 +125,13 @@ class WallpaperDetailViewModel @Inject constructor(
             _uiState.update { it.copy(palette = cachedPalette) }
         } else {
             extractPaletteForWallpaper(normalizedWallpaper)
+        }
+
+        viewModelScope.launch {
+            val assigned = libraryRepository.getAlbumIdsForWallpaper(normalizedWallpaper)
+            if (_uiState.value.wallpaper?.id == normalizedWallpaper.id) {
+                _uiState.update { it.copy(assignedAlbumIds = assigned) }
+            }
         }
 
         val sourceKey = normalizedWallpaper.sourceKey
@@ -689,7 +697,7 @@ class WallpaperDetailViewModel @Inject constructor(
         }
     }
 
-    fun addToAlbum(albumId: Long) {
+    fun setWallpaperAlbums(albumIds: Set<Long>) {
         val wallpaper = _uiState.value.wallpaper ?: return
         if (_uiState.value.isAddingToAlbum) return
 
@@ -708,7 +716,7 @@ class WallpaperDetailViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isAddingToAlbum = false,
-                        message = failure?.localizedMessage ?: "Unable to add wallpaper to album"
+                        message = failure?.localizedMessage ?: "Unable to update albums"
                     )
                 }
                 return@launch
@@ -719,37 +727,34 @@ class WallpaperDetailViewModel @Inject constructor(
             }
 
             val association = runCatching {
-                libraryRepository.addWallpapersToAlbum(albumId, listOf(wallpaper))
+                libraryRepository.setWallpaperAlbums(wallpaper, albumIds)
             }
+
+            val updatedAssigned = runCatching {
+                libraryRepository.getAlbumIdsForWallpaper(wallpaper)
+            }.getOrDefault(albumIds)
 
             _uiState.update { current ->
                 current.copy(
                     isAddingToAlbum = false,
                     isInLibrary = true,
+                    assignedAlbumIds = updatedAssigned,
                     message = association.fold(
-                        onSuccess = { outcome ->
-                            when {
-                                outcome.addedToAlbum > 0 && (outcome.alreadyPresent > 0 || outcome.skipped > 0) -> {
-                                    val skipped = outcome.alreadyPresent + outcome.skipped
-                                    "Added ${outcome.addedToAlbum} wallpaper${if (outcome.addedToAlbum == 1) "" else "s"} (skipped $skipped others)"
-                                }
-
-                                outcome.addedToAlbum > 0 ->
-                                    "Added ${outcome.addedToAlbum} wallpaper${if (outcome.addedToAlbum == 1) "" else "s"} to the album"
-
-                                outcome.alreadyPresent > 0 || outcome.skipped > 0 ->
-                                    "Wallpaper already in the album"
-
-                                else -> "Wallpaper added to album"
-                            }
+                        onSuccess = {
+                            if (albumIds.isNotEmpty()) "Updated albums"
+                            else "Removed from albums"
                         },
                         onFailure = { throwable ->
-                            throwable.localizedMessage ?: "Unable to add wallpaper to album"
+                            throwable.localizedMessage ?: "Unable to update albums"
                         }
                     )
                 )
             }
         }
+    }
+
+    fun addToAlbum(albumId: Long) {
+        setWallpaperAlbums(_uiState.value.assignedAlbumIds + albumId)
     }
 
     fun downloadWallpaper(autoInitiated: Boolean = false) {
@@ -949,10 +954,14 @@ class WallpaperDetailViewModel @Inject constructor(
                 album
             }.fold(
                 onSuccess = { album ->
+                    val assigned = runCatching {
+                        libraryRepository.getAlbumIdsForWallpaper(wallpaper)
+                    }.getOrDefault(_uiState.value.assignedAlbumIds + album.id)
                     _uiState.update {
                         it.copy(
                             isAddingToAlbum = false,
                             isInLibrary = true,
+                            assignedAlbumIds = assigned,
                             message = "Created album \"${album.title}\" and added wallpaper"
                         )
                     }
@@ -1026,6 +1035,7 @@ class WallpaperDetailViewModel @Inject constructor(
         val isProcessingEdits: Boolean = false,
         val message: String? = null,
         val albums: List<AlbumItem> = emptyList(),
+        val assignedAlbumIds: Set<Long> = emptySet(),
         val isAddingToAlbum: Boolean = false,
         val palette: WallpaperPalette? = null
     )

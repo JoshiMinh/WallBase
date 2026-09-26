@@ -188,7 +188,7 @@ fun WallpaperRoute(
         onConfirmApplyWithoutPreview = viewModel::confirmApplyWithoutPreview,
         onDismissPreviewFallback = viewModel::dismissPreviewFallback,
         onAddToLibrary = viewModel::addToLibrary,
-        onAddToAlbum = viewModel::addToAlbum,
+        onSetAlbums = viewModel::setWallpaperAlbums,
         onCreateAlbumAndAdd = viewModel::createAlbumAndAddWallpaper,
         onRemoveFromLibrary = viewModel::removeFromLibrary,
         onDownload = viewModel::downloadWallpaper,
@@ -237,7 +237,7 @@ fun WallpaperScreen(
     onConfirmApplyWithoutPreview: () -> Unit,
     onDismissPreviewFallback: () -> Unit,
     onAddToLibrary: () -> Unit,
-    onAddToAlbum: (Long) -> Unit,
+    onSetAlbums: (Set<Long>) -> Unit = {},
     onCreateAlbumAndAdd: (String) -> Unit = {},
     onRemoveFromLibrary: () -> Unit,
     onDownload: () -> Unit,
@@ -724,9 +724,10 @@ fun WallpaperScreen(
     if (showAlbumPicker) {
         AlbumPickerDialog(
             albums = uiState.albums,
+            initialSelectedAlbumIds = uiState.assignedAlbumIds,
             isBusy = uiState.isAddingToAlbum,
-            onAddToExisting = { albumId ->
-                onAddToAlbum(albumId)
+            onConfirm = { albumIds ->
+                onSetAlbums(albumIds)
                 showAlbumPicker = false
             },
             onCreateNew = { title ->

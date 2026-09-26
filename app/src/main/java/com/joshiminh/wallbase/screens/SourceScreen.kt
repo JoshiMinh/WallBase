@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material.icons.outlined.Search
+import com.joshiminh.wallbase.ui.AlbumPickerDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -331,7 +332,8 @@ fun SourceRoute(
         snackbarHostState = snackbarHostState,
         onWallpaperClick = onCardClick,
         onWallpaperLongPress = onCardLongPress,
-        onAddSelectionToAlbum = viewModel::addSelectedToAlbum,
+        onAddSelectionToAlbums = viewModel::addSelectedToAlbums,
+        onCreateAlbumAndAddSelection = viewModel::createAlbumAndAddSelected,
         onDismissAlbumPicker = { showAlbumPicker = false },
         showAlbumPicker = showAlbumPicker,
         onClearSearch = viewModel::clearQuery,
@@ -364,7 +366,8 @@ private fun SourceScreen(
     snackbarHostState: SnackbarHostState,
     onWallpaperClick: (WallpaperItem) -> Unit,
     onWallpaperLongPress: (WallpaperItem) -> Unit,
-    onAddSelectionToAlbum: (Long) -> Unit,
+    onAddSelectionToAlbums: (Set<Long>) -> Unit,
+    onCreateAlbumAndAddSelection: (String) -> Unit = {},
     onDismissAlbumPicker: () -> Unit,
     showAlbumPicker: Boolean,
     onClearSearch: () -> Unit,
@@ -479,8 +482,16 @@ private fun SourceScreen(
     if (showAlbumPicker) {
         AlbumPickerDialog(
             albums = state.albums,
-            onAlbumSelected = { album ->
-                onAddSelectionToAlbum(album.id)
+            initialSelectedAlbumIds = emptySet(),
+            isBusy = state.isActionInProgress,
+            onConfirm = { albumIds ->
+                if (albumIds.isNotEmpty()) {
+                    onAddSelectionToAlbums(albumIds)
+                }
+                onDismissAlbumPicker()
+            },
+            onCreateNew = { title ->
+                onCreateAlbumAndAddSelection(title)
                 onDismissAlbumPicker()
             },
             onDismiss = onDismissAlbumPicker
@@ -533,54 +544,6 @@ private fun EmptyWallpaperState(
             Button(onClick = onRefresh) { Text("Refresh") }
         }
     }
-}
-
-@Composable
-private fun AlbumPickerDialog(
-    albums: List<AlbumItem>,
-    onAlbumSelected: (AlbumItem) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = "Choose an album") },
-        text = {
-            if (albums.isEmpty()) {
-                Text(text = "Create an album in your library to start organizing wallpapers.")
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    albums.forEach { album ->
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            tonalElevation = 1.dp,
-                            onClick = { onAlbumSelected(album) }
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Text(
-                                    text = album.title,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Text(
-                                    text = "${album.wallpaperCount} wallpapers",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = "Cancel")
-            }
-        }
-    )
 }
 
 @Composable
