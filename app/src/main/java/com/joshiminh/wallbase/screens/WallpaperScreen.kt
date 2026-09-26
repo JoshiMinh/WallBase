@@ -332,6 +332,7 @@ fun WallpaperScreen(
         WallpaperCropDialog(
             currentCrop = uiState.adjustments.crop,
             wallpaper = wallpaper,
+            previewBitmap = previewBitmap,
             onSelectCrop = { crop ->
                 onUpdateCrop(crop)
             },

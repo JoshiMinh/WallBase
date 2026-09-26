@@ -114,6 +114,7 @@ class MainActivity : ComponentActivity() {
                     onSetAppLockEnabled = settingsViewModel::setAppLockEnabled,
                     onToggleShowHorizontalWallpapers = settingsViewModel::setShowHorizontalWallpapers,
                     onToggleShowDownloadBadge = settingsViewModel::setShowDownloadBadge,
+                    onSetMinResolution = settingsViewModel::setMinResolution,
                     onSaveSourceCredentials = settingsViewModel::saveSourceCredentials,
                     onShowSettingsMessage = settingsViewModel::showMessage,
                     onCompleteOnboarding = settingsViewModel::markOnboardingComplete,
