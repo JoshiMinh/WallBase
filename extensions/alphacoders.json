@@ -2,8 +2,8 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "alphacoders",
   "name": "AlphaCoders",
-  "version": "1.2.0",
-  "versionCode": 3,
+  "version": "1.3.0",
+  "versionCode": 4,
   "iconUrl": "https://images.alphacoders.com/icons/favicon.ico",
   "baseUrl": "https://wall.alphacoders.com",
   "description": "Ultra HD anime, gaming, sci-fi, movies, and pop-culture wallpapers",
@@ -30,6 +30,7 @@
           "id": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "regex": "(?:wallpaper/|i=)([0-9]+)" },
           "title": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "alt", "transform": "html_unescape" },
           "thumbnailUrl": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src" },
+          "width": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src", "regex": "thumb-([0-9]{3,5})-" },
           "fullUrl": {
             "selector": "img.thumb-img, img.img-responsive, img",
             "attribute": "src",
@@ -55,6 +56,7 @@
           "id": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "regex": "(?:wallpaper/|i=)([0-9]+)" },
           "title": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "alt", "transform": "html_unescape" },
           "thumbnailUrl": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src" },
+          "width": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src", "regex": "thumb-([0-9]{3,5})-" },
           "fullUrl": {
             "selector": "img.thumb-img, img.img-responsive, img",
             "attribute": "src",
@@ -81,6 +83,7 @@
         "id": { "selector": "a[href*='wallpaper'], a[href*='big.php']", "attribute": "href", "regex": "(?:wallpaper/|i=)([0-9]+)" },
         "title": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "alt", "transform": "html_unescape" },
         "thumbnailUrl": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src" },
+        "width": { "selector": "img.thumb-img, img.img-responsive, img", "attribute": "src", "regex": "thumb-([0-9]{3,5})-" },
         "fullUrl": {
           "selector": "img.thumb-img, img.img-responsive, img",
           "attribute": "src",

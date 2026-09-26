@@ -31,20 +31,21 @@ class WallpaperFiltersTest {
         val wallpaperPhone4k = createWallpaper("4k_vert", 2160, 3840)
         val wallpaper1080p = createWallpaper("1080p", 1920, 1080)
         val wallpaper720p = createWallpaper("720p", 1280, 720)
-        val wallpaperUnknown = createWallpaper("unknown", null, null)
+        val wallpaperLowRes = createWallpaper("low", 564, 1000)
 
         // ANY matches all
         assertTrue(anyFilter.matches(wallpaper4k.width, wallpaper4k.height))
         assertTrue(anyFilter.matches(wallpaper1080p.width, wallpaper1080p.height))
         assertTrue(anyFilter.matches(wallpaper720p.width, wallpaper720p.height))
-        assertTrue(anyFilter.matches(wallpaperUnknown.width, wallpaperUnknown.height))
+        assertTrue(anyFilter.matches(null, null))
 
         // 1080p+ matches 1080p and 4k (both orientations)
         assertTrue(fhdFilter.matches(wallpaper1080p.width, wallpaper1080p.height))
         assertTrue(fhdFilter.matches(wallpaper4k.width, wallpaper4k.height))
         assertTrue(fhdFilter.matches(wallpaperPhone4k.width, wallpaperPhone4k.height))
         assertFalse(fhdFilter.matches(wallpaper720p.width, wallpaper720p.height))
-        assertTrue(fhdFilter.matches(wallpaperUnknown.width, wallpaperUnknown.height)) // Unknown preserved
+        assertFalse(fhdFilter.matches(wallpaperLowRes.width, wallpaperLowRes.height))
+        assertFalse(fhdFilter.matches(null, null)) // Raw null width/height rejected for strict filter
 
         // 4K matches only 4K
         assertTrue(uhdFilter.matches(wallpaper4k.width, wallpaper4k.height))
@@ -54,12 +55,51 @@ class WallpaperFiltersTest {
     }
 
     @Test
+    fun testWallpaperItemDimensionInference() {
+        // Inferred from title
+        val itemWithTitle4k = WallpaperItem(
+            id = "t1",
+            title = "Cyberpunk City [3840x2160]",
+            imageUrl = "https://example.com/img.jpg",
+            sourceUrl = "https://example.com"
+        )
+        assertTrue(itemWithTitle4k.matchesMinResolution(MinResolution.UHD_4K))
+
+        val itemWithTitle1080p = WallpaperItem(
+            id = "t2",
+            title = "Anime Scenery Full HD",
+            imageUrl = "https://example.com/img.jpg",
+            sourceUrl = "https://example.com"
+        )
+        assertTrue(itemWithTitle1080p.matchesMinResolution(MinResolution.FHD_1080P))
+        assertFalse(itemWithTitle1080p.matchesMinResolution(MinResolution.UHD_4K))
+
+        // Inferred from Pinterest URL
+        val itemPinterestOrig = WallpaperItem(
+            id = "p1",
+            title = "Pinterest Wallpaper",
+            imageUrl = "https://i.pinimg.com/originals/ab/cd/ef.jpg",
+            sourceUrl = "https://pinterest.com"
+        )
+        assertTrue(itemPinterestOrig.matchesMinResolution(MinResolution.FHD_1080P))
+
+        val itemPinterestLowResThumb = WallpaperItem(
+            id = "p2",
+            title = "Pinterest Thumbnail",
+            imageUrl = "https://i.pinimg.com/564x/ab/cd/ef.jpg",
+            sourceUrl = "https://pinterest.com"
+        )
+        assertFalse(itemPinterestLowResThumb.matchesMinResolution(MinResolution.HD_720P))
+        assertFalse(itemPinterestLowResThumb.matchesMinResolution(MinResolution.FHD_1080P))
+    }
+
+    @Test
     fun testFilterByMinResolution() {
         val items = listOf(
             createWallpaper("1", 3840, 2160),
             createWallpaper("2", 1920, 1080),
             createWallpaper("3", 1280, 720),
-            createWallpaper("4", 800, 600)
+            createWallpaper("4", 564, 1000)
         )
 
         val filteredFhd = items.filterByMinResolution(MinResolution.FHD_1080P)

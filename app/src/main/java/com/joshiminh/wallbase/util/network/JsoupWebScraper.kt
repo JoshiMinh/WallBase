@@ -313,8 +313,8 @@ class JsoupWebScraper @Inject constructor(
                     imageUrl = highResUrl,
                     thumbnailUrl = thumbUrl,
                     sourceUrl = "https://www.pinterest.com/search/pins/?q=$encodedQuery",
-                    width = null,
-                    height = null
+                    width = if (highResUrl.contains("/originals/")) 1440 else null,
+                    height = if (highResUrl.contains("/originals/")) 2560 else null
                 )
             }
 
@@ -357,10 +357,10 @@ class JsoupWebScraper @Inject constructor(
             val id = pin.optString("id").takeIf { it.isNotBlank() } ?: continue
             val images = pin.optJSONObject("images") ?: continue
 
-            val rawUrl = images.optJSONObject("564x")?.optString("url")
+            val rawUrl = images.optJSONObject("orig")?.optString("url")
+                ?: images.optJSONObject("564x")?.optString("url")
                 ?: images.optJSONObject("236x")?.optString("url")
                 ?: images.optJSONObject("237x")?.optString("url")
-                ?: images.optJSONObject("orig")?.optString("url")
                 ?: continue
 
             if (rawUrl.isBlank()) continue
@@ -384,7 +384,7 @@ class JsoupWebScraper @Inject constructor(
             val sourceUrl = pin.optString("link").takeIf { it.isNotBlank() }
                 ?: "https://www.pinterest.com/pin/$id/"
 
-            val imgObj = images.optJSONObject("564x") ?: images.optJSONObject("orig") ?: images.optJSONObject("236x")
+            val imgObj = images.optJSONObject("orig") ?: images.optJSONObject("564x") ?: images.optJSONObject("236x")
             val width = imgObj?.optInt("width")?.takeIf { it > 0 }
             val height = imgObj?.optInt("height")?.takeIf { it > 0 }
 

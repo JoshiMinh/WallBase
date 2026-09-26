@@ -8,11 +8,17 @@ import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -328,29 +334,18 @@ fun WallpaperScreen(
         )
     }
 
-    if (showCropDialog) {
-        WallpaperCropDialog(
-            currentCrop = uiState.adjustments.crop,
-            wallpaper = wallpaper,
-            previewBitmap = previewBitmap,
-            onSelectCrop = { crop ->
-                onUpdateCrop(crop)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(bottom = 72.dp)
+                )
             },
-            onDismiss = { showCropDialog = false }
-        )
-    }
-
-    Scaffold(
-        snackbarHost = {
-            SnackbarHost(
-                hostState = snackbarHostState,
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .padding(bottom = 72.dp)
-            )
-        },
-        contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
-    ) { innerPadding ->
+            contentWindowInsets = WindowInsets(left = 0.dp, top = 0.dp, right = 0.dp, bottom = 0.dp)
+        ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -814,13 +809,33 @@ fun WallpaperScreen(
         )
     }
 
-    uiState.pendingFallback?.let { fallback ->
-        PreviewFallbackDialog(
-            fallback = fallback,
-            isApplying = uiState.isApplying,
-            onConfirm = onConfirmApplyWithoutPreview,
-            onDismiss = onDismissPreviewFallback
-        )
+        uiState.pendingFallback?.let { fallback ->
+            PreviewFallbackDialog(
+                fallback = fallback,
+                isApplying = uiState.isApplying,
+                onConfirm = onConfirmApplyWithoutPreview,
+                onDismiss = onDismissPreviewFallback
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showCropDialog,
+            enter = fadeIn(tween(220)) + slideInVertically(tween(260)) { it / 4 },
+            exit = fadeOut(tween(180)) + slideOutVertically(tween(220)) { it / 4 },
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(20f)
+        ) {
+            WallpaperCropScreen(
+                currentCrop = uiState.adjustments.crop,
+                wallpaper = wallpaper,
+                previewBitmap = previewBitmap,
+                onSelectCrop = { crop ->
+                    onUpdateCrop(crop)
+                },
+                onDismiss = { showCropDialog = false }
+            )
+        }
     }
 }
 
