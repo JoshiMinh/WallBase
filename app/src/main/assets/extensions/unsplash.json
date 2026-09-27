@@ -4,7 +4,7 @@
   "name": "Unsplash",
   "version": "1.2.0",
   "versionCode": 3,
-  "iconUrl": "https://unsplash.com/favicon-32x32.png",
+  "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=unsplash.com",
   "baseUrl": "https://unsplash.com",
   "description": "High-resolution photography and curated aesthetic wallpapers",
   "author": "WallBase Community",

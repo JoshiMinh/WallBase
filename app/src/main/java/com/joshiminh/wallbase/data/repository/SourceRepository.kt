@@ -10,7 +10,13 @@ import com.joshiminh.wallbase.data.entity.Source
 import com.joshiminh.wallbase.data.entity.SourceEntity
 import com.joshiminh.wallbase.data.entity.SourceKeys
 import com.joshiminh.wallbase.sources.RedditCommunity
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import java.net.MalformedURLException
 import java.net.URL
@@ -25,8 +31,21 @@ class SourceRepository @Inject constructor(
     private val sourceDao: SourceDao,
     private val wallpaperDao: WallpaperDao,
     private val localStorage: LocalStorageCoordinator,
-    private val extensionRepositoryManager: com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
+    private val extensionRepositoryManager: com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager,
+    private val dataStore: DataStore<Preferences>
 ) {
+
+    companion object {
+        val SOURCE_ORDER_KEY = stringPreferencesKey("custom_source_order_keys")
+        private val SUBREDDIT_PATTERN = Regex("[a-z0-9_]+")
+        val SUPPORTED_PROVIDERS = setOf(
+            SourceKeys.WALLHAVEN,
+            SourceKeys.REDDIT,
+            SourceKeys.PINTEREST,
+            SourceKeys.WEBSITES,
+            SourceKeys.EXTENSION,
+        )
+    }
 
     enum class RemoteSourceType {
         REDDIT,
@@ -37,13 +56,30 @@ class SourceRepository @Inject constructor(
     }
 
     fun observeSources(): Flow<List<Source>> =
-        sourceDao.observeSources().map { entities ->
+        combine(
+            sourceDao.observeSources(),
+            dataStore.data.map { it[SOURCE_ORDER_KEY] }.distinctUntilChanged()
+        ) { entities, orderString ->
+            val orderList = orderString?.split(",")?.filter { it.isNotBlank() } ?: emptyList()
+            val orderMap = orderList.withIndex().associate { it.value to it.index }
+            val defaultEntitiesOrder = entities.withIndex().associate { it.value.key to it.index }
+
             entities
                 .filter {
                     it.providerKey in SUPPORTED_PROVIDERS || it.isLocal
                 }
                 .map { entity -> entity.sanitized().toDomain() }
+                .sortedWith(
+                    compareBy<Source> { orderMap[it.key] ?: (10000 + (defaultEntitiesOrder[it.key] ?: 0)) }
+                        .thenBy { it.title }
+                )
         }
+
+    suspend fun reorderSources(orderedKeys: List<String>) {
+        dataStore.edit { prefs ->
+            prefs[SOURCE_ORDER_KEY] = orderedKeys.joinToString(",")
+        }
+    }
 
     fun observeSource(key: String): Flow<Source?> =
         sourceDao.observeSourceByKey(key).map { entity -> entity?.sanitized()?.toDomain() }
@@ -310,20 +346,46 @@ class SourceRepository @Inject constructor(
         } else {
             config
         }
-        val sanitizedTitle = if (providerKey == SourceKeys.PINTEREST && (title == "Pinterest - Wallpapers" || title == "Pinterest Wallpapers" || title.contains("wallpapercollec", ignoreCase = true))) {
-            "Pinterest • Ultra HD Wallpapers"
-        } else {
-            title
+        val sanitizedTitle = when {
+            providerKey == SourceKeys.PINTEREST && (title == "Pinterest - Wallpapers" || title == "Pinterest Wallpapers" || title == "Pinterest • Ultra HD Wallpapers" || title.contains("wallpapercollec", ignoreCase = true)) -> {
+                "Pinterest"
+            }
+            providerKey == SourceKeys.WALLHAVEN && (title == "Featured wallpapers" || title == "Featured" || title.isBlank()) -> {
+                "Wallhaven"
+            }
+            providerKey == SourceKeys.REDDIT && (title.isBlank() || title == "Reddit") -> {
+                config?.let { "r/$it" } ?: "Reddit"
+            }
+            providerKey == SourceKeys.EXTENSION -> {
+                val extId = config ?: key.removePrefix("${SourceKeys.EXTENSION}:")
+                when (extId.lowercase(Locale.ROOT)) {
+                    "alphacoders" -> "AlphaCoders"
+                    "pexels" -> "Pexels"
+                    "pixiv" -> "Pixiv"
+                    "safebooru" -> "Safebooru"
+                    "unsplash" -> "Unsplash"
+                    "wallhaven" -> "Wallhaven"
+                    "reddit" -> "Reddit"
+                    "pinterest" -> "Pinterest"
+                    else -> title
+                }
+            }
+            else -> title
         }
-        val sanitizedDescription = if (providerKey == SourceKeys.PINTEREST && description.contains("wallpapercollec")) {
-            "Ultra HD wallpapers from Pinterest"
-        } else {
-            description
+        val sanitizedDescription = when {
+            providerKey == SourceKeys.PINTEREST && description.contains("wallpapercollec") -> {
+                "Ultra HD wallpapers from Pinterest"
+            }
+            providerKey == SourceKeys.WALLHAVEN && description == "Fresh wallpapers from Wallhaven's public catalog" -> {
+                "Anime, nature, gaming & 4K wallpapers from Wallhaven"
+            }
+            else -> description
         }
         val normalizedIconUrl = iconUrl
             ?.takeIf { it.isNotBlank() }
             ?.takeIf { it.isNetworkUrl() }
-        val resolvedIconUrl = normalizedIconUrl ?: resolveDefaultIconUrl(providerKey, sanitizedConfig)
+            ?.takeUnless { it.contains("images.alphacoders.com/icons/favicon.ico") }
+        val resolvedIconUrl = normalizedIconUrl ?: resolveDefaultIconUrl(providerKey, sanitizedConfig, key)
 
         val requiresUpdate = sanitizedIconRes != iconRes || resolvedIconUrl != iconUrl || sanitizedConfig != config || sanitizedTitle != title || sanitizedDescription != description
         return if (requiresUpdate) {
@@ -344,7 +406,7 @@ class SourceRepository @Inject constructor(
         return lower.startsWith("http://") || lower.startsWith("https://")
     }
 
-    private fun resolveDefaultIconUrl(providerKey: String, config: String?): String? {
+    private fun resolveDefaultIconUrl(providerKey: String, config: String?, key: String = ""): String? {
         return when (providerKey) {
             SourceKeys.REDDIT -> {
                 buildFaviconUrl("reddit.com")
@@ -361,7 +423,24 @@ class SourceRepository @Inject constructor(
                 }
                 buildFaviconUrl(domain)
             }
-            SourceKeys.WALLHAVEN,
+            SourceKeys.WALLHAVEN -> {
+                buildFaviconUrl("wallhaven.cc")
+            }
+            SourceKeys.EXTENSION -> {
+                val extId = config ?: key.removePrefix("${SourceKeys.EXTENSION}:")
+                val domain = when (extId.lowercase(Locale.ROOT)) {
+                    "alphacoders" -> "alphacoders.com"
+                    "pexels" -> "pexels.com"
+                    "pixiv" -> "pixiv.net"
+                    "safebooru" -> "safebooru.org"
+                    "unsplash" -> "unsplash.com"
+                    "wallhaven" -> "wallhaven.cc"
+                    "reddit" -> "reddit.com"
+                    "pinterest" -> "pinterest.com"
+                    else -> null
+                }
+                domain?.let(::buildFaviconUrl)
+            }
             SourceKeys.WEBSITES -> {
                 config
                     ?.let { it.tryNormalizeUrl() }
@@ -681,17 +760,6 @@ class SourceRepository @Inject constructor(
         class Website(val url: NormalizedUrl) : RemoteSourceInput(RemoteSourceType.WEBSITE)
 
         class Extension(val manifestId: String) : RemoteSourceInput(RemoteSourceType.EXTENSION)
-    }
-
-    private companion object {
-        private val SUBREDDIT_PATTERN = Regex("[a-z0-9_]+")
-        val SUPPORTED_PROVIDERS = setOf(
-            SourceKeys.WALLHAVEN,
-            SourceKeys.REDDIT,
-            SourceKeys.PINTEREST,
-            SourceKeys.WEBSITES,
-            SourceKeys.EXTENSION,
-        )
     }
 }
 

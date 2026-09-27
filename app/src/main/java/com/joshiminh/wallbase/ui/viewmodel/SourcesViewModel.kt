@@ -282,6 +282,23 @@ class SourcesViewModel @Inject constructor(
         }
     }
 
+    fun reorderSources(orderedSources: List<Source>) {
+        val keys = orderedSources.map { it.key }
+        _uiState.update { it.copy(sources = orderedSources) }
+        viewModelScope.launch {
+            sourceRepository.reorderSources(keys)
+        }
+    }
+
+    fun moveSource(fromIndex: Int, toIndex: Int) {
+        val currentSources = _uiState.value.sources.filterNot(Source::isLocal).toMutableList()
+        if (fromIndex in currentSources.indices && toIndex in currentSources.indices && fromIndex != toIndex) {
+            val item = currentSources.removeAt(fromIndex)
+            currentSources.add(toIndex, item)
+            reorderSources(currentSources)
+        }
+    }
+
     fun consumeMessage() {
         _uiState.update { state ->
             if (state.snackbarMessage == null) state else state.copy(snackbarMessage = null)

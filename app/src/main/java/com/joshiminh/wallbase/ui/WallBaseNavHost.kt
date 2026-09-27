@@ -118,6 +118,8 @@ fun WallBaseApp(
     onAddRedditCommunity: (RedditCommunity) -> Unit,
     onClearRedditSearch: () -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
+    onMoveSource: (Int, Int) -> Unit = { _, _ -> },
+    onReorderSources: (List<Source>) -> Unit = {},
     onSourcesMessageShown: () -> Unit,
     onSourceUrlCopied: (String) -> Unit,
     onExportBackup: (Boolean) -> Unit,
@@ -341,10 +343,23 @@ fun WallBaseApp(
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (!isAutoHideEnabled) return Offset.Zero
-                val delta = available.y
-                if (delta < -8f && areBarsVisible) {
+                // If bars are currently hidden and user swipes down / scrolls up, immediately show bars
+                if (available.y > 8f && !areBarsVisible) {
+                    areBarsVisible = true
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (!isAutoHideEnabled) return Offset.Zero
+                // Only hide bars if the list ACTUALLY scrolled downward (consumed delta < -6f)
+                if (consumed.y < -6f && areBarsVisible) {
                     areBarsVisible = false
-                } else if (delta > 8f && !areBarsVisible) {
+                } else if ((consumed.y > 6f || available.y > 6f) && !areBarsVisible) {
                     areBarsVisible = true
                 }
                 return Offset.Zero
@@ -506,6 +521,8 @@ fun WallBaseApp(
                                 )
                             },
                             onRemoveSource = onRemoveSource,
+                            onMoveSource = onMoveSource,
+                            onReorderSources = onReorderSources,
                             onMessageShown = onSourcesMessageShown,
                             onSourceUrlCopied = onSourceUrlCopied,
                             onOpenRepoScreen = { navController.navigateSingleTop("repositories") },

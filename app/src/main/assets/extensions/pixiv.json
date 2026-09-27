@@ -4,7 +4,7 @@
   "name": "Pixiv",
   "version": "1.2.0",
   "versionCode": 3,
-  "iconUrl": "https://www.pixiv.net/favicon.ico",
+  "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=pixiv.net",
   "baseUrl": "https://www.pixiv.net",
   "description": "Japanese illustration community, daily rankings, and anime art",
   "author": "WallBase Community",

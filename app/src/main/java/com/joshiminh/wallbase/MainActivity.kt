@@ -87,6 +87,8 @@ class MainActivity : ComponentActivity() {
                     onAddRedditCommunity = sourcesViewModel::addRedditCommunity,
                     onClearRedditSearch = sourcesViewModel::clearSearchResults,
                     onRemoveSource = sourcesViewModel::removeSource,
+                    onMoveSource = sourcesViewModel::moveSource,
+                    onReorderSources = sourcesViewModel::reorderSources,
                     onSourcesMessageShown = sourcesViewModel::consumeMessage,
                     onSourceUrlCopied = sourcesViewModel::onSourceUrlCopied,
                     onExportBackup = { includeSources ->

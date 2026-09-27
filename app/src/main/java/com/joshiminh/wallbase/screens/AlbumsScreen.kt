@@ -256,7 +256,7 @@ fun AlbumsScreen(
                 actions = actions,
                 titleContent = titleContent,
                 bottomContent = null,
-                autoHideBars = !isSearchActive
+                autoHideBars = false
             )
         }
     }

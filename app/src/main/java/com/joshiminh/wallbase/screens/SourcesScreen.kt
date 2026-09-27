@@ -24,23 +24,28 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Source
+import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -123,6 +128,8 @@ fun SourcesScreen(
     onClearSearchResults: () -> Unit,
     onOpenSource: (Source) -> Unit,
     onRemoveSource: (Source, Boolean) -> Unit,
+    onMoveSource: ((Int, Int) -> Unit)? = null,
+    onReorderSources: ((List<Source>) -> Unit)? = null,
     onMessageShown: () -> Unit,
     onSourceUrlCopied: (String) -> Unit,
     onOpenRepoScreen: () -> Unit,
@@ -137,10 +144,17 @@ fun SourcesScreen(
 
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
+    var isReorderMode by rememberSaveable { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isSearchActive, selectedTab) {
+        if (isSearchActive || selectedTab != 0) {
+            isReorderMode = false
+        }
+    }
 
     val visibleSources = remember(uiState.sources) {
         uiState.sources.filterNot(Source::isLocal)
@@ -191,10 +205,11 @@ fun SourcesScreen(
         }
     }
 
-    // Configure TopBar with Search, Add Source, and Repositories puzzle icon
+    // Configure TopBar with Search, Reorder, Add Source, and Repositories puzzle icon
     val topBarState = remember(
         selectedTab,
         isSearchActive,
+        isReorderMode,
         searchQuery,
         visibleSources.size,
         extensionsState.communityCatalog.size
@@ -210,6 +225,15 @@ fun SourcesScreen(
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
                 }
             } else {
+                if (selectedTab == 0 && visibleSources.size > 1) {
+                    IconButton(onClick = { isReorderMode = !isReorderMode }) {
+                        Icon(
+                            imageVector = if (isReorderMode) Icons.Outlined.Check else Icons.Outlined.SwapVert,
+                            contentDescription = if (isReorderMode) "Done reordering" else "Reorder sources",
+                            tint = if (isReorderMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
                 IconButton(onClick = { isSearchActive = true }) {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search sources")
                 }
@@ -334,9 +358,12 @@ fun SourcesScreen(
                 0 -> InstalledTabContent(
                     sources = filteredInstalledSources,
                     isSearching = isSearchActive && searchQuery.isNotBlank(),
+                    isReorderMode = isReorderMode,
                     searchQuery = searchQuery,
                     onOpenSource = onOpenSource,
                     onRequestRemove = { pendingRemoval = it },
+                    onMoveSource = onMoveSource,
+                    onExitReorderMode = { isReorderMode = false },
                     onSourceUrlCopied = onSourceUrlCopied,
                     onGoToAvailable = { selectedTab = 1 },
                     onAddSourceClick = { showAddSourceModal = true }
@@ -428,9 +455,12 @@ fun SourcesScreen(
 private fun InstalledTabContent(
     sources: List<Source>,
     isSearching: Boolean,
+    isReorderMode: Boolean,
     searchQuery: String,
     onOpenSource: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
+    onMoveSource: ((Int, Int) -> Unit)?,
+    onExitReorderMode: () -> Unit,
     onSourceUrlCopied: (String) -> Unit,
     onGoToAvailable: () -> Unit,
     onAddSourceClick: () -> Unit
@@ -515,13 +545,60 @@ private fun InstalledTabContent(
         ),
         verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
     ) {
-        items(sources, key = Source::id) { source ->
-            SourceCard(
-                source = source,
-                onOpenSource = onOpenSource,
-                onRequestRemove = onRequestRemove,
-                onSourceUrlCopied = onSourceUrlCopied
-            )
+        if (isReorderMode && !isSearching) {
+            item(key = "reorder_info_banner") {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 4.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                    shape = WallBaseShapes.pill,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.SwapVert,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "Use arrows to reorder sources",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            onClick = onExitReorderMode,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text("Done", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+            }
+        }
+
+        itemsIndexed(sources, key = { _, source -> source.key }) { index, source ->
+            Box(modifier = Modifier.animateItem()) {
+                SourceCard(
+                    source = source,
+                    isReorderMode = isReorderMode && !isSearching,
+                    canMoveUp = index > 0,
+                    canMoveDown = index < sources.lastIndex,
+                    onMoveUp = { onMoveSource?.invoke(index, index - 1) },
+                    onMoveDown = { onMoveSource?.invoke(index, index + 1) },
+                    onOpenSource = onOpenSource,
+                    onRequestRemove = onRequestRemove,
+                    onSourceUrlCopied = onSourceUrlCopied
+                )
+            }
         }
     }
 }
@@ -708,25 +785,59 @@ private fun AvailableSourceCard(
     }
 }
 
+private fun resolveSourceIconUrl(source: Source): String? {
+    if (!source.iconUrl.isNullOrBlank() && !source.iconUrl.contains("images.alphacoders.com")) {
+        return source.iconUrl
+    }
+    val extId = source.config ?: source.key.removePrefix("${SourceKeys.EXTENSION}:")
+    val domain = when (source.providerKey) {
+        SourceKeys.REDDIT -> "reddit.com"
+        SourceKeys.PINTEREST -> "pinterest.com"
+        SourceKeys.WALLHAVEN -> "wallhaven.cc"
+        SourceKeys.EXTENSION -> when (extId.lowercase(Locale.ROOT)) {
+            "alphacoders" -> "alphacoders.com"
+            "pexels" -> "pexels.com"
+            "pixiv" -> "pixiv.net"
+            "safebooru" -> "safebooru.org"
+            "unsplash" -> "unsplash.com"
+            "wallhaven" -> "wallhaven.cc"
+            "reddit" -> "reddit.com"
+            "pinterest" -> "pinterest.com"
+            else -> null
+        }
+        SourceKeys.WEBSITES -> source.config?.let { runCatching { java.net.URL(it).host }.getOrNull() }
+        else -> null
+    }
+    return domain?.let { "https://www.google.com/s2/favicons?sz=128&domain=${it.removePrefix("www.")}" }
+}
+
 @Composable
 private fun SourceCard(
     source: Source,
+    isReorderMode: Boolean = false,
+    canMoveUp: Boolean = false,
+    canMoveDown: Boolean = false,
+    onMoveUp: () -> Unit = {},
+    onMoveDown: () -> Unit = {},
     onOpenSource: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
     onSourceUrlCopied: (String) -> Unit
 ) {
     val clipboardManager = LocalClipboardManager.current
     val shareUrl = sourceShareUrl(source)
+    val resolvedIcon = resolveSourceIconUrl(source)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = { onOpenSource(source) },
+                onClick = { if (!isReorderMode) onOpenSource(source) },
                 onLongClick = {
-                    shareUrl?.let { url ->
-                        clipboardManager.setText(AnnotatedString(url))
-                        onSourceUrlCopied(url)
+                    if (!isReorderMode) {
+                        shareUrl?.let { url ->
+                            clipboardManager.setText(AnnotatedString(url))
+                            onSourceUrlCopied(url)
+                        }
                     }
                 }
             ),
@@ -743,13 +854,22 @@ private fun SourceCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
+            if (isReorderMode) {
+                Icon(
+                    imageVector = Icons.Outlined.DragHandle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
             Box(
                 modifier = Modifier.size(36.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (!source.iconUrl.isNullOrBlank()) {
+                if (!resolvedIcon.isNullOrBlank()) {
                     AsyncImage(
-                        model = source.iconUrl,
+                        model = resolvedIcon,
                         contentDescription = source.title,
                         modifier = Modifier
                             .fillMaxSize()
@@ -801,25 +921,55 @@ private fun SourceCard(
                 )
             }
 
-            if (shareUrl != null) {
-                IconButton(onClick = {
-                    clipboardManager.setText(AnnotatedString(shareUrl))
-                    onSourceUrlCopied(shareUrl)
-                }) {
+            if (isReorderMode) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    IconButton(
+                        onClick = onMoveUp,
+                        enabled = canMoveUp,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowUpward,
+                            contentDescription = "Move up",
+                            tint = if (canMoveUp) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = onMoveDown,
+                        enabled = canMoveDown,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ArrowDownward,
+                            contentDescription = "Move down",
+                            tint = if (canMoveDown) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant
+                        )
+                    }
+                }
+            } else {
+                if (shareUrl != null) {
+                    IconButton(onClick = {
+                        clipboardManager.setText(AnnotatedString(shareUrl))
+                        onSourceUrlCopied(shareUrl)
+                    }) {
+                        Icon(
+                            imageVector = Icons.Outlined.ContentCopy,
+                            contentDescription = "Copy source link",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                IconButton(onClick = { onRequestRemove(source) }) {
                     Icon(
-                        imageVector = Icons.Outlined.ContentCopy,
-                        contentDescription = "Copy source link",
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Remove source",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-
-            IconButton(onClick = { onRequestRemove(source) }) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Remove source",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
