@@ -14,7 +14,7 @@
   [![Platform](https://img.shields.io/badge/Platform-Android_8.0+_(API_26+)-3DDC84.svg?logo=android)](https://www.android.com)
   [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?logo=kotlin)](https://kotlinlang.org)
   [![Jetpack Compose](https://img.shields.io/badge/Compose-Material_3-4285F4.svg?logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
-  [![Version](https://img.shields.io/badge/Version-6.1-pink.svg)](https://github.com/joshiminh/WallBase/releases)
+  [![Version](https://img.shields.io/badge/Version-6.6-pink.svg)](https://github.com/joshiminh/WallBase/releases)
 </div>
 
 ---

@@ -195,7 +195,7 @@ class DeclarativeScraperEngine @Inject constructor(
         userSettings: Map<String, String>
     ): Request {
         val headersBuilder = Headers.Builder()
-        headersBuilder.add("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 WallBase/6.5")
+        headersBuilder.add("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 WallBase/6.6")
 
         manifest.headers?.forEach { (k, v) ->
             headersBuilder.set(k, substituteVariables(v, query, pageParam, userSettings))

@@ -7,7 +7,7 @@
   "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=reddit.com",
   "baseUrl": "https://www.reddit.com",
   "defaultHeaders": {
-    "User-Agent": "android:com.joshiminh.wallbase:v6.5 (by /u/JoshiMinh)"
+    "User-Agent": "android:com.joshiminh.wallbase:v6.6 (by /u/JoshiMinh)"
   },
   "description": "Community wallpapers from popular Reddit wallpaper communities",
   "author": "WallBase Community",

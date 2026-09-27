@@ -29,8 +29,8 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 WallBase/6.5"
-    private const val REDDIT_USER_AGENT = "android:com.joshiminh.wallbase:v6.5 (by /u/JoshiMinh)"
+    private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36 WallBase/6.6"
+    private const val REDDIT_USER_AGENT = "android:com.joshiminh.wallbase:v6.6 (by /u/JoshiMinh)"
 
     @Provides
     @Singleton
