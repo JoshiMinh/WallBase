@@ -215,7 +215,7 @@ fun AlbumRoute(
         ),
         actions = topBarActions,
         titleContent = titleContent,
-        autoHideBars = false
+        autoHideBars = !isSearchActive
     )
     val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
     SideEffect {

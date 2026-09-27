@@ -328,6 +328,40 @@ fun WallBaseApp(
         navController.previousBackStackEntry != null && currentDestination?.route !in topLevelRoutes
     val showTopBar = currentDestination?.route != "wallpaperDetail"
 
+    val isAutoHideEnabled = topBarState?.autoHideBars == true
+    var areBarsVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(currentDestination?.route, isAutoHideEnabled) {
+        if (!isAutoHideEnabled) {
+            areBarsVisible = true
+        }
+    }
+
+    val nestedScrollConnection = remember(isAutoHideEnabled) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (!isAutoHideEnabled) return Offset.Zero
+                val delta = available.y
+                if (delta < -8f && areBarsVisible) {
+                    areBarsVisible = false
+                } else if (delta > 8f && !areBarsVisible) {
+                    areBarsVisible = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    val barsProgress by animateFloatAsState(
+        targetValue = if (areBarsVisible || !isAutoHideEnabled) 1f else 0f,
+        animationSpec = if (settingsUiState.animationsEnabled) {
+            spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+        } else {
+            snap()
+        },
+        label = "barsAnimation"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -336,6 +370,7 @@ fun WallBaseApp(
         val navContainerModifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .nestedScroll(nestedScrollConnection)
 
         val renderNavHost: @Composable (SharedTransitionScope?) -> Unit = { sharedScope ->
                 val rootRouteOrder = remember {
@@ -633,7 +668,11 @@ fun WallBaseApp(
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationY = -size.height * (1f - barsProgress)
+                        alpha = barsProgress.coerceIn(0f, 1f)
+                    },
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
                 tonalElevation = 0.dp,
             ) {
@@ -701,7 +740,11 @@ fun WallBaseApp(
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationY = size.height * (1f - barsProgress)
+                        alpha = barsProgress.coerceIn(0f, 1f)
+                    },
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
                 tonalElevation = 0.dp,
             ) {

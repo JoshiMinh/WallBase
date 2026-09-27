@@ -254,7 +254,7 @@ fun GlobalSearchScreen(
             actions = actions,
             titleContent = titleContent,
             bottomContent = sourceTabsContent,
-            autoHideBars = false
+            autoHideBars = !isSearchActive
         )
     }
 
