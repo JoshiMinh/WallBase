@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GridView
@@ -36,9 +37,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -118,43 +121,28 @@ fun ViewFilterSortBottomSheet(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
-            // Header Tab Bar (Sleek Pill Container)
+            // Header Tab Bar (Native Material 3 PrimaryTabRow)
             if (availableTabs.size > 1) {
-                Surface(
+                PrimaryTabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = Color.Transparent,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        availableTabs.forEachIndexed { index, tab ->
-                            val isSelected = selectedTabIndex == index
-                            Surface(
-                                onClick = { selectedTabIndex = index },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = tab.label,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                }
+                    availableTabs.forEachIndexed { index, tab ->
+                        val isSelected = selectedTabIndex == index
+                        Tab(
+                            selected = isSelected,
+                            onClick = { selectedTabIndex = index },
+                            text = {
+                                Text(
+                                    text = tab.label,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                )
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -463,10 +451,17 @@ private fun DisplayTabContent(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     LayoutChoiceItem(
                         title = "Grid",
-                        description = "Balanced rows and columns",
+                        description = "Uniform balanced grid",
                         icon = Icons.Outlined.GridView,
                         selected = wallpaperLayout == WallpaperLayout.GRID,
                         onClick = { onWallpaperLayoutChanged(WallpaperLayout.GRID) }
+                    )
+                    LayoutChoiceItem(
+                        title = "Staggered",
+                        description = "Dynamic gallery masonry",
+                        icon = Icons.Outlined.Dashboard,
+                        selected = wallpaperLayout == WallpaperLayout.STAGGERED,
+                        onClick = { onWallpaperLayoutChanged(WallpaperLayout.STAGGERED) }
                     )
                     LayoutChoiceItem(
                         title = "Justified",
@@ -486,7 +481,7 @@ private fun DisplayTabContent(
             }
         }
 
-        if (gridColumns != null && onGridColumnsChanged != null && (wallpaperLayout == null || wallpaperLayout == WallpaperLayout.GRID)) {
+        if (gridColumns != null && onGridColumnsChanged != null && (wallpaperLayout == null || wallpaperLayout == WallpaperLayout.GRID || wallpaperLayout == WallpaperLayout.STAGGERED)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "Grid columns",

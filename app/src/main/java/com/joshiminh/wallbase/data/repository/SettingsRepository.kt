@@ -351,18 +351,21 @@ enum class AlbumLayout {
 
 enum class WallpaperLayout {
     GRID,
+    STAGGERED,
     JUSTIFIED,
     LIST;
 
     val storageValue: String
         get() = when (this) {
             GRID -> "grid"
+            STAGGERED -> "staggered"
             JUSTIFIED -> "justified"
             LIST -> "list"
         }
 
     companion object {
         fun fromStorage(value: String?): WallpaperLayout = when (value) {
+            "staggered" -> STAGGERED
             "justified" -> JUSTIFIED
             "list" -> LIST
             else -> GRID

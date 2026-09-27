@@ -253,6 +253,7 @@ fun LibraryContent(
                                     Text(
                                         text = "Organize wallpapers by creating your first album.",
                                         style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         textAlign = TextAlign.Center
                                     )
                                     TextButton(

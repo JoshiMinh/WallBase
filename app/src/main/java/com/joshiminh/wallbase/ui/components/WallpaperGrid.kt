@@ -192,7 +192,8 @@ fun WallpaperGrid(
     val totalItems = wallpapers.size
     val loadMoreCallback = onLoadMore
     when (layout) {
-        WallpaperLayout.GRID -> {
+        WallpaperLayout.GRID, WallpaperLayout.STAGGERED -> {
+            val isStaggeredDynamic = layout == WallpaperLayout.STAGGERED
             val gridState = rememberLazyStaggeredGridState()
             if (loadMoreCallback != null) {
                 LaunchedEffect(gridState, totalItems, isLoadingMore, canLoadMore) {
@@ -241,6 +242,11 @@ fun WallpaperGrid(
                     val onLongPressHandler = remember(wallpaper.id, onLongPress) {
                         onLongPress?.let { handler -> { handler(wallpaper) } }
                     }
+                    val cardRatio = if (isStaggeredDynamic) {
+                        wallpaper.aspectRatio?.takeIf { it > 0f } ?: staggeredFallbackRatio(wallpaper.id)
+                    } else {
+                        DEFAULT_ASPECT_RATIO
+                    }
                     WallpaperCard(
                         item = wallpaper,
                         isSelected = isSelected,
@@ -249,6 +255,7 @@ fun WallpaperGrid(
                         showDownloadedBadge = showDownloadedBadge,
                         onClick = onClickHandler,
                         onLongPress = onLongPressHandler,
+                        aspectRatio = cardRatio,
                         modifier = Modifier.fillMaxWidth(),
                         sharedElementModifier = sharedModifier
                     )
@@ -472,7 +479,8 @@ fun WallpaperGrid(
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     when (layout) {
-        WallpaperLayout.GRID -> {
+        WallpaperLayout.GRID, WallpaperLayout.STAGGERED -> {
+            val isStaggeredDynamic = layout == WallpaperLayout.STAGGERED
             val gridState = rememberLazyStaggeredGridState()
             val columnCount = columns.coerceIn(1, 3)
 
@@ -510,6 +518,11 @@ fun WallpaperGrid(
                         val onLongPressHandler = remember(wallpaper.id, onLongPress) {
                             onLongPress?.let { handler -> { handler(wallpaper) } }
                         }
+                        val cardRatio = if (isStaggeredDynamic) {
+                            wallpaper.aspectRatio?.takeIf { it > 0f } ?: staggeredFallbackRatio(wallpaper.id)
+                        } else {
+                            DEFAULT_ASPECT_RATIO
+                        }
                         WallpaperCard(
                             item = wallpaper,
                             isSelected = isSelected,
@@ -518,6 +531,7 @@ fun WallpaperGrid(
                             showDownloadedBadge = showDownloadedBadge,
                             onClick = onClickHandler,
                             onLongPress = onLongPressHandler,
+                            aspectRatio = cardRatio,
                             modifier = Modifier.fillMaxWidth(),
                             sharedElementModifier = sharedModifier
                         )
@@ -1068,4 +1082,10 @@ fun WallpaperListRow(
 }
 
 private const val DEFAULT_ASPECT_RATIO = 9f / 16f
+
+private fun staggeredFallbackRatio(id: String): Float {
+    val variants = floatArrayOf(0.60f, 0.72f, 0.5625f, 0.80f, 0.68f)
+    val index = kotlin.math.abs(id.hashCode()) % variants.size
+    return variants[index]
+}
 

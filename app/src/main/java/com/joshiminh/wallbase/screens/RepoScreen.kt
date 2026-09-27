@@ -172,7 +172,8 @@ fun RepoScreen(
                                 Text(
                                     text = "No repositories added.",
                                     style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Tap the + button in the top bar to add a repo.json repository URL.",

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ViewQuilt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material3.Icon
@@ -122,7 +123,8 @@ fun WallpaperLayoutPicker(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             WallpaperLayout.entries.forEach { layout ->
                 val (title, description, icon) = when (layout) {
-                    WallpaperLayout.GRID -> Triple("Grid", "Balanced rows", Icons.Outlined.GridView)
+                    WallpaperLayout.GRID -> Triple("Grid", "Uniform rows", Icons.Outlined.GridView)
+                    WallpaperLayout.STAGGERED -> Triple("Staggered", "Gallery masonry", Icons.Outlined.Dashboard)
                     WallpaperLayout.JUSTIFIED -> Triple(
                         "Justified", "Adaptive collage",
                         Icons.AutoMirrored.Outlined.ViewQuilt

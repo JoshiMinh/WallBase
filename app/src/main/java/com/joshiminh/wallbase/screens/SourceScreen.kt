@@ -519,6 +519,8 @@ private fun EmptyWallpaperState(
         Text(
             text = if (query == null) "Nothing here yet" else "No results for \"$query\"",
             style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
         Text(
             text = if (query == null) {

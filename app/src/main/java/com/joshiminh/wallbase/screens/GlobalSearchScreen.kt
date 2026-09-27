@@ -192,18 +192,7 @@ fun GlobalSearchScreen(
                         selected = uiState.selectedSourceKey == null,
                         onClick = { viewModel.selectSourceFilter(null) },
                         text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Public,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                    tint = if (uiState.selectedSourceKey == null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text("All")
-                            }
+                            Text("All")
                         }
                     )
                     sources.forEach { source ->
