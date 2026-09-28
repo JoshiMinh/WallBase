@@ -20,8 +20,8 @@ enum class RootRoute(
     val unselectedIcon: ImageVector,
 ) {
     Library("library", "Library", Icons.Filled.Collections, Icons.Outlined.Collections),
-    Search("search", "Browse", Icons.Filled.Explore, Icons.Outlined.Explore),
     Albums("albums", "Albums", Icons.Filled.PhotoLibrary, Icons.Outlined.PhotoLibrary),
+    Search("search", "Browse", Icons.Filled.Explore, Icons.Outlined.Explore),
     Browse("browse", "Sources", Icons.Filled.Extension, Icons.Outlined.Extension),
     Settings("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings);
 

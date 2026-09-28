@@ -25,11 +25,11 @@ class UpdateRepository @Inject constructor(
         data class Error(val throwable: Throwable) : UpdateResult()
     }
 
-    suspend fun checkForUpdates(): UpdateResult = withContext(ioDispatcher) {
+    suspend fun checkForUpdates(currentVersionOverride: String? = null): UpdateResult = withContext(ioDispatcher) {
         try {
             val release = service.fetchLatestRelease()
             val remoteVersion = parseVersion(release.tagName)
-            val currentVersion = parseVersion(BuildConfig.VERSION_NAME)
+            val currentVersion = parseVersion(currentVersionOverride ?: BuildConfig.VERSION_NAME)
 
             if (remoteVersion == null || currentVersion == null) {
                 return@withContext UpdateResult.Error(
@@ -51,7 +51,7 @@ class UpdateRepository @Inject constructor(
         }
     }
 
-    private fun parseVersion(raw: String?): SemanticVersion? {
+    internal fun parseVersion(raw: String?): SemanticVersion? {
         if (raw.isNullOrBlank()) return null
         val trimmed = raw.trim()
         val sanitized = trimmed.removePrefix("v").removePrefix("V")
@@ -64,7 +64,7 @@ class UpdateRepository @Inject constructor(
         return SemanticVersion(major, minor, patch, preRelease, display = sanitized)
     }
 
-    private data class SemanticVersion(
+    internal data class SemanticVersion(
         val major: Int,
         val minor: Int,
         val patch: Int,

@@ -832,7 +832,9 @@ class LibraryRepository @Inject constructor(
 
     suspend fun reorderAlbums(orderedAlbumIds: List<Long>) {
         withContext(Dispatchers.IO) {
-            albumDao.updateAlbumsSortOrder(orderedAlbumIds)
+            orderedAlbumIds.forEachIndexed { index, albumId ->
+                albumDao.updateAlbumSortOrder(albumId, index)
+            }
         }
     }
 

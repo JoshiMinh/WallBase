@@ -18,8 +18,8 @@ fun NavController.navigateSingleTop(
 
 fun currentTitle(dest: NavDestination?): String = when {
     dest.isTopDestination(RootRoute.Library) -> "Library"
-    dest.isTopDestination(RootRoute.Search) -> "Browse"
     dest.isTopDestination(RootRoute.Albums) -> "Albums"
+    dest.isTopDestination(RootRoute.Search) -> "Browse"
     dest.isTopDestination(RootRoute.Browse) -> "Sources"
     dest.isTopDestination(RootRoute.Settings) -> "Settings"
     dest?.route == "settings/categories" -> "Categories"

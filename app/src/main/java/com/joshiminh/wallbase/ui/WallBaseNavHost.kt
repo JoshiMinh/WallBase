@@ -393,8 +393,8 @@ fun WallBaseApp(
                 val rootRouteOrder = remember {
                     listOf(
                         RootRoute.Library.route,
-                        RootRoute.Search.route,
                         RootRoute.Albums.route,
+                        RootRoute.Search.route,
                         RootRoute.Browse.route,
                         RootRoute.Settings.route,
                     )
@@ -797,11 +797,27 @@ fun WallBaseApp(
                                     }
                                 },
                                 icon = {
-                                    AnimatedBottomBarIcon(
-                                        item = item,
-                                        isSelected = isSelected,
-                                        animationsEnabled = settingsUiState.animationsEnabled,
-                                    )
+                                    if (item == RootRoute.Settings && settingsUiState.availableUpdateVersion != null) {
+                                        BadgedBox(
+                                            badge = {
+                                                Badge(
+                                                    containerColor = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
+                                        ) {
+                                            AnimatedBottomBarIcon(
+                                                item = item,
+                                                isSelected = isSelected,
+                                                animationsEnabled = settingsUiState.animationsEnabled,
+                                            )
+                                        }
+                                    } else {
+                                        AnimatedBottomBarIcon(
+                                            item = item,
+                                            isSelected = isSelected,
+                                            animationsEnabled = settingsUiState.animationsEnabled,
+                                        )
+                                    }
                                 },
                                 label = {
                                     Text(
