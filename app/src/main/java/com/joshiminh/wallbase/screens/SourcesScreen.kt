@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -529,6 +530,7 @@ private fun InstalledTabContent(
 
     var localSources by remember(sources) { mutableStateOf(sources) }
     var draggingKey by remember { mutableStateOf<String?>(null) }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(sources) {
@@ -537,42 +539,38 @@ private fun InstalledTabContent(
         }
     }
 
-    val onDragStart: (String) -> Unit = { key ->
-        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+    val onDragStart: (Int, String) -> Unit = { index, key ->
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         draggingKey = key
+        draggingIndex = index
         dragOffsetY = 0f
     }
 
     val onDrag: (Float) -> Unit = { deltaY ->
         dragOffsetY += deltaY
-        val currentIndex = localSources.indexOfFirst { it.key == draggingKey }
-        if (currentIndex != -1) {
+        val currentIndex = draggingIndex
+        if (currentIndex != null && currentIndex in localSources.indices) {
             val itemInfo = lazyListState.layoutInfo.visibleItemsInfo
                 .firstOrNull { it.key == draggingKey }
-            if (itemInfo != null) {
-                val currentCenter = itemInfo.offset + itemInfo.size / 2 + dragOffsetY
-                val targetItem = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
-                    if (item.key == draggingKey) return@firstOrNull false
-                    val itemMidpoint = item.offset + item.size / 2
-                    if (deltaY > 0) {
-                        currentCenter >= itemMidpoint && currentCenter <= item.offset + item.size
-                    } else if (deltaY < 0) {
-                        currentCenter <= itemMidpoint && currentCenter >= item.offset
-                    } else {
-                        false
-                    }
-                }
-                if (targetItem != null) {
-                    val targetIndex = localSources.indexOfFirst { it.key == targetItem.key }
-                    if (targetIndex != -1 && targetIndex != currentIndex) {
-                        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                        val updated = localSources.toMutableList()
-                        val moved = updated.removeAt(currentIndex)
-                        updated.add(targetIndex, moved)
-                        localSources = updated
-                        dragOffsetY += itemInfo.offset - targetItem.offset
-                    }
-                }
+            val itemHeight = itemInfo?.size?.toFloat() ?: 180f
+            val threshold = itemHeight * 0.55f
+
+            if (dragOffsetY > threshold && currentIndex + 1 < localSources.size) {
+                val updated = localSources.toMutableList()
+                val moved = updated.removeAt(currentIndex)
+                updated.add(currentIndex + 1, moved)
+                localSources = updated
+                dragOffsetY -= itemHeight
+                draggingIndex = currentIndex + 1
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            } else if (dragOffsetY < -threshold && currentIndex > 0) {
+                val updated = localSources.toMutableList()
+                val moved = updated.removeAt(currentIndex)
+                updated.add(currentIndex - 1, moved)
+                localSources = updated
+                dragOffsetY += itemHeight
+                draggingIndex = currentIndex - 1
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             }
         }
     }
@@ -581,6 +579,7 @@ private fun InstalledTabContent(
         val finalSources = localSources
         val wasDragging = draggingKey != null
         draggingKey = null
+        draggingIndex = null
         dragOffsetY = 0f
         if (wasDragging) {
             onReorderSources?.invoke(finalSources)
@@ -590,6 +589,7 @@ private fun InstalledTabContent(
     val onDragCancel: () -> Unit = {
         localSources = sources
         draggingKey = null
+        draggingIndex = null
         dragOffsetY = 0f
     }
 
@@ -607,11 +607,9 @@ private fun InstalledTabContent(
                 if (currentCenter < topThreshold) {
                     val scroll = -((topThreshold - currentCenter) / topThreshold * 14f).coerceAtLeast(3f)
                     lazyListState.scrollBy(scroll)
-                    dragOffsetY += scroll
                 } else if (currentCenter > bottomThreshold) {
                     val scroll = ((currentCenter - bottomThreshold) / 100f * 14f).coerceAtLeast(3f)
                     lazyListState.scrollBy(scroll)
-                    dragOffsetY -= scroll
                 }
             }
             delay(16)
@@ -649,19 +647,10 @@ private fun InstalledTabContent(
                     source = source,
                     isDragging = isDragging,
                     isReorderEnabled = isReorderEnabled,
-                    dragModifier = if (isReorderEnabled) {
-                        Modifier.pointerInput(source.key) {
-                            detectDragGestures(
-                                onDragStart = { onDragStart(source.key) },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    onDrag(dragAmount.y)
-                                },
-                                onDragEnd = onDragEnd,
-                                onDragCancel = onDragCancel
-                            )
-                        }
-                    } else Modifier,
+                    onDragStart = { onDragStart(index, source.key) },
+                    onDrag = onDrag,
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragCancel,
                     onOpenSource = onOpenSource,
                     onRequestRemove = onRequestRemove,
                     onSourceUrlCopied = onSourceUrlCopied
@@ -884,7 +873,10 @@ private fun SourceCard(
     source: Source,
     isDragging: Boolean = false,
     isReorderEnabled: Boolean = false,
-    dragModifier: Modifier = Modifier,
+    onDragStart: () -> Unit = {},
+    onDrag: (Float) -> Unit = {},
+    onDragEnd: () -> Unit = {},
+    onDragCancel: () -> Unit = {},
     onOpenSource: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
     onSourceUrlCopied: (String) -> Unit
@@ -934,7 +926,17 @@ private fun SourceCard(
                 Box(
                     modifier = Modifier
                         .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                        .then(dragModifier),
+                        .pointerInput(source.key) {
+                            detectDragGestures(
+                                onDragStart = { onDragStart() },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    onDrag(dragAmount.y)
+                                },
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragCancel() }
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

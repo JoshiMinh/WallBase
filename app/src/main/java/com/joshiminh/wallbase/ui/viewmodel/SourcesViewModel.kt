@@ -283,8 +283,10 @@ class SourcesViewModel @Inject constructor(
     }
 
     fun reorderSources(orderedSources: List<Source>) {
-        val keys = orderedSources.map { it.key }
-        _uiState.update { it.copy(sources = orderedSources) }
+        val currentLocal = _uiState.value.sources.filter(Source::isLocal)
+        val fullList = currentLocal + orderedSources.filterNot(Source::isLocal)
+        val keys = fullList.map { it.key }
+        _uiState.update { it.copy(sources = fullList) }
         viewModelScope.launch {
             sourceRepository.reorderSources(keys)
         }

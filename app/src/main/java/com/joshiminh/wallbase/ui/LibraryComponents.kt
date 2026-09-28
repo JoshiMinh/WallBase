@@ -415,8 +415,8 @@ fun AlbumGridCard(
                 }
             }
             .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress
+                onClick = { if (!isDragging) onClick() },
+                onLongClick = { if (!isDragging) onLongPress() }
             )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -501,7 +501,7 @@ fun AlbumGridCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                             .then(dragModifier),
                         contentAlignment = Alignment.Center
                     ) {
@@ -602,8 +602,8 @@ fun AlbumRowCard(
                 }
             }
             .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress
+                onClick = { if (!isDragging) onClick() },
+                onLongClick = { if (!isDragging) onLongPress() }
             )
     ) {
         Row(
@@ -679,7 +679,7 @@ fun AlbumRowCard(
             } else if (isReorderEnabled) {
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                         .then(dragModifier),
                     contentAlignment = Alignment.Center
                 ) {
@@ -727,7 +727,7 @@ fun SelectionCheckmark(selected: Boolean, modifier: Modifier = Modifier) {
     ) {
         Icon(
             imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-            contentDescription = if (selected) "Selected" else "Not selected",
+            contentDescription = null,
             tint = contentColor,
             modifier = Modifier.padding(4.dp).size(18.dp)
         )
