@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -377,9 +378,13 @@ fun AlbumGridCard(
     selectionMode: Boolean,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDragging: Boolean = false,
+    isReorderEnabled: Boolean = false
 ) {
-    val borderColor = if (selected) {
+    val borderColor = if (isDragging) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+    } else if (selected) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -387,9 +392,17 @@ fun AlbumGridCard(
 
     Card(
         shape = WallBaseShapes.featured,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 6.dp else 2.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        border = BorderStroke(if (isDragging) 1.5.dp else if (selected) 2.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) 8.dp else if (selected) 6.dp else 2.dp
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDragging) {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        ),
         modifier = modifier
             .aspectRatio(0.82f)
             .graphicsLayer {
@@ -398,9 +411,15 @@ fun AlbumGridCard(
                     scaleY = 0.97f
                 }
             }
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress
+            .then(
+                if (isReorderEnabled) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongPress
+                    )
+                }
             )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -525,9 +544,13 @@ fun AlbumRowCard(
     selectionMode: Boolean,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isDragging: Boolean = false,
+    isReorderEnabled: Boolean = false
 ) {
-    val borderColor = if (selected) {
+    val borderColor = if (isDragging) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+    } else if (selected) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -535,10 +558,14 @@ fun AlbumRowCard(
 
     Card(
         shape = WallBaseShapes.card,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, borderColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (selected) 3.dp else 0.dp),
+        border = BorderStroke(if (isDragging) 1.5.dp else if (selected) 2.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) 8.dp else if (selected) 3.dp else 0.dp
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
+            containerColor = if (isDragging) {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            } else if (selected) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
             } else {
                 MaterialTheme.colorScheme.surfaceContainerHigh
@@ -552,9 +579,15 @@ fun AlbumRowCard(
                     scaleY = 0.985f
                 }
             }
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress
+            .then(
+                if (isReorderEnabled) {
+                    Modifier.clickable(onClick = onClick)
+                } else {
+                    Modifier.combinedClickable(
+                        onClick = onClick,
+                        onLongClick = onLongPress
+                    )
+                }
             )
     ) {
         Row(

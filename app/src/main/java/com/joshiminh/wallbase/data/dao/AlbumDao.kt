@@ -41,6 +41,19 @@ interface AlbumDao {
     @Query("SELECT * FROM albums ORDER BY sort_order, title")
     fun observeAlbumsWithWallpapers(): Flow<List<AlbumWithWallpapers>>
 
+    @Query("SELECT MAX(sort_order) FROM albums")
+    suspend fun getMaxSortOrder(): Int?
+
+    @Query("UPDATE albums SET sort_order = :sortOrder WHERE album_id = :albumId")
+    suspend fun updateAlbumSortOrder(albumId: Long, sortOrder: Int): Int
+
+    @Transaction
+    suspend fun updateAlbumsSortOrder(orderedAlbumIds: List<Long>) {
+        orderedAlbumIds.forEachIndexed { index, albumId ->
+            updateAlbumSortOrder(albumId, index)
+        }
+    }
+
     @Transaction
     @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
     fun observeAlbumWithWallpapers(albumId: Long): Flow<AlbumWithWallpapers?>

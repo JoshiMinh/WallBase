@@ -41,7 +41,7 @@ class LibraryViewModel @Inject constructor(
     private val directAddInProgress = MutableStateFlow(false)
     private val directAddStatus = MutableStateFlow<Boolean?>(null)
     private val wallpaperSort = MutableStateFlow(WallpaperSortOption.RECENTLY_ADDED)
-    private val albumSort = MutableStateFlow(AlbumSortOption.TITLE_ASCENDING)
+    private val albumSort = MutableStateFlow(AlbumSortOption.CUSTOM)
     private val downloadedFilter = MutableStateFlow(DownloadedFilter.SHOW_ALL)
     private val favoritesOnly = MutableStateFlow(false)
     private val isRefreshing = MutableStateFlow(false)
@@ -137,6 +137,13 @@ class LibraryViewModel @Inject constructor(
 
     fun updateAlbumSort(option: AlbumSortOption) {
         albumSort.value = option
+    }
+
+    fun reorderAlbums(orderedAlbums: List<AlbumItem>) {
+        albumSort.value = AlbumSortOption.CUSTOM
+        viewModelScope.launch {
+            repository.reorderAlbums(orderedAlbums.map { it.id })
+        }
     }
 
     fun updateDownloadedFilter(filter: DownloadedFilter) {
@@ -444,7 +451,7 @@ class LibraryViewModel @Inject constructor(
         val selectionAction: SelectionAction? = null,
         val message: String? = null,
         val wallpaperSortOption: WallpaperSortOption = WallpaperSortOption.RECENTLY_ADDED,
-        val albumSortOption: AlbumSortOption = AlbumSortOption.TITLE_ASCENDING,
+        val albumSortOption: AlbumSortOption = AlbumSortOption.CUSTOM,
         val wallpaperGridColumns: Int = 2,
         val albumLayout: AlbumLayout = AlbumLayout.CARD_LIST,
         val wallpaperLayout: WallpaperLayout = WallpaperLayout.GRID,

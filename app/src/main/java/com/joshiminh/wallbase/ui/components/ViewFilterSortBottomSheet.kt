@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.outlined.ViewQuilt
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Favorite
@@ -629,11 +630,13 @@ private fun GridColumnChip(
 }
 
 private fun SortField.icon(): ImageVector = when (this) {
+    SortField.Custom -> Icons.AutoMirrored.Outlined.Sort
     SortField.Alphabet -> Icons.Outlined.SortByAlpha
     SortField.DateAdded -> Icons.Outlined.Schedule
 }
 
 private fun SortDirection.description(field: SortField): String = when (field) {
+    SortField.Custom -> "Custom order"
     SortField.Alphabet -> if (this == SortDirection.Ascending) "A → Z" else "Z → A"
     SortField.DateAdded -> if (this == SortDirection.Descending) "Newest first" else "Oldest first"
 }

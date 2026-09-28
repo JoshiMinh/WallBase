@@ -15,7 +15,7 @@ interface SortDescriptor<T> {
     }
 }
 
-enum class SortField { Alphabet, DateAdded }
+enum class SortField { Custom, Alphabet, DateAdded }
 
 enum class SortDirection { Ascending, Descending }
 
@@ -47,6 +47,11 @@ enum class AlbumSortOption(
     override val label: String,
     override val comparator: Comparator<AlbumItem>
 ) : SortDescriptor<AlbumItem> {
+    CUSTOM(
+        label = "Custom",
+        comparator = compareBy<AlbumItem> { it.sortOrder }
+            .thenBy { it.title.lowercase(Locale.ROOT) }
+    ),
     RECENTLY_CREATED(
         label = "Recently added",
         comparator = compareByDescending<AlbumItem> { it.createdAt }
@@ -77,6 +82,7 @@ fun WallpaperSortOption.toSelection(): SortSelection = when (this) {
 }
 
 fun SortSelection.toWallpaperSortOption(): WallpaperSortOption = when (field) {
+    SortField.Custom,
     SortField.Alphabet -> if (direction == SortDirection.Ascending) {
         WallpaperSortOption.TITLE_ASCENDING
     } else {
@@ -91,6 +97,7 @@ fun SortSelection.toWallpaperSortOption(): WallpaperSortOption = when (field) {
 }
 
 fun AlbumSortOption.toSelection(): SortSelection = when (this) {
+    AlbumSortOption.CUSTOM -> SortSelection(SortField.Custom, SortDirection.Ascending)
     AlbumSortOption.RECENTLY_CREATED -> SortSelection(SortField.DateAdded, SortDirection.Descending)
     AlbumSortOption.EARLIEST_CREATED -> SortSelection(SortField.DateAdded, SortDirection.Ascending)
     AlbumSortOption.TITLE_ASCENDING -> SortSelection(SortField.Alphabet, SortDirection.Ascending)
@@ -98,6 +105,7 @@ fun AlbumSortOption.toSelection(): SortSelection = when (this) {
 }
 
 fun SortSelection.toAlbumSortOption(): AlbumSortOption = when (field) {
+    SortField.Custom -> AlbumSortOption.CUSTOM
     SortField.Alphabet -> if (direction == SortDirection.Ascending) {
         AlbumSortOption.TITLE_ASCENDING
     } else {
@@ -113,11 +121,13 @@ fun SortSelection.toAlbumSortOption(): AlbumSortOption = when (field) {
 
 val SortField.displayName: String
     get() = when (this) {
+        SortField.Custom -> "Custom"
         SortField.Alphabet -> "Alphabet"
         SortField.DateAdded -> "Date added"
     }
 
 fun SortField.defaultDirection(): SortDirection = when (this) {
+    SortField.Custom -> SortDirection.Ascending
     SortField.Alphabet -> SortDirection.Ascending
     SortField.DateAdded -> SortDirection.Descending
 }

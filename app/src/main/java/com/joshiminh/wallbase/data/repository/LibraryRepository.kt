@@ -802,11 +802,12 @@ class LibraryRepository @Inject constructor(
 
         return withContext(Dispatchers.IO) {
             val now = System.currentTimeMillis()
+            val maxOrder = albumDao.getMaxSortOrder() ?: -1
             val entity = AlbumEntity(
                 title = normalizedTitle,
                 description = null,
                 coverWallpaperId = null,
-                sortOrder = 0,
+                sortOrder = maxOrder + 1,
                 isPinned = false,
                 createdAt = now,
                 updatedAt = now,
@@ -823,8 +824,15 @@ class LibraryRepository @Inject constructor(
                 title = normalizedTitle,
                 wallpaperCount = 0,
                 coverImageUrl = null,
-                createdAt = now
+                createdAt = now,
+                sortOrder = entity.sortOrder
             )
+        }
+    }
+
+    suspend fun reorderAlbums(orderedAlbumIds: List<Long>) {
+        withContext(Dispatchers.IO) {
+            albumDao.updateAlbumsSortOrder(orderedAlbumIds)
         }
     }
 
@@ -1358,7 +1366,8 @@ private fun AlbumWithWallpapers.toAlbumItem(): AlbumItem {
         title = album.title,
         wallpaperCount = wallpapers.size,
         coverImageUrl = cover,
-        createdAt = album.createdAt
+        createdAt = album.createdAt,
+        sortOrder = album.sortOrder
     )
 }
 
