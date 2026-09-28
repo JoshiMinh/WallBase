@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -46,6 +47,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Collections
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.TaskAlt
@@ -379,6 +381,7 @@ fun AlbumGridCard(
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
+    dragModifier: Modifier = Modifier,
     isDragging: Boolean = false,
     isReorderEnabled: Boolean = false
 ) {
@@ -411,15 +414,9 @@ fun AlbumGridCard(
                     scaleY = 0.97f
                 }
             }
-            .then(
-                if (isReorderEnabled) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier.combinedClickable(
-                        onClick = onClick,
-                        onLongClick = onLongPress
-                    )
-                }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
             )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -492,6 +489,30 @@ fun AlbumGridCard(
                         .align(Alignment.TopEnd)
                         .padding(10.dp)
                 )
+            } else if (isReorderEnabled) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    shadowElevation = 2.dp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+                            .then(dragModifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DragHandle,
+                            contentDescription = "Hold and drag to reorder",
+                            tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
 
             Column(
@@ -545,6 +566,7 @@ fun AlbumRowCard(
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     modifier: Modifier = Modifier,
+    dragModifier: Modifier = Modifier,
     isDragging: Boolean = false,
     isReorderEnabled: Boolean = false
 ) {
@@ -579,15 +601,9 @@ fun AlbumRowCard(
                     scaleY = 0.985f
                 }
             }
-            .then(
-                if (isReorderEnabled) {
-                    Modifier.clickable(onClick = onClick)
-                } else {
-                    Modifier.combinedClickable(
-                        onClick = onClick,
-                        onLongClick = onLongPress
-                    )
-                }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
             )
     ) {
         Row(
@@ -660,6 +676,24 @@ fun AlbumRowCard(
 
             if (selectionMode) {
                 SelectionCheckmark(selected = selected)
+            } else if (isReorderEnabled) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .then(dragModifier),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DragHandle,
+                        contentDescription = "Hold and drag to reorder",
+                        modifier = Modifier.size(22.dp),
+                        tint = if (isDragging) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        }
+                    )
+                }
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
@@ -693,7 +727,7 @@ fun SelectionCheckmark(selected: Boolean, modifier: Modifier = Modifier) {
     ) {
         Icon(
             imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-            contentDescription = null,
+            contentDescription = if (selected) "Selected" else "Not selected",
             tint = contentColor,
             modifier = Modifier.padding(4.dp).size(18.dp)
         )

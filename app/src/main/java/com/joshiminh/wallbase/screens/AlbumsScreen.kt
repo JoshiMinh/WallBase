@@ -1,5 +1,6 @@
 package com.joshiminh.wallbase.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,7 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -163,7 +164,7 @@ fun AlbumsScreen(
     var draggingId by remember { mutableStateOf<Long?>(null) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    var hasDragged by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(displayedAlbums) {
         if (draggingId == null) {
@@ -203,6 +204,10 @@ fun AlbumsScreen(
         }
     }
 
+    BackHandler(enabled = isAlbumSelection) {
+        selectedAlbumIds = emptySet()
+    }
+
     val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
     val topBarState = when {
         isAlbumSelection -> {
@@ -218,8 +223,7 @@ fun AlbumsScreen(
                     Icon(imageVector = Icons.Outlined.SelectAll, contentDescription = selectAllLabel)
                 }
                 IconButton(onClick = {
-                    libraryViewModel.deleteAlbums(selectedAlbumIds)
-                    selectedAlbumIds = emptySet()
+                    showDeleteConfirmDialog = true
                 }) {
                     Icon(imageVector = Icons.Outlined.Delete, contentDescription = removeLabel)
                 }
@@ -303,6 +307,7 @@ fun AlbumsScreen(
 
     val onAlbumClick: (AlbumItem) -> Unit = { album ->
         if (isAlbumSelection) {
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
             selectedAlbumIds = if (album.id in selectedAlbumIds) selectedAlbumIds - album.id else selectedAlbumIds + album.id
         } else {
             onAlbumSelected(album)
@@ -310,6 +315,7 @@ fun AlbumsScreen(
     }
 
     val onAlbumLongPress: (AlbumItem) -> Unit = { album ->
+        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
         selectedAlbumIds = if (album.id in selectedAlbumIds) selectedAlbumIds - album.id else selectedAlbumIds + album.id
     }
 
@@ -334,9 +340,11 @@ fun AlbumsScreen(
                 if (currentCenter < topThreshold) {
                     val scroll = -((topThreshold - currentCenter) / topThreshold * 14f).coerceAtLeast(3f)
                     lazyListState.scrollBy(scroll)
+                    dragOffsetY += scroll
                 } else if (currentCenter > bottomThreshold) {
                     val scroll = ((currentCenter - bottomThreshold) / 100f * 14f).coerceAtLeast(3f)
                     lazyListState.scrollBy(scroll)
+                    dragOffsetY -= scroll
                 }
             }
             delay(16)
@@ -357,9 +365,11 @@ fun AlbumsScreen(
                 if (currentCenterY < topThreshold) {
                     val scroll = -((topThreshold - currentCenterY) / topThreshold * 14f).coerceAtLeast(3f)
                     lazyGridState.scrollBy(scroll)
+                    dragOffsetY += scroll
                 } else if (currentCenterY > bottomThreshold) {
                     val scroll = ((currentCenterY - bottomThreshold) / 100f * 14f).coerceAtLeast(3f)
                     lazyGridState.scrollBy(scroll)
+                    dragOffsetY -= scroll
                 }
             }
             delay(16)
@@ -459,94 +469,88 @@ fun AlbumsScreen(
                                         .animateItem()
                                 ) {
                                     AlbumGridCard(
-                                        album = album,
-                                        selected = album.id in selectedAlbumIds,
-                                        selectionMode = isAlbumSelection,
-                                        isDragging = isDragging,
-                                        isReorderEnabled = isReorderEnabled,
-                                        onClick = {
-                                            if (!isDragging && !hasDragged) {
-                                                onAlbumClick(album)
-                                            }
-                                        },
-                                        onLongPress = {
-                                            if (!isReorderEnabled) {
-                                                onAlbumLongPress(album)
-                                            }
-                                        },
-                                        modifier = if (isReorderEnabled) {
-                                            Modifier.pointerInput(album.id) {
-                                                detectDragGesturesAfterLongPress(
-                                                    onDragStart = {
-                                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        draggingId = album.id
-                                                        dragOffsetX = 0f
-                                                        dragOffsetY = 0f
-                                                        hasDragged = false
-                                                    },
-                                                    onDrag = { change, dragAmount ->
-                                                        change.consume()
-                                                        dragOffsetX += dragAmount.x
-                                                        dragOffsetY += dragAmount.y
-                                                        if (kotlin.math.abs(dragOffsetX) > 8f || kotlin.math.abs(dragOffsetY) > 8f) {
-                                                            hasDragged = true
-                                                        }
-                                                        val currentIndex = localAlbums.indexOfFirst { it.id == draggingId }
-                                                        if (currentIndex != -1) {
-                                                            val currentItemInfo = lazyGridState.layoutInfo.visibleItemsInfo
-                                                                .firstOrNull { it.key == draggingId }
-                                                            if (currentItemInfo != null) {
-                                                                val currentCenterX = currentItemInfo.offset.x + currentItemInfo.size.width / 2 + dragOffsetX
-                                                                val currentCenterY = currentItemInfo.offset.y + currentItemInfo.size.height / 2 + dragOffsetY
-                                                                val targetItem = lazyGridState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
-                                                                    item.key != draggingId &&
-                                                                        currentCenterX >= item.offset.x &&
-                                                                        currentCenterX <= (item.offset.x + item.size.width) &&
-                                                                        currentCenterY >= item.offset.y &&
-                                                                        currentCenterY <= (item.offset.y + item.size.height)
-                                                                }
-                                                                if (targetItem != null) {
+                                    album = album,
+                                    selected = album.id in selectedAlbumIds,
+                                    selectionMode = isAlbumSelection,
+                                    isDragging = isDragging,
+                                    isReorderEnabled = isReorderEnabled,
+                                    onClick = { onAlbumClick(album) },
+                                    onLongPress = { onAlbumLongPress(album) },
+                                    dragModifier = if (isReorderEnabled) {
+                                        Modifier.pointerInput(album.id) {
+                                            detectDragGestures(
+                                                onDragStart = {
+                                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    draggingId = album.id
+                                                    dragOffsetX = 0f
+                                                    dragOffsetY = 0f
+                                                },
+                                                onDrag = { change, dragAmount ->
+                                                    change.consume()
+                                                    dragOffsetX += dragAmount.x
+                                                    dragOffsetY += dragAmount.y
+                                                    val currentIndex = localAlbums.indexOfFirst { it.id == draggingId }
+                                                    if (currentIndex != -1) {
+                                                        val currentItemInfo = lazyGridState.layoutInfo.visibleItemsInfo
+                                                            .firstOrNull { it.key == draggingId }
+                                                        if (currentItemInfo != null) {
+                                                            val currentCenterX = currentItemInfo.offset.x + currentItemInfo.size.width / 2 + dragOffsetX
+                                                            val currentCenterY = currentItemInfo.offset.y + currentItemInfo.size.height / 2 + dragOffsetY
+                                                            val targetItem = lazyGridState.layoutInfo.visibleItemsInfo.minByOrNull { item ->
+                                                                if (item.key == draggingId) return@minByOrNull Float.MAX_VALUE
+                                                                val itemCenterX = item.offset.x + item.size.width / 2
+                                                                val itemCenterY = item.offset.y + item.size.height / 2
+                                                                val dx = currentCenterX - itemCenterX
+                                                                val dy = currentCenterY - itemCenterY
+                                                                dx * dx + dy * dy
+                                                            }
+                                                            if (targetItem != null && targetItem.key != draggingId) {
+                                                                val itemCenterX = targetItem.offset.x + targetItem.size.width / 2
+                                                                val itemCenterY = targetItem.offset.y + targetItem.size.height / 2
+                                                                val dx = currentCenterX - itemCenterX
+                                                                val dy = currentCenterY - itemCenterY
+                                                                val threshold = currentItemInfo.size.width * 0.65f
+                                                                if (dx * dx + dy * dy < threshold * threshold) {
                                                                     val targetIndex = localAlbums.indexOfFirst { it.id == targetItem.key }
                                                                     if (targetIndex != -1 && targetIndex != currentIndex) {
                                                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                                                                        localAlbums = localAlbums.toMutableList().apply {
-                                                                            add(targetIndex, removeAt(currentIndex))
-                                                                        }
+                                                                        val updated = localAlbums.toMutableList()
+                                                                        val moved = updated.removeAt(currentIndex)
+                                                                        updated.add(targetIndex, moved)
+                                                                        localAlbums = updated
                                                                         dragOffsetX += currentItemInfo.offset.x - targetItem.offset.x
                                                                         dragOffsetY += currentItemInfo.offset.y - targetItem.offset.y
                                                                     }
                                                                 }
                                                             }
                                                         }
-                                                    },
-                                                    onDragEnd = {
-                                                        if (hasDragged) {
-                                                            libraryViewModel.reorderAlbums(localAlbums)
-                                                        } else {
-                                                            onAlbumLongPress(album)
-                                                        }
-                                                        draggingId = null
-                                                        dragOffsetX = 0f
-                                                        dragOffsetY = 0f
-                                                        hasDragged = false
-                                                    },
-                                                    onDragCancel = {
-                                                        draggingId = null
-                                                        dragOffsetX = 0f
-                                                        dragOffsetY = 0f
-                                                        hasDragged = false
-                                                        localAlbums = displayedAlbums
                                                     }
-                                                )
-                                            }
-                                        } else Modifier
-                                    )
-                                }
+                                                },
+                                                onDragEnd = {
+                                                    val wasDragging = draggingId != null
+                                                    draggingId = null
+                                                    dragOffsetX = 0f
+                                                    dragOffsetY = 0f
+                                                    if (wasDragging) {
+                                                        libraryViewModel.reorderAlbums(localAlbums)
+                                                    }
+                                                },
+                                                onDragCancel = {
+                                                    draggingId = null
+                                                    dragOffsetX = 0f
+                                                    dragOffsetY = 0f
+                                                    localAlbums = displayedAlbums
+                                                }
+                                            )
+                                        }
+                                    } else Modifier
+                                )
                             }
                         }
                     }
+                }
 
-                    AlbumLayout.CARD_LIST -> {
+                AlbumLayout.CARD_LIST -> {
                         LazyColumn(
                             state = lazyListState,
                             contentPadding = PaddingValues(
@@ -581,31 +585,19 @@ fun AlbumsScreen(
                                         selectionMode = isAlbumSelection,
                                         isDragging = isDragging,
                                         isReorderEnabled = isReorderEnabled,
-                                        onClick = {
-                                            if (!isDragging && !hasDragged) {
-                                                onAlbumClick(album)
-                                            }
-                                        },
-                                        onLongPress = {
-                                            if (!isReorderEnabled) {
-                                                onAlbumLongPress(album)
-                                            }
-                                        },
-                                        modifier = if (isReorderEnabled) {
+                                        onClick = { onAlbumClick(album) },
+                                        onLongPress = { onAlbumLongPress(album) },
+                                        dragModifier = if (isReorderEnabled) {
                                             Modifier.pointerInput(album.id) {
-                                                detectDragGesturesAfterLongPress(
+                                                detectDragGestures(
                                                     onDragStart = {
                                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                                         draggingId = album.id
                                                         dragOffsetY = 0f
-                                                        hasDragged = false
                                                     },
                                                     onDrag = { change, dragAmount ->
                                                         change.consume()
                                                         dragOffsetY += dragAmount.y
-                                                        if (kotlin.math.abs(dragOffsetY) > 8f) {
-                                                            hasDragged = true
-                                                        }
                                                         val currentIndex = localAlbums.indexOfFirst { it.id == draggingId }
                                                         if (currentIndex != -1) {
                                                             val currentItemInfo = lazyListState.layoutInfo.visibleItemsInfo
@@ -613,17 +605,22 @@ fun AlbumsScreen(
                                                             if (currentItemInfo != null) {
                                                                 val currentCenter = currentItemInfo.offset + currentItemInfo.size / 2 + dragOffsetY
                                                                 val targetItem = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
-                                                                    item.key != draggingId &&
-                                                                        currentCenter >= item.offset &&
-                                                                        currentCenter <= (item.offset + item.size)
+                                                                    if (item.key == draggingId) return@firstOrNull false
+                                                                    val itemMidpoint = item.offset + item.size / 2
+                                                                    if (dragAmount.y > 0) {
+                                                                        currentCenter >= itemMidpoint && currentCenter <= item.offset + item.size
+                                                                    } else {
+                                                                        currentCenter <= itemMidpoint && currentCenter >= item.offset
+                                                                    }
                                                                 }
                                                                 if (targetItem != null) {
                                                                     val targetIndex = localAlbums.indexOfFirst { it.id == targetItem.key }
                                                                     if (targetIndex != -1 && targetIndex != currentIndex) {
                                                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                                                                        localAlbums = localAlbums.toMutableList().apply {
-                                                                            add(targetIndex, removeAt(currentIndex))
-                                                                        }
+                                                                        val updated = localAlbums.toMutableList()
+                                                                        val moved = updated.removeAt(currentIndex)
+                                                                        updated.add(targetIndex, moved)
+                                                                        localAlbums = updated
                                                                         dragOffsetY += currentItemInfo.offset - targetItem.offset
                                                                     }
                                                                 }
@@ -631,19 +628,16 @@ fun AlbumsScreen(
                                                         }
                                                     },
                                                     onDragEnd = {
-                                                        if (hasDragged) {
-                                                            libraryViewModel.reorderAlbums(localAlbums)
-                                                        } else {
-                                                            onAlbumLongPress(album)
-                                                        }
+                                                        val wasDragging = draggingId != null
                                                         draggingId = null
                                                         dragOffsetY = 0f
-                                                        hasDragged = false
+                                                        if (wasDragging) {
+                                                            libraryViewModel.reorderAlbums(localAlbums)
+                                                        }
                                                     },
                                                     onDragCancel = {
                                                         draggingId = null
                                                         dragOffsetY = 0f
-                                                        hasDragged = false
                                                         localAlbums = displayedAlbums
                                                     }
                                                 )
@@ -732,6 +726,36 @@ fun AlbumsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showAlbumDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
+        val count = selectedAlbumIds.size
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text(text = "Delete ${if (count == 1) "album" else "$count albums"}?") },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete ${if (count == 1) "this album" else "these albums"}? Wallpapers inside will not be deleted from your library."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val idsToDelete = selectedAlbumIds.toList()
+                        selectedAlbumIds = emptySet()
+                        showDeleteConfirmDialog = false
+                        libraryViewModel.deleteAlbums(idsToDelete)
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
                     Text("Cancel")
                 }
             }
