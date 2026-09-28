@@ -21,6 +21,7 @@ import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.util.MinResolution
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -73,6 +74,7 @@ class SettingsViewModel @Inject constructor(
 
         refreshStorageSnapshot()
         refreshSourceConnectionState()
+        autoCheckForUpdates()
     }
 
     fun setMinResolution(minResolution: MinResolution) {
@@ -166,6 +168,38 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun autoCheckForUpdates() {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Delay running the background check so we don't compete during cold start / app opening
+            delay(5000)
+            when (val result = updateRepository.checkForUpdates()) {
+                is UpdateRepository.UpdateResult.UpdateAvailable -> {
+                    val releaseUrl = result.downloadUrl ?: DEFAULT_RELEASES_URL
+                    _uiState.update { state ->
+                        if (state.dismissedUpdateVersion == result.version) {
+                            state.copy(hasCheckedForUpdates = true)
+                        } else {
+                            state.copy(
+                                availableUpdateVersion = result.version,
+                                updateNotes = result.notes,
+                                updateUrl = releaseUrl,
+                                hasCheckedForUpdates = true,
+                                showUpdateDialog = false,
+                                updateError = null
+                            )
+                        }
+                    }
+                }
+                is UpdateRepository.UpdateResult.UpToDate -> {
+                    _uiState.update { it.copy(hasCheckedForUpdates = true) }
+                }
+                is UpdateRepository.UpdateResult.Error -> {
+                    // Silently ignore errors during background check
+                }
+            }
+        }
+    }
+
     fun checkForUpdates() {
         if (_uiState.value.isCheckingForUpdates) return
         viewModelScope.launch {
@@ -184,6 +218,7 @@ class SettingsViewModel @Inject constructor(
                             updateNotes = null,
                             updateUrl = null,
                             hasCheckedForUpdates = true,
+                            showUpdateDialog = false,
                             updateError = null
                         )
                     }
@@ -205,6 +240,7 @@ class SettingsViewModel @Inject constructor(
                                 updateNotes = result.notes,
                                 updateUrl = releaseUrl,
                                 hasCheckedForUpdates = true,
+                                showUpdateDialog = true,
                                 updateError = null
                             )
                         }
@@ -225,6 +261,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun showUpdateDialog() {
+        _uiState.update { it.copy(showUpdateDialog = true) }
+    }
+
+    fun dismissUpdateDialogOnly() {
+        _uiState.update { it.copy(showUpdateDialog = false) }
+    }
+
     fun clearUpdateStatus() {
         _uiState.update {
             it.copy(updateError = null)
@@ -243,6 +287,7 @@ class SettingsViewModel @Inject constructor(
                 availableUpdateVersion = null,
                 updateNotes = null,
                 updateUrl = null,
+                showUpdateDialog = false,
                 dismissedUpdateVersion = version,
                 hasCheckedForUpdates = true
             )
@@ -431,6 +476,7 @@ class SettingsViewModel @Inject constructor(
         val updateUrl: String? = null,
         val updateError: String? = null,
         val hasCheckedForUpdates: Boolean = false,
+        val showUpdateDialog: Boolean = false,
         val dismissedUpdateVersion: String? = null,
         val shouldRestartAfterImport: Boolean = false,
         val showHorizontalWallpapers: Boolean = true,

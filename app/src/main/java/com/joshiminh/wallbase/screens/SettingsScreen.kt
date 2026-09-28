@@ -89,6 +89,8 @@ fun SettingsScreen(
     onOpenDataStorage: () -> Unit,
     onOpenExtensions: () -> Unit,
     onCheckForUpdates: () -> Unit,
+    onShowUpdateDialog: () -> Unit = {},
+    onDismissUpdateDialog: (() -> Unit)? = null,
     onDismissAvailableUpdate: () -> Unit,
     onMessageShown: () -> Unit,
     onRestartConsumed: () -> Unit,
@@ -262,7 +264,13 @@ fun SettingsScreen(
                                 else -> "Check for new releases on GitHub"
                             },
                             isLoading = uiState.isCheckingForUpdates,
-                            onClick = onCheckForUpdates
+                            onClick = {
+                                if (uiState.availableUpdateVersion != null) {
+                                    onShowUpdateDialog()
+                                } else {
+                                    onCheckForUpdates()
+                                }
+                            }
                         )
                     }
                 }
@@ -322,9 +330,10 @@ fun SettingsScreen(
     }
 
     // Update Available Dialog
-    if (uiState.availableUpdateVersion != null) {
+    val handleDismissDialog = onDismissUpdateDialog ?: onDismissAvailableUpdate
+    if (uiState.showUpdateDialog && uiState.availableUpdateVersion != null) {
         AlertDialog(
-            onDismissRequest = onDismissAvailableUpdate,
+            onDismissRequest = handleDismissDialog,
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.SystemUpdate,
@@ -361,7 +370,7 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = onDismissAvailableUpdate) {
+                TextButton(onClick = handleDismissDialog) {
                     Text("Later")
                 }
             }

@@ -22,17 +22,18 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -74,6 +75,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -85,13 +87,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -144,17 +153,10 @@ fun SourcesScreen(
 
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var isReorderMode by rememberSaveable { mutableStateOf(false) }
 
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFocusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(isSearchActive, selectedTab) {
-        if (isSearchActive || selectedTab != 0) {
-            isReorderMode = false
-        }
-    }
 
     val visibleSources = remember(uiState.sources) {
         uiState.sources.filterNot(Source::isLocal)
@@ -205,11 +207,10 @@ fun SourcesScreen(
         }
     }
 
-    // Configure TopBar with Search, Reorder, Add Source, and Repositories puzzle icon
+    // Configure TopBar with Search, Add Source, and Repositories puzzle icon
     val topBarState = remember(
         selectedTab,
         isSearchActive,
-        isReorderMode,
         searchQuery,
         visibleSources.size,
         extensionsState.communityCatalog.size
@@ -225,15 +226,6 @@ fun SourcesScreen(
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
                 }
             } else {
-                if (selectedTab == 0 && visibleSources.size > 1) {
-                    IconButton(onClick = { isReorderMode = !isReorderMode }) {
-                        Icon(
-                            imageVector = if (isReorderMode) Icons.Outlined.Check else Icons.Outlined.SwapVert,
-                            contentDescription = if (isReorderMode) "Done reordering" else "Reorder sources",
-                            tint = if (isReorderMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
                 IconButton(onClick = { isSearchActive = true }) {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search sources")
                 }
@@ -358,12 +350,10 @@ fun SourcesScreen(
                 0 -> InstalledTabContent(
                     sources = filteredInstalledSources,
                     isSearching = isSearchActive && searchQuery.isNotBlank(),
-                    isReorderMode = isReorderMode,
                     searchQuery = searchQuery,
                     onOpenSource = onOpenSource,
                     onRequestRemove = { pendingRemoval = it },
-                    onMoveSource = onMoveSource,
-                    onExitReorderMode = { isReorderMode = false },
+                    onReorderSources = onReorderSources,
                     onSourceUrlCopied = onSourceUrlCopied,
                     onGoToAvailable = { selectedTab = 1 },
                     onAddSourceClick = { showAddSourceModal = true }
@@ -455,12 +445,10 @@ fun SourcesScreen(
 private fun InstalledTabContent(
     sources: List<Source>,
     isSearching: Boolean,
-    isReorderMode: Boolean,
     searchQuery: String,
     onOpenSource: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
-    onMoveSource: ((Int, Int) -> Unit)?,
-    onExitReorderMode: () -> Unit,
+    onReorderSources: ((List<Source>) -> Unit)?,
     onSourceUrlCopied: (String) -> Unit,
     onGoToAvailable: () -> Unit,
     onAddSourceClick: () -> Unit
@@ -535,7 +523,98 @@ private fun InstalledTabContent(
         return
     }
 
+    val lazyListState = rememberLazyListState()
+    val haptic = LocalHapticFeedback.current
+
+    var localSources by remember(sources) { mutableStateOf(sources) }
+    var draggingKey by remember { mutableStateOf<String?>(null) }
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(sources) {
+        if (draggingKey == null) {
+            localSources = sources
+        }
+    }
+
+    val onDragStart: (Int, String) -> Unit = { index, key ->
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        draggingKey = key
+        draggingIndex = index
+        dragOffsetY = 0f
+    }
+
+    val onDrag: (Float) -> Unit = { deltaY ->
+        dragOffsetY += deltaY
+        val currentIndex = draggingIndex
+        if (currentIndex != null && currentIndex in localSources.indices) {
+            val itemInfo = lazyListState.layoutInfo.visibleItemsInfo
+                .firstOrNull { it.key == draggingKey }
+            if (itemInfo != null) {
+                val currentCenter = itemInfo.offset + itemInfo.size / 2 + dragOffsetY
+                val targetItem = lazyListState.layoutInfo.visibleItemsInfo.firstOrNull { item ->
+                    item.key != draggingKey &&
+                        currentCenter in item.offset.toFloat()..(item.offset + item.size).toFloat()
+                }
+                if (targetItem != null) {
+                    val targetIndex = localSources.indexOfFirst { it.key == targetItem.key }
+                    if (targetIndex in localSources.indices && targetIndex != currentIndex) {
+                        val updated = localSources.toMutableList()
+                        val moved = updated.removeAt(currentIndex)
+                        updated.add(targetIndex, moved)
+                        localSources = updated
+                        dragOffsetY += (itemInfo.offset - targetItem.offset)
+                        draggingIndex = targetIndex
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                }
+            }
+        }
+    }
+
+    val onDragEnd: () -> Unit = {
+        val finalSources = localSources
+        val wasDragging = draggingKey != null
+        draggingKey = null
+        draggingIndex = null
+        dragOffsetY = 0f
+        if (wasDragging) {
+            onReorderSources?.invoke(finalSources)
+        }
+    }
+
+    val onDragCancel: () -> Unit = {
+        localSources = sources
+        draggingKey = null
+        draggingIndex = null
+        dragOffsetY = 0f
+    }
+
+    // Auto-scroll when dragging near viewport boundaries
+    LaunchedEffect(draggingKey) {
+        if (draggingKey == null) return@LaunchedEffect
+        while (isActive && draggingKey != null) {
+            val itemInfo = lazyListState.layoutInfo.visibleItemsInfo
+                .firstOrNull { it.key == draggingKey }
+            if (itemInfo != null) {
+                val currentCenter = itemInfo.offset + itemInfo.size / 2 + dragOffsetY
+                val viewportHeight = lazyListState.layoutInfo.viewportSize.height
+                val topThreshold = 100f
+                val bottomThreshold = viewportHeight - 100f
+                if (currentCenter < topThreshold) {
+                    val scroll = -((topThreshold - currentCenter) / topThreshold * 14f).coerceAtLeast(3f)
+                    lazyListState.scrollBy(scroll)
+                } else if (currentCenter > bottomThreshold) {
+                    val scroll = ((currentCenter - bottomThreshold) / 100f * 14f).coerceAtLeast(3f)
+                    lazyListState.scrollBy(scroll)
+                }
+            }
+            delay(16)
+        }
+    }
+
     LazyColumn(
+        state = lazyListState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
             start = WallBaseSpacing.md,
@@ -545,55 +624,30 @@ private fun InstalledTabContent(
         ),
         verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
     ) {
-        if (isReorderMode && !isSearching) {
-            item(key = "reorder_info_banner") {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                    shape = WallBaseShapes.pill,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.SwapVert,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = "Use arrows to reorder sources",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
-                        TextButton(
-                            onClick = onExitReorderMode,
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                            modifier = Modifier.height(28.dp)
-                        ) {
-                            Text("Done", style = MaterialTheme.typography.labelMedium)
+        itemsIndexed(localSources, key = { _, source -> source.key }) { index, source ->
+            val isDragging = source.key == draggingKey
+            val isReorderEnabled = !isSearching && localSources.size > 1
+            Box(
+                modifier = Modifier
+                    .zIndex(if (isDragging) 10f else 1f)
+                    .graphicsLayer {
+                        if (isDragging) {
+                            translationY = dragOffsetY
+                            scaleX = 1.03f
+                            scaleY = 1.03f
+                            shadowElevation = 16f
                         }
                     }
-                }
-            }
-        }
-
-        itemsIndexed(sources, key = { _, source -> source.key }) { index, source ->
-            Box(modifier = Modifier.animateItem()) {
+                    .animateItem()
+            ) {
                 SourceCard(
                     source = source,
-                    isReorderMode = isReorderMode && !isSearching,
-                    canMoveUp = index > 0,
-                    canMoveDown = index < sources.lastIndex,
-                    onMoveUp = { onMoveSource?.invoke(index, index - 1) },
-                    onMoveDown = { onMoveSource?.invoke(index, index + 1) },
+                    isDragging = isDragging,
+                    isReorderEnabled = isReorderEnabled,
+                    onDragStart = { onDragStart(index, source.key) },
+                    onDrag = onDrag,
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragCancel,
                     onOpenSource = onOpenSource,
                     onRequestRemove = onRequestRemove,
                     onSourceUrlCopied = onSourceUrlCopied
@@ -814,11 +868,12 @@ private fun resolveSourceIconUrl(source: Source): String? {
 @Composable
 private fun SourceCard(
     source: Source,
-    isReorderMode: Boolean = false,
-    canMoveUp: Boolean = false,
-    canMoveDown: Boolean = false,
-    onMoveUp: () -> Unit = {},
-    onMoveDown: () -> Unit = {},
+    isDragging: Boolean = false,
+    isReorderEnabled: Boolean = false,
+    onDragStart: () -> Unit = {},
+    onDrag: (Float) -> Unit = {},
+    onDragEnd: () -> Unit = {},
+    onDragCancel: () -> Unit = {},
     onOpenSource: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
     onSourceUrlCopied: (String) -> Unit
@@ -830,22 +885,38 @@ private fun SourceCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = { if (!isReorderMode) onOpenSource(source) },
-                onLongClick = {
-                    if (!isReorderMode) {
-                        shareUrl?.let { url ->
-                            clipboardManager.setText(AnnotatedString(url))
-                            onSourceUrlCopied(url)
-                        }
+            .then(
+                if (isReorderEnabled) {
+                    Modifier.pointerInput(source.key) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { onDragStart() },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                onDrag(dragAmount.y)
+                            },
+                            onDragEnd = { onDragEnd() },
+                            onDragCancel = { onDragCancel() }
+                        )
                     }
-                }
-            ),
+                } else Modifier
+            )
+            .clickable(onClick = { if (!isDragging) onOpenSource(source) }),
         shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            containerColor = if (isDragging) {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            }
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        border = BorderStroke(
+            if (isDragging) 1.5.dp else 1.dp,
+            if (isDragging) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            }
+        )
     ) {
         Row(
             modifier = Modifier
@@ -854,13 +925,34 @@ private fun SourceCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
-            if (isReorderMode) {
-                Icon(
-                    imageVector = Icons.Outlined.DragHandle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
+            if (isReorderEnabled) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .pointerInput(source.key) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { onDragStart() },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    onDrag(dragAmount.y)
+                                },
+                                onDragEnd = { onDragEnd() },
+                                onDragCancel = { onDragCancel() }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DragHandle,
+                        contentDescription = "Hold and drag to reorder",
+                        tint = if (isDragging) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             Box(
@@ -921,55 +1013,25 @@ private fun SourceCard(
                 )
             }
 
-            if (isReorderMode) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    IconButton(
-                        onClick = onMoveUp,
-                        enabled = canMoveUp,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowUpward,
-                            contentDescription = "Move up",
-                            tint = if (canMoveUp) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant
-                        )
-                    }
-                    IconButton(
-                        onClick = onMoveDown,
-                        enabled = canMoveDown,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowDownward,
-                            contentDescription = "Move down",
-                            tint = if (canMoveDown) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant
-                        )
-                    }
-                }
-            } else {
-                if (shareUrl != null) {
-                    IconButton(onClick = {
-                        clipboardManager.setText(AnnotatedString(shareUrl))
-                        onSourceUrlCopied(shareUrl)
-                    }) {
-                        Icon(
-                            imageVector = Icons.Outlined.ContentCopy,
-                            contentDescription = "Copy source link",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                IconButton(onClick = { onRequestRemove(source) }) {
+            if (shareUrl != null) {
+                IconButton(onClick = {
+                    clipboardManager.setText(AnnotatedString(shareUrl))
+                    onSourceUrlCopied(shareUrl)
+                }) {
                     Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Remove source",
+                        imageVector = Icons.Outlined.ContentCopy,
+                        contentDescription = "Copy source link",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            IconButton(onClick = { onRequestRemove(source) }) {
+                Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Remove source",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

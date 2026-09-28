@@ -139,6 +139,8 @@ fun WallBaseApp(
     onShowSettingsMessage: (String) -> Unit,
     onCompleteOnboarding: () -> Unit,
     onCheckForUpdates: () -> Unit = {},
+    onShowUpdateDialog: () -> Unit = {},
+    onDismissUpdateDialog: (() -> Unit)? = null,
     onDismissAvailableUpdate: () -> Unit = {},
 ) {
     val navController = rememberNavController()
@@ -638,6 +640,8 @@ fun WallBaseApp(
                             onOpenDataStorage = { navController.navigateSingleTop("settings/data_storage") },
                             onOpenExtensions = { navController.navigateSingleTop("repositories") },
                             onCheckForUpdates = onCheckForUpdates,
+                            onShowUpdateDialog = onShowUpdateDialog,
+                            onDismissUpdateDialog = onDismissUpdateDialog ?: onDismissAvailableUpdate,
                             onDismissAvailableUpdate = onDismissAvailableUpdate,
                             onMessageShown = onSettingsMessageShown,
                             onRestartConsumed = onSettingsRestartConsumed,
@@ -690,7 +694,7 @@ fun WallBaseApp(
                         translationY = -size.height * (1f - barsProgress)
                         alpha = barsProgress.coerceIn(0f, 1f)
                     },
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                color = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
                 tonalElevation = 0.dp,
             ) {
                 Column(

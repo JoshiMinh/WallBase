@@ -177,8 +177,9 @@ class DatabaseBackupManager @Inject constructor(
                 sqliteDb.beginTransaction()
                 transactionStarted = true
 
-                DATA_TABLES.forEach { table ->
-                    sqliteDb.execSQL("DELETE FROM $table")
+                val existingMainTables = DATA_TABLES.filter { sqliteDb.hasTable("main", it) }
+                existingMainTables.forEach { table ->
+                    sqliteDb.execSQL("DELETE FROM `$table`")
                     if (sqliteDb.hasTable("backup", table)) {
                         val mainCols = sqliteDb.getTableColumns("main", table).toSet()
                         val backupCols = sqliteDb.getTableColumns("backup", table).toSet()
@@ -190,11 +191,36 @@ class DatabaseBackupManager @Inject constructor(
                     }
                 }
 
+                // Handle legacy backups that contain 'categories' instead of / in addition to 'albums'
+                if (sqliteDb.hasTable("backup", "categories") && sqliteDb.hasTable("main", "albums")) {
+                    val now = System.currentTimeMillis()
+                    sqliteDb.execSQL(
+                        """
+                        INSERT INTO albums (title, description, cover_wallpaper_id, sort_order, is_pinned, created_at, updated_at, sync_token)
+                        SELECT c.title, NULL, NULL, c.sort_order, 0, $now, $now, NULL
+                        FROM backup.categories c
+                        WHERE NOT EXISTS (SELECT 1 FROM albums a WHERE a.title = c.title)
+                        """.trimIndent()
+                    )
+
+                    if (sqliteDb.hasTable("backup", "category_wallpaper_cross_ref") && sqliteDb.hasTable("main", "album_wallpaper_cross_ref")) {
+                        sqliteDb.execSQL(
+                            """
+                            INSERT OR IGNORE INTO album_wallpaper_cross_ref (album_id, wallpaper_id)
+                            SELECT a.album_id, cw.wallpaper_id
+                            FROM backup.category_wallpaper_cross_ref cw
+                            JOIN backup.categories c ON cw.category_id = c.category_id
+                            JOIN albums a ON a.title = c.title
+                            """.trimIndent()
+                        )
+                    }
+                }
+
                 if (sqliteDb.hasTable("main", "sqlite_sequence")) {
                     sqliteDb.execSQL("DELETE FROM sqlite_sequence")
                 }
                 if (sqliteDb.hasTable("backup", "sqlite_sequence")) {
-                    sqliteDb.execSQL("INSERT INTO sqlite_sequence SELECT * FROM backup.sqlite_sequence")
+                    sqliteDb.execSQL("INSERT OR REPLACE INTO sqlite_sequence SELECT name, seq FROM backup.sqlite_sequence WHERE name IN (SELECT name FROM main.sqlite_master WHERE type='table')")
                 }
 
                 sqliteDb.setTransactionSuccessful()
@@ -401,9 +427,7 @@ class DatabaseBackupManager @Inject constructor(
             "sources",
             "wallpapers",
             "albums",
-            "album_wallpaper_cross_ref",
-            "categories",
-            "category_wallpaper_cross_ref"
+            "album_wallpaper_cross_ref"
         )
         private const val DATABASE_ENTRY = "database/wallbase.db"
         private const val SETTINGS_ENTRY = "settings.json"

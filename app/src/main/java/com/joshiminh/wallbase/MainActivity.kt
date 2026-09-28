@@ -121,6 +121,8 @@ class MainActivity : ComponentActivity() {
                     onShowSettingsMessage = settingsViewModel::showMessage,
                     onCompleteOnboarding = settingsViewModel::markOnboardingComplete,
                     onCheckForUpdates = settingsViewModel::checkForUpdates,
+                    onShowUpdateDialog = settingsViewModel::showUpdateDialog,
+                    onDismissUpdateDialog = settingsViewModel::dismissUpdateDialogOnly,
                     onDismissAvailableUpdate = settingsViewModel::dismissAvailableUpdate,
                 )
             }
