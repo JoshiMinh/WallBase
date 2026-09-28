@@ -142,6 +142,10 @@ fun WallBaseApp(
     onShowUpdateDialog: () -> Unit = {},
     onDismissUpdateDialog: (() -> Unit)? = null,
     onDismissAvailableUpdate: () -> Unit = {},
+    onStartUpdateDownloadAndInstall: () -> Unit = {},
+    onCancelUpdateDownload: () -> Unit = {},
+    onInstallDownloadedApk: () -> Unit = {},
+    onClearUpdateDownloadError: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
@@ -643,6 +647,10 @@ fun WallBaseApp(
                             onShowUpdateDialog = onShowUpdateDialog,
                             onDismissUpdateDialog = onDismissUpdateDialog ?: onDismissAvailableUpdate,
                             onDismissAvailableUpdate = onDismissAvailableUpdate,
+                            onStartUpdateDownloadAndInstall = onStartUpdateDownloadAndInstall,
+                            onCancelUpdateDownload = onCancelUpdateDownload,
+                            onInstallDownloadedApk = onInstallDownloadedApk,
+                            onClearUpdateDownloadError = onClearUpdateDownloadError,
                             onMessageShown = onSettingsMessageShown,
                             onRestartConsumed = onSettingsRestartConsumed,
                         )

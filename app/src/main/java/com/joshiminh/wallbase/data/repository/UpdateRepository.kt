@@ -5,21 +5,33 @@ import com.joshiminh.wallbase.util.network.UpdateService
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class UpdateRepository @Inject constructor(
     private val service: UpdateService,
+    private val okHttpClient: OkHttpClient,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
+
+    constructor(
+        service: UpdateService,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    ) : this(service, OkHttpClient(), ioDispatcher)
 
     sealed class UpdateResult {
         data object UpToDate : UpdateResult()
         data class UpdateAvailable(
             val version: String,
             val notes: String?,
-            val downloadUrl: String?
+            val downloadUrl: String?,
+            val apkDownloadUrl: String? = null,
+            val releasePageUrl: String? = null
         ) : UpdateResult()
 
         data class Error(val throwable: Throwable) : UpdateResult()
@@ -41,13 +53,63 @@ class UpdateRepository @Inject constructor(
                 UpdateResult.UpdateAvailable(
                     version = remoteVersion.display,
                     notes = release.changelog,
-                    downloadUrl = release.downloadUrl
+                    downloadUrl = release.downloadUrl,
+                    apkDownloadUrl = release.apkDownloadUrl,
+                    releasePageUrl = release.releasePageUrl ?: release.htmlUrl
                 )
             } else {
                 UpdateResult.UpToDate
             }
         } catch (error: Throwable) {
             UpdateResult.Error(error)
+        }
+    }
+
+    suspend fun downloadApk(
+        downloadUrl: String,
+        destinationFile: File,
+        onProgress: (bytesDownloaded: Long, totalBytes: Long) -> Unit
+    ): Result<File> = withContext(ioDispatcher) {
+        runCatching {
+            destinationFile.parentFile?.mkdirs()
+            val tempFile = File(destinationFile.parentFile, "${destinationFile.name}.tmp")
+            if (tempFile.exists()) tempFile.delete()
+
+            val request = Request.Builder()
+                .url(downloadUrl)
+                .build()
+
+            val response = okHttpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                throw java.io.IOException("HTTP ${response.code}: ${response.message}")
+            }
+
+            val body = response.body ?: throw java.io.IOException("Empty response body from update server")
+            val totalBytes = body.contentLength()
+
+            body.byteStream().use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    val buffer = ByteArray(8 * 1024)
+                    var bytesRead: Int
+                    var totalRead = 0L
+
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        totalRead += bytesRead
+                        onProgress(totalRead, totalBytes)
+                    }
+                    output.flush()
+                }
+            }
+
+            if (destinationFile.exists()) {
+                destinationFile.delete()
+            }
+            if (!tempFile.renameTo(destinationFile)) {
+                tempFile.copyTo(destinationFile, overwrite = true)
+                tempFile.delete()
+            }
+            destinationFile
         }
     }
 

@@ -3,4 +3,7 @@
     <cache-path
         name="wallpaper_previews"
         path="wallpaper_previews/" />
+    <cache-path
+        name="updates"
+        path="updates/" />
 </paths>

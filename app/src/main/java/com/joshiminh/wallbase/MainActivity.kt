@@ -124,6 +124,10 @@ class MainActivity : ComponentActivity() {
                     onShowUpdateDialog = settingsViewModel::showUpdateDialog,
                     onDismissUpdateDialog = settingsViewModel::dismissUpdateDialogOnly,
                     onDismissAvailableUpdate = settingsViewModel::dismissAvailableUpdate,
+                    onStartUpdateDownloadAndInstall = settingsViewModel::startUpdateDownloadAndInstall,
+                    onCancelUpdateDownload = settingsViewModel::cancelUpdateDownload,
+                    onInstallDownloadedApk = settingsViewModel::promptInstallDownloadedApk,
+                    onClearUpdateDownloadError = settingsViewModel::clearUpdateDownloadError,
                 )
             }
         }

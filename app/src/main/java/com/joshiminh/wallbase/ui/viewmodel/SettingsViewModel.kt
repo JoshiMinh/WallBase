@@ -3,9 +3,14 @@
 package com.joshiminh.wallbase.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.StatFs
+import android.provider.Settings
 import androidx.compose.runtime.Immutable
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.SingletonImageLoader
@@ -21,6 +26,7 @@ import com.joshiminh.wallbase.data.repository.UpdateRepository
 import com.joshiminh.wallbase.util.MinResolution
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -168,6 +174,8 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    private var downloadJob: Job? = null
+
     fun autoCheckForUpdates() {
         viewModelScope.launch(Dispatchers.IO) {
             // Delay running the background check so we don't compete during cold start / app opening
@@ -183,6 +191,8 @@ class SettingsViewModel @Inject constructor(
                                 availableUpdateVersion = result.version,
                                 updateNotes = result.notes,
                                 updateUrl = releaseUrl,
+                                apkDownloadUrl = result.apkDownloadUrl,
+                                releasePageUrl = result.releasePageUrl ?: releaseUrl,
                                 hasCheckedForUpdates = true,
                                 showUpdateDialog = false,
                                 updateError = null
@@ -217,6 +227,8 @@ class SettingsViewModel @Inject constructor(
                             availableUpdateVersion = null,
                             updateNotes = null,
                             updateUrl = null,
+                            apkDownloadUrl = null,
+                            releasePageUrl = null,
                             hasCheckedForUpdates = true,
                             showUpdateDialog = false,
                             updateError = null
@@ -239,9 +251,12 @@ class SettingsViewModel @Inject constructor(
                                 availableUpdateVersion = result.version,
                                 updateNotes = result.notes,
                                 updateUrl = releaseUrl,
+                                apkDownloadUrl = result.apkDownloadUrl,
+                                releasePageUrl = result.releasePageUrl ?: releaseUrl,
                                 hasCheckedForUpdates = true,
                                 showUpdateDialog = true,
-                                updateError = null
+                                updateError = null,
+                                updateDownloadError = null
                             )
                         }
                     }
@@ -259,6 +274,154 @@ class SettingsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun startUpdateDownloadAndInstall() {
+        val state = _uiState.value
+        val downloadUrl = state.apkDownloadUrl ?: state.updateUrl
+        val version = state.availableUpdateVersion ?: "latest"
+
+        if (downloadUrl == null) {
+            _uiState.update {
+                it.copy(
+                    updateDownloadError = "No download URL available for this update.",
+                    showUpdateDialog = true
+                )
+            }
+            return
+        }
+
+        // If the URL is just an HTML page (no direct APK), advise downloading via browser
+        if (!downloadUrl.endsWith(".apk") && state.apkDownloadUrl == null) {
+            _uiState.update {
+                it.copy(
+                    updateDownloadError = "No APK asset found on release. Please download via browser.",
+                    showUpdateDialog = true
+                )
+            }
+            return
+        }
+
+        downloadJob?.cancel()
+        downloadJob = viewModelScope.launch {
+            val context = getApplication<Application>()
+            val updatesDir = File(context.cacheDir, "updates")
+            val targetFile = File(updatesDir, "WallBase-$version.apk")
+
+            _uiState.update {
+                it.copy(
+                    isDownloadingUpdate = true,
+                    updateDownloadProgress = 0f,
+                    updateDownloadBytes = 0L,
+                    updateDownloadTotalBytes = 0L,
+                    updateDownloadError = null,
+                    showUpdateDialog = true
+                )
+            }
+
+            val result = updateRepository.downloadApk(downloadUrl, targetFile) { bytesRead, totalBytes ->
+                val progress = if (totalBytes > 0) bytesRead.toFloat() / totalBytes else null
+                _uiState.update {
+                    it.copy(
+                        updateDownloadProgress = progress,
+                        updateDownloadBytes = bytesRead,
+                        updateDownloadTotalBytes = totalBytes
+                    )
+                }
+            }
+
+            result.fold(
+                onSuccess = { file ->
+                    _uiState.update {
+                        it.copy(
+                            isDownloadingUpdate = false,
+                            updateDownloadProgress = 1f,
+                            downloadedApkFile = file
+                        )
+                    }
+                    val installResult = installDownloadedApk(context, file)
+                    if (installResult.isFailure) {
+                        _uiState.update {
+                            it.copy(
+                                updateDownloadError = installResult.exceptionOrNull()?.localizedMessage
+                                    ?: "Failed to open package installer"
+                            )
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isDownloadingUpdate = false,
+                            updateDownloadError = error.localizedMessage ?: "Download failed"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun cancelUpdateDownload() {
+        downloadJob?.cancel()
+        downloadJob = null
+        _uiState.update {
+            it.copy(
+                isDownloadingUpdate = false,
+                updateDownloadProgress = null,
+                updateDownloadError = null
+            )
+        }
+    }
+
+    fun installDownloadedApk(
+        context: Context = getApplication(),
+        file: File? = _uiState.value.downloadedApkFile
+    ): Result<Unit> {
+        val apkFile = file ?: return Result.failure(IllegalStateException("No APK file downloaded"))
+        return runCatching {
+            if (!apkFile.exists() || apkFile.length() == 0L) {
+                throw IllegalStateException("Downloaded APK file not found or corrupted.")
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (!context.packageManager.canRequestPackageInstalls()) {
+                    val manageIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(manageIntent)
+                    throw SecurityException("Please enable 'Allow from this source', then tap Install Now.")
+                }
+            }
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                apkFile
+            )
+
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(installIntent)
+            _uiState.update { it.copy(updateDownloadError = null) }
+        }
+    }
+
+    fun promptInstallDownloadedApk() {
+        val result = installDownloadedApk()
+        if (result.isFailure) {
+            _uiState.update {
+                it.copy(
+                    updateDownloadError = result.exceptionOrNull()?.localizedMessage
+                        ?: "Failed to launch package installer."
+                )
+            }
+        }
+    }
+
+    fun clearUpdateDownloadError() {
+        _uiState.update { it.copy(updateDownloadError = null) }
     }
 
     fun showUpdateDialog() {
@@ -474,9 +637,17 @@ class SettingsViewModel @Inject constructor(
         val availableUpdateVersion: String? = null,
         val updateNotes: String? = null,
         val updateUrl: String? = null,
+        val apkDownloadUrl: String? = null,
+        val releasePageUrl: String? = null,
         val updateError: String? = null,
         val hasCheckedForUpdates: Boolean = false,
         val showUpdateDialog: Boolean = false,
+        val isDownloadingUpdate: Boolean = false,
+        val updateDownloadProgress: Float? = null,
+        val updateDownloadBytes: Long = 0L,
+        val updateDownloadTotalBytes: Long = 0L,
+        val downloadedApkFile: File? = null,
+        val updateDownloadError: String? = null,
         val dismissedUpdateVersion: String? = null,
         val shouldRestartAfterImport: Boolean = false,
         val showHorizontalWallpapers: Boolean = true,

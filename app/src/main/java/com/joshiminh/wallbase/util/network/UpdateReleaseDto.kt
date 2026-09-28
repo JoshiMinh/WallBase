@@ -20,4 +20,11 @@ data class UpdateReleaseDto(
         get() = assets?.firstOrNull { it.name.endsWith(".apk") && !it.name.contains("debug") }?.browserDownloadUrl
             ?: assets?.firstOrNull { it.name.endsWith(".apk") }?.browserDownloadUrl
             ?: htmlUrl
+
+    val apkDownloadUrl: String?
+        get() = assets?.firstOrNull { it.name.endsWith(".apk") && !it.name.contains("debug") }?.browserDownloadUrl
+            ?: assets?.firstOrNull { it.name.endsWith(".apk") }?.browserDownloadUrl
+
+    val releasePageUrl: String?
+        get() = htmlUrl
 }

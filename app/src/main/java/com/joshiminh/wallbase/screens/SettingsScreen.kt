@@ -27,7 +27,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.Lock
@@ -41,9 +43,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -78,6 +82,7 @@ import com.joshiminh.wallbase.ui.components.topBarInsetPadding
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import com.joshiminh.wallbase.ui.viewmodel.SettingsViewModel
 import com.joshiminh.wallbase.util.MinResolution
+import java.util.Locale
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,6 +99,10 @@ fun SettingsScreen(
     onShowUpdateDialog: () -> Unit = {},
     onDismissUpdateDialog: (() -> Unit)? = null,
     onDismissAvailableUpdate: () -> Unit,
+    onStartUpdateDownloadAndInstall: () -> Unit = {},
+    onCancelUpdateDownload: () -> Unit = {},
+    onInstallDownloadedApk: () -> Unit = {},
+    onClearUpdateDownloadError: () -> Unit = {},
     onMessageShown: () -> Unit,
     onRestartConsumed: () -> Unit,
     modifier: Modifier = Modifier
@@ -260,14 +269,23 @@ fun SettingsScreen(
                             title = "Check for updates",
                             subtitle = when {
                                 uiState.isCheckingForUpdates -> "Checking GitHub releases…"
-                                uiState.availableUpdateVersion != null -> "Update v${uiState.availableUpdateVersion} available! Tap to install"
+                                uiState.isDownloadingUpdate -> {
+                                    val pct = uiState.updateDownloadProgress?.let { " (${(it * 100).toInt()}%)" } ?: ""
+                                    "Downloading update$pct…"
+                                }
+                                uiState.downloadedApkFile != null && uiState.downloadedApkFile.exists() ->
+                                    "Update v${uiState.availableUpdateVersion} downloaded. Tap to install"
+                                uiState.updateDownloadError != null ->
+                                    "Update failed. Tap to retry or download"
+                                uiState.availableUpdateVersion != null ->
+                                    "Update v${uiState.availableUpdateVersion} available! Tap to install"
                                 uiState.updateError != null -> "Check failed. Tap to retry"
                                 uiState.hasCheckedForUpdates -> "Up to date (v${BuildConfig.VERSION_NAME})"
                                 else -> "Check for new releases on GitHub"
                             },
-                            isLoading = uiState.isCheckingForUpdates,
+                            isLoading = uiState.isCheckingForUpdates || uiState.isDownloadingUpdate,
                             onClick = {
-                                if (uiState.availableUpdateVersion != null) {
+                                if (uiState.availableUpdateVersion != null || uiState.updateDownloadError != null) {
                                     onShowUpdateDialog()
                                 } else {
                                     onCheckForUpdates()
@@ -333,53 +351,280 @@ fun SettingsScreen(
 
     // Update Available Dialog
     val handleDismissDialog = onDismissUpdateDialog ?: onDismissAvailableUpdate
+    val browserUrl = uiState.releasePageUrl ?: uiState.updateUrl ?: "https://github.com/JoshiMinh/WallBase/releases"
     if (uiState.showUpdateDialog && uiState.availableUpdateVersion != null) {
-        AlertDialog(
-            onDismissRequest = handleDismissDialog,
-            icon = {
-                Icon(
-                    imageVector = Icons.Outlined.SystemUpdate,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
-            title = {
-                Text(text = "Update Available (v${uiState.availableUpdateVersion})")
-            },
-            text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "A new version of WallBase is ready to install.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    if (!uiState.updateNotes.isNullOrBlank()) {
-                        Text(
-                            text = uiState.updateNotes,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+        when {
+            // State 1: Download in progress
+            uiState.isDownloadingUpdate -> {
+                AlertDialog(
+                    onDismissRequest = onCancelUpdateDownload,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.SystemUpdate,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
                         )
+                    },
+                    title = {
+                        Text(text = "Downloading Update (v${uiState.availableUpdateVersion})")
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Downloading the latest release APK...",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+
+                            val progress = uiState.updateDownloadProgress
+                            if (progress != null) {
+                                LinearProgressIndicator(
+                                    progress = { progress.coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                val downloadedMb = uiState.updateDownloadBytes / (1024.0 * 1024.0)
+                                val totalMb = uiState.updateDownloadTotalBytes / (1024.0 * 1024.0)
+                                val percent = (progress * 100).toInt()
+                                val progressLabel = if (uiState.updateDownloadTotalBytes > 0L) {
+                                    String.format(Locale.US, "%d%% (%.1f MB / %.1f MB)", percent, downloadedMb, totalMb)
+                                } else {
+                                    String.format(Locale.US, "%.1f MB downloaded", downloadedMb)
+                                }
+                                Text(
+                                    text = progressLabel,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                Text(
+                                    text = "Connecting to server...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                uriHandler.openUri(browserUrl)
+                                onCancelUpdateDownload()
+                                handleDismissDialog()
+                            }
+                        ) {
+                            Text("Open in Browser")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = onCancelUpdateDownload) {
+                            Text("Cancel")
+                        }
                     }
-                }
-            },
-            confirmButton = {
-                Button(onClick = {
-                    val url = uiState.updateUrl ?: "https://github.com/JoshiMinh/WallBase/releases"
-                    uriHandler.openUri(url)
-                    onDismissAvailableUpdate()
-                }) {
-                    Text("Download")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = handleDismissDialog) {
-                    Text("Later")
-                }
+                )
             }
-        )
+
+            // State 2: Download or Installation Error
+            uiState.updateDownloadError != null -> {
+                AlertDialog(
+                    onDismissRequest = {
+                        onClearUpdateDownloadError()
+                        handleDismissDialog()
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    title = {
+                        Text(text = "Update Failed")
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = uiState.updateDownloadError,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = "You can retry downloading automatically, or open GitHub in your web browser to download the APK directly.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    onClearUpdateDownloadError()
+                                    onStartUpdateDownloadAndInstall()
+                                }
+                            ) {
+                                Text("Retry")
+                            }
+                            Button(
+                                onClick = {
+                                    uriHandler.openUri(browserUrl)
+                                    onClearUpdateDownloadError()
+                                    handleDismissDialog()
+                                }
+                            ) {
+                                Text("Browser")
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                onClearUpdateDownloadError()
+                                handleDismissDialog()
+                            }
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            // State 3: Download Complete & Ready to Install
+            uiState.downloadedApkFile != null && uiState.downloadedApkFile.exists() -> {
+                AlertDialog(
+                    onDismissRequest = handleDismissDialog,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    title = {
+                        Text(text = "Ready to Install (v${uiState.availableUpdateVersion})")
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "The update has been downloaded successfully.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Tap Install Now to start the system package installer. If prompted, make sure to allow installing unknown apps from WallBase.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    uriHandler.openUri(browserUrl)
+                                    handleDismissDialog()
+                                }
+                            ) {
+                                Text("Browser")
+                            }
+                            Button(
+                                onClick = {
+                                    onInstallDownloadedApk()
+                                }
+                            ) {
+                                Text("Install Now")
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = handleDismissDialog) {
+                            Text("Later")
+                        }
+                    }
+                )
+            }
+
+            // State 4: Default - Update Available prompt
+            else -> {
+                AlertDialog(
+                    onDismissRequest = handleDismissDialog,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Outlined.SystemUpdate,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
+                    title = {
+                        Text(text = "Update Available (v${uiState.availableUpdateVersion})")
+                    },
+                    text = {
+                        Column(
+                            modifier = Modifier.verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "A new version of WallBase is ready to install.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            if (!uiState.updateNotes.isNullOrBlank()) {
+                                Text(
+                                    text = uiState.updateNotes,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TextButton(
+                                onClick = {
+                                    uriHandler.openUri(browserUrl)
+                                    handleDismissDialog()
+                                }
+                            ) {
+                                Text("Browser")
+                            }
+                            Button(
+                                onClick = {
+                                    onStartUpdateDownloadAndInstall()
+                                }
+                            ) {
+                                Text("Download & Install")
+                            }
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = handleDismissDialog) {
+                            Text("Later")
+                        }
+                    }
+                )
+            }
+        }
     }
 }
 

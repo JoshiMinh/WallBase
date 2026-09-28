@@ -180,6 +180,32 @@ class UpdateRepositoryTest {
         assertEquals("6.7", update.version)
         assertEquals("Bug fixes and new features", update.notes)
         assertEquals("https://github.com/download/app-release.apk", update.downloadUrl)
+        assertEquals("https://github.com/download/app-release.apk", update.apkDownloadUrl)
+        assertEquals("https://github.com/JoshiMinh/WallBase/releases/tag/v6.7", update.releasePageUrl)
+    }
+
+    @Test
+    fun testCheckForUpdates_updateAvailable_noApkAsset() = runBlocking {
+        val mockService = object : UpdateService {
+            override suspend fun fetchLatestRelease(): UpdateReleaseDto {
+                return UpdateReleaseDto(
+                    tagName = "v6.7",
+                    changelog = "Source only release",
+                    htmlUrl = "https://github.com/JoshiMinh/WallBase/releases/tag/v6.7",
+                    assets = emptyList()
+                )
+            }
+        }
+
+        val repository = UpdateRepository(mockService, Dispatchers.Unconfined)
+        val result = repository.checkForUpdates(currentVersionOverride = "6.6")
+
+        assertTrue(result is UpdateRepository.UpdateResult.UpdateAvailable)
+        val update = result as UpdateRepository.UpdateResult.UpdateAvailable
+        assertEquals("6.7", update.version)
+        assertNull(update.apkDownloadUrl)
+        assertEquals("https://github.com/JoshiMinh/WallBase/releases/tag/v6.7", update.downloadUrl)
+        assertEquals("https://github.com/JoshiMinh/WallBase/releases/tag/v6.7", update.releasePageUrl)
     }
 
     @Test
