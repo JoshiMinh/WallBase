@@ -249,7 +249,7 @@ fun SourcesScreen(
         val tabBottomContent: @Composable () -> Unit = {
             PrimaryTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = Color.Transparent
+                containerColor = MaterialTheme.colorScheme.surface
             ) {
                 Tab(
                     selected = selectedTab == 0,

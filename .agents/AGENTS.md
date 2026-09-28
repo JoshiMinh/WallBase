@@ -60,8 +60,8 @@ WallBase/
 │       │   │   └── Pixiv.kt                  # Pixiv scraper
 │       │   └── ui/                           # Reusable UI components & dialogs
 │       └── res/                              # Android Resources (Drawables, Mipmaps, Values)
-├── icon.png                      # App source logo
-├── ROADMAP.md                    # Project development roadmap and progress
+├── icon.png                      # App source logo (updated)
+├── icon_legacy.png               # Legacy app logo
 └── build.gradle.kts              # Root build configuration
 ```
 
@@ -79,12 +79,12 @@ WallBase enforces strict visual consistency and a dedicated brand aesthetic.
   - `surface`, `onSurface`, `surfaceVariant`, `onSurfaceVariant`
   - `outline`, `outlineVariant`, `background`, `onBackground`
 
-### Frosted Glass Surfaces
-- Persistent chrome bars (TopAppBar, BottomNavigation / NavigationRail, floating action pills) use frosted glass styling:
-  - Translucent surface fill: `MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)`
-  - Subtle low-contrast outline: `BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))`
-  - Restrained elevation (0dp–3dp).
-  - **Constraint**: Do NOT add C++ / NDK blur libraries or backdrop-blur dependencies.
+### Chrome Bars & Surfaces
+- Persistent chrome bars (TopAppBar, NavigationBar) MUST be 100% solid, fully opaque surfaces without transparency, opacity fading, or blur:
+  - Solid surface fill: `MaterialTheme.colorScheme.surface` (opaque, no alpha)
+  - Subtle divider: `HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)`
+  - Clean translate motion for hiding/showing (`translationY` without fading alpha).
+  - Do NOT use blur, backdrop-blur, or translucent alpha fills on top or bottom bars.
 
 ### Iconography Rules
 - Use Material Icons from a consistent family (`androidx.compose.material.icons`).

@@ -15,11 +15,12 @@ This skill defines the Material 3 design system, tokens, and UI guidelines for t
   - Avoid hardcoded `Color(...)` in composables.
 - **Dynamic Palette Integration (Detail Screen)**: When viewing a wallpaper, color extraction should derive palette tones smoothly using Android Palette / Monet principles, adapting surface and text contrast while respecting accessibility.
 
-## 2. Frosted Glass Surfaces (Persistent Chrome)
+## 2. Chrome Bars & Surfaces (Persistent Chrome)
 
-- Use translucent tonal fills (`MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)` or similar).
-- Combine with a subtle low-contrast outline (`MaterialTheme.colorScheme.outlineVariant` with 0.5dp / 1dp stroke) and restrained elevation (0dp to 3dp).
-- **Important**: Do NOT introduce heavyweight external backdrop-blur dependencies or C++ rendering libraries.
+- TopAppBar and NavigationBar MUST be 100% solid, fully opaque surfaces (`MaterialTheme.colorScheme.surface`, no alpha or transparency).
+- Combine with a subtle divider (`MaterialTheme.colorScheme.outlineVariant` with 0.5dp stroke) and 0dp elevation.
+- Use clean translate motions (`translationY`) for auto-hiding without alpha fading.
+- **Important**: Do NOT introduce blur, backdrop-blur, or translucent alpha fills on chrome bars.
 
 ## 3. Iconography Guidelines
 

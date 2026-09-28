@@ -564,7 +564,7 @@ fun WallpaperScreen(
                         .padding(12.dp),
                     shape = CircleShape,
                     tonalElevation = 4.dp,
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                    color = MaterialTheme.colorScheme.surface
                 ) {
                     IconButton(onClick = onNavigateBack) {
                         Icon(

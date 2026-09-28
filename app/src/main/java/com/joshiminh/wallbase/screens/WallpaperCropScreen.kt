@@ -565,11 +565,11 @@ fun WallpaperCropScreen(
                 }
             }
 
-            // 3. Compact Bottom Controls Panel (Frosted glass studio dock organized into sections)
+            // 3. Compact Bottom Controls Panel (Studio dock organized into sections)
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 4.dp
             ) {
                 Column(

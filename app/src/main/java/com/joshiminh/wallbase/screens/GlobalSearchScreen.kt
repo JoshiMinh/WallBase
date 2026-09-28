@@ -185,7 +185,7 @@ fun GlobalSearchScreen(
 
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedIndex,
-                    containerColor = Color.Transparent,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     edgePadding = 12.dp
                 ) {
                     Tab(

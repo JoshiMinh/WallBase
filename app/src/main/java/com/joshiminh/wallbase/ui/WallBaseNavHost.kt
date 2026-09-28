@@ -700,9 +700,8 @@ fun WallBaseApp(
                     .fillMaxWidth()
                     .graphicsLayer {
                         translationY = -size.height * (1f - barsProgress)
-                        alpha = barsProgress.coerceIn(0f, 1f)
                     },
-                color = MaterialTheme.colorScheme.background.copy(alpha = 0.96f),
+                color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 0.dp,
             ) {
                 Column(
@@ -749,8 +748,8 @@ fun WallBaseApp(
                         },
                         actions = { topBarState?.actions?.invoke(this) },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = Color.Transparent,
-                            scrolledContainerColor = Color.Transparent,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            scrolledContainerColor = MaterialTheme.colorScheme.surface,
                             titleContentColor = MaterialTheme.colorScheme.onSurface,
                             navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
                             actionIconContentColor = MaterialTheme.colorScheme.onSurface,
@@ -758,7 +757,7 @@ fun WallBaseApp(
                     )
                     topBarState?.bottomContent?.invoke()
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp
                     )
                 }
@@ -772,9 +771,8 @@ fun WallBaseApp(
                     .fillMaxWidth()
                     .graphicsLayer {
                         translationY = size.height * (1f - barsProgress)
-                        alpha = barsProgress.coerceIn(0f, 1f)
                     },
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 0.dp,
             ) {
                 Column(
@@ -783,11 +781,11 @@ fun WallBaseApp(
                         .navigationBarsPadding()
                 ) {
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f),
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         thickness = 0.5.dp
                     )
                     NavigationBar(
-                        containerColor = Color.Transparent,
+                        containerColor = MaterialTheme.colorScheme.surface,
                         tonalElevation = 0.dp,
                         windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
                     ) {

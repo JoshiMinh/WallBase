@@ -276,11 +276,11 @@ fun WallpaperCropDialog(
                     .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
-                // 1. Top Header Bar (Frosted glass)
+                // 1. Top Header Bar
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     tonalElevation = 3.dp
                 ) {
                     Row(
@@ -520,12 +520,12 @@ fun WallpaperCropDialog(
                     }
                 }
 
-                // 3. Bottom Controls Panel (Frosted glass)
+                // 3. Bottom Controls Panel
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     tonalElevation = 6.dp
                 ) {
                     Column(
