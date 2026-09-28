@@ -317,7 +317,8 @@ fun WallpaperScreen(
     if (isViewModeOpen) {
         WallpaperViewModeDialog(
             previewBitmap = previewBitmap,
-            previewModel = wallpaper.previewModel(),
+            previewModel = wallpaper.fullModel(),
+            placeholderModel = wallpaper.thumbnailUrl,
             title = wallpaper.displayTitle,
             onDismiss = { isViewModeOpen = false }
         )
@@ -435,7 +436,8 @@ fun WallpaperScreen(
                                         )
                                     } else {
                                         WallpaperPreviewImage(
-                                            model = item.previewModel(),
+                                            model = item.fullModel(),
+                                            placeholderModel = item.thumbnailUrl,
                                             contentDescription = item.title,
                                             modifier = Modifier.matchParentSize(),
                                             contentScale = ContentScale.Crop,
@@ -953,6 +955,7 @@ private fun PreviewFallbackDialog(
 private fun WallpaperViewModeDialog(
     previewBitmap: android.graphics.Bitmap?,
     previewModel: Any,
+    placeholderModel: Any? = null,
     title: String,
     onDismiss: () -> Unit
 ) {
@@ -1022,6 +1025,7 @@ private fun WallpaperViewModeDialog(
                 } else {
                     WallpaperPreviewImage(
                         model = previewModel,
+                        placeholderModel = placeholderModel,
                         contentDescription = title,
                         modifier = Modifier
                             .fillMaxSize()

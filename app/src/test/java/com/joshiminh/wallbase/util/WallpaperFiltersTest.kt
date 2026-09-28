@@ -4,6 +4,7 @@ import com.joshiminh.wallbase.data.entity.WallpaperItem
 import com.joshiminh.wallbase.util.wallpapers.WallpaperCropSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -82,6 +83,8 @@ class WallpaperFiltersTest {
             sourceUrl = "https://pinterest.com"
         )
         assertTrue(itemPinterestOrig.matchesMinResolution(MinResolution.FHD_1080P))
+        assertFalse(itemPinterestOrig.matchesMinResolution(MinResolution.QHD_1440P))
+        assertFalse(itemPinterestOrig.matchesMinResolution(MinResolution.UHD_4K))
 
         val itemPinterestLowResThumb = WallpaperItem(
             id = "p2",
@@ -91,6 +94,56 @@ class WallpaperFiltersTest {
         )
         assertFalse(itemPinterestLowResThumb.matchesMinResolution(MinResolution.HD_720P))
         assertFalse(itemPinterestLowResThumb.matchesMinResolution(MinResolution.FHD_1080P))
+
+        // Strict word boundary tests (avoid matching words with substrings)
+        val itemRedhead = WallpaperItem(
+            id = "w1",
+            title = "Beautiful redhead girl in the garden",
+            imageUrl = "https://example.com/redhead.jpg",
+            sourceUrl = "https://example.com"
+        )
+        assertNull(itemRedhead.inferDimensions())
+        assertFalse(itemRedhead.matchesMinResolution(MinResolution.FHD_1080P))
+        assertFalse(itemRedhead.matchesMinResolution(MinResolution.QHD_1440P))
+
+        val itemKids = WallpaperItem(
+            id = "w2",
+            title = "2kids playing in summer",
+            imageUrl = "https://example.com/2kids.jpg",
+            sourceUrl = "https://example.com"
+        )
+        assertFalse(itemKids.matchesMinResolution(MinResolution.QHD_1440P))
+
+        val itemTrue2K = WallpaperItem(
+            id = "w3",
+            title = "Cyberpunk Neo Tokyo 2K Wallpaper",
+            imageUrl = "https://example.com/neo.jpg",
+            sourceUrl = "https://example.com"
+        )
+        assertTrue(itemTrue2K.matchesMinResolution(MinResolution.QHD_1440P))
+        assertFalse(itemTrue2K.matchesMinResolution(MinResolution.UHD_4K))
+
+        // Single dimension inference
+        val itemWidthOnly4k = WallpaperItem(
+            id = "w4",
+            title = "UHD Landscape",
+            imageUrl = "https://example.com/landscape.jpg",
+            sourceUrl = "https://example.com",
+            width = 3840,
+            height = null
+        )
+        assertTrue(itemWidthOnly4k.matchesMinResolution(MinResolution.UHD_4K))
+
+        // fullModel vs previewModel
+        val itemWithThumb = WallpaperItem(
+            id = "m1",
+            title = "Model Test",
+            imageUrl = "https://example.com/full_4k.jpg",
+            thumbnailUrl = "https://example.com/thumb_small.jpg",
+            sourceUrl = "https://example.com"
+        )
+        assertEquals("https://example.com/thumb_small.jpg", itemWithThumb.previewModel())
+        assertEquals("https://example.com/full_4k.jpg", itemWithThumb.fullModel())
     }
 
     @Test

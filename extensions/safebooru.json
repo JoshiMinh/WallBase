@@ -2,8 +2,8 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "safebooru",
   "name": "Safebooru",
-  "version": "1.1.0",
-  "versionCode": 2,
+  "version": "1.1.1",
+  "versionCode": 3,
   "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=safebooru.org",
   "baseUrl": "https://safebooru.org",
   "description": "Clean anime wallpaper & illustration tags repository",
@@ -24,7 +24,7 @@
         "fields": {
           "id": { "jsonPath": "id" },
           "title": { "jsonPath": "tags", "defaultValue": "Safebooru Anime Artwork" },
-          "thumbnailUrl": { "jsonPath": "preview_url", "transform": "ensure_https" },
+          "thumbnailUrl": { "jsonPath": "sample_url", "fallbackJsonPath": "preview_url", "transform": "ensure_https" },
           "fullUrl": { "jsonPath": "file_url", "transform": "ensure_https" },
           "sourceUrl": { "jsonPath": "id", "defaultValue": "https://safebooru.org" },
           "width": { "jsonPath": "width" },
@@ -47,7 +47,7 @@
       "fields": {
         "id": { "jsonPath": "id" },
         "title": { "jsonPath": "tags", "defaultValue": "Safebooru Anime Artwork" },
-        "thumbnailUrl": { "jsonPath": "preview_url", "transform": "ensure_https" },
+        "thumbnailUrl": { "jsonPath": "sample_url", "fallbackJsonPath": "preview_url", "transform": "ensure_https" },
         "fullUrl": { "jsonPath": "file_url", "transform": "ensure_https" },
         "sourceUrl": { "jsonPath": "id", "defaultValue": "https://safebooru.org" },
         "width": { "jsonPath": "width" },

@@ -28,7 +28,8 @@ fun WallpaperPreviewImage(
     contentScale: ContentScale = ContentScale.Crop,
     alignment: Alignment = Alignment.Center,
     clipShape: RoundedCornerShape = RoundedCornerShape(0.dp),
-    showOverlay: Boolean = false
+    showOverlay: Boolean = false,
+    placeholderModel: Any? = null
 ) {
     val context = LocalContext.current
     val imageRequest = remember(model) {
@@ -36,8 +37,18 @@ fun WallpaperPreviewImage(
             .data(model)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(100)
+            .crossfade(150)
             .build()
+    }
+    val placeholderRequest = remember(placeholderModel) {
+        placeholderModel?.takeIf { it != model }?.let {
+            ImageRequest.Builder(context)
+                .data(it)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .crossfade(100)
+                .build()
+        }
     }
     val containerBg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
 
@@ -47,6 +58,15 @@ fun WallpaperPreviewImage(
             .background(containerBg),
         contentAlignment = Alignment.Center
     ) {
+        if (placeholderRequest != null) {
+            AsyncImage(
+                model = placeholderRequest,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = contentScale,
+                alignment = alignment
+            )
+        }
         AsyncImage(
             model = imageRequest,
             contentDescription = contentDescription,

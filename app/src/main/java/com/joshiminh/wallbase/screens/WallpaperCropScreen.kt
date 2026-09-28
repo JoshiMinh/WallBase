@@ -451,7 +451,8 @@ fun WallpaperCropScreen(
                             )
                         } else {
                             WallpaperPreviewImage(
-                                model = wallpaper.previewModel(),
+                                model = wallpaper.fullModel(),
+                                placeholderModel = wallpaper.thumbnailUrl,
                                 contentDescription = wallpaper.displayTitle,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.FillBounds,

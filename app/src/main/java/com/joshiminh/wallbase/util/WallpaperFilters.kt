@@ -80,6 +80,16 @@ enum class MinResolution(
     }
 }
 
+private val REGEX_TITLE_DIMENSION = Regex("""(?i)(?:\[|\(|\s|^)(\d{3,5})\s*[xX×]\s*(\d{3,5})(?:\]|\)|\s|$)""")
+private val REGEX_URL_WH = Regex("""(?i)[/_&?](?:w|width)=(\d{3,5})[^\d].*?[/_&?](?:h|height)=(\d{3,5})""")
+private val REGEX_URL_CROSS = Regex("""(?i)[/_&?](\d{3,5})\s*[xX]\s*(\d{3,5})""")
+private val REGEX_ALPHA_THUMB = Regex("""thumb-([0-9]{3,5})-""")
+private val REGEX_8K = Regex("""\b(8k|4320p)\b""", RegexOption.IGNORE_CASE)
+private val REGEX_4K = Regex("""\b(4k|uhd|2160p|ultra\s*hd)\b""", RegexOption.IGNORE_CASE)
+private val REGEX_2K = Regex("""\b(2k|1440p|qhd|wqhd)\b""", RegexOption.IGNORE_CASE)
+private val REGEX_1080P = Regex("""\b(1080p|fhd|full\s*hd)\b""", RegexOption.IGNORE_CASE)
+private val REGEX_720P = Regex("""\b(720p|hd)\b""", RegexOption.IGNORE_CASE)
+
 /**
  * Inferred dimensions from title, URLs, or metadata if explicit width/height are null.
  */
@@ -88,9 +98,15 @@ fun WallpaperItem.inferDimensions(): Pair<Int, Int>? {
     if (width != null && height != null && width > 0 && height > 0) {
         return Pair(width, height)
     }
+    if (width != null && width > 0 && (height == null || height <= 0)) {
+        return Pair(width, (width * 9) / 16)
+    }
+    if (height != null && height > 0 && (width == null || width <= 0)) {
+        return Pair((height * 9) / 16, height)
+    }
 
     // 2. Check title for explicit dimension patterns like "[3840x2160]" or "1920 x 1080"
-    val titleMatch = Regex("""(?i)(?:\[|\(|\s|^)(\d{3,5})\s*[xX×]\s*(\d{3,5})(?:\]|\)|\s|$)""").find(title)
+    val titleMatch = REGEX_TITLE_DIMENSION.find(title)
     if (titleMatch != null) {
         val w = titleMatch.groupValues[1].toIntOrNull()
         val h = titleMatch.groupValues[2].toIntOrNull()
@@ -101,8 +117,7 @@ fun WallpaperItem.inferDimensions(): Pair<Int, Int>? {
 
     // 3. Check imageUrl / sourceUrl for dimension patterns (e.g., "w=3840&h=2160", "thumb-1920-", "/1920x1080/")
     val url = imageUrl
-    val urlDimensionMatch = Regex("""(?i)[/_&?](?:w|width)=(\d{3,5})[^\d].*?[/_&?](?:h|height)=(\d{3,5})""").find(url)
-        ?: Regex("""(?i)[/_&?](\d{3,5})\s*[xX]\s*(\d{3,5})""").find(url)
+    val urlDimensionMatch = REGEX_URL_WH.find(url) ?: REGEX_URL_CROSS.find(url)
     if (urlDimensionMatch != null) {
         val w = urlDimensionMatch.groupValues[1].toIntOrNull()
         val h = urlDimensionMatch.groupValues[2].toIntOrNull()
@@ -112,7 +127,7 @@ fun WallpaperItem.inferDimensions(): Pair<Int, Int>? {
     }
 
     // 4. Check AlphaCoders thumb pattern (e.g. thumb-1920-xxx.jpg)
-    val alphaThumbMatch = Regex("""thumb-([0-9]{3,5})-""").find(url)
+    val alphaThumbMatch = REGEX_ALPHA_THUMB.find(url)
     if (alphaThumbMatch != null) {
         val w = alphaThumbMatch.groupValues[1].toIntOrNull()
         if (w != null && w > 0) {
@@ -120,19 +135,18 @@ fun WallpaperItem.inferDimensions(): Pair<Int, Int>? {
         }
     }
 
-    // 5. Check keywords in title
-    val lowerTitle = title.lowercase(Locale.ROOT)
+    // 5. Check keywords in title with strict word boundaries
     when {
-        lowerTitle.contains("8k") || lowerTitle.contains("4320p") -> return Pair(7680, 4320)
-        lowerTitle.contains("4k") || lowerTitle.contains("uhd") || lowerTitle.contains("2160p") || lowerTitle.contains("ultra hd") -> return Pair(3840, 2160)
-        lowerTitle.contains("2k") || lowerTitle.contains("1440p") || lowerTitle.contains("qhd") || lowerTitle.contains("wqhd") -> return Pair(2560, 1440)
-        lowerTitle.contains("1080p") || lowerTitle.contains("fhd") || lowerTitle.contains("full hd") -> return Pair(1920, 1080)
-        lowerTitle.contains("720p") || lowerTitle.contains("hd") -> return Pair(1280, 720)
+        REGEX_8K.containsMatchIn(title) -> return Pair(7680, 4320)
+        REGEX_4K.containsMatchIn(title) -> return Pair(3840, 2160)
+        REGEX_2K.containsMatchIn(title) -> return Pair(2560, 1440)
+        REGEX_1080P.containsMatchIn(title) -> return Pair(1920, 1080)
+        REGEX_720P.containsMatchIn(title) -> return Pair(1280, 720)
     }
 
     // 6. Check Pinterest URLs
     if (url.contains("i.pinimg.com/originals/")) {
-        return Pair(1440, 2560) // Original Pinterest wallpaper upload baseline
+        return Pair(1080, 1920) // Original Pinterest upload baseline (satisfies FHD, doesn't falsely claim 2K/4K)
     }
     if (url.contains("i.pinimg.com/736x/")) return Pair(736, 1308)
     if (url.contains("i.pinimg.com/564x/")) return Pair(564, 1000)

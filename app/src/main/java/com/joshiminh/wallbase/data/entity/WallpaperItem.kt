@@ -72,6 +72,12 @@ data class WallpaperItem(
             ?: thumbnailUrl?.takeIf { it.isNotBlank() }
             ?: imageUrl
 
+    fun fullModel(): Any =
+        localUri?.takeIf { isDownloaded && it.isNotBlank() }
+            ?: imageUrl.takeIf { it.isNotBlank() }
+            ?: thumbnailUrl
+            ?: ""
+
     fun transitionKey(): String = "wallpaper-$id"
 }
 

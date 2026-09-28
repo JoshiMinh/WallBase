@@ -20,7 +20,9 @@ import com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import com.joshiminh.wallbase.util.MinResolution
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -40,6 +42,7 @@ class WallpaperRepository @Inject constructor(
     private val credentialStore: SourceCredentialStore,
     private val declarativeScraperEngine: DeclarativeScraperEngine,
     private val extensionRepositoryManager: ExtensionRepositoryManager,
+    private val settingsRepository: SettingsRepository,
 ) {
     private val pinterestQuery: String = DEFAULT_PINTEREST_QUERY
     private val customWebsiteUrl: String = DEFAULT_CUSTOM_WEBSITE
@@ -131,6 +134,15 @@ class WallpaperRepository @Inject constructor(
     ): WallpaperPage = withContext(Dispatchers.IO) {
         val parsed = parseWallhavenConfig(config)
         val pageNumber = cursor?.toIntOrNull()?.takeIf { it > 0 } ?: 1
+        val minResolution = runCatching { settingsRepository.preferences.first().minResolution }
+            .getOrDefault(MinResolution.ANY)
+        val atleastParam = when (minResolution) {
+            MinResolution.HD_720P -> "1280x720"
+            MinResolution.FHD_1080P -> "1920x1080"
+            MinResolution.QHD_1440P -> "2560x1440"
+            MinResolution.UHD_4K -> "3840x2160"
+            MinResolution.ANY -> null
+        }
         when (parsed.mode) {
             WallhavenMode.COLLECTION -> {
                 val username = parsed.collectionUser
@@ -141,6 +153,9 @@ class WallpaperRepository @Inject constructor(
                     runCatching {
                         val options = parsed.params.toMutableMap()
                         options["page"] = pageNumber.toString()
+                        if (atleastParam != null) {
+                            options.putIfAbsent("atleast", atleastParam)
+                        }
                         wallhavenService.getCollection(
                             username = username,
                             collectionId = collectionId,
@@ -159,6 +174,9 @@ class WallpaperRepository @Inject constructor(
                 params.putIfAbsent("purity", "100")
                 params.putIfAbsent("categories", "111")
                 params["page"] = pageNumber.toString()
+                if (atleastParam != null) {
+                    params.putIfAbsent("atleast", atleastParam)
+                }
                 runCatching {
                     wallhavenService.search(params).toWallpaperPage(pageNumber)
                 }.getOrElse { WallpaperPage(emptyList(), nextCursor = null) }
@@ -489,7 +507,12 @@ class WallpaperRepository @Inject constructor(
         val idValue = id?.takeIf { it.isNotBlank() } ?: imageUrl.hashCode().toString()
         val titleValue = id?.let { "Wallhaven #$it" } ?: "Wallhaven wallpaper"
         val sourceUrl = url ?: shortUrl ?: imageUrl
-        val thumbUrl = thumbs?.large ?: thumbs?.small ?: thumbs?.original
+        val isPortrait = (dimensionY ?: 0) > (dimensionX ?: 0)
+        val thumbUrl = if (isPortrait) {
+            thumbs?.original ?: thumbs?.large ?: thumbs?.small
+        } else {
+            thumbs?.large ?: thumbs?.original ?: thumbs?.small
+        }
         return WallpaperItem(
             id = "wallhaven_$idValue",
             title = titleValue,

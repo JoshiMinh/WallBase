@@ -2,8 +2,8 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "pinterest",
   "name": "Pinterest",
-  "version": "1.2.0",
-  "versionCode": 3,
+  "version": "1.2.1",
+  "versionCode": 4,
   "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=pinterest.com",
   "baseUrl": "https://www.pinterest.com",
   "description": "Curated Ultra HD aesthetic wallpaper collections from Pinterest",
@@ -23,7 +23,7 @@
         "fields": {
           "id": { "jsonPath": "id" },
           "title": { "jsonPath": "description", "defaultValue": "Pinterest Wallpaper" },
-          "thumbnailUrl": { "jsonPath": "images.237x.url" },
+          "thumbnailUrl": { "jsonPath": "images.564x.url", "fallbackJsonPath": "images.237x.url" },
           "fullUrl": { "jsonPath": "images.orig.url" },
           "width": { "jsonPath": "images.orig.width", "fallbackJsonPath": "images.564x.width" },
           "height": { "jsonPath": "images.orig.height", "fallbackJsonPath": "images.564x.height" },
@@ -44,7 +44,7 @@
         "fields": {
           "id": { "jsonPath": "id" },
           "title": { "jsonPath": "description", "defaultValue": "AMOLED Wallpaper" },
-          "thumbnailUrl": { "jsonPath": "images.237x.url" },
+          "thumbnailUrl": { "jsonPath": "images.564x.url", "fallbackJsonPath": "images.237x.url" },
           "fullUrl": { "jsonPath": "images.orig.url" },
           "width": { "jsonPath": "images.orig.width", "fallbackJsonPath": "images.564x.width" },
           "height": { "jsonPath": "images.orig.height", "fallbackJsonPath": "images.564x.height" },
@@ -65,7 +65,7 @@
         "fields": {
           "id": { "jsonPath": "id" },
           "title": { "jsonPath": "description", "defaultValue": "Anime Wallpaper" },
-          "thumbnailUrl": { "jsonPath": "images.237x.url" },
+          "thumbnailUrl": { "jsonPath": "images.564x.url", "fallbackJsonPath": "images.237x.url" },
           "fullUrl": { "jsonPath": "images.orig.url" },
           "width": { "jsonPath": "images.orig.width", "fallbackJsonPath": "images.564x.width" },
           "height": { "jsonPath": "images.orig.height", "fallbackJsonPath": "images.564x.height" },
@@ -86,7 +86,7 @@
         "fields": {
           "id": { "jsonPath": "id" },
           "title": { "jsonPath": "description", "defaultValue": "Nature Wallpaper" },
-          "thumbnailUrl": { "jsonPath": "images.237x.url" },
+          "thumbnailUrl": { "jsonPath": "images.564x.url", "fallbackJsonPath": "images.237x.url" },
           "fullUrl": { "jsonPath": "images.orig.url" },
           "width": { "jsonPath": "images.orig.width", "fallbackJsonPath": "images.564x.width" },
           "height": { "jsonPath": "images.orig.height", "fallbackJsonPath": "images.564x.height" },
