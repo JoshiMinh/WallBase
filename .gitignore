@@ -74,3 +74,4 @@ build_output*.txt
 lint-results.xml
 lint-results-debug.html
 target/
+.tmp/
