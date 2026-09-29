@@ -88,7 +88,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -249,7 +248,7 @@ fun SourcesScreen(
         val tabBottomContent: @Composable () -> Unit = {
             PrimaryTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = Color.Transparent,
+                containerColor = MaterialTheme.colorScheme.background,
                 divider = {}
             ) {
                 Tab(
