@@ -701,7 +701,7 @@ fun WallBaseApp(
                     .graphicsLayer {
                         translationY = -size.height * (1f - barsProgress)
                     },
-                color = MaterialTheme.colorScheme.surface,
+                color = MaterialTheme.colorScheme.background,
                 tonalElevation = 0.dp,
             ) {
                 Column(
@@ -748,11 +748,11 @@ fun WallBaseApp(
                         },
                         actions = { topBarState?.actions?.invoke(this) },
                         colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface,
-                            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                            actionIconContentColor = MaterialTheme.colorScheme.onSurface,
+                            containerColor = MaterialTheme.colorScheme.background,
+                            scrolledContainerColor = MaterialTheme.colorScheme.background,
+                            titleContentColor = MaterialTheme.colorScheme.onBackground,
+                            navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+                            actionIconContentColor = MaterialTheme.colorScheme.onBackground,
                         ),
                     )
                     topBarState?.bottomContent?.invoke()

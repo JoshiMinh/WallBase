@@ -69,15 +69,17 @@ class ExtensionsViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             val installed = repositoryManager.getInstalledManifestsList()
             _uiState.update { it.copy(installedExtensions = installed) }
-            syncAllRepos(uiState.value.subscribedRepos)
-            _uiState.update { it.copy(isLoading = false, snackbarMessage = "Extensions refreshed") }
+            val repos = uiState.value.subscribedRepos.ifEmpty { setOf(ExtensionRepositoryManager.DEFAULT_COMMUNITY_REPO) }
+            syncAllRepos(repos)
+            _uiState.update { it.copy(isLoading = false, snackbarMessage = "Community sources refreshed") }
         }
     }
 
     private suspend fun syncAllRepos(repos: Set<String>) {
         _uiState.update { it.copy(isLoading = true) }
+        val targetRepos = repos.ifEmpty { setOf(ExtensionRepositoryManager.DEFAULT_COMMUNITY_REPO) }
         val catalogItems = mutableListOf<ExtensionRepoItem>()
-        for (repoUrl in repos) {
+        for (repoUrl in targetRepos) {
             val result = repositoryManager.fetchRemoteRepo(repoUrl)
             result.getOrNull()?.sources?.let { catalogItems.addAll(it) }
         }

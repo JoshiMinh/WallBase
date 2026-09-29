@@ -29,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +39,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +71,7 @@ import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
 import com.joshiminh.wallbase.ui.viewmodel.ExtensionsViewModel
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RepoScreen(
     viewModel: ExtensionsViewModel,
@@ -126,15 +131,32 @@ fun RepoScreen(
         }
     }
 
+    val pullRefreshState = rememberPullToRefreshState()
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+        PullToRefreshBox(
+            isRefreshing = state.isLoading,
+            onRefresh = { viewModel.refresh() },
+            state = pullRefreshState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = pullRefreshState,
+                    isRefreshing = state.isLoading,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = topBarInsetPadding(8.dp, hasTabBar = false))
+                )
+            },
+            modifier = Modifier.fillMaxSize()
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(
                 start = WallBaseSpacing.md,
                 top = topBarInsetPadding(8.dp, hasTabBar = false),
@@ -222,6 +244,7 @@ fun RepoScreen(
                 }
             }
         }
+    }
 
         SnackbarHost(
             hostState = snackbarHostState,
