@@ -4,16 +4,31 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0c0d10">
-  <meta name="description" content="WallBase is an open-source Android wallpaper app for discovering images, building collections, and making every screen your own.">
-  <meta property="og:title" content="WallBase — A better home for your wallpapers">
-  <meta property="og:description" content="Discover, save, crop, and set wallpapers from one thoughtful Android app.">
-  <meta property="og:image" content="screenshots/library_preview.jpg">
+  <meta name="description" content="WallBase is a free, open-source Android wallpaper manager. Browse multiple sources, save wallpapers to albums, crop and set them, and personalize the app with Material You themes.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://joshiminh.github.io/WallBase/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="WallBase">
+  <meta property="og:url" content="https://joshiminh.github.io/WallBase/">
+  <meta property="og:title" content="WallBase | Open-source Android wallpaper manager">
+  <meta property="og:description" content="Browse wallpaper sources, build albums, and crop and set wallpapers on Android.">
+  <meta property="og:image" content="https://joshiminh.github.io/WallBase/screenshots/library_preview.jpg">
+  <meta property="og:image:width" content="720">
+  <meta property="og:image:height" content="1600">
+  <meta property="og:image:alt" content="WallBase wallpaper library on Android">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="WallBase | Open-source Android wallpaper manager">
+  <meta name="twitter:description" content="Discover, organize, and set wallpapers with WallBase for Android.">
+  <meta name="twitter:image" content="https://joshiminh.github.io/WallBase/screenshots/library_preview.jpg">
   <link rel="icon" href="icon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="tokens.css">
-  <title>WallBase — Wallpapers worth keeping</title>
+  <title>WallBase | Open-source Android wallpaper manager</title>
+  <script type="application/ld+json">
+    {"@context":"https://schema.org","@type":"SoftwareApplication","name":"WallBase","url":"https://joshiminh.github.io/WallBase/","description":"Free, open-source Android wallpaper manager for discovering, saving, organizing, cropping, and setting wallpapers.","applicationCategory":"MultimediaApplication","operatingSystem":"Android 8.0 or newer","isAccessibleForFree":true,"downloadUrl":"https://github.com/JoshiMinh/WallBase/releases/latest","image":"https://joshiminh.github.io/WallBase/screenshots/library_preview.jpg","author":{"@type":"Person","name":"JoshiMinh"}}
+  </script>
   <style>
     /* Hallmark · macrostructure: Asymmetric Showcase · theme: custom dark editorial
        accent: WallBase pink · archetypes: product proof, numbered feature ledger */
@@ -27,7 +42,7 @@
     ::selection { background: var(--color-accent); color: var(--color-accent-ink); }
     .skip { position: absolute; top: -5rem; left: var(--space-md); z-index: 20; padding: var(--space-sm) var(--space-md); background: var(--color-accent); color: var(--color-accent-ink); }
     .skip:focus { top: var(--space-md); }
-    .shell { width: min(100% - 3rem, 1280px); margin-inline: auto; }
+    .shell { width: min(100% - 3rem, 1120px); margin-inline: auto; }
     .eyebrow { color: var(--color-accent); font: 500 var(--text-small)/1.4 var(--font-mono); letter-spacing: .13em; text-transform: uppercase; }
     .muted { color: var(--color-ink-muted); }
     .site-header { position: relative; z-index: 5; border-bottom: var(--rule-thin) solid var(--color-rule); }
@@ -42,11 +57,11 @@
     .header-github:hover { border-color: var(--color-accent); color: var(--color-accent); }
     .hero { position: relative; overflow: hidden; border-bottom: var(--rule-thin) solid var(--color-rule); }
     .hero::before { content: ""; position: absolute; right: -18%; top: -65%; width: 70%; aspect-ratio: 1; border: 1px solid rgba(239,90,155,.14); border-radius: 50%; box-shadow: 0 0 0 90px rgba(239,90,155,.025), 0 0 0 190px rgba(239,90,155,.018); pointer-events: none; }
-    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); gap: clamp(2rem, 7vw, 7rem); align-items: center; min-height: 720px; padding-block: var(--space-3xl); }
-    .hero-copy { position: relative; z-index: 2; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: clamp(2rem, 5vw, 4rem); align-items: center; min-height: 600px; padding-block: var(--space-3xl); }
+    .hero-copy { position: relative; z-index: 2; min-width: 0; }
     h1, h2, h3, p { margin-top: 0; }
     h1, h2, h3 { min-width: 0; overflow-wrap: anywhere; font-family: var(--font-display); }
-    h1 { max-width: 820px; margin: var(--space-lg) 0; font-size: var(--text-display); line-height: .98; letter-spacing: -.075em; font-weight: 600; }
+    h1 { max-width: 650px; margin: var(--space-lg) 0; font-size: var(--text-display); line-height: 1.02; letter-spacing: -.065em; font-weight: 600; }
     h1 span { color: var(--color-accent); }
     .hero-intro { max-width: 560px; color: var(--color-ink-muted); font-size: var(--text-lead); }
     .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); margin-top: var(--space-xl); }
@@ -57,10 +72,10 @@
     .button-outline { border: var(--rule-thin) solid var(--color-rule); }
     .button-outline:hover { border-color: var(--color-accent); }
     .hero-note { margin-top: var(--space-lg); font: var(--text-small)/1.5 var(--font-mono); color: var(--color-ink-muted); }
-    .hero-visual { display: grid; grid-template-columns: 1fr .8fr; align-items: center; gap: var(--space-md); transform: translateY(2rem); }
-    .phone { overflow: hidden; background: #050507; border: 7px solid #2b2b32; border-radius: 2.4rem; box-shadow: 0 30px 80px rgba(0,0,0,.55); }
-    .phone img { width: 100%; aspect-ratio: 9 / 20; object-fit: cover; }
-    .phone-secondary { transform: translateY(3.5rem); border-width: 5px; border-radius: 2rem; opacity: .92; }
+    .hero-visual { display: grid; grid-template-columns: 1fr .8fr; align-items: center; justify-self: end; gap: var(--space-md); width: min(100%, 430px); }
+    .phone { min-width: 0; overflow: hidden; background: #050507; border: 5px solid #2b2b32; border-radius: 1.8rem; box-shadow: 0 24px 60px rgba(0,0,0,.45); }
+    .phone img { width: 100%; height: auto; aspect-ratio: 9 / 20; object-fit: cover; }
+    .phone-secondary { transform: translateY(2rem); border-width: 4px; border-radius: 1.6rem; opacity: .92; }
     .phone-secondary img { aspect-ratio: 9 / 20; }
     .hero-index { position: absolute; right: 4%; bottom: 10%; padding: .5rem .75rem; background: var(--color-paper); border: var(--rule-thin) solid var(--color-rule); color: var(--color-ink-muted); font: var(--text-small) var(--font-mono); transform: rotate(90deg); transform-origin: right bottom; }
     .strip { border-bottom: var(--rule-thin) solid var(--color-rule); }
@@ -79,20 +94,20 @@
     .feature p { margin: 0; max-width: 430px; color: var(--color-ink-muted); }
     .screens { background: var(--color-paper-raised); padding-block: var(--space-4xl); border-block: var(--rule-thin) solid var(--color-rule); }
     .screens .section-head { margin-bottom: var(--space-3xl); }
-    .screen-gallery { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: clamp(1rem, 3vw, 2.5rem); align-items: start; }
-    .screen-gallery figure { margin: 0; }
-    .screen-gallery figure:nth-child(2) { margin-top: var(--space-2xl); }
-    .screen-gallery figure:nth-child(3) { margin-top: var(--space-3xl); }
-    .screen-gallery img { width: 100%; border: 5px solid #2b2b32; border-radius: var(--radius-lg); box-shadow: 0 24px 55px rgba(0,0,0,.35); }
+    .screen-gallery { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: clamp(1rem, 3vw, 2rem); align-items: start; max-width: 820px; margin-inline: auto; }
+    .screen-gallery figure { min-width: 0; margin: 0; }
+    .screen-gallery figure:nth-child(2) { margin-top: var(--space-lg); }
+    .screen-gallery figure:nth-child(3) { margin-top: var(--space-xl); }
+    .screen-gallery img { width: 100%; height: auto; border: 4px solid #2b2b32; border-radius: 1.3rem; box-shadow: 0 20px 45px rgba(0,0,0,.3); }
     .screen-gallery figcaption { display: flex; justify-content: space-between; gap: var(--space-md); margin-top: var(--space-md); font-size: .92rem; font-weight: 600; }
     .screen-gallery figcaption span { color: var(--color-accent); font: var(--text-small) var(--font-mono); }
     .sources { padding-block: var(--space-4xl); }
     .sources-headline { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); color: var(--color-ink-muted); font: var(--text-small) var(--font-mono); }
     .sources-headline::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent); }
     .source-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: var(--space-sm); }
-    .source-card { display: flex; flex-direction: column; min-height: 185px; padding: var(--space-lg); text-decoration: none; background: var(--color-paper-raised); border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-md); transition: border-color var(--dur-fast), transform var(--dur-fast) var(--ease-out); }
+    .source-card { display: flex; flex-direction: column; min-width: 0; min-height: 185px; padding: var(--space-lg); text-decoration: none; background: var(--color-paper-raised); border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-md); transition: border-color var(--dur-fast), transform var(--dur-fast) var(--ease-out); }
     .source-card:hover { border-color: var(--color-accent); transform: translateY(-3px); }
-    .source-icon { display: grid; place-items: center; width: 36px; height: 36px; background: var(--color-paper-soft); border-radius: var(--radius-sm); color: var(--color-accent); font-weight: 700; overflow: hidden; }
+    .source-icon { display: grid; place-items: center; width: 40px; height: 40px; background: var(--color-paper-soft); border-radius: var(--radius-sm); color: var(--color-accent); font-weight: 700; overflow: hidden; }
     .source-icon img { width: 100%; height: 100%; object-fit: cover; }
     .source-name { margin-top: auto; padding-top: var(--space-lg); font-family: var(--font-display); font-size: 1.22rem; font-weight: 600; letter-spacing: -.04em; }
     .source-description { margin-top: .25rem; color: var(--color-ink-muted); font-size: var(--text-small); line-height: 1.45; }
@@ -113,13 +128,14 @@
       .section-head p { max-width: 600px; }
     }
     @media (max-width: 680px) {
-      .shell { width: min(100% - 2rem, 1280px); }
+      .shell { width: min(100% - 2rem, 1120px); }
       .header-inner { min-height: 72px; flex-wrap: wrap; gap: var(--space-xs); padding-block: var(--space-sm); }
-      .site-nav { order: 3; width: 100%; justify-content: space-between; margin: .25rem 0 0; }
+      .site-nav { order: 3; width: 100%; min-width: 0; justify-content: space-between; flex-wrap: wrap; margin: .25rem 0 0; }
       .header-github { margin-left: auto; }
-      .hero-grid { display: flex; flex-direction: column; align-items: stretch; padding-top: var(--space-3xl); gap: var(--space-xl); }
+      .hero-grid { display: flex; flex-direction: column; align-items: stretch; min-width: 0; padding-top: var(--space-3xl); gap: var(--space-xl); }
+      .hero-copy { width: 100%; }
       h1 { font-size: clamp(3.1rem, 13vw, 5.8rem); overflow-wrap: break-word; }
-      .hero-visual { width: min(100%, 500px); margin: 0 auto; transform: translateY(0); }
+      .hero-visual { width: min(100%, 430px); margin: 0 auto; transform: none; }
       .phone-secondary { transform: translateY(2rem); }
       .hero-index { display: none; }
       .strip-inner { justify-content: flex-start; }
@@ -127,9 +143,9 @@
       .feature-list { grid-template-columns: 1fr; }
       .feature:nth-child(even) { border-left: 0; padding-left: 0; }
       .feature { padding-right: 0; }
-      .screen-gallery { grid-template-columns: repeat(2,minmax(0,1fr)); }
-      .screen-gallery figure:nth-child(2) { margin-top: var(--space-xl); }
-      .screen-gallery figure:nth-child(3) { margin-top: 0; }
+      .screen-gallery { display: flex; gap: var(--space-md); overflow-x: auto; padding-bottom: var(--space-md); scroll-snap-type: x mandatory; }
+      .screen-gallery figure { flex: 0 0 min(65vw, 230px); scroll-snap-align: start; }
+      .screen-gallery figure:nth-child(2), .screen-gallery figure:nth-child(3) { margin-top: 0; }
       .last-word-inner { align-items: start; flex-direction: column; }
       .footer-inner { align-items: start; flex-direction: column; }
     }
@@ -261,8 +277,7 @@
               image.src = iconUrl.href;
               image.alt = '';
               image.loading = 'lazy';
-              image.onerror = () => image.remove();
-              icon.append(image);
+              image.onload = () => icon.replaceChildren(image);
             }
           }
           const name = document.createElement('span');

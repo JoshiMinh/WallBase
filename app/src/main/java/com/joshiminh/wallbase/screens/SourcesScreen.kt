@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.screens
 
 import android.annotation.SuppressLint
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -23,7 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
@@ -94,6 +94,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -527,15 +528,20 @@ private fun InstalledTabContent(
 
     val lazyListState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
 
-    var localSources by remember(sources) { mutableStateOf(sources) }
+    var localSources by remember { mutableStateOf(sources) }
     var draggingKey by remember { mutableStateOf<String?>(null) }
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var pendingOrderKeys by remember { mutableStateOf<List<String>?>(null) }
 
     LaunchedEffect(sources) {
-        if (draggingKey == null) {
+        val incomingKeys = sources.map(Source::key)
+        val pending = pendingOrderKeys
+        if (draggingKey == null && (pending == null || incomingKeys == pending || incomingKeys.toSet() != pending.toSet())) {
             localSources = sources
+            pendingOrderKeys = null
         }
     }
 
@@ -544,6 +550,7 @@ private fun InstalledTabContent(
         draggingKey = key
         draggingIndex = index
         dragOffsetY = 0f
+        pendingOrderKeys = null
     }
 
     val onDrag: (Float) -> Unit = { deltaY ->
@@ -552,7 +559,7 @@ private fun InstalledTabContent(
         if (currentIndex != null && currentIndex in localSources.indices) {
             val itemInfo = lazyListState.layoutInfo.visibleItemsInfo
                 .firstOrNull { it.key == draggingKey }
-            val itemHeight = itemInfo?.size?.toFloat() ?: 180f
+            val itemHeight = (itemInfo?.size?.toFloat() ?: 180f) + with(density) { WallBaseSpacing.sm.toPx() }
             val threshold = itemHeight * 0.55f
 
             if (dragOffsetY > threshold && currentIndex + 1 < localSources.size) {
@@ -581,7 +588,8 @@ private fun InstalledTabContent(
         draggingKey = null
         draggingIndex = null
         dragOffsetY = 0f
-        if (wasDragging) {
+        if (wasDragging && finalSources.map(Source::key) != sources.map(Source::key)) {
+            pendingOrderKeys = finalSources.map(Source::key)
             onReorderSources?.invoke(finalSources)
         }
     }
@@ -591,6 +599,7 @@ private fun InstalledTabContent(
         draggingKey = null
         draggingIndex = null
         dragOffsetY = 0f
+        pendingOrderKeys = null
     }
 
     // Auto-scroll when dragging near viewport boundaries
@@ -633,6 +642,7 @@ private fun InstalledTabContent(
             Box(
                 modifier = Modifier
                     .zIndex(if (isDragging) 10f else 1f)
+                    .animateItem(placementSpec = if (isDragging) null else spring())
                     .graphicsLayer {
                         if (isDragging) {
                             translationY = dragOffsetY
@@ -641,7 +651,6 @@ private fun InstalledTabContent(
                             shadowElevation = 16f
                         }
                     }
-                    .animateItem()
             ) {
                 SourceCard(
                     source = source,
@@ -927,7 +936,7 @@ private fun SourceCard(
                     modifier = Modifier
                         .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                         .pointerInput(source.key) {
-                            detectDragGestures(
+                            detectDragGesturesAfterLongPress(
                                 onDragStart = { onDragStart() },
                                 onDrag = { change, dragAmount ->
                                     change.consume()

@@ -2,6 +2,7 @@ package com.joshiminh.wallbase.screens
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
@@ -21,7 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -89,6 +90,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.disabled
@@ -140,6 +142,7 @@ fun AlbumsScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val searchFocusRequester = remember { FocusRequester() }
     val hapticFeedback = LocalHapticFeedback.current
+    val density = LocalDensity.current
 
     val isAlbumSelection = selectedAlbumIds.isNotEmpty()
     val albumsById = remember(uiState.albums) { uiState.albums.associateBy { it.id } }
@@ -160,15 +163,19 @@ fun AlbumsScreen(
         }
     }
 
-    var localAlbums by remember(displayedAlbums) { mutableStateOf(displayedAlbums) }
+    var localAlbums by remember { mutableStateOf(displayedAlbums) }
     var draggingId by remember { mutableStateOf<Long?>(null) }
     var dragOffsetX by remember { mutableFloatStateOf(0f) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var pendingOrderIds by remember { mutableStateOf<List<Long>?>(null) }
     var showDeleteConfirmDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(displayedAlbums) {
-        if (draggingId == null) {
+        val incomingIds = displayedAlbums.map(AlbumItem::id)
+        val pending = pendingOrderIds
+        if (draggingId == null && (pending == null || incomingIds == pending || incomingIds.toSet() != pending.toSet())) {
             localAlbums = displayedAlbums
+            pendingOrderIds = null
         }
     }
 
@@ -453,6 +460,7 @@ fun AlbumsScreen(
                                 Box(
                                     modifier = Modifier
                                         .zIndex(if (isDragging) 10f else 1f)
+                                        .animateItem(placementSpec = if (isDragging) null else spring())
                                         .graphicsLayer {
                                             if (isDragging) {
                                                 translationX = dragOffsetX
@@ -462,7 +470,6 @@ fun AlbumsScreen(
                                                 shadowElevation = 16f
                                             }
                                         }
-                                        .animateItem()
                                 ) {
                                     AlbumGridCard(
                                         album = album,
@@ -474,12 +481,13 @@ fun AlbumsScreen(
                                         onLongPress = { onAlbumLongPress(album) },
                                         dragModifier = if (isReorderEnabled) {
                                             Modifier.pointerInput(album.id) {
-                                                detectDragGestures(
+                                                detectDragGesturesAfterLongPress(
                                                     onDragStart = {
                                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                                         draggingId = album.id
                                                         dragOffsetX = 0f
                                                         dragOffsetY = 0f
+                                                        pendingOrderIds = null
                                                     },
                                                     onDrag = { change, dragAmount ->
                                                         change.consume()
@@ -489,8 +497,9 @@ fun AlbumsScreen(
                                                         if (currentIndex != -1) {
                                                             val currentItemInfo = lazyGridState.layoutInfo.visibleItemsInfo
                                                                 .firstOrNull { it.key == draggingId }
-                                                            val itemWidth = currentItemInfo?.size?.width?.toFloat() ?: 300f
-                                                            val itemHeight = currentItemInfo?.size?.height?.toFloat() ?: 300f
+                                                            val gap = with(density) { 8.dp.toPx() }
+                                                            val itemWidth = (currentItemInfo?.size?.width?.toFloat() ?: 300f) + gap
+                                                            val itemHeight = (currentItemInfo?.size?.height?.toFloat() ?: 300f) + gap
                                                             val xThreshold = itemWidth * 0.55f
                                                             val yThreshold = itemHeight * 0.55f
 
@@ -554,7 +563,8 @@ fun AlbumsScreen(
                                                         draggingId = null
                                                         dragOffsetX = 0f
                                                         dragOffsetY = 0f
-                                                        if (wasDragging) {
+                                                        if (wasDragging && localAlbums.map(AlbumItem::id) != displayedAlbums.map(AlbumItem::id)) {
+                                                            pendingOrderIds = localAlbums.map(AlbumItem::id)
                                                             libraryViewModel.reorderAlbums(localAlbums)
                                                         }
                                                     },
@@ -563,6 +573,7 @@ fun AlbumsScreen(
                                                         dragOffsetX = 0f
                                                         dragOffsetY = 0f
                                                         localAlbums = displayedAlbums
+                                                        pendingOrderIds = null
                                                     }
                                                 )
                                             }
@@ -592,6 +603,7 @@ fun AlbumsScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .zIndex(if (isDragging) 10f else 1f)
+                                        .animateItem(placementSpec = if (isDragging) null else spring())
                                         .graphicsLayer {
                                             if (isDragging) {
                                                 translationY = dragOffsetY
@@ -600,7 +612,6 @@ fun AlbumsScreen(
                                                 shadowElevation = 16f
                                             }
                                         }
-                                        .animateItem()
                                 ) {
                                     AlbumRowCard(
                                         album = album,
@@ -612,11 +623,12 @@ fun AlbumsScreen(
                                         onLongPress = { onAlbumLongPress(album) },
                                         dragModifier = if (isReorderEnabled) {
                                             Modifier.pointerInput(album.id) {
-                                                detectDragGestures(
+                                                detectDragGesturesAfterLongPress(
                                                     onDragStart = {
                                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                                         draggingId = album.id
                                                         dragOffsetY = 0f
+                                                        pendingOrderIds = null
                                                     },
                                                     onDrag = { change, dragAmount ->
                                                         change.consume()
@@ -625,7 +637,7 @@ fun AlbumsScreen(
                                                         if (currentIndex != -1) {
                                                             val currentItemInfo = lazyListState.layoutInfo.visibleItemsInfo
                                                                 .firstOrNull { it.key == draggingId }
-                                                            val itemHeight = currentItemInfo?.size?.toFloat() ?: 180f
+                                                            val itemHeight = (currentItemInfo?.size?.toFloat() ?: 180f) + with(density) { 8.dp.toPx() }
                                                             val threshold = itemHeight * 0.55f
 
                                                             if (dragOffsetY > threshold && currentIndex + 1 < localAlbums.size) {
@@ -649,7 +661,8 @@ fun AlbumsScreen(
                                                         val wasDragging = draggingId != null
                                                         draggingId = null
                                                         dragOffsetY = 0f
-                                                        if (wasDragging) {
+                                                        if (wasDragging && localAlbums.map(AlbumItem::id) != displayedAlbums.map(AlbumItem::id)) {
+                                                            pendingOrderIds = localAlbums.map(AlbumItem::id)
                                                             libraryViewModel.reorderAlbums(localAlbums)
                                                         }
                                                     },
@@ -657,6 +670,7 @@ fun AlbumsScreen(
                                                         draggingId = null
                                                         dragOffsetY = 0f
                                                         localAlbums = displayedAlbums
+                                                        pendingOrderIds = null
                                                     }
                                                 )
                                             }

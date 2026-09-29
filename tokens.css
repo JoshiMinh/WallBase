@@ -23,8 +23,8 @@
   --text-small: 0.82rem;
   --text-body: 1rem;
   --text-lead: clamp(1.05rem, 1.6vw, 1.22rem);
-  --text-display: clamp(3.5rem, 8vw, 7.5rem);
-  --text-section: clamp(2.25rem, 4.8vw, 4.8rem);
+  --text-display: clamp(2.9rem, 5vw, 4.6rem);
+  --text-section: clamp(2rem, 3.2vw, 3rem);
   --radius-sm: 0.65rem;
   --radius-md: 1.25rem;
   --radius-lg: 2rem;
