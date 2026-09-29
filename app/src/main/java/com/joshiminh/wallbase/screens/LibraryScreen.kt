@@ -231,7 +231,6 @@ fun LibraryScreen(
                         if (selectedWallpapers.isNotEmpty()) {
                             libraryViewModel.removeWallpapers(selectedWallpapers)
                         }
-                        selectedWallpaperIds = emptySet()
                     },
                     enabled = !uiState.isSelectionActionInProgress
                 ) {
