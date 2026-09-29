@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -246,10 +245,7 @@ class ExtensionRepositoryManager @Inject constructor(
 
     suspend fun fetchRemoteRepo(url: String): Result<ExtensionRepo> = withContext(Dispatchers.IO) {
         runCatching {
-            val request = Request.Builder()
-                .url(url)
-                .cacheControl(CacheControl.FORCE_NETWORK)
-                .build()
+            val request = Request.Builder().url(url).build()
             val responseBody = okHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}: ${response.message}")
                 response.body?.string().orEmpty()
@@ -268,10 +264,7 @@ class ExtensionRepositoryManager @Inject constructor(
 
     suspend fun downloadAndInstallFromUrl(manifestUrl: String): Result<SourceManifest> = withContext(Dispatchers.IO) {
         runCatching {
-            val request = Request.Builder()
-                .url(manifestUrl)
-                .cacheControl(CacheControl.FORCE_NETWORK)
-                .build()
+            val request = Request.Builder().url(manifestUrl).build()
             val responseBody = okHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IllegalStateException("HTTP ${response.code}: ${response.message}")
                 response.body?.string().orEmpty()

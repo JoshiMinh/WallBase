@@ -47,13 +47,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -383,19 +379,11 @@ private fun SourceScreen(
     }
 
     val refreshState = pagingItems.loadState.refresh
-    var hasLoadedOnce by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(refreshState, pagingItems.itemCount) {
-        if (refreshState is LoadState.NotLoading || refreshState is LoadState.Error || pagingItems.itemCount > 0) {
-            hasLoadedOnce = true
-        }
-    }
-    val isRefreshing = refreshState is LoadState.Loading && (pagingItems.itemCount > 0 || hasLoadedOnce)
-    val isInitialLoading = refreshState is LoadState.Loading && pagingItems.itemCount == 0 && !hasLoadedOnce
+    val isRefreshing = refreshState is LoadState.Loading && pagingItems.itemCount > 0
+    val isInitialLoading = refreshState is LoadState.Loading && pagingItems.itemCount == 0
     val initialError = (refreshState as? LoadState.Error)?.error?.localizedMessage
-        ?: if (refreshState is LoadState.Error && !hasLoadedOnce) "Unable to load wallpapers." else null
+        ?: if (refreshState is LoadState.Error) "Unable to load wallpapers." else null
     val isEmpty = refreshState is LoadState.NotLoading && pagingItems.itemCount == 0
-
-    val pullRefreshState = rememberPullToRefreshState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -406,20 +394,7 @@ private fun SourceScreen(
             ) {
                 PullToRefreshBox(
                     isRefreshing = isRefreshing,
-                    onRefresh = {
-                        pagingItems.retry()
-                        pagingItems.refresh()
-                    },
-                    state = pullRefreshState,
-                    indicator = {
-                        PullToRefreshDefaults.Indicator(
-                            state = pullRefreshState,
-                            isRefreshing = isRefreshing,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = topBarInsetPadding(8.dp))
-                        )
-                    },
+                    onRefresh = { pagingItems.refresh() },
                     modifier = Modifier.fillMaxSize()
                 ) {
                     when {
@@ -434,26 +409,19 @@ private fun SourceScreen(
 
                         initialError != null && pagingItems.itemCount == 0 -> {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
+                                modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 ErrorMessage(
                                     message = initialError,
-                                    onRetry = {
-                                        pagingItems.retry()
-                                        pagingItems.refresh()
-                                    }
+                                    onRetry = { pagingItems.retry() }
                                 )
                             }
                         }
 
                         isEmpty -> {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
+                                modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
                             ) {
                                 EmptyWallpaperState(
@@ -532,7 +500,7 @@ private fun EmptyWallpaperState(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .padding(WallBaseSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm, Alignment.CenterVertically),
@@ -577,8 +545,8 @@ private fun EmptyWallpaperState(
 private fun ErrorMessage(message: String, onRetry: () -> Unit) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+            .fillMaxSize()
+            .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

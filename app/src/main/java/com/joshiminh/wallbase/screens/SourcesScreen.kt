@@ -62,14 +62,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -254,7 +249,7 @@ fun SourcesScreen(
         val tabBottomContent: @Composable () -> Unit = {
             PrimaryTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.background
+                containerColor = MaterialTheme.colorScheme.surface
             ) {
                 Tab(
                     selected = selectedTab == 0,
@@ -375,8 +370,7 @@ fun SourcesScreen(
                     isLoading = extensionsState.isLoading,
                     onInstall = extensionsViewModel::installFromCatalog,
                     onUninstall = { item -> pendingUninstallCatalogItem = item },
-                    onOpenRepoScreen = onOpenRepoScreen,
-                    onRefresh = { extensionsViewModel.refresh() }
+                    onOpenRepoScreen = onOpenRepoScreen
                 )
             }
         }
@@ -666,7 +660,6 @@ private fun InstalledTabContent(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AvailableTabContent(
     catalog: List<ExtensionRepoItem>,
@@ -677,93 +670,74 @@ private fun AvailableTabContent(
     isLoading: Boolean,
     onInstall: (ExtensionRepoItem) -> Unit,
     onUninstall: (ExtensionRepoItem) -> Unit,
-    onOpenRepoScreen: () -> Unit,
-    onRefresh: () -> Unit
+    onOpenRepoScreen: () -> Unit
 ) {
-    val pullRefreshState = rememberPullToRefreshState()
-
-    PullToRefreshBox(
-        isRefreshing = isLoading,
-        onRefresh = onRefresh,
-        state = pullRefreshState,
-        indicator = {
-            PullToRefreshDefaults.Indicator(
-                state = pullRefreshState,
-                isRefreshing = isLoading,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = topBarInsetPadding(8.dp, hasTabBar = true))
-            )
-        },
-        modifier = Modifier.fillMaxSize()
-    ) {
-        if (catalog.isEmpty() && !isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(top = topBarInsetPadding(8.dp, hasTabBar = true), bottom = bottomBarInsetPadding(16.dp, hasBottomNav = true))
-                    .padding(horizontal = WallBaseSpacing.lg),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
-                ) {
-                    Text(
-                        text = if (isSearching) "No sources match \"$searchQuery\"" else "No community sources found in repositories.",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    FilledTonalButton(
-                        onClick = onOpenRepoScreen,
-                        shape = WallBaseShapes.pill
-                    ) {
-                        Icon(Icons.Outlined.Extension, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Manage Repositories")
-                    }
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = WallBaseSpacing.md,
-                    top = topBarInsetPadding(8.dp, hasTabBar = true),
-                    end = WallBaseSpacing.md,
-                    bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
-                ),
+    if (catalog.isEmpty() && !isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = topBarInsetPadding(8.dp, hasTabBar = true), bottom = bottomBarInsetPadding(16.dp, hasBottomNav = true))
+                .padding(horizontal = WallBaseSpacing.lg),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
             ) {
-                if (isLoading) {
-                    item("catalog_loading") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(WallBaseSpacing.md),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-                    }
-                }
-
-                items(catalog, key = { it.id }) { item ->
-                    val isInstalled = item.id in installedIds ||
-                            installedIds.any { it.equals(item.id, ignoreCase = true) }
-                    val isInstalling = item.id in installingIds
-
-                    AvailableSourceCard(
-                        item = item,
-                        isInstalled = isInstalled,
-                        isInstalling = isInstalling,
-                        onInstall = { onInstall(item) },
-                        onUninstall = { onUninstall(item) }
-                    )
+                Text(
+                    text = if (isSearching) "No sources match \"$searchQuery\"" else "No community sources found in repositories.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                FilledTonalButton(
+                    onClick = onOpenRepoScreen,
+                    shape = WallBaseShapes.pill
+                ) {
+                    Icon(Icons.Outlined.Extension, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Manage Repositories")
                 }
             }
+        }
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = WallBaseSpacing.md,
+            top = topBarInsetPadding(8.dp, hasTabBar = true),
+            end = WallBaseSpacing.md,
+            bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
+        ),
+        verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
+    ) {
+        if (isLoading) {
+            item("catalog_loading") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(WallBaseSpacing.md),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                }
+            }
+        }
+
+        items(catalog, key = { it.id }) { item ->
+            val isInstalled = item.id in installedIds ||
+                    installedIds.any { it.equals(item.id, ignoreCase = true) }
+            val isInstalling = item.id in installingIds
+
+            AvailableSourceCard(
+                item = item,
+                isInstalled = isInstalled,
+                isInstalling = isInstalling,
+                onInstall = { onInstall(item) },
+                onUninstall = { onUninstall(item) }
+            )
         }
     }
 }

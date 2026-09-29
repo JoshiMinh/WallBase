@@ -27,10 +27,12 @@ jobs:
     - name: Decode Keystore
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
-        if [ -n "$KEYSTORE_BASE64" ]; then
-          echo "$KEYSTORE_BASE64" | base64 --decode > wallbase-release.jks
-        fi
+        test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || { echo "Release signing secrets are missing" >&2; exit 1; }
+        echo "$KEYSTORE_BASE64" | base64 --decode > wallbase-release.jks
 
     - name: Build Debug and Release APKs
       env:
@@ -39,6 +41,10 @@ jobs:
         KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: ./gradlew assembleDebug assembleRelease
+
+    - name: Verify release APK signature
+      run: |
+        "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4

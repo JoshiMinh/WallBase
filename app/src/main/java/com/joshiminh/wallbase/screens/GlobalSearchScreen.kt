@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -186,7 +185,7 @@ fun GlobalSearchScreen(
 
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedIndex,
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     edgePadding = 12.dp
                 ) {
                     Tab(
@@ -308,7 +307,6 @@ fun GlobalSearchScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
                             .padding(32.dp),
                         contentAlignment = Alignment.Center
                     ) {
