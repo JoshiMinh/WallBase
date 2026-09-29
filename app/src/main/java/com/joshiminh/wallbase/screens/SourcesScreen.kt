@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -91,7 +90,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -120,6 +118,7 @@ import com.joshiminh.wallbase.scraper.model.ExtensionRepoItem
 import com.joshiminh.wallbase.sources.RedditCommunity
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
+import com.joshiminh.wallbase.ui.components.longPressReorderHandle
 import com.joshiminh.wallbase.ui.components.topBarInsetPadding
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -935,17 +934,13 @@ private fun SourceCard(
                 Box(
                     modifier = Modifier
                         .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                        .pointerInput(source.key) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { onDragStart() },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    onDrag(dragAmount.y)
-                                },
-                                onDragEnd = { onDragEnd() },
-                                onDragCancel = { onDragCancel() }
-                            )
-                        },
+                        .longPressReorderHandle(
+                            key = source.key,
+                            onDragStart = onDragStart,
+                            onDrag = { onDrag(it.y) },
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

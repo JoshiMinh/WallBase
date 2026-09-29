@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -87,7 +86,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
@@ -114,6 +112,7 @@ import com.joshiminh.wallbase.ui.components.SheetTab
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.ViewFilterSortBottomSheet
 import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
+import com.joshiminh.wallbase.ui.components.longPressReorderHandle
 import com.joshiminh.wallbase.ui.components.topBarInsetPadding
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
@@ -480,8 +479,7 @@ fun AlbumsScreen(
                                         onClick = { onAlbumClick(album) },
                                         onLongPress = { onAlbumLongPress(album) },
                                         dragModifier = if (isReorderEnabled) {
-                                            Modifier.pointerInput(album.id) {
-                                                detectDragGesturesAfterLongPress(
+                                            Modifier.longPressReorderHandle(album.id,
                                                     onDragStart = {
                                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                                         draggingId = album.id
@@ -489,8 +487,7 @@ fun AlbumsScreen(
                                                         dragOffsetY = 0f
                                                         pendingOrderIds = null
                                                     },
-                                                    onDrag = { change, dragAmount ->
-                                                        change.consume()
+                                                    onDrag = { dragAmount ->
                                                         dragOffsetX += dragAmount.x
                                                         dragOffsetY += dragAmount.y
                                                         val currentIndex = localAlbums.indexOfFirst { it.id == draggingId }
@@ -576,7 +573,6 @@ fun AlbumsScreen(
                                                         pendingOrderIds = null
                                                     }
                                                 )
-                                            }
                                         } else Modifier
                                     )
                                 }
@@ -622,16 +618,14 @@ fun AlbumsScreen(
                                         onClick = { onAlbumClick(album) },
                                         onLongPress = { onAlbumLongPress(album) },
                                         dragModifier = if (isReorderEnabled) {
-                                            Modifier.pointerInput(album.id) {
-                                                detectDragGesturesAfterLongPress(
+                                            Modifier.longPressReorderHandle(album.id,
                                                     onDragStart = {
                                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                                         draggingId = album.id
                                                         dragOffsetY = 0f
                                                         pendingOrderIds = null
                                                     },
-                                                    onDrag = { change, dragAmount ->
-                                                        change.consume()
+                                                    onDrag = { dragAmount ->
                                                         dragOffsetY += dragAmount.y
                                                         val currentIndex = localAlbums.indexOfFirst { it.id == draggingId }
                                                         if (currentIndex != -1) {
@@ -673,7 +667,6 @@ fun AlbumsScreen(
                                                         pendingOrderIds = null
                                                     }
                                                 )
-                                            }
                                         } else Modifier
                                     )
                                 }
