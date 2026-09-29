@@ -19,8 +19,8 @@ android {
         applicationId = "com.joshiminh.wallbase"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "6.9"
+        versionCode = 16
+        versionName = "7.0"
     }
 
     signingConfigs {
