@@ -2,8 +2,8 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "pixiv",
   "name": "Pixiv",
-  "version": "1.2.0",
-  "versionCode": 3,
+  "version": "1.3.0",
+  "versionCode": 4,
   "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=pixiv.net",
   "baseUrl": "https://www.pixiv.net",
   "description": "Japanese illustration community, daily rankings, and anime art",
@@ -32,7 +32,7 @@
           "thumbnailUrl": { "jsonPath": "url" },
           "fullUrl": {
             "jsonPath": "url",
-            "regexReplace": { "find": "/c/[^/]+/", "replace": "/" }
+            "transform": "pixiv_master"
           },
           "sourceUrl": { "jsonPath": "illust_id", "transform": "pixiv_artwork" },
           "width": { "jsonPath": "width" },
@@ -58,7 +58,7 @@
           "thumbnailUrl": { "jsonPath": "url" },
           "fullUrl": {
             "jsonPath": "url",
-            "regexReplace": { "find": "/c/[^/]+/", "replace": "/" }
+            "transform": "pixiv_master"
           },
           "sourceUrl": { "jsonPath": "illust_id", "transform": "pixiv_artwork" },
           "width": { "jsonPath": "width" },
@@ -85,7 +85,7 @@
         "thumbnailUrl": { "jsonPath": "url" },
         "fullUrl": {
           "jsonPath": "url",
-          "regexReplace": { "find": "/c/[^/]+/", "replace": "/" }
+          "transform": "pixiv_master"
         },
         "sourceUrl": { "jsonPath": "id", "transform": "pixiv_artwork" },
         "width": { "jsonPath": "width" },

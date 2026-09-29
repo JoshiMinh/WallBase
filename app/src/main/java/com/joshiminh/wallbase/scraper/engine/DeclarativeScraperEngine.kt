@@ -269,7 +269,8 @@ class DeclarativeScraperEngine @Inject constructor(
         currentUrl: String
     ): WallpaperItem? {
         val rawImageUrl = extractFieldValue(element, fields["imageUrl"] ?: fields["fullUrl"], manifest.baseUrl)
-            ?: extractFieldValue(element, fields["thumbnailUrl"], manifest.baseUrl)
+            ?.takeIf { it.isNotBlank() }
+            ?: extractFieldValue(element, fields["thumbnailUrl"], manifest.baseUrl)?.takeIf { it.isNotBlank() }
             ?: return null
 
         val imageUrl = rawImageUrl.sanitizeUrl() ?: return null
@@ -300,7 +301,7 @@ class DeclarativeScraperEngine @Inject constructor(
         if (extractor == null) return null
         val targetElement = when {
             extractor.selector.isNullOrBlank() -> element
-            else -> element.selectFirst(extractor.selector)
+            else -> element.takeIf { it.`is`(extractor.selector) } ?: element.selectFirst(extractor.selector)
                 ?: extractor.fallbackSelector?.let { element.selectFirst(it) }
                 ?: return extractor.defaultValue
         }
@@ -432,7 +433,8 @@ class DeclarativeScraperEngine @Inject constructor(
         currentUrl: String
     ): WallpaperItem? {
         val rawImageUrl = extractJsonFieldValue(itemNode, fields["imageUrl"] ?: fields["fullUrl"], manifest.baseUrl)
-            ?: extractJsonFieldValue(itemNode, fields["thumbnailUrl"], manifest.baseUrl)
+            ?.takeIf { it.isNotBlank() }
+            ?: extractJsonFieldValue(itemNode, fields["thumbnailUrl"], manifest.baseUrl)?.takeIf { it.isNotBlank() }
             ?: return null
 
         val imageUrl = rawImageUrl.sanitizeUrl() ?: return null
@@ -583,6 +585,9 @@ class DeclarativeScraperEngine @Inject constructor(
             "pixiv_artwork" -> {
                 if (value.all { it.isDigit() }) "https://www.pixiv.net/artworks/$value" else value
             }
+            "pixiv_master" -> value
+                .replace(Regex("/c/[^/]+/"), "/")
+                .replace("_square1200.", "_master1200.")
             "html_unescape" -> unescapeHtml(value) ?: value
             "strip_query" -> value.substringBefore('?')
             else -> value

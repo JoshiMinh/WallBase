@@ -594,6 +594,47 @@ class DeclarativeScraperEngineTest {
         assertEquals("https://images.pexels.com/photos/1234567/pexels-photo-1234567.jpeg?auto=compress&cs=tinysrgb&dpr=1&h=2560", item.imageUrl)
         assertEquals("https://www.pexels.com/photo/misty-forest-1234567/", item.sourceUrl)
     }
+
+    @Test
+    fun testAnchorCardsAndMissingFullImageFallback() = runTest {
+        val html = """<a href="/photo/misty-forest-1234567/"><img src="https://images.pexels.com/1234567.jpeg" alt="Forest"></a>"""
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(html.toResponseBody("text/html".toMediaTypeOrNull()))
+                .build()
+        }.build()
+        val manifest = SourceManifest(
+            id = "pexels",
+            name = "Pexels",
+            baseUrl = "https://www.pexels.com",
+            feeds = listOf(
+                FeedDefinition(
+                    id = "wallpapers",
+                    title = "Wallpapers",
+                    url = "https://www.pexels.com/search/wallpaper/",
+                    extraction = ExtractionRule(
+                        format = "html",
+                        itemSelector = "a[href*='/photo/']:has(img)",
+                        fields = mapOf(
+                            "id" to FieldExtractor(selector = "a[href*='/photo/']", attribute = "href", regex = "-([0-9]+)/?$"),
+                            "fullUrl" to FieldExtractor(selector = "img", attribute = "data-missing"),
+                            "thumbnailUrl" to FieldExtractor(selector = "img", attribute = "src"),
+                            "sourceUrl" to FieldExtractor(selector = "a[href*='/photo/']", attribute = "href")
+                        )
+                    )
+                )
+            )
+        )
+
+        val item = DeclarativeScraperEngine(client, moshi).scrape(manifest).wallpapers.single()
+        assertEquals("1234567", item.id)
+        assertEquals("https://images.pexels.com/1234567.jpeg", item.imageUrl)
+        assertEquals("https://www.pexels.com/photo/misty-forest-1234567/", item.sourceUrl)
+    }
 }
 
 

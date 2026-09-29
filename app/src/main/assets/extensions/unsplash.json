@@ -2,8 +2,8 @@
   "$schema": "https://wallbase.app/schemas/source-v1.json",
   "id": "unsplash",
   "name": "Unsplash",
-  "version": "1.2.0",
-  "versionCode": 3,
+  "version": "1.3.0",
+  "versionCode": 4,
   "iconUrl": "https://www.google.com/s2/favicons?sz=128&domain=unsplash.com",
   "baseUrl": "https://unsplash.com",
   "description": "High-resolution photography and curated aesthetic wallpapers",
@@ -11,6 +11,7 @@
   "isNsfw": false,
   "headers": {
     "Accept": "application/json",
+    "Referer": "https://unsplash.com/",
     "User-Agent": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
   },
   "feeds": [

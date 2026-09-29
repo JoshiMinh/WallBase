@@ -249,7 +249,8 @@ fun SourcesScreen(
         val tabBottomContent: @Composable () -> Unit = {
             PrimaryTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface
+                containerColor = Color.Transparent,
+                divider = {}
             ) {
                 Tab(
                     selected = selectedTab == 0,
@@ -1045,7 +1046,7 @@ private fun sourceDisplayUrl(source: Source): String {
             return if (slug.isNotBlank()) "https://reddit.com/r/$slug" else "https://reddit.com"
         }
         return when (config.lowercase(Locale.ROOT)) {
-            "alphacoders" -> "https://wall.alphacoders.com"
+            "alphacoders" -> "https://alphacoders.com"
             "pexels" -> "https://pexels.com"
             "pinterest" -> "https://pinterest.com"
             "pixiv" -> "https://pixiv.net"
@@ -1067,7 +1068,7 @@ private fun sourceDisplayUrl(source: Source): String {
 private fun extensionDisplayUrl(item: ExtensionRepoItem): String {
     val key = item.id.lowercase(Locale.ROOT)
     return when {
-        key.contains("alphacoders") -> "https://wall.alphacoders.com"
+        key.contains("alphacoders") -> "https://alphacoders.com"
         key.contains("pexels") -> "https://pexels.com"
         key.contains("pinterest") -> "https://pinterest.com"
         key.contains("pixiv") -> "https://pixiv.net"
@@ -1294,7 +1295,7 @@ private fun sourceShareUrl(source: Source): String? {
             return "https://www.reddit.com/r/$slug/"
         }
         return when (config.lowercase(Locale.ROOT)) {
-            "alphacoders" -> "https://wall.alphacoders.com"
+            "alphacoders" -> "https://alphacoders.com"
             "pexels" -> "https://pexels.com"
             "pinterest" -> "https://pinterest.com"
             "pixiv" -> "https://pixiv.net"
