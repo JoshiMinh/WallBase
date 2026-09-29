@@ -61,7 +61,9 @@ WallBase/
 │       │   └── ui/                           # Reusable UI components & dialogs
 │       └── res/                              # Android Resources (Drawables, Mipmaps, Values)
 ├── icon.png                      # App source logo (updated)
-├── icon_legacy.png               # Legacy app logo
+├── images/icons/                 # Archived / legacy app logos
+│   ├── icon_legacy.png           # Original legacy app logo
+│   └── icon_v2.png               # Previous iteration app logo
 └── build.gradle.kts              # Root build configuration
 ```
 
@@ -82,7 +84,8 @@ WallBase enforces strict visual consistency and a dedicated brand aesthetic.
 ### Chrome Bars & Surfaces
 - Persistent chrome bars (TopAppBar, NavigationBar) MUST be 100% solid, fully opaque surfaces without transparency, opacity fading, or blur:
   - Solid surface fill: `MaterialTheme.colorScheme.surface` (opaque, no alpha)
-  - Subtle divider: `HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)`
+  - TopAppBar: borderless, seamlessly blending into content surface without a bottom divider.
+  - NavigationBar: subtle top divider: `HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)`
   - Clean translate motion for hiding/showing (`translationY` without fading alpha).
   - Do NOT use blur, backdrop-blur, or translucent alpha fills on top or bottom bars.
 

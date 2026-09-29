@@ -756,10 +756,6 @@ fun WallBaseApp(
                         ),
                     )
                     topBarState?.bottomContent?.invoke()
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        thickness = 0.5.dp
-                    )
                 }
             }
         }
