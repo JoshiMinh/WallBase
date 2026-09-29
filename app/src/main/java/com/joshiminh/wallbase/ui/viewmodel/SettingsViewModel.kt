@@ -194,7 +194,7 @@ class SettingsViewModel @Inject constructor(
                                 apkDownloadUrl = result.apkDownloadUrl,
                                 releasePageUrl = result.releasePageUrl ?: releaseUrl,
                                 hasCheckedForUpdates = true,
-                                showUpdateDialog = false,
+                                showUpdateDialog = true,
                                 updateError = null
                             )
                         }
@@ -278,24 +278,13 @@ class SettingsViewModel @Inject constructor(
 
     fun startUpdateDownloadAndInstall() {
         val state = _uiState.value
-        val downloadUrl = state.apkDownloadUrl ?: state.updateUrl
+        val downloadUrl = state.apkDownloadUrl
         val version = state.availableUpdateVersion ?: "latest"
 
-        if (downloadUrl == null) {
+        if (downloadUrl.isNullOrBlank()) {
             _uiState.update {
                 it.copy(
-                    updateDownloadError = "No download URL available for this update.",
-                    showUpdateDialog = true
-                )
-            }
-            return
-        }
-
-        // If the URL is just an HTML page (no direct APK), advise downloading via browser
-        if (!downloadUrl.endsWith(".apk") && state.apkDownloadUrl == null) {
-            _uiState.update {
-                it.copy(
-                    updateDownloadError = "No APK asset found on release. Please download via browser.",
+                    updateDownloadError = "No APK asset found for this release. Please download via the release page.",
                     showUpdateDialog = true
                 )
             }

@@ -46,18 +46,6 @@ jobs:
       run: |
         "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
 
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/*.apk
-
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release
-        path: app/build/outputs/apk/release/*.apk
-
     - name: Determine Release Tag
       id: release_info
       run: |
@@ -65,8 +53,29 @@ jobs:
         if [ -z "$VERSION" ]; then
           VERSION=$(date +'%m-%Y')
         fi
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
         echo "tag_name=v${VERSION}" >> $GITHUB_OUTPUT
         echo "release_name=Release v${VERSION}" >> $GITHUB_OUTPUT
+
+    - name: Rename APKs with version number
+      run: |
+        VERSION=${{ steps.release_info.outputs.version }}
+        mv app/build/outputs/apk/release/app-release.apk \
+           app/build/outputs/apk/release/WallBase-v${VERSION}.apk
+        mv app/build/outputs/apk/debug/app-debug.apk \
+           app/build/outputs/apk/debug/WallBase-v${VERSION}-debug.apk
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug
+        path: app/build/outputs/apk/debug/WallBase-*.apk
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release
+        path: app/build/outputs/apk/release/WallBase-*.apk
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
@@ -74,8 +83,7 @@ jobs:
         tag_name: ${{ steps.release_info.outputs.tag_name }}
         name: ${{ steps.release_info.outputs.release_name }}
         files: |
-          app/build/outputs/apk/release/*.apk
-          app/build/outputs/apk/debug/*.apk
+          app/build/outputs/apk/release/WallBase-*.apk
         draft: false
         prerelease: false
         generate_release_notes: true
