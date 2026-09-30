@@ -109,7 +109,7 @@
     .source-card { display: flex; flex-direction: column; min-width: 0; min-height: 185px; padding: var(--space-lg); text-decoration: none; background: var(--color-paper-raised); border: var(--rule-thin) solid var(--color-rule); border-radius: var(--radius-md); transition: border-color var(--dur-fast), transform var(--dur-fast) var(--ease-out); }
     .source-card:hover { border-color: var(--color-accent); transform: translateY(-3px); }
     .source-icon { display: grid; place-items: center; width: 40px; height: 40px; background: var(--color-paper-soft); border-radius: var(--radius-sm); color: var(--color-accent); font-weight: 700; overflow: hidden; }
-    .source-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .source-icon img { width: 76%; height: 76%; object-fit: contain; }
     .source-name { margin-top: auto; padding-top: var(--space-lg); font-family: var(--font-display); font-size: 1.22rem; font-weight: 600; letter-spacing: -.04em; }
     .source-description { margin-top: .25rem; color: var(--color-ink-muted); font-size: var(--text-small); line-height: 1.45; }
     .source-status { color: var(--color-ink-muted); }
@@ -272,8 +272,14 @@
           icon.className = 'source-icon';
           icon.textContent = source.name.charAt(0).toUpperCase();
           const bundledIcons = {
+            alphacoders: 'images/extensions/alphacoders.svg',
+            pexels: 'images/extensions/pexels.svg',
             pinterest: 'images/extensions/pinterest.svg',
-            pixiv: 'images/extensions/pixiv.svg'
+            pixiv: 'images/extensions/pixiv.svg',
+            reddit: 'images/extensions/reddit.svg',
+            safebooru: 'images/extensions/safebooru.svg',
+            unsplash: 'images/extensions/unsplash.svg',
+            wallhaven: 'images/extensions/wallhaven.svg'
           };
           const iconSource = bundledIcons[source.id] || source.iconUrl;
           if (typeof iconSource === 'string') {
