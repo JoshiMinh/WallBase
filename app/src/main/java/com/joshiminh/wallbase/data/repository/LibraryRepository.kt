@@ -1360,14 +1360,19 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
 }
 
 private fun AlbumWithWallpapers.toAlbumItem(): AlbumItem {
-    val cover = wallpapers.firstOrNull()?.let { wallpaper ->
-        wallpaper.localUri ?: wallpaper.imageUrl
+    val coverWallpaper = wallpapers.firstOrNull()
+    val cover = coverWallpaper?.let { wallpaper -> wallpaper.localUri ?: wallpaper.imageUrl }
+    val coverAspectRatio = coverWallpaper?.let { wallpaper ->
+        val width = wallpaper.width?.toFloat()
+        val height = wallpaper.height?.toFloat()
+        if (width != null && height != null && width > 0f && height > 0f) width / height else null
     }
     return AlbumItem(
         id = album.id,
         title = album.title,
         wallpaperCount = wallpapers.size,
         coverImageUrl = cover,
+        coverAspectRatio = coverAspectRatio,
         createdAt = album.createdAt,
         sortOrder = album.sortOrder
     )

@@ -11,17 +11,18 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -116,6 +117,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import coil3.compose.AsyncImage
+import coil3.compose.rememberAsyncImagePainter
 import com.joshiminh.wallbase.navigation.TopBarHandle
 import com.joshiminh.wallbase.navigation.TopBarState
 import com.joshiminh.wallbase.data.entity.AlbumItem
@@ -577,6 +579,15 @@ fun AlbumRowCard(
     } else {
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     }
+    val coverPainter = album.coverImageUrl?.let { rememberAsyncImagePainter(it) }
+    val intrinsicSize = coverPainter?.intrinsicSize
+    val previewAspectRatio = album.coverAspectRatio?.takeIf { it.isFinite() && it > 0f }
+        ?: intrinsicSize?.let { size ->
+            if (size.width.isFinite() && size.height.isFinite() && size.width > 0f && size.height > 0f) {
+                size.width / size.height
+            } else null
+        }
+        ?: 1f
 
     Card(
         shape = WallBaseShapes.card,
@@ -616,7 +627,8 @@ fun AlbumRowCard(
             // Album Cover / Preview
             Box(
                 modifier = Modifier
-                    .size(68.dp)
+                    .sizeIn(maxWidth = 120.dp, maxHeight = 120.dp)
+                    .aspectRatio(previewAspectRatio)
                     .clip(RoundedCornerShape(14.dp))
                     .background(
                         Brush.linearGradient(
@@ -628,11 +640,11 @@ fun AlbumRowCard(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                if (!album.coverImageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = album.coverImageUrl,
+                if (coverPainter != null) {
+                    Image(
+                        painter = coverPainter,
                         contentDescription = album.title,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {

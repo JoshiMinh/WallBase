@@ -232,7 +232,7 @@ class WallpaperRepository @Inject constructor(
             if (!apiResult.isNullOrEmpty()) return@withContext apiResult
 
             val normalized = query.normalizeSubredditName()
-            if (normalized.isNotBlank()) {
+            if (normalized.matches(Regex("[a-z0-9_]{2,21}"))) {
                 listOf(
                     RedditCommunity(
                         name = normalized,

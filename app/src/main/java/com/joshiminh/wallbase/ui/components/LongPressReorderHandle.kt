@@ -18,7 +18,6 @@ fun Modifier.longPressReorderHandle(
 ): Modifier = pointerInput(key) {
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
-        down.consume() // The card's long-click action must not run on its drag handle.
         val longPress = awaitLongPressOrCancellation(down.id)
         if (longPress != null) {
             onDragStart()

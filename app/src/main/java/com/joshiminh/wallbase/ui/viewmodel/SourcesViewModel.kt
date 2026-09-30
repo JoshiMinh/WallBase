@@ -71,13 +71,6 @@ class SourcesViewModel @Inject constructor(
 
     fun searchRedditCommunities() {
         val state = uiState.value
-        if (state.detectedType != SourceRepository.RemoteSourceType.REDDIT) {
-            _uiState.update {
-                it.copy(snackbarMessage = "Enter a subreddit name or URL to search.")
-            }
-            return
-        }
-
         val query = state.urlInput.trim()
         if (query.length < 2) {
             _uiState.update { it.copy(snackbarMessage = "Enter at least two characters to search.") }
@@ -91,7 +84,11 @@ class SourcesViewModel @Inject constructor(
                 it.copy(
                     isSearchingReddit = false,
                     redditSearchError = result.exceptionOrNull()?.localizedMessage
-                        ?: if (result.isFailure) "Unable to search communities." else null,
+                        ?: when {
+                            result.isFailure -> "Unable to search communities."
+                            result.getOrDefault(emptyList()).isEmpty() -> "No Reddit communities found."
+                            else -> null
+                        },
                     redditSearchResults = result.getOrDefault(emptyList())
                 )
             }

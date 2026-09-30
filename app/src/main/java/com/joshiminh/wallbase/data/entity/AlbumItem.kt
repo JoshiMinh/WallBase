@@ -9,6 +9,7 @@ data class AlbumItem(
     val wallpaperCount: Int,
     val coverImageUrl: String?,
     val createdAt: Long,
-    val sortOrder: Int = 0
+    val sortOrder: Int = 0,
+    val coverAspectRatio: Float? = null
 )
 

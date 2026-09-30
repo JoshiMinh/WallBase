@@ -124,7 +124,7 @@ fun WallpaperLayoutPicker(
             WallpaperLayout.entries.forEach { layout ->
                 val (title, description, icon) = when (layout) {
                     WallpaperLayout.GRID -> Triple("Grid", "Uniform rows", Icons.Outlined.GridView)
-                    WallpaperLayout.STAGGERED -> Triple("Staggered", "Gallery masonry", Icons.Outlined.Dashboard)
+                    WallpaperLayout.STAGGERED -> Triple("Original ratio", "Gallery masonry, keeps image proportions", Icons.Outlined.Dashboard)
                     WallpaperLayout.JUSTIFIED -> Triple(
                         "Justified", "Adaptive collage",
                         Icons.AutoMirrored.Outlined.ViewQuilt

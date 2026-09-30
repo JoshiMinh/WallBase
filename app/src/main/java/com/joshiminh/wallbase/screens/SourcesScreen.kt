@@ -40,9 +40,9 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.DragHandle
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
@@ -56,6 +56,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -149,8 +151,12 @@ fun SourcesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     var pendingRemoval by remember { mutableStateOf<Source?>(null) }
+    var showRemoveSelectedDialog by remember { mutableStateOf(false) }
+    var isMultiSelectMode by rememberSaveable { mutableStateOf(false) }
+    var selectedSourceKeys by remember { mutableStateOf<Set<String>>(emptySet()) }
     var pendingUninstallCatalogItem by remember { mutableStateOf<ExtensionRepoItem?>(null) }
     var showAddSourceModal by remember { mutableStateOf(false) }
+    var isAddingSource by remember { mutableStateOf(false) }
 
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -213,6 +219,8 @@ fun SourcesScreen(
         selectedTab,
         isSearchActive,
         searchQuery,
+        isMultiSelectMode,
+        selectedSourceKeys,
         visibleSources.size,
         extensionsState.communityCatalog.size
     ) {
@@ -226,31 +234,41 @@ fun SourcesScreen(
                 }) {
                     Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
                 }
+            } else if (isMultiSelectMode) {
+                if (selectedSourceKeys.isNotEmpty()) {
+                    IconButton(onClick = { showRemoveSelectedDialog = true }) {
+                        Icon(Icons.Outlined.Delete, contentDescription = "Remove selected sources")
+                    }
+                }
+                IconButton(onClick = {
+                    isMultiSelectMode = false
+                    selectedSourceKeys = emptySet()
+                }) {
+                    Icon(Icons.Outlined.Close, contentDescription = "Cancel selection")
+                }
             } else {
                 IconButton(onClick = { isSearchActive = true }) {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search sources")
                 }
-                IconButton(onClick = { showAddSourceModal = true }) {
-                    Icon(
-                        imageVector = Icons.Outlined.Add,
-                        contentDescription = "Add custom source"
-                    )
-                }
-                IconButton(onClick = onOpenRepoScreen) {
-                    Icon(
-                        imageVector = Icons.Outlined.Extension,
-                        contentDescription = "Repositories"
-                    )
+                if (selectedTab == 0) {
+                    IconButton(onClick = { showAddSourceModal = true }) {
+                        Icon(Icons.Outlined.Add, contentDescription = "Add custom source")
+                    }
+                    IconButton(onClick = { isMultiSelectMode = true }) {
+                        Icon(Icons.Outlined.Check, contentDescription = "Select sources")
+                    }
                 }
             }
         }
 
         val tabBottomContent: @Composable () -> Unit = {
-            PrimaryTabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.background,
-                divider = {}
-            ) {
+            Surface(color = MaterialTheme.colorScheme.background) {
+                PrimaryTabRow(
+                    modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background),
+                    selectedTabIndex = selectedTab,
+                    containerColor = MaterialTheme.colorScheme.background,
+                    divider = {}
+                ) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
@@ -273,11 +291,14 @@ fun SourcesScreen(
                         )
                     }
                 )
+                }
             }
         }
 
         TopBarState(
-            title = if (isSearchActive) null else "Sources",
+            title = if (isSearchActive) null else if (isMultiSelectMode) {
+                "${selectedSourceKeys.size} selected"
+            } else "Sources",
             actions = actions,
             titleContent = if (isSearchActive) {
                 {
@@ -321,6 +342,17 @@ fun SourcesScreen(
         }
     }
 
+    LaunchedEffect(uiState.urlInput, uiState.snackbarMessage, isAddingSource) {
+        if (!isAddingSource) return@LaunchedEffect
+        when {
+            uiState.snackbarMessage?.startsWith("Added ") == true -> {
+                isAddingSource = false
+                showAddSourceModal = false
+            }
+            uiState.snackbarMessage != null -> isAddingSource = false
+        }
+    }
+
     LaunchedEffect(extensionsState.snackbarMessage) {
         val message = extensionsState.snackbarMessage ?: return@LaunchedEffect
         try {
@@ -355,6 +387,13 @@ fun SourcesScreen(
                     searchQuery = searchQuery,
                     onOpenSource = onOpenSource,
                     onRequestRemove = { pendingRemoval = it },
+                    isMultiSelectMode = isMultiSelectMode,
+                    selectedSourceKeys = selectedSourceKeys,
+                    onToggleSelection = { source ->
+                        selectedSourceKeys = if (source.key in selectedSourceKeys) {
+                            selectedSourceKeys - source.key
+                        } else selectedSourceKeys + source.key
+                    },
                     onReorderSources = onReorderSources,
                     onSourceUrlCopied = onSourceUrlCopied,
                     onGoToAvailable = { selectedTab = 1 },
@@ -387,19 +426,13 @@ fun SourcesScreen(
             onInputChange = onUpdateSourceInput,
             onSearch = onSearchReddit,
             onAddSource = {
+                isAddingSource = true
                 onAddSourceFromInput()
-                showAddSourceModal = false
             },
             onAddResult = { community ->
+                isAddingSource = true
                 onAddRedditCommunity(community)
-                showAddSourceModal = false
             },
-            onQuickAdd = { quickInput ->
-                onUpdateSourceInput(quickInput)
-                onAddSourceFromInput()
-                showAddSourceModal = false
-            },
-            onClearResults = onClearSearchResults,
             onOpenRepoScreen = {
                 showAddSourceModal = false
                 onOpenRepoScreen()
@@ -415,6 +448,20 @@ fun SourcesScreen(
             onConfirm = { removeWallpapers ->
                 onRemoveSource(source, removeWallpapers)
                 pendingRemoval = null
+            }
+        )
+    }
+
+    if (showRemoveSelectedDialog) {
+        val selectedSources = visibleSources.filter { it.key in selectedSourceKeys }
+        RemoveSelectedSourcesDialog(
+            count = selectedSources.size,
+            onDismiss = { showRemoveSelectedDialog = false },
+            onConfirm = { removeWallpapers ->
+                selectedSources.forEach { onRemoveSource(it, removeWallpapers) }
+                selectedSourceKeys = emptySet()
+                isMultiSelectMode = false
+                showRemoveSelectedDialog = false
             }
         )
     }
@@ -448,6 +495,9 @@ private fun InstalledTabContent(
     sources: List<Source>,
     isSearching: Boolean,
     searchQuery: String,
+    isMultiSelectMode: Boolean,
+    selectedSourceKeys: Set<String>,
+    onToggleSelection: (Source) -> Unit,
     onOpenSource: (Source) -> Unit,
     onRequestRemove: (Source) -> Unit,
     onReorderSources: ((List<Source>) -> Unit)?,
@@ -637,7 +687,7 @@ private fun InstalledTabContent(
     ) {
         itemsIndexed(localSources, key = { _, source -> source.key }) { index, source ->
             val isDragging = source.key == draggingKey
-            val isReorderEnabled = !isSearching && localSources.size > 1
+            val isReorderEnabled = !isSearching && !isMultiSelectMode && localSources.size > 1
             Box(
                 modifier = Modifier
                     .zIndex(if (isDragging) 10f else 1f)
@@ -655,6 +705,9 @@ private fun InstalledTabContent(
                     source = source,
                     isDragging = isDragging,
                     isReorderEnabled = isReorderEnabled,
+                    isMultiSelectMode = isMultiSelectMode,
+                    isSelected = source.key in selectedSourceKeys,
+                    onToggleSelection = { onToggleSelection(source) },
                     onDragStart = { onDragStart(index, source.key) },
                     onDrag = onDrag,
                     onDragEnd = onDragEnd,
@@ -881,6 +934,9 @@ private fun SourceCard(
     source: Source,
     isDragging: Boolean = false,
     isReorderEnabled: Boolean = false,
+    isMultiSelectMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelection: () -> Unit = {},
     onDragStart: () -> Unit = {},
     onDrag: (Float) -> Unit = {},
     onDragEnd: () -> Unit = {},
@@ -897,14 +953,23 @@ private fun SourceCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(WallBaseShapes.card)
+            .then(
+                if (isReorderEnabled) {
+                    Modifier.longPressReorderHandle(
+                        key = source.key,
+                        onDragStart = onDragStart,
+                        onDrag = { onDrag(it.y) },
+                        onDragEnd = onDragEnd,
+                        onDragCancel = onDragCancel,
+                    )
+                } else Modifier
+            )
             .combinedClickable(
-                onClick = { if (!isDragging) onOpenSource(source) },
-                onLongClick = if (shareUrl != null) {
-                    {
-                        clipboardManager.setText(AnnotatedString(shareUrl))
-                        onSourceUrlCopied(shareUrl)
+                onClick = {
+                    if (!isDragging) {
+                        if (isMultiSelectMode) onToggleSelection() else onOpenSource(source)
                     }
-                } else null
+                }
             ),
         shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(
@@ -930,30 +995,8 @@ private fun SourceCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
         ) {
-            if (isReorderEnabled) {
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                        .longPressReorderHandle(
-                            key = source.key,
-                            onDragStart = onDragStart,
-                            onDrag = { onDrag(it.y) },
-                            onDragEnd = onDragEnd,
-                            onDragCancel = onDragCancel,
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.DragHandle,
-                        contentDescription = "Hold and drag to reorder",
-                        tint = if (isDragging) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        },
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+            if (isMultiSelectMode) {
+                Checkbox(checked = isSelected, onCheckedChange = { onToggleSelection() })
             }
 
             Box(
@@ -1014,25 +1057,35 @@ private fun SourceCard(
                 )
             }
 
-            if (shareUrl != null) {
-                IconButton(onClick = {
-                    clipboardManager.setText(AnnotatedString(shareUrl))
-                    onSourceUrlCopied(shareUrl)
-                }) {
-                    Icon(
-                        imageVector = Icons.Outlined.ContentCopy,
-                        contentDescription = "Copy source link",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+            var menuExpanded by remember(source.key) { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Outlined.MoreVert, contentDescription = "More source actions")
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    if (shareUrl != null) {
+                        DropdownMenuItem(
+                            text = { Text("Copy link") },
+                            leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null) },
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(shareUrl))
+                                onSourceUrlCopied(shareUrl)
+                                menuExpanded = false
+                            }
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Remove source") },
+                        leadingIcon = { Icon(Icons.Outlined.Delete, contentDescription = null) },
+                        onClick = {
+                            onRequestRemove(source)
+                            menuExpanded = false
+                        }
                     )
                 }
-            }
-
-            IconButton(onClick = { onRequestRemove(source) }) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Remove source",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
@@ -1105,8 +1158,6 @@ private fun AddSourceBottomSheet(
     onSearch: () -> Unit,
     onAddSource: () -> Unit,
     onAddResult: (RedditCommunity) -> Unit,
-    onQuickAdd: (String) -> Unit,
-    onClearResults: () -> Unit,
     onOpenRepoScreen: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1122,11 +1173,23 @@ private fun AddSourceBottomSheet(
                 .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Add Custom Source",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Add Custom Source",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = onOpenRepoScreen) {
+                    Text("Extension repos")
+                }
+            }
 
             OutlinedTextField(
                 value = input,
@@ -1146,7 +1209,7 @@ private fun AddSourceBottomSheet(
             ) {
                 Button(
                     onClick = onAddSource,
-                    enabled = input.isNotBlank(),
+                    enabled = input.isNotBlank() && detectedType != null,
                     shape = WallBaseShapes.pill,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -1169,6 +1232,14 @@ private fun AddSourceBottomSheet(
                         Text("Search Reddit")
                     }
                 }
+            }
+
+            searchError?.let { error ->
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             if (results.isNotEmpty()) {
@@ -1194,41 +1265,6 @@ private fun AddSourceBottomSheet(
                 }
             }
 
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = WallBaseShapes.control,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                onClick = onOpenRepoScreen
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Extension,
-                        contentDescription = "Manage Repositories",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Extension Repositories",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Manage subscribed repo.json URLs to discover more sources",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                        )
-                    }
-                }
-            }
         }
     }
 }
@@ -1356,6 +1392,44 @@ private fun RemoveSourceDialog(
         confirmButton = {
             TextButton(onClick = { onConfirm(removeWallpapers) }) {
                 Text("Remove")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun RemoveSelectedSourcesDialog(
+    count: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (Boolean) -> Unit
+) {
+    var removeWallpapers by remember(count) { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Remove $count sources?") },
+        text = {
+            Column {
+                Text("Do you also want to remove wallpapers saved from these sources?")
+                Spacer(modifier = Modifier.size(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = removeWallpapers,
+                        onCheckedChange = { removeWallpapers = it }
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text("Also remove wallpapers")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(removeWallpapers) }, enabled = count > 0) {
+                Text("Remove", color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {

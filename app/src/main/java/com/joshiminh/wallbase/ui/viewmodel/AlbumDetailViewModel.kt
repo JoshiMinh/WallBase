@@ -73,10 +73,6 @@ class AlbumDetailViewModel @Inject constructor(
         baseState
             .combine(settingsRepository.preferences) { base, preferences ->
                 storageLimitBytes = preferences.storageLimitBytes
-                val layout = when (preferences.wallpaperLayout) {
-                    WallpaperLayout.LIST -> WallpaperLayout.GRID
-                    else -> preferences.wallpaperLayout
-                }
                 if (base.detail == null) {
                     AlbumDetailUiState(
                         isLoading = false,
@@ -86,7 +82,7 @@ class AlbumDetailViewModel @Inject constructor(
                         isRemovingDownloads = base.isRemoving,
                         message = base.message,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
-                        wallpaperLayout = layout,
+                        wallpaperLayout = preferences.wallpaperLayout,
                         showDownloadBadge = preferences.showDownloadBadge
                     )
                 } else {
@@ -102,7 +98,7 @@ class AlbumDetailViewModel @Inject constructor(
                         isRemovingDownloads = base.isRemoving,
                         message = base.message,
                         wallpaperGridColumns = preferences.wallpaperGridColumns,
-                        wallpaperLayout = layout,
+                        wallpaperLayout = preferences.wallpaperLayout,
                         showDownloadBadge = preferences.showDownloadBadge
                     )
                 }
