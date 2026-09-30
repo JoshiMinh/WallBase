@@ -14,7 +14,7 @@
   [![Platform](https://img.shields.io/badge/Platform-Android_8.0+_(API_26+)-3DDC84.svg?logo=android)](https://www.android.com)
   [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF.svg?logo=kotlin)](https://kotlinlang.org)
   [![Jetpack Compose](https://img.shields.io/badge/Compose-Material_3-4285F4.svg?logo=jetpackcompose)](https://developer.android.com/jetpack/compose)
-  [![Version](https://img.shields.io/badge/Version-7.2-pink.svg)](https://github.com/joshiminh/WallBase/releases)
+  [![Version](https://img.shields.io/badge/Version-7.1-pink.svg)](https://github.com/joshiminh/WallBase/releases)
 </div>
 
 ---
@@ -24,9 +24,9 @@
 <div align="center">
   <table>
     <tr>
-      <td align="center" width="33%"><b>Library &amp; Collections</b></td>
+      <td align="center" width="33%"><b>Library & Collections</b></td>
       <td align="center" width="33%"><b>Source Discovery</b></td>
-      <td align="center" width="33%"><b>Settings &amp; Theming</b></td>
+      <td align="center" width="33%"><b>Settings & Theming</b></td>
     </tr>
     <tr>
       <td align="center">
@@ -46,36 +46,16 @@
 
 ## Features
 
-- **Multi-Source Discovery**: Browse high-resolution wallpapers from 8 built-in sources — Reddit, Wallhaven, Pinterest, Pexels, Unsplash, AlphaCoders, Pixiv, and Safebooru.
-- **Declarative Extension System**: Sources are powered by JSON manifests with a sandboxed JS scraper engine — add or swap sources without rebuilding the app.
-- **Global Search**: Search across all active sources simultaneously from a single unified search interface.
-- **Personal Library &amp; Custom Albums**: Organize favorites into custom collections with offline caching and direct downloads.
-- **Material You &amp; Custom Theming**: Dynamic theming, pure AMOLED dark mode, and customizable accent colors.
+- **Multi-Source Discovery**: Search and browse high-resolution wallpapers from multiple platforms including Reddit, Wallhaven, and Pinterest.
+- **Personal Library & Custom Albums**: Organize favorite wallpapers into custom collections with offline caching and direct downloads.
+- **Material You & Custom Theming**: Support for dynamic theming, pure AMOLED dark mode, and customizable accent colors.
 - **One-Tap Wallpaper Setup**: Set wallpapers directly to Home Screen, Lock Screen, or both, with integrated palette extraction.
-- **Wallpaper Editor &amp; Crop**: Fine-tune wallpaper positioning, scale, and crop before applying.
-- **Biometric Security**: Protect saved collections and private albums with biometric authentication.
+- **Biometric Security**: Protect saved collections and private albums with integrated biometric authentication.
 - **Modern Performance**: Smooth edge-to-edge layouts, asynchronous image decoding, and efficient memory management.
 
 ---
 
-## Sources
-
-WallBase ships with 8 curated source extensions out of the box:
-
-| Source | Description |
-|---|---|
-| **Wallhaven** | High quality community wallpapers and anime artwork |
-| **Reddit** | Community wallpapers from popular wallpaper subreddits |
-| **Pinterest** | Curated Ultra HD aesthetic wallpaper collections |
-| **Pexels** | Free high-quality 4K stock photos and aesthetic wallpapers |
-| **Unsplash** | High-resolution photography and curated aesthetic wallpapers |
-| **AlphaCoders** | Ultra HD anime, gaming, sci-fi, movies, and pop-culture wallpapers |
-| **Pixiv** | Japanese illustration community, daily rankings, and anime art |
-| **Safebooru** | Clean anime wallpaper &amp; illustration tags repository |
-
----
-
-## Tech Stack &amp; Architecture
+## Tech Stack & Architecture
 
 WallBase is engineered following modern Android development practices and Clean Architecture principles:
 
@@ -85,7 +65,6 @@ WallBase is engineered following modern Android development practices and Clean 
 - **Persistence**: Room Database (SQLite) and Jetpack DataStore Preferences
 - **Networking**: Retrofit 2, Moshi, OkHttp 4, and Jsoup
 - **Image Pipeline**: Coil 3 with OkHttp caching
-- **Extension Engine**: Declarative JSON manifests + sandboxed QuickJS for custom scrapers
 - **Minimum SDK**: Android 8.0 (API level 26)
 - **Target SDK**: Android 16 (API level 36)
 
