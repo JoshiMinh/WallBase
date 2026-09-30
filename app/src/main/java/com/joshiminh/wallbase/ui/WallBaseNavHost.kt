@@ -5,6 +5,7 @@ package com.joshiminh.wallbase.ui
 import com.joshiminh.wallbase.navigation.*
 import com.joshiminh.wallbase.MainActivity
 import com.joshiminh.wallbase.screens.*
+import com.joshiminh.wallbase.feature.sources.ui.SourcesRoute
 import com.joshiminh.wallbase.R
 import com.joshiminh.wallbase.*
 import android.annotation.SuppressLint
@@ -87,6 +88,7 @@ import com.joshiminh.wallbase.screens.AlbumRoute
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.theme.WallBaseMotion
 import com.joshiminh.wallbase.ui.viewmodel.*
+import com.joshiminh.wallbase.feature.sources.viewmodel.SourcesViewModel
 import com.joshiminh.wallbase.data.repository.AppTheme
 import com.joshiminh.wallbase.data.repository.AppAccentColor
 import com.joshiminh.wallbase.util.MinResolution
@@ -514,7 +516,7 @@ fun WallBaseApp(
                     }
 
                     composable(RootRoute.Browse.route) {
-                        SourcesScreen(
+                        SourcesRoute(
                             uiState = sourcesUiState,
                             onUpdateSourceInput = onUpdateSourceInput,
                             onSearchReddit = onSearchReddit,
@@ -693,147 +695,29 @@ fun WallBaseApp(
             content = renderNavHost,
         )
 
-        if (showTopBar) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        translationY = -size.height * (1f - barsProgress)
-                    },
-                color = MaterialTheme.colorScheme.background,
-                tonalElevation = 0.dp,
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                ) {
-                    TopAppBar(
-                        modifier = Modifier.fillMaxWidth(),
-                        windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
-                        title = {
-                            val overrideState = topBarState
-                            val customTitle = overrideState?.titleContent
-                            when {
-                                customTitle != null -> customTitle()
-                                else -> Text(
-                                    text = overrideState?.title ?: currentTitle(currentDestination),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                        },
-                        navigationIcon = {
-                            val overrideState = topBarState
-                            val overrideNav = overrideState?.navigationIcon
-                            when {
-                                overrideNav != null -> IconButton(onClick = overrideNav.onClick) {
-                                    Icon(
-                                        imageVector = overrideNav.icon,
-                                        contentDescription = overrideNav.contentDescription,
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                }
-                                overrideState != null -> Unit // no nav icon when state provided
-                                canNavigateBack -> IconButton(onClick = { navController.navigateUp() }) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back",
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                }
-                                else -> Unit
-                            }
-                        },
-                        actions = { topBarState?.actions?.invoke(this) },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.background,
-                            scrolledContainerColor = MaterialTheme.colorScheme.background,
-                            titleContentColor = MaterialTheme.colorScheme.onSurface,
-                            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                            actionIconContentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                    )
-                    topBarState?.bottomContent?.invoke()
-                }
-            }
-        }
+        AppTopBar(
+            showTopBar = showTopBar,
+            barsProgress = barsProgress,
+            topBarState = topBarState,
+            fallbackTitle = currentTitle(currentDestination),
+            canNavigateBack = canNavigateBack,
+            onNavigateBack = navController::navigateUp,
+        )
 
-        if (currentDestination?.route in topLevelRoutes) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        translationY = size.height * (1f - barsProgress)
-                    },
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 0.dp,
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                ) {
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        thickness = 0.5.dp
-                    )
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 0.dp,
-                        windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
-                    ) {
-                        RootRoute.entries.forEach { item ->
-                            val isSelected = currentDestination.isTopDestination(item)
-                            NavigationBarItem(
-                                selected = isSelected,
-                                onClick = {
-                                    if (!isSelected) {
-                                        navController.navigate(item.route) {
-                                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    }
-                                },
-                                icon = {
-                                    if (item == RootRoute.Settings && settingsUiState.availableUpdateVersion != null) {
-                                        BadgedBox(
-                                            badge = {
-                                                Badge(
-                                                    containerColor = MaterialTheme.colorScheme.primary,
-                                                )
-                                            }
-                                        ) {
-                                            AnimatedBottomBarIcon(
-                                                item = item,
-                                                isSelected = isSelected,
-                                                animationsEnabled = settingsUiState.animationsEnabled,
-                                            )
-                                        }
-                                    } else {
-                                        AnimatedBottomBarIcon(
-                                            item = item,
-                                            isSelected = isSelected,
-                                            animationsEnabled = settingsUiState.animationsEnabled,
-                                        )
-                                    }
-                                },
-                                label = {
-                                    Text(
-                                        text = item.label,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    )
-                                },
-                            )
-                        }
-                    }
+        AppBottomBar(
+            currentDestination = currentDestination,
+            topLevelRoutes = topLevelRoutes,
+            hasAvailableUpdate = settingsUiState.availableUpdateVersion != null,
+            animationsEnabled = settingsUiState.animationsEnabled,
+            barsProgress = barsProgress,
+            onNavigateRoute = { route ->
+                navController.navigate(route) {
+                    popUpTo(navController.graph.startDestinationId) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
                 }
-            }
-        }
+            },
+        )
 
         when {
             !settingsUiState.hasCompletedOnboarding -> {
@@ -878,7 +762,7 @@ private fun SharedTransitionHost(
 }
 
 @Composable
-private fun AnimatedBottomBarIcon(
+internal fun AnimatedBottomBarIcon(
     item: RootRoute,
     isSelected: Boolean,
     animationsEnabled: Boolean,

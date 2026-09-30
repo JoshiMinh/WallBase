@@ -1,4 +1,4 @@
-package com.joshiminh.wallbase.ui.viewmodel
+package com.joshiminh.wallbase.feature.sources.viewmodel
 
 import android.app.Application
 import android.net.Uri

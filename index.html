@@ -12,14 +12,14 @@
   <meta property="og:url" content="https://joshiminh.github.io/WallBase/">
   <meta property="og:title" content="WallBase | Open-source Android wallpaper manager">
   <meta property="og:description" content="Browse wallpaper sources, build albums, and crop and set wallpapers on Android.">
-  <meta property="og:image" content="https://joshiminh.github.io/WallBase/screenshots/library_preview.jpg">
+  <meta property="og:image" content="https://joshiminh.github.io/WallBase/images/screenshots/library_preview.png">
   <meta property="og:image:width" content="720">
   <meta property="og:image:height" content="1600">
   <meta property="og:image:alt" content="WallBase wallpaper library on Android">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="WallBase | Open-source Android wallpaper manager">
   <meta name="twitter:description" content="Discover, organize, and set wallpapers with WallBase for Android.">
-  <meta name="twitter:image" content="https://joshiminh.github.io/WallBase/screenshots/library_preview.jpg">
+  <meta name="twitter:image" content="https://joshiminh.github.io/WallBase/images/screenshots/library_preview.png">
   <link rel="icon" href="icon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +27,7 @@
   <link rel="stylesheet" href="tokens.css">
   <title>WallBase | Open-source Android wallpaper manager</title>
   <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"SoftwareApplication","name":"WallBase","url":"https://joshiminh.github.io/WallBase/","description":"Free, open-source Android wallpaper manager for discovering, saving, organizing, cropping, and setting wallpapers.","applicationCategory":"MultimediaApplication","operatingSystem":"Android 8.0 or newer","isAccessibleForFree":true,"downloadUrl":"https://github.com/JoshiMinh/WallBase/releases/latest","image":"https://joshiminh.github.io/WallBase/screenshots/library_preview.jpg","author":{"@type":"Person","name":"JoshiMinh"}}
+    {"@context":"https://schema.org","@type":"SoftwareApplication","name":"WallBase","url":"https://joshiminh.github.io/WallBase/","description":"Free, open-source Android wallpaper manager for discovering, saving, organizing, cropping, and setting wallpapers.","applicationCategory":"MultimediaApplication","operatingSystem":"Android 8.0 or newer","isAccessibleForFree":true,"downloadUrl":"https://github.com/JoshiMinh/WallBase/releases/latest","image":"https://joshiminh.github.io/WallBase/images/screenshots/library_preview.png","author":{"@type":"Person","name":"JoshiMinh"}}
   </script>
   <style>
     /* Hallmark · macrostructure: Asymmetric Showcase · theme: custom dark editorial
@@ -190,8 +190,8 @@
           <p class="hero-note">Free to use · Open source · Android 8.0 and newer</p>
         </div>
         <div class="hero-visual" aria-label="WallBase Library and Sources screenshots">
-          <div class="phone"><img src="screenshots/library_preview.jpg" alt="WallBase library displaying saved wallpapers" width="720" height="1600" fetchpriority="high"></div>
-          <div class="phone phone-secondary"><img src="screenshots/sources_preview.jpg" alt="WallBase Sources screen with installed providers" width="720" height="1600"></div>
+          <div class="phone"><img src="images/screenshots/library_preview.png" alt="WallBase library displaying saved wallpapers" width="720" height="1600" fetchpriority="high"></div>
+          <div class="phone phone-secondary"><img src="images/screenshots/sources_preview.png" alt="WallBase Sources screen with installed providers" width="720" height="1600"></div>
         </div>
       </div>
       <span class="hero-index" aria-hidden="true">01 / Discover · Save · Set</span>
@@ -222,9 +222,9 @@
           <p>Fresh captures from the current Android build: a visual library, source management, and settings with the controls that matter.</p>
         </div>
         <div class="screen-gallery">
-          <figure><img src="screenshots/library_preview.jpg" alt="Library screen with a grid of saved wallpapers" width="720" height="1600" loading="lazy"><figcaption>Build your library <span>01 / 03</span></figcaption></figure>
-          <figure><img src="screenshots/sources_preview.jpg" alt="Sources screen listing installed wallpaper providers" width="720" height="1600" loading="lazy"><figcaption>Choose your sources <span>02 / 03</span></figcaption></figure>
-          <figure><img src="screenshots/settings_preview.jpg" alt="Settings screen with app lock, download, and appearance options" width="720" height="1600" loading="lazy"><figcaption>Set your preferences <span>03 / 03</span></figcaption></figure>
+          <figure><img src="images/screenshots/library_preview.png" alt="Library screen with a grid of saved wallpapers" width="720" height="1600" loading="lazy"><figcaption>Build your library <span>01 / 03</span></figcaption></figure>
+          <figure><img src="images/screenshots/sources_preview.png" alt="Sources screen listing installed wallpaper providers" width="720" height="1600" loading="lazy"><figcaption>Choose your sources <span>02 / 03</span></figcaption></figure>
+          <figure><img src="images/screenshots/settings_preview.png" alt="Settings screen with app lock, download, and appearance options" width="720" height="1600" loading="lazy"><figcaption>Set your preferences <span>03 / 03</span></figcaption></figure>
         </div>
       </div>
     </section>
@@ -271,14 +271,20 @@
           const icon = document.createElement('span');
           icon.className = 'source-icon';
           icon.textContent = source.name.charAt(0).toUpperCase();
-          if (typeof source.iconUrl === 'string') {
-            const iconUrl = new URL(source.iconUrl, location.href);
-            if (iconUrl.protocol === 'https:') {
+          const bundledIcons = {
+            pinterest: 'images/extensions/pinterest.svg',
+            pixiv: 'images/extensions/pixiv.svg'
+          };
+          const iconSource = bundledIcons[source.id] || source.iconUrl;
+          if (typeof iconSource === 'string') {
+            const iconUrl = new URL(iconSource, location.href);
+            if (iconUrl.protocol === 'https:' || iconUrl.origin === location.origin) {
               const image = document.createElement('img');
               image.src = iconUrl.href;
               image.alt = '';
               image.loading = 'lazy';
               image.onload = () => icon.replaceChildren(image);
+              image.onerror = () => image.remove();
             }
           }
           const name = document.createElement('span');

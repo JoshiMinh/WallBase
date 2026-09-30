@@ -30,13 +30,13 @@
     </tr>
     <tr>
       <td align="center">
-        <img src="screenshots/library_preview.jpg" alt="Library Preview" width="100%"/>
+        <img src="images/screenshots/library_preview.png" alt="Library Preview" width="100%"/>
       </td>
       <td align="center">
-        <img src="screenshots/sources_preview.jpg" alt="Sources Preview" width="100%"/>
+        <img src="images/screenshots/sources_preview.png" alt="Sources Preview" width="100%"/>
       </td>
       <td align="center">
-        <img src="screenshots/settings_preview.jpg" alt="Settings Preview" width="100%"/>
+        <img src="images/screenshots/settings_preview.png" alt="Settings Preview" width="100%"/>
       </td>
     </tr>
   </table>

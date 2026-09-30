@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -50,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.window.Dialog
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -564,65 +566,112 @@ fun SettingsScreen(
 
             // State 4: Default - Update Available prompt
             else -> {
-                AlertDialog(
-                    onDismissRequest = handleDismissDialog,
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Outlined.SystemUpdate,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    },
-                    title = {
-                        Text(text = "Update Available (v${uiState.availableUpdateVersion})")
-                    },
-                    text = {
+                Dialog(onDismissRequest = handleDismissDialog) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 440.dp),
+                        shape = WallBaseShapes.dialog,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        tonalElevation = 6.dp
+                    ) {
                         Column(
-                            modifier = Modifier.verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier.padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(18.dp)
                         ) {
-                            Text(
-                                text = "A new version of WallBase is ready to install.",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            if (!uiState.updateNotes.isNullOrBlank()) {
-                                Text(
-                                    text = uiState.updateNotes,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.SystemUpdate,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(12.dp).size(26.dp)
+                                    )
+                                }
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = "Update available",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "WallBase v${uiState.availableUpdateVersion}",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
-                        }
-                    },
-                    confirmButton = {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            TextButton(
-                                onClick = {
+
+                            Text(
+                                text = "A new version is ready to install.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            if (!uiState.updateNotes.isNullOrBlank()) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = WallBaseShapes.control,
+                                    color = MaterialTheme.colorScheme.surfaceContainerLow
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(160.dp)
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Text(
+                                            text = "WHAT'S NEW",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = uiState.updateNotes,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+
+                            Button(
+                                onClick = onStartUpdateDownloadAndInstall,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = WallBaseShapes.pill
+                            ) {
+                                Icon(Icons.Outlined.Download, contentDescription = null)
+                                Spacer(Modifier.size(8.dp))
+                                Text("Download & install")
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = {
                                     uriHandler.openUri(browserUrl)
                                     handleDismissDialog()
+                                }) {
+                                    Text("View release")
                                 }
-                            ) {
-                                Text("Browser")
-                            }
-                            Button(
-                                onClick = {
-                                    onStartUpdateDownloadAndInstall()
+                                TextButton(onClick = handleDismissDialog) {
+                                    Text("Later")
                                 }
-                            ) {
-                                Text("Download & Install")
                             }
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = handleDismissDialog) {
-                            Text("Later")
                         }
                     }
-                )
+                }
             }
         }
     }

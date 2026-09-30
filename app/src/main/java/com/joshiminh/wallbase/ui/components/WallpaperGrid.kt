@@ -153,20 +153,6 @@ private fun buildJustifiedRows(
     return rows
 }
 
-@Composable
-fun topBarInsetPadding(defaultTop: Dp = 8.dp, hasTabBar: Boolean = false): Dp {
-    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val extraTab = if (hasTabBar) 48.dp else 0.dp
-    return statusBarTop + 64.dp + extraTab + defaultTop
-}
-
-@Composable
-fun bottomBarInsetPadding(extraBottom: Dp = 4.dp, hasBottomNav: Boolean = false): Dp {
-    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val extraNav = if (hasBottomNav) 80.dp else 0.dp
-    return navBarBottom + extraNav + extraBottom
-}
-
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun WallpaperGrid(

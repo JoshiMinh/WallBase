@@ -1,5 +1,7 @@
 package com.joshiminh.wallbase.screens
 
+import com.joshiminh.wallbase.feature.sources.ui.safePainterResource
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -185,7 +187,7 @@ fun GlobalSearchScreen(
 
                 PrimaryScrollableTabRow(
                     selectedTabIndex = selectedIndex,
-                    containerColor = MaterialTheme.colorScheme.surface,
+                    containerColor = MaterialTheme.colorScheme.background,
                     edgePadding = 12.dp
                 ) {
                     Tab(

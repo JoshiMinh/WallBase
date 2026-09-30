@@ -17,6 +17,7 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
+import com.joshiminh.wallbase.feature.sources.viewmodel.SourcesViewModel
 import com.joshiminh.wallbase.ui.WallBaseApp
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
 import com.joshiminh.wallbase.ui.viewmodel.*
