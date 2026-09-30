@@ -86,6 +86,19 @@ jobs:
           app/build/outputs/apk/release/WallBase-*.apk
         draft: false
         prerelease: false
+        previous_tag: v7.1
+        body: |
+          ## Highlights
+
+          - Refined source management and app navigation UI.
+          - Improved direct wallpaper image resolution and download handling.
+          - Refreshed extension icons and website screenshots.
+          - Polished the update dialog and related settings presentation.
+
+          ## Release pace
+
+          The past week has brought an unusually high number of updates and upgrades. We’re slowing down now; we don’t expect another feature release for the next few weeks to a few months while this version settles. Critical fixes may still ship sooner if needed.
+
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
