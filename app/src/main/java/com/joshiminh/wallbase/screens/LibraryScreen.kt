@@ -468,9 +468,9 @@ fun LibraryScreen(
             val density = LocalDensity.current
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
+                    .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(start = 16.dp, bottom = 96.dp)
+                    .padding(end = 16.dp, bottom = 96.dp)
                     .graphicsLayer {
                         translationY = (1f - barsProgress) * with(density) { 80.dp.toPx() }
                     }
