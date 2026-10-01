@@ -2,8 +2,8 @@ package com.joshiminh.wallbase.data.repository
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
-import com.joshiminh.wallbase.data.entity.Source
-import com.joshiminh.wallbase.data.entity.WallpaperItem
+import com.joshiminh.wallbase.domain.model.Source
+import com.joshiminh.wallbase.domain.model.WallpaperItem
 
 /**
  * [PagingSource] implementation that delegates cursor-based pagination to [WallpaperRepository].

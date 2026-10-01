@@ -31,12 +31,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
-import com.joshiminh.wallbase.util.SortDirection
-import com.joshiminh.wallbase.util.SortField
-import com.joshiminh.wallbase.util.SortSelection
-import com.joshiminh.wallbase.util.defaultDirection
-import com.joshiminh.wallbase.util.displayName
-import com.joshiminh.wallbase.util.toggle
+import com.joshiminh.wallbase.core.common.SortDirection
+import com.joshiminh.wallbase.core.common.SortField
+import com.joshiminh.wallbase.core.common.SortSelection
+import com.joshiminh.wallbase.core.common.defaultDirection
+import com.joshiminh.wallbase.core.common.displayName
+import com.joshiminh.wallbase.core.common.toggle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

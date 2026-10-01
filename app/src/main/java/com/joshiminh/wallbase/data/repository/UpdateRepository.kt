@@ -1,7 +1,7 @@
 package com.joshiminh.wallbase.data.repository
 
 import com.joshiminh.wallbase.BuildConfig
-import com.joshiminh.wallbase.util.network.UpdateService
+import com.joshiminh.wallbase.core.network.UpdateService
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

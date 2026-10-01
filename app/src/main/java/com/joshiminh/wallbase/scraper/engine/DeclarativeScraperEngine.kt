@@ -1,14 +1,14 @@
 package com.joshiminh.wallbase.scraper.engine
 
 import android.net.Uri
-import com.joshiminh.wallbase.data.entity.SourceKeys
-import com.joshiminh.wallbase.data.entity.WallpaperItem
+import com.joshiminh.wallbase.domain.model.SourceKeys
+import com.joshiminh.wallbase.domain.model.WallpaperItem
 import com.joshiminh.wallbase.scraper.model.ExtractionRule
 import com.joshiminh.wallbase.scraper.model.FeedDefinition
 import com.joshiminh.wallbase.scraper.model.FieldExtractor
 import com.joshiminh.wallbase.scraper.model.PaginationConfig
 import com.joshiminh.wallbase.scraper.model.SourceManifest
-import com.joshiminh.wallbase.util.network.ScrapePage
+import com.joshiminh.wallbase.scraper.engine.ScrapePage
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import kotlinx.coroutines.Dispatchers

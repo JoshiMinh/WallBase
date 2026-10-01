@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONObject
 import java.io.IOException
-import com.joshiminh.wallbase.util.MinResolution
+import com.joshiminh.wallbase.core.common.MinResolution
 
 import javax.inject.Inject
 import javax.inject.Singleton

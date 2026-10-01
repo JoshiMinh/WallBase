@@ -4,12 +4,13 @@ package com.joshiminh.wallbase.data.repository
 
 import androidx.core.net.toUri
 import com.joshiminh.wallbase.R
-import com.joshiminh.wallbase.data.dao.SourceDao
-import com.joshiminh.wallbase.data.dao.WallpaperDao
-import com.joshiminh.wallbase.data.entity.Source
-import com.joshiminh.wallbase.data.entity.SourceEntity
-import com.joshiminh.wallbase.data.entity.SourceKeys
-import com.joshiminh.wallbase.sources.RedditCommunity
+import com.joshiminh.wallbase.data.local.SourceDao
+import com.joshiminh.wallbase.data.local.WallpaperDao
+import com.joshiminh.wallbase.domain.model.Source
+import com.joshiminh.wallbase.data.local.LocalStorageCoordinator
+import com.joshiminh.wallbase.data.local.SourceEntity
+import com.joshiminh.wallbase.domain.model.SourceKeys
+import com.joshiminh.wallbase.data.sources.RedditCommunity
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit

@@ -60,13 +60,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
-import com.joshiminh.wallbase.util.DownloadedFilter
-import com.joshiminh.wallbase.util.SortDirection
-import com.joshiminh.wallbase.util.SortField
-import com.joshiminh.wallbase.util.SortSelection
-import com.joshiminh.wallbase.util.defaultDirection
-import com.joshiminh.wallbase.util.displayName
-import com.joshiminh.wallbase.util.toggle
+import com.joshiminh.wallbase.core.common.DownloadedFilter
+import com.joshiminh.wallbase.core.common.SortDirection
+import com.joshiminh.wallbase.core.common.SortField
+import com.joshiminh.wallbase.core.common.SortSelection
+import com.joshiminh.wallbase.core.common.defaultDirection
+import com.joshiminh.wallbase.core.common.displayName
+import com.joshiminh.wallbase.core.common.toggle
 
 enum class SheetTab(val label: String) {
     FILTER("Filter"),

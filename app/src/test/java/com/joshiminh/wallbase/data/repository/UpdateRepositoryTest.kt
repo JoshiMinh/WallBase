@@ -1,8 +1,8 @@
 package com.joshiminh.wallbase.data.repository
 
-import com.joshiminh.wallbase.util.network.UpdateAssetDto
-import com.joshiminh.wallbase.util.network.UpdateReleaseDto
-import com.joshiminh.wallbase.util.network.UpdateService
+import com.joshiminh.wallbase.core.network.UpdateAssetDto
+import com.joshiminh.wallbase.core.network.UpdateReleaseDto
+import com.joshiminh.wallbase.core.network.UpdateService
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers

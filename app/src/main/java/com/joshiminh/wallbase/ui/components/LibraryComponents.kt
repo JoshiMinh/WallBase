@@ -1,0 +1,923 @@
+package com.joshiminh.wallbase.ui.components
+
+import com.joshiminh.wallbase.ui.dialogs.CreateAlbumDialog
+import com.joshiminh.wallbase.ui.components.topBarInsetPadding
+import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Album
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.DragHandle
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.TaskAlt
+import androidx.compose.material.icons.outlined.Wallpaper
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.surfaceColorAtElevation
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.joshiminh.wallbase.ui.theme.WallBaseShapes
+import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import coil3.compose.AsyncImage
+import coil3.compose.rememberAsyncImagePainter
+import com.joshiminh.wallbase.ui.navigation.TopBarHandle
+import com.joshiminh.wallbase.ui.navigation.TopBarState
+import com.joshiminh.wallbase.domain.model.AlbumItem
+import com.joshiminh.wallbase.domain.model.WallpaperItem
+import com.joshiminh.wallbase.data.repository.AlbumLayout
+import com.joshiminh.wallbase.data.repository.WallpaperLayout
+import com.joshiminh.wallbase.ui.components.AlbumLayoutPicker
+import com.joshiminh.wallbase.ui.components.GridColumnPicker
+import com.joshiminh.wallbase.ui.components.TopBarSearchField
+import com.joshiminh.wallbase.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.ui.components.WallpaperLayoutPicker
+import com.joshiminh.wallbase.core.common.SortField
+import com.joshiminh.wallbase.core.common.SortSelection
+import com.joshiminh.wallbase.core.common.toAlbumSortOption
+import com.joshiminh.wallbase.core.common.toSelection
+import com.joshiminh.wallbase.core.common.toWallpaperSortOption
+import com.joshiminh.wallbase.ui.viewmodels.LibraryViewModel
+import androidx.compose.foundation.lazy.grid.items as gridItems
+
+@Composable
+fun DownloadProgressToast(visible: Boolean, modifier: Modifier = Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = modifier
+    ) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 6.dp,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    text = "Downloading wallpapers…",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun LibraryContent(
+    uiState: LibraryViewModel.LibraryUiState,
+    wallpapers: List<WallpaperItem>,
+    albums: List<AlbumItem>,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    onWallpaperClick: (WallpaperItem) -> Unit,
+    onWallpaperLongPress: (WallpaperItem) -> Unit,
+    wallpaperSelectionIds: Set<String>,
+    albumSelectionIds: Set<Long>,
+    isWallpaperSelectionMode: Boolean,
+    isAlbumSelectionMode: Boolean,
+    selectionMode: Boolean,
+    onAlbumClick: (AlbumItem) -> Unit,
+    onAlbumLongPress: (AlbumItem) -> Unit,
+    onCreateAlbum: (String) -> Unit,
+    onRequestCreateAlbum: () -> Unit,
+    onDismissCreateAlbum: () -> Unit,
+    showAlbumDialog: Boolean,
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+    isSearching: Boolean,
+    searchQuery: String,
+    wallpaperGridColumns: Int,
+    wallpaperLayout: WallpaperLayout,
+    albumLayout: AlbumLayout,
+    modifier: Modifier = Modifier
+) {
+    val hasQuery = isSearching && searchQuery.isNotBlank()
+
+    Box(modifier) {
+        when (selectedTab) {
+            0 -> {
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    if (wallpapers.isEmpty()) {
+                        val message = when {
+                            uiState.wallpapers.isEmpty() -> "Your library is empty. Save wallpapers from Browse to see them here."
+                            hasQuery -> "No wallpapers match your search."
+                            else -> "No wallpapers available."
+                        }
+                        LibraryEmptyState(
+                            message = message,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        WallpaperGrid(
+                            wallpapers = wallpapers,
+                            onWallpaperSelected = onWallpaperClick,
+                            modifier = Modifier.fillMaxSize(),
+                            onLongPress = onWallpaperLongPress,
+                            selectedIds = wallpaperSelectionIds,
+                            selectionMode = isWallpaperSelectionMode,
+                            columns = wallpaperGridColumns,
+                            layout = wallpaperLayout,
+                            showDownloadedBadge = uiState.showDownloadBadge,
+                            contentPadding = PaddingValues(start = 4.dp, top = topBarInsetPadding(4.dp, hasTabBar = true), end = 4.dp, bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)),
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    if (albums.isEmpty()) {
+                        val hasAlbums = uiState.albums.isNotEmpty()
+                        if (hasAlbums && hasQuery) {
+                            LibraryEmptyState(
+                                message = "No albums match your search.",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    Text(
+                                        text = "Organize wallpapers by creating your first album.",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    TextButton(
+                                        onClick = onRequestCreateAlbum,
+                                        enabled = !uiState.isCreatingAlbum
+                                    ) {
+                                        Text(text = "Add album")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        AlbumList(
+                            albums = albums,
+                            layout = albumLayout,
+                            onAlbumClick = onAlbumClick,
+                            onAlbumLongPress = onAlbumLongPress,
+                            selectedAlbumIds = albumSelectionIds,
+                            selectionMode = isAlbumSelectionMode,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAlbumDialog) {
+        CreateAlbumDialog(
+            isCreating = uiState.isCreatingAlbum,
+            onCreate = onCreateAlbum,
+            onDismiss = onDismissCreateAlbum
+        )
+    }
+}
+
+@Composable
+fun LibraryEmptyState(message: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize().padding(WallBaseSpacing.lg),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(WallBaseSpacing.lg),
+        )
+    }
+}
+
+@Composable
+fun AlbumList(
+    albums: List<AlbumItem>,
+    layout: AlbumLayout,
+    onAlbumClick: (AlbumItem) -> Unit,
+    onAlbumLongPress: (AlbumItem) -> Unit,
+    selectedAlbumIds: Set<Long>,
+    selectionMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    when (layout) {
+        AlbumLayout.GRID -> {
+            LazyVerticalGrid(
+                modifier = modifier.fillMaxSize(),
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(
+                    start = WallBaseSpacing.xs,
+                    top = topBarInsetPadding(WallBaseSpacing.xs, hasTabBar = true),
+                    end = WallBaseSpacing.xs,
+                    bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
+                ),
+                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
+            ) {
+                gridItems(albums, key = AlbumItem::id) { album ->
+                    val isSelected = album.id in selectedAlbumIds
+                    AlbumGridCard(
+                        album = album,
+                        selected = isSelected,
+                        selectionMode = selectionMode,
+                        onClick = { onAlbumClick(album) },
+                        onLongPress = { onAlbumLongPress(album) }
+                    )
+                }
+            }
+        }
+
+        AlbumLayout.CARD_LIST -> {
+            LazyColumn(
+                modifier = modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(
+                    start = WallBaseSpacing.sm,
+                    top = topBarInsetPadding(WallBaseSpacing.xs, hasTabBar = true),
+                    end = WallBaseSpacing.sm,
+                    bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
+                ),
+                verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.xs)
+            ) {
+                items(albums, key = AlbumItem::id) { album ->
+                    val isSelected = album.id in selectedAlbumIds
+                    AlbumRowCard(
+                        album = album,
+                        selected = isSelected,
+                        selectionMode = selectionMode,
+                        onClick = { onAlbumClick(album) },
+                        onLongPress = { onAlbumLongPress(album) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+fun AlbumGridCard(
+    album: AlbumItem,
+    selected: Boolean,
+    selectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier,
+    dragModifier: Modifier = Modifier,
+    isDragging: Boolean = false,
+    isReorderEnabled: Boolean = false
+) {
+    val borderColor = if (isDragging) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+    } else if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    }
+
+    Card(
+        shape = WallBaseShapes.featured,
+        border = BorderStroke(if (isDragging) 1.5.dp else if (selected) 2.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) 8.dp else if (selected) 6.dp else 2.dp
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDragging) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            }
+        ),
+        modifier = modifier
+            .aspectRatio(0.82f)
+            .graphicsLayer {
+                if (selected) {
+                    scaleX = 0.97f
+                    scaleY = 0.97f
+                }
+            }
+            .combinedClickable(
+                onClick = { if (!isDragging) onClick() },
+                onLongClick = { if (!isDragging) onLongPress() }
+            )
+    ) {
+        val previews = remember(album.previewImageUrls, album.coverImageUrl) {
+            album.previewImageUrls.ifEmpty {
+                album.coverImageUrl?.let { listOf(it) } ?: emptyList()
+            }.take(3)
+        }
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (previews.size >= 2) {
+                // Fanned wallpaper stack for multiple wallpapers (max 3)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 60.dp, top = 16.dp, start = 12.dp, end = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (previews.size == 2) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 4.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.92f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = -6f
+                                    translationX = -20f
+                                }
+                                .zIndex(1f)
+                        ) {
+                            AsyncImage(
+                                model = previews[0],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 8.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.92f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = 6f
+                                    translationX = 20f
+                                }
+                                .zIndex(2f)
+                        ) {
+                            AsyncImage(
+                                model = previews[1],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    } else {
+                        // Left
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 4.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.88f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = -9f
+                                    translationX = -32f
+                                }
+                                .zIndex(1f)
+                        ) {
+                            AsyncImage(
+                                model = previews[0],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        // Right
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 4.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.88f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = 9f
+                                    translationX = 32f
+                                }
+                                .zIndex(1f)
+                        ) {
+                            AsyncImage(
+                                model = previews[2],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        // Center
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 10.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.94f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = 0f
+                                    translationX = 0f
+                                }
+                                .zIndex(3f)
+                        ) {
+                            AsyncImage(
+                                model = previews[1],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+            } else if (previews.size == 1) {
+                AsyncImage(
+                    model = previews[0],
+                    contentDescription = album.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.Collections,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Smooth multi-stop gradient scrim for text readability
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color.Transparent,
+                            0.42f to Color.Transparent,
+                            0.70f to Color(0x66000000),
+                            1.0f to Color(0xDE000000)
+                        )
+                    )
+            )
+
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                )
+            }
+
+            if (selectionMode) {
+                SelectionCheckmark(
+                    selected = selected,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp)
+                )
+            } else if (isReorderEnabled) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                    shadowElevation = 2.dp,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            .then(dragModifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DragHandle,
+                            contentDescription = "Hold and drag to reorder",
+                            tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Surface(
+                    shape = WallBaseShapes.pill,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    shadowElevation = 2.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Collections,
+                            contentDescription = null,
+                            modifier = Modifier.size(13.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "${album.wallpaperCount} ${if (album.wallpaperCount == 1) "item" else "items"}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+                Text(
+                    text = album.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun AlbumRowCard(
+    album: AlbumItem,
+    selected: Boolean,
+    selectionMode: Boolean,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier,
+    dragModifier: Modifier = Modifier,
+    isDragging: Boolean = false,
+    isReorderEnabled: Boolean = false
+) {
+    val borderColor = if (isDragging) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+    } else if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+    }
+    val previews = remember(album.previewImageUrls, album.coverImageUrl) {
+        album.previewImageUrls.ifEmpty {
+            album.coverImageUrl?.let { listOf(it) } ?: emptyList()
+        }.take(3)
+    }
+
+    Card(
+        shape = WallBaseShapes.card,
+        border = BorderStroke(if (isDragging) 1.5.dp else if (selected) 2.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) 8.dp else if (selected) 3.dp else 0.dp
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isDragging) {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            } else if (selected) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            }
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                if (selected) {
+                    scaleX = 0.985f
+                    scaleY = 0.985f
+                }
+            }
+            .combinedClickable(
+                onClick = { if (!isDragging) onClick() },
+                onLongClick = { if (!isDragging) onLongPress() }
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            // Wallpaper Stack / Showcase Header
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(154.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (previews.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Collections,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy((-24).dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        previews.forEachIndexed { index, imageUrl ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                shadowElevation = (4 + index * 3).dp,
+                                border = BorderStroke(
+                                    1.5.dp,
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .aspectRatio(9f / 16f)
+                                    .zIndex(index.toFloat())
+                            ) {
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Details section below showcase
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = album.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = WallBaseShapes.pill,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Collections,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "${album.wallpaperCount} ${if (album.wallpaperCount == 1) "wallpaper" else "wallpapers"}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (selectionMode) {
+                    SelectionCheckmark(selected = selected)
+                } else if (isReorderEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            .then(dragModifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DragHandle,
+                            contentDescription = "Hold and drag to reorder",
+                            modifier = Modifier.size(22.dp),
+                            tint = if (isDragging) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            }
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SelectionCheckmark(selected: Boolean, modifier: Modifier = Modifier) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = containerColor,
+        tonalElevation = if (selected) 6.dp else 2.dp,
+        shadowElevation = if (selected) 3.dp else 1.dp
+    ) {
+        Icon(
+            imageVector = if (selected) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.padding(4.dp).size(18.dp)
+        )
+    }
+}
+
+
+

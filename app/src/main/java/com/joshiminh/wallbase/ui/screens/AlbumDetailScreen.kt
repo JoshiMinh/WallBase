@@ -1,0 +1,541 @@
+package com.joshiminh.wallbase.ui.screens
+
+import com.joshiminh.wallbase.ui.navigation.*
+import com.joshiminh.wallbase.core.common.*
+import com.joshiminh.wallbase.ui.components.topBarInsetPadding
+import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
+
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.joshiminh.wallbase.domain.model.WallpaperItem
+import com.joshiminh.wallbase.ui.components.SheetTab
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.joshiminh.wallbase.ui.components.TopBarSearchField
+import com.joshiminh.wallbase.ui.components.ViewFilterSortBottomSheet
+import com.joshiminh.wallbase.ui.components.WallpaperGrid
+import com.joshiminh.wallbase.ui.viewmodels.AlbumDetailViewModel
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun AlbumRoute(
+    albumId: Long,
+    onWallpaperSelected: (WallpaperItem, Boolean, List<WallpaperItem>) -> Unit,
+    onAlbumDeleted: () -> Unit,
+    onNavigateBack: () -> Unit = {},
+    onConfigureTopBar: (TopBarState) -> TopBarHandle,
+    viewModel: AlbumDetailViewModel = hiltViewModel(),
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val title = uiState.albumTitle ?: "Album"
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val canSort = uiState.wallpapers.isNotEmpty()
+    var showAlbumMenu by rememberSaveable { mutableStateOf(false) }
+    var showRenameDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var renameInput by rememberSaveable(title) { mutableStateOf(title) }
+    var showSortSheet by rememberSaveable { mutableStateOf(false) }
+    val availableSortFields = remember { listOf(SortField.Alphabet, SortField.DateAdded) }
+    val sortSelection = uiState.wallpaperSortOption.toSelection()
+
+    var isSearchActive by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val searchFocusRequester = remember { FocusRequester() }
+    val trimmedQuery = remember(searchQuery) { searchQuery.trim() }
+
+    val displayedWallpapers = remember(uiState.wallpapers, trimmedQuery, isSearchActive) {
+        if (!isSearchActive || trimmedQuery.isEmpty()) {
+            uiState.wallpapers
+        } else {
+            uiState.wallpapers.filter { wallpaper ->
+                wallpaper.displayTitle.contains(trimmedQuery, ignoreCase = true) ||
+                        (wallpaper.sourceName?.contains(trimmedQuery, ignoreCase = true) == true)
+            }
+        }
+    }
+
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            searchFocusRequester.requestFocus()
+            keyboardController?.show()
+        } else {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+    }
+
+    LaunchedEffect(canSort) {
+        if (!canSort && isSearchActive) {
+            isSearchActive = false
+            searchQuery = ""
+        }
+    }
+
+    LaunchedEffect(showRenameDialog) {
+        if (showRenameDialog) renameInput = title
+    }
+
+    LaunchedEffect(uiState.isAlbumDeleted) {
+        if (uiState.isAlbumDeleted) {
+            onAlbumDeleted()
+            viewModel.consumeAlbumDeleted()
+        }
+    }
+
+    val topBarActions: @Composable RowScope.() -> Unit = {
+        if (isSearchActive) {
+            IconButton(onClick = {
+                isSearchActive = false
+                searchQuery = ""
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }) {
+                Icon(imageVector = Icons.Outlined.Close, contentDescription = "Close search")
+            }
+        } else {
+            IconButton(
+                onClick = { isSearchActive = true },
+                enabled = canSort
+            ) {
+                Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search")
+            }
+            IconButton(
+                onClick = { showSortSheet = true },
+                enabled = canSort
+            ) {
+                Icon(imageVector = Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort")
+            }
+            Box {
+                IconButton(
+                    onClick = { showAlbumMenu = true },
+                    enabled = !uiState.isRenamingAlbum && !uiState.isDeletingAlbum && !uiState.notFound
+                ) {
+                    Icon(imageVector = Icons.Outlined.Edit, contentDescription = "Edit album")
+                }
+                DropdownMenu(
+                    expanded = showAlbumMenu,
+                    onDismissRequest = { showAlbumMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Rename album") },
+                        leadingIcon = { Icon(imageVector = Icons.Outlined.Edit, contentDescription = null) },
+                        onClick = {
+                            showAlbumMenu = false
+                            showRenameDialog = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete album") },
+                        leadingIcon = { Icon(imageVector = Icons.Outlined.Delete, contentDescription = null) },
+                        onClick = {
+                            showAlbumMenu = false
+                            showDeleteDialog = true
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    val titleContent: (@Composable () -> Unit)? = if (isSearchActive) {
+        {
+            TopBarSearchField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                onClear = { searchQuery = "" },
+                placeholder = "Search album",
+                focusRequester = searchFocusRequester,
+                showClearButton = false
+            )
+        }
+    } else null
+
+    val topBarState = TopBarState(
+        title = if (isSearchActive) null else title,
+        navigationIcon = TopBarState.NavigationIcon(
+            icon = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back",
+            onClick = onNavigateBack
+        ),
+        actions = topBarActions,
+        titleContent = titleContent,
+        autoHideBars = !isSearchActive
+    )
+    val topBarHandleState = remember { mutableStateOf<TopBarHandle?>(null) }
+    SideEffect {
+        val handle = topBarHandleState.value
+        if (handle == null) {
+            topBarHandleState.value = onConfigureTopBar(topBarState)
+        } else {
+            handle.update(topBarState)
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            topBarHandleState.value?.clear()
+            topBarHandleState.value = null
+        }
+    }
+
+    LaunchedEffect(uiState.message) {
+        val message = uiState.message ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        viewModel.consumeMessage()
+    }
+
+    val supportsSharedTransitions = sharedTransitionScope != null && animatedVisibilityScope != null
+
+    val onWallpaperClick: (WallpaperItem) -> Unit = { wallpaper ->
+        onWallpaperSelected(
+            wallpaper,
+            supportsSharedTransitions,
+            displayedWallpapers
+        )
+    }
+
+    AlbumScreen(
+        state = uiState,
+        wallpapers = displayedWallpapers,
+        isSearching = isSearchActive,
+        searchQuery = trimmedQuery,
+        onWallpaperSelected = onWallpaperClick,
+        snackbarHostState = snackbarHostState,
+        onDownloadAlbum = viewModel::downloadAlbum,
+        onPromptRemoveDownloads = viewModel::promptRemoveDownloads,
+        onConfirmRemoveDownloads = viewModel::removeAlbumDownloads,
+        onDismissRemoveDownloads = viewModel::dismissRemoveDownloadsPrompt,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope
+    )
+
+    ViewFilterSortBottomSheet(
+        visible = showSortSheet,
+        onDismissRequest = { showSortSheet = false },
+        availableTabs = listOf(SheetTab.SORT, SheetTab.DISPLAY),
+        initialTab = SheetTab.SORT,
+        sortSelection = sortSelection,
+        availableSortFields = availableSortFields,
+        onSortSelectionChanged = { selection ->
+            viewModel.updateSort(selection.toWallpaperSortOption())
+        },
+        wallpaperLayout = uiState.wallpaperLayout,
+        onWallpaperLayoutChanged = viewModel::updateWallpaperLayout,
+        gridColumns = uiState.wallpaperGridColumns,
+        onGridColumnsChanged = viewModel::updateWallpaperGridColumns
+    )
+
+    if (showRenameDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isRenamingAlbum) showRenameDialog = false
+            },
+            title = { Text(text = "Rename album") },
+            text = {
+                OutlinedTextField(
+                    value = renameInput,
+                    onValueChange = { renameInput = it },
+                    label = { Text(text = "Album name") },
+                    singleLine = true,
+                    enabled = !uiState.isRenamingAlbum
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.renameAlbum(renameInput)
+                        showRenameDialog = false
+                    },
+                    enabled = renameInput.isNotBlank() && !uiState.isRenamingAlbum
+                ) {
+                    Text(text = if (uiState.isRenamingAlbum) "Renaming…" else "Rename")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showRenameDialog = false },
+                    enabled = !uiState.isRenamingAlbum
+                ) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!uiState.isDeletingAlbum) showDeleteDialog = false
+            },
+            title = { Text(text = "Delete album?") },
+            text = {
+                Text(
+                    text = "Deleting this album won't remove the wallpapers from your library.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteAlbum()
+                        showDeleteDialog = false
+                    },
+                    enabled = !uiState.isDeletingAlbum
+                ) {
+                    Text(text = if (uiState.isDeletingAlbum) "Deleting…" else "Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showDeleteDialog = false },
+                    enabled = !uiState.isDeletingAlbum
+                ) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun AlbumScreen(
+    state: AlbumDetailViewModel.AlbumDetailUiState,
+    wallpapers: List<WallpaperItem>,
+    isSearching: Boolean,
+    searchQuery: String,
+    onWallpaperSelected: (WallpaperItem) -> Unit,
+    snackbarHostState: SnackbarHostState,
+    onDownloadAlbum: () -> Unit,
+    onPromptRemoveDownloads: () -> Unit,
+    onConfirmRemoveDownloads: () -> Unit,
+    onDismissRemoveDownloads: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?
+) {
+    val hasQuery = isSearching && searchQuery.isNotBlank()
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        when {
+            state.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+
+            state.notFound -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Album not found.",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
+
+            else -> {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    if (state.isDownloading) {
+                        AssistChip(
+                            modifier = Modifier.padding(start = 12.dp, top = topBarInsetPadding(8.dp), end = 12.dp),
+                            onClick = {},
+                            enabled = false,
+                            label = { Text("Downloading…") }
+                        )
+                    }
+                    if (state.isRemovingDownloads) {
+                        AssistChip(
+                            modifier = Modifier.padding(start = 12.dp, top = topBarInsetPadding(8.dp), end = 12.dp),
+                            onClick = {},
+                            enabled = false,
+                            label = { Text("Removing downloads…") }
+                        )
+                    }
+
+                    if (wallpapers.isEmpty()) {
+                        val message = when {
+                            state.wallpapers.isEmpty() -> "This album doesn't have any wallpapers yet."
+                            hasQuery -> "No wallpapers match your search."
+                            else -> "No wallpapers available."
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(horizontal = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Surface(
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    modifier = Modifier.size(72.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Collections,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(36.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                if (state.wallpapers.isEmpty() && !hasQuery) {
+                                    Text(
+                                        text = "Add wallpapers to this album from your library or wallpaper details.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                            WallpaperGrid(
+                                wallpapers = wallpapers,
+                                onWallpaperSelected = onWallpaperSelected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                columns = state.wallpaperGridColumns,
+                                layout = state.wallpaperLayout,
+                                showDownloadedBadge = state.showDownloadBadge,
+                                contentPadding = PaddingValues(
+                                    start = 4.dp,
+                                    top = topBarInsetPadding(4.dp),
+                                    end = 4.dp,
+                                    bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)
+                                ),
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope
+                            )
+                        } else {
+                            WallpaperGrid(
+                                wallpapers = wallpapers,
+                                onWallpaperSelected = onWallpaperSelected,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth(),
+                                columns = state.wallpaperGridColumns,
+                                layout = state.wallpaperLayout,
+                                showDownloadedBadge = state.showDownloadBadge,
+                                contentPadding = PaddingValues(
+                                    start = 4.dp,
+                                    top = topBarInsetPadding(4.dp),
+                                    end = 4.dp,
+                                    bottom = bottomBarInsetPadding(4.dp, hasBottomNav = false)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+        )
+    }
+
+    if (state.showRemoveDownloadsConfirmation) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!state.isRemovingDownloads) onDismissRemoveDownloads()
+            },
+            title = { Text(text = "Remove downloaded files?") },
+            text = {
+                Text(
+                    text = "Delete the downloaded copies saved for this album?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = onConfirmRemoveDownloads, enabled = !state.isRemovingDownloads) {
+                    Text(text = "Remove")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissRemoveDownloads, enabled = !state.isRemovingDownloads) {
+                    Text(text = "Cancel")
+                }
+            }
+        )
+    }
+}

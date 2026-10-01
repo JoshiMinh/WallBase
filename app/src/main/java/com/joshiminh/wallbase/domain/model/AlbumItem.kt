@@ -1,0 +1,16 @@
+package com.joshiminh.wallbase.domain.model
+
+import androidx.compose.runtime.Immutable
+
+@Immutable
+data class AlbumItem(
+    val id: Long,
+    val title: String,
+    val wallpaperCount: Int,
+    val coverImageUrl: String?,
+    val previewImageUrls: List<String> = emptyList(),
+    val createdAt: Long,
+    val sortOrder: Int = 0,
+    val coverAspectRatio: Float? = null
+)
+

@@ -17,10 +17,10 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import com.joshiminh.wallbase.scraper.repository.ExtensionRepositoryManager
-import com.joshiminh.wallbase.feature.sources.viewmodel.SourcesViewModel
-import com.joshiminh.wallbase.ui.WallBaseApp
+import com.joshiminh.wallbase.ui.viewmodels.SourcesViewModel
+import com.joshiminh.wallbase.ui.navigation.WallBaseApp
 import com.joshiminh.wallbase.ui.theme.WallBaseTheme
-import com.joshiminh.wallbase.ui.viewmodel.*
+import com.joshiminh.wallbase.ui.viewmodels.*
 import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Date

@@ -1,0 +1,73 @@
+package com.joshiminh.wallbase.data.local
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import com.joshiminh.wallbase.data.local.AlbumEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface AlbumDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAlbum(album: AlbumEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAlbums(albums: List<AlbumEntity>): List<Long>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCrossRefs(refs: List<AlbumWallpaperCrossRef>): List<Long>
+
+    @Query("SELECT * FROM albums WHERE title = :title LIMIT 1")
+    suspend fun findAlbumByTitle(title: String): AlbumEntity?
+
+    @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
+    suspend fun getAlbum(albumId: Long): AlbumEntity?
+
+    @Transaction
+    @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
+    suspend fun getAlbumWithWallpapers(albumId: Long): AlbumWithWallpapers?
+
+    @Query("UPDATE albums SET title = :title, updated_at = :updatedAt WHERE album_id = :albumId")
+    suspend fun updateAlbumTitle(albumId: Long, title: String, updatedAt: Long): Int
+
+    @Query("DELETE FROM albums WHERE album_id IN (:albumIds)")
+    suspend fun deleteAlbums(albumIds: Collection<Long>): Int
+
+    @Transaction
+    @Query("SELECT * FROM albums ORDER BY sort_order, title")
+    fun observeAlbumsWithWallpapers(): Flow<List<AlbumWithWallpapers>>
+
+    @Query("SELECT MAX(sort_order) FROM albums")
+    suspend fun getMaxSortOrder(): Int?
+
+    @Query("UPDATE albums SET sort_order = :sortOrder WHERE album_id = :albumId")
+    suspend fun updateAlbumSortOrder(albumId: Long, sortOrder: Int): Int
+
+    @Transaction
+    @Query("SELECT * FROM albums WHERE album_id = :albumId LIMIT 1")
+    fun observeAlbumWithWallpapers(albumId: Long): Flow<AlbumWithWallpapers?>
+
+    @Query("SELECT album_id FROM album_wallpaper_cross_ref WHERE wallpaper_id = :wallpaperId")
+    suspend fun getAlbumIdsForWallpaper(wallpaperId: Long): List<Long>
+
+    @Query("SELECT album_id FROM album_wallpaper_cross_ref WHERE wallpaper_id = :wallpaperId")
+    fun observeAlbumIdsForWallpaper(wallpaperId: Long): Flow<List<Long>>
+
+    @Query("DELETE FROM album_wallpaper_cross_ref WHERE album_id = :albumId AND wallpaper_id = :wallpaperId")
+    suspend fun deleteCrossRef(albumId: Long, wallpaperId: Long): Int
+
+    @Query("DELETE FROM album_wallpaper_cross_ref WHERE wallpaper_id = :wallpaperId")
+    suspend fun deleteCrossRefsForWallpaper(wallpaperId: Long): Int
+
+    @Query("DELETE FROM album_wallpaper_cross_ref WHERE wallpaper_id IN (:wallpaperIds)")
+    suspend fun deleteCrossRefsForWallpapers(wallpaperIds: Collection<Long>): Int
+
+    @Query("UPDATE albums SET cover_wallpaper_id = NULL WHERE cover_wallpaper_id = :wallpaperId")
+    suspend fun clearCoverWallpaper(wallpaperId: Long): Int
+
+    @Query("UPDATE albums SET cover_wallpaper_id = NULL WHERE cover_wallpaper_id IN (:wallpaperIds)")
+    suspend fun clearCoverWallpapers(wallpaperIds: Collection<Long>): Int
+}
+

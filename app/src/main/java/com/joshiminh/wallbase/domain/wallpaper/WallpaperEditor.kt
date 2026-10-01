@@ -1,0 +1,161 @@
+package com.joshiminh.wallbase.domain.wallpaper
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
+import android.util.DisplayMetrics
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toBitmap
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.asDrawable
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import kotlin.math.abs
+import kotlin.math.roundToInt
+
+class WallpaperEditor(
+    private val context: Context,
+    private val imageLoader: ImageLoader = SingletonImageLoader.get(context),
+) {
+
+    private val metrics: DisplayMetrics
+        get() = context.resources.displayMetrics
+
+    suspend fun loadOriginalBitmap(model: Any): Bitmap {
+        val request = ImageRequest.Builder(context)
+            .data(model)
+            .allowHardware(false)
+            .build()
+        val result = imageLoader.execute(request)
+        val drawable = (result as? SuccessResult)?.image
+            ?: error("Unable to load wallpaper for editing")
+        return drawable.asDrawable(context.resources).toBitmap().copy(Bitmap.Config.ARGB_8888, true)
+    }
+
+    suspend fun loadSampledBitmap(model: Any, maxDimension: Int = 128): Bitmap {
+        val request = ImageRequest.Builder(context)
+            .data(model)
+            .size(maxDimension, maxDimension)
+            .allowHardware(false)
+            .build()
+        val result = imageLoader.execute(request)
+        val drawable = (result as? SuccessResult)?.image
+            ?: error("Unable to load sample wallpaper")
+        return drawable.asDrawable(context.resources).toBitmap().copy(Bitmap.Config.ARGB_8888, true)
+    }
+
+    fun applyAdjustments(source: Bitmap, adjustments: WallpaperAdjustments): EditedWallpaper {
+        var working = source
+        if (!working.isMutable) {
+            working = working.copy(working.config ?: Bitmap.Config.ARGB_8888, true)
+        }
+
+        val cropped = applyCrop(working, adjustments.crop)
+        val filtered = applyFilter(cropped, adjustments.filter)
+        val hued = applyHue(filtered, adjustments.hue)
+        val adjusted = applyBrightness(hued, adjustments.brightness)
+        return EditedWallpaper(adjusted)
+    }
+
+    private fun applyCrop(bitmap: Bitmap, crop: WallpaperCrop): Bitmap {
+        return when (crop) {
+            WallpaperCrop.Auto -> {
+                val desiredRatio = metrics.widthPixels.toFloat() / metrics.heightPixels.toFloat()
+                if (desiredRatio <= 0f) return bitmap
+                val currentRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                if (abs(currentRatio - desiredRatio) < 0.01f) return bitmap
+                val cropWidth: Int
+                val cropHeight: Int
+                if (currentRatio > desiredRatio) {
+                    cropHeight = bitmap.height
+                    cropWidth = (cropHeight * desiredRatio).roundToInt().coerceIn(1, bitmap.width)
+                } else {
+                    cropWidth = bitmap.width
+                    cropHeight = (cropWidth / desiredRatio).roundToInt().coerceIn(1, bitmap.height)
+                }
+                val offsetX = ((bitmap.width - cropWidth) / 2f).roundToInt().coerceIn(0, bitmap.width - cropWidth)
+                val offsetY = ((bitmap.height - cropHeight) / 2f).roundToInt().coerceIn(0, bitmap.height - cropHeight)
+                Bitmap.createBitmap(bitmap, offsetX, offsetY, cropWidth, cropHeight)
+            }
+
+            WallpaperCrop.Original -> bitmap
+
+            WallpaperCrop.Square -> {
+                val desiredRatio = 1f
+                val currentRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                if (abs(currentRatio - desiredRatio) < 0.01f) return bitmap
+                val size = minOf(bitmap.width, bitmap.height)
+                val offsetX = ((bitmap.width - size) / 2f).roundToInt().coerceIn(0, bitmap.width - size)
+                val offsetY = ((bitmap.height - size) / 2f).roundToInt().coerceIn(0, bitmap.height - size)
+                Bitmap.createBitmap(bitmap, offsetX, offsetY, size, size)
+            }
+
+            is WallpaperCrop.Custom -> {
+                val settings = crop.settings.sanitized()
+                val widthFraction = settings.widthFraction().coerceIn(WallpaperCropSettings.minFraction(), 1f)
+                val heightFraction = settings.heightFraction().coerceIn(WallpaperCropSettings.minFraction(), 1f)
+                val cropWidth = (bitmap.width * widthFraction).roundToInt().coerceIn(1, bitmap.width)
+                val cropHeight = (bitmap.height * heightFraction).roundToInt().coerceIn(1, bitmap.height)
+                val offsetX = (bitmap.width * settings.left).roundToInt().coerceIn(0, bitmap.width - cropWidth)
+                val offsetY = (bitmap.height * settings.top).roundToInt().coerceIn(0, bitmap.height - cropHeight)
+                Bitmap.createBitmap(bitmap, offsetX, offsetY, cropWidth, cropHeight)
+            }
+        }
+    }
+
+    private fun applyFilter(bitmap: Bitmap, filter: WallpaperFilter): Bitmap {
+        val matrix = when (filter) {
+            WallpaperFilter.NONE -> return bitmap
+            WallpaperFilter.GRAYSCALE -> ColorMatrix().apply { setSaturation(0f) }
+            WallpaperFilter.SEPIA -> ColorMatrix(
+                floatArrayOf(
+                    0.393f, 0.769f, 0.189f, 0f, 0f,
+                    0.349f, 0.686f, 0.168f, 0f, 0f,
+                    0.272f, 0.534f, 0.131f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f,
+                ),
+            )
+        }
+        return bitmap.copyWithMatrix(matrix)
+    }
+
+    private fun applyHue(bitmap: Bitmap, hue: Float): Bitmap {
+        if (hue == 0f) return bitmap
+        val rotation = ColorMatrix().apply { setRotate(0, hue) }
+        val temp = ColorMatrix().apply { setRotate(1, hue) }
+        rotation.postConcat(temp)
+        temp.setRotate(2, hue)
+        rotation.postConcat(temp)
+        return bitmap.copyWithMatrix(rotation)
+    }
+
+    private fun applyBrightness(bitmap: Bitmap, brightness: Float): Bitmap {
+        if (brightness == 0f) return bitmap
+        val translate = (brightness * 255f).coerceIn(-255f, 255f)
+        val matrix = ColorMatrix(
+            floatArrayOf(
+                1f, 0f, 0f, 0f, translate,
+                0f, 1f, 0f, 0f, translate,
+                0f, 0f, 1f, 0f, translate,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        )
+        return bitmap.copyWithMatrix(matrix)
+    }
+
+    private fun Bitmap.copyWithMatrix(matrix: ColorMatrix): Bitmap {
+        val copy = createBitmap(width, height, config ?: Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(copy)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(matrix)
+        }
+        canvas.drawBitmap(this, 0f, 0f, paint)
+        return copy
+    }
+}

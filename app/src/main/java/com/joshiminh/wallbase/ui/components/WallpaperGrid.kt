@@ -70,7 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
-import com.joshiminh.wallbase.data.entity.WallpaperItem
+import com.joshiminh.wallbase.domain.model.WallpaperItem
 import com.joshiminh.wallbase.data.repository.WallpaperLayout
 import kotlinx.coroutines.flow.distinctUntilChanged
 

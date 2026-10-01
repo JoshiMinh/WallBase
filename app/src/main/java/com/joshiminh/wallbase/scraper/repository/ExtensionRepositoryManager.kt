@@ -7,9 +7,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
-import com.joshiminh.wallbase.data.dao.SourceDao
-import com.joshiminh.wallbase.data.entity.SourceEntity
-import com.joshiminh.wallbase.data.entity.SourceKeys
+import com.joshiminh.wallbase.data.local.SourceDao
+import com.joshiminh.wallbase.data.local.SourceEntity
+import com.joshiminh.wallbase.domain.model.SourceKeys
 import com.joshiminh.wallbase.scraper.model.ExtensionRepo
 import com.joshiminh.wallbase.scraper.model.ExtensionRepoItem
 import com.joshiminh.wallbase.scraper.model.SourceManifest
