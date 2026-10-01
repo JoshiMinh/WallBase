@@ -107,6 +107,7 @@ import com.joshiminh.wallbase.navigation.TopBarHandle
 import com.joshiminh.wallbase.navigation.TopBarState
 import com.joshiminh.wallbase.ui.AlbumGridCard
 import com.joshiminh.wallbase.ui.AlbumRowCard
+import com.joshiminh.wallbase.ui.LocalBarsProgress
 import com.joshiminh.wallbase.ui.components.AlbumLayoutPicker
 import com.joshiminh.wallbase.ui.components.SheetTab
 import com.joshiminh.wallbase.ui.components.TopBarSearchField
@@ -679,11 +680,16 @@ fun AlbumsScreen(
 
         // FAB to add album
         if (!isAlbumSelection) {
+            val barsProgress = LocalBarsProgress.current
+            val density = LocalDensity.current
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
+                    .align(Alignment.BottomStart)
                     .navigationBarsPadding()
-                    .padding(end = 16.dp, bottom = 96.dp)
+                    .padding(start = 16.dp, bottom = 96.dp)
+                    .graphicsLayer {
+                        translationY = (1f - barsProgress) * with(density) { 80.dp.toPx() }
+                    }
             ) {
                 val creating = uiState.isCreatingAlbum
                 FloatingActionButton(

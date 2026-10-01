@@ -1089,6 +1089,7 @@ private fun WallpaperEntity.toLibraryWallpaperItem(): WallpaperItem {
 private fun AlbumWithWallpapers.toAlbumItem(): AlbumItem {
     val coverWallpaper = wallpapers.firstOrNull()
     val cover = coverWallpaper?.let { wallpaper -> wallpaper.localUri ?: wallpaper.imageUrl }
+    val previewUrls = wallpapers.take(3).mapNotNull { it.localUri ?: it.imageUrl }
     val coverAspectRatio = coverWallpaper?.let { wallpaper ->
         val width = wallpaper.width?.toFloat()
         val height = wallpaper.height?.toFloat()
@@ -1099,6 +1100,7 @@ private fun AlbumWithWallpapers.toAlbumItem(): AlbumItem {
         title = album.title,
         wallpaperCount = wallpapers.size,
         coverImageUrl = cover,
+        previewImageUrls = previewUrls,
         coverAspectRatio = coverAspectRatio,
         createdAt = album.createdAt,
         sortOrder = album.sortOrder

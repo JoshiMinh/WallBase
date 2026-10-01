@@ -103,6 +103,8 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import okio.Path.Companion.toOkioPath
 
+val LocalBarsProgress = compositionLocalOf { 1f }
+
 @SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -385,11 +387,12 @@ fun WallBaseApp(
         label = "barsAnimation"
     )
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
+    CompositionLocalProvider(LocalBarsProgress provides barsProgress) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
         val navContainerModifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
@@ -741,6 +744,7 @@ fun WallBaseApp(
             }
         }
     }
+}
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)

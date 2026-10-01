@@ -124,6 +124,7 @@ import com.joshiminh.wallbase.ui.components.TopBarSearchField
 import com.joshiminh.wallbase.ui.components.bottomBarInsetPadding
 import com.joshiminh.wallbase.ui.components.longPressReorderHandle
 import com.joshiminh.wallbase.ui.components.topBarInsetPadding
+import com.joshiminh.wallbase.ui.LocalBarsProgress
 import com.joshiminh.wallbase.ui.theme.WallBaseShapes
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.joshiminh.wallbase.ui.theme.WallBaseSpacing
@@ -457,11 +458,16 @@ private fun SourcesScreen(
 
             // FAB to add custom source
             if (selectedTab == 0 && !isMultiSelectMode) {
+                val barsProgress = LocalBarsProgress.current
+                val density = LocalDensity.current
                 Box(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
+                        .align(Alignment.BottomStart)
                         .navigationBarsPadding()
-                        .padding(end = 16.dp, bottom = 96.dp)
+                        .padding(start = 16.dp, bottom = 96.dp)
+                        .graphicsLayer {
+                            translationY = (1f - barsProgress) * with(density) { 80.dp.toPx() }
+                        }
                 ) {
                     FloatingActionButton(onClick = { showAddSourceModal = true }) {
                         Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add custom source")

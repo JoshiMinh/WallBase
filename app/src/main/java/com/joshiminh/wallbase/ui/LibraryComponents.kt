@@ -24,11 +24,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -421,10 +425,131 @@ fun AlbumGridCard(
                 onLongClick = { if (!isDragging) onLongPress() }
             )
     ) {
+        val previews = remember(album.previewImageUrls, album.coverImageUrl) {
+            album.previewImageUrls.ifEmpty {
+                album.coverImageUrl?.let { listOf(it) } ?: emptyList()
+            }.take(3)
+        }
+
         Box(modifier = Modifier.fillMaxSize()) {
-            if (!album.coverImageUrl.isNullOrBlank()) {
+            if (previews.size >= 2) {
+                // Fanned wallpaper stack for multiple wallpapers (max 3)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 60.dp, top = 16.dp, start = 12.dp, end = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (previews.size == 2) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 4.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.92f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = -6f
+                                    translationX = -20f
+                                }
+                                .zIndex(1f)
+                        ) {
+                            AsyncImage(
+                                model = previews[0],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 8.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.92f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = 6f
+                                    translationX = 20f
+                                }
+                                .zIndex(2f)
+                        ) {
+                            AsyncImage(
+                                model = previews[1],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    } else {
+                        // Left
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 4.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.88f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = -9f
+                                    translationX = -32f
+                                }
+                                .zIndex(1f)
+                        ) {
+                            AsyncImage(
+                                model = previews[0],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        // Right
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 4.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.88f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = 9f
+                                    translationX = 32f
+                                }
+                                .zIndex(1f)
+                        ) {
+                            AsyncImage(
+                                model = previews[2],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                        // Center
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            shadowElevation = 10.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)),
+                            modifier = Modifier
+                                .fillMaxHeight(0.94f)
+                                .aspectRatio(9f / 16f)
+                                .graphicsLayer {
+                                    rotationZ = 0f
+                                    translationX = 0f
+                                }
+                                .zIndex(3f)
+                        ) {
+                            AsyncImage(
+                                model = previews[1],
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+            } else if (previews.size == 1) {
                 AsyncImage(
-                    model = album.coverImageUrl,
+                    model = previews[0],
                     contentDescription = album.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -579,15 +704,11 @@ fun AlbumRowCard(
     } else {
         MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
     }
-    val coverPainter = album.coverImageUrl?.let { rememberAsyncImagePainter(it) }
-    val intrinsicSize = coverPainter?.intrinsicSize
-    val previewAspectRatio = album.coverAspectRatio?.takeIf { it.isFinite() && it > 0f }
-        ?: intrinsicSize?.let { size ->
-            if (size.width.isFinite() && size.height.isFinite() && size.width > 0f && size.height > 0f) {
-                size.width / size.height
-            } else null
-        }
-        ?: 1f
+    val previews = remember(album.previewImageUrls, album.coverImageUrl) {
+        album.previewImageUrls.ifEmpty {
+            album.coverImageUrl?.let { listOf(it) } ?: emptyList()
+        }.take(3)
+    }
 
     Card(
         shape = WallBaseShapes.card,
@@ -617,102 +738,153 @@ fun AlbumRowCard(
                 onLongClick = { if (!isDragging) onLongPress() }
             )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(14.dp)
         ) {
-            // Album Cover / Preview
+            // Wallpaper Stack / Showcase Header
             Box(
                 modifier = Modifier
-                    .sizeIn(maxWidth = 120.dp, maxHeight = 120.dp)
-                    .aspectRatio(previewAspectRatio)
+                    .fillMaxWidth()
+                    .height(154.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                                MaterialTheme.colorScheme.surfaceVariant
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.CenterStart
             ) {
-                if (coverPainter != null) {
-                    Image(
-                        painter = coverPainter,
-                        contentDescription = album.title,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
-                        modifier = Modifier.size(38.dp)
+                if (previews.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Outlined.Collections,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                            modifier = Modifier.size(46.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Collections,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.spacedBy((-24).dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        previews.forEachIndexed { index, imageUrl ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                shadowElevation = (4 + index * 3).dp,
+                                border = BorderStroke(
+                                    1.5.dp,
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .aspectRatio(9f / 16f)
+                                    .zIndex(index.toFloat())
+                            ) {
+                                AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Title and Details
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = album.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "${album.wallpaperCount} ${if (album.wallpaperCount == 1) "wallpaper" else "wallpapers"}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                )
-            }
+            Spacer(modifier = Modifier.height(12.dp))
 
-            if (selectionMode) {
-                SelectionCheckmark(selected = selected)
-            } else if (isReorderEnabled) {
-                Box(
-                    modifier = Modifier
-                        .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                        .then(dragModifier),
-                    contentAlignment = Alignment.Center
+            // Details section below showcase
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.DragHandle,
-                        contentDescription = "Hold and drag to reorder",
-                        modifier = Modifier.size(22.dp),
-                        tint = if (isDragging) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    Text(
+                        text = album.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = WallBaseShapes.pill,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.7f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Collections,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "${album.wallpaperCount} ${if (album.wallpaperCount == 1) "wallpaper" else "wallpapers"}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
+                    }
+                }
+
+                if (selectionMode) {
+                    SelectionCheckmark(selected = selected)
+                } else if (isReorderEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            .then(dragModifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DragHandle,
+                            contentDescription = "Hold and drag to reorder",
+                            modifier = Modifier.size(22.dp),
+                            tint = if (isDragging) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            }
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                )
             }
         }
     }

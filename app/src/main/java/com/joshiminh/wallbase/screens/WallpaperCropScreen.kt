@@ -11,6 +11,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -74,6 +76,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.joshiminh.wallbase.data.entity.WallpaperItem
@@ -261,6 +264,27 @@ fun WallpaperCropScreen(
     val currentFreeWidth by rememberUpdatedState(freeWidthFrac)
     val currentFreeHeight by rememberUpdatedState(freeHeightFrac)
 
+    val updateCropFromCorners: (Float, Float, Float, Float) -> Unit = { nL, nT, nR, nB ->
+        if (selectedMode != FramingRatioMode.FREE) {
+            selectedMode = FramingRatioMode.FREE
+        }
+        val minFrac = 0.05f
+        val clampedL = nL.coerceIn(0f, 1f - minFrac)
+        val clampedT = nT.coerceIn(0f, 1f - minFrac)
+        val clampedR = nR.coerceIn(clampedL + minFrac, 1f)
+        val clampedB = nB.coerceIn(clampedT + minFrac, 1f)
+
+        val newW = (clampedR - clampedL).coerceIn(minFrac, 1f)
+        val newH = (clampedB - clampedT).coerceIn(minFrac, 1f)
+        freeWidthFrac = newW
+        freeHeightFrac = newH
+        zoom = 1f
+        val availW = 1f - newW
+        val availH = 1f - newH
+        panX = if (availW > 0.0001f) (clampedL / availW).coerceIn(0f, 1f) else 0.5f
+        panY = if (availH > 0.0001f) (clampedT / availH).coerceIn(0f, 1f) else 0.5f
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -294,36 +318,28 @@ fun WallpaperCropScreen(
                     )
                 }
 
-                // Left: close
+                // Left: close + reset
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(start = 4.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancel framing",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-
-                // Right: reset + Apply
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(end = 8.dp),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cancel framing",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
                         IconButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
@@ -342,23 +358,31 @@ fun WallpaperCropScreen(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
 
-                        Button(
-                            onClick = applyFramingAction,
-                            shape = WallBaseShapes.pill,
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                            modifier = Modifier.height(40.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        ) {
-                            Text(
-                                text = "Apply",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                // Right: Apply
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(end = 8.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Button(
+                        onClick = applyFramingAction,
+                        shape = WallBaseShapes.pill,
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                        modifier = Modifier.height(40.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Text(
+                            text = "Apply",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -389,21 +413,37 @@ fun WallpaperCropScreen(
                 val imgWidthDp = with(density) { imgWidthPx.toDp() }
                 val imgHeightDp = with(density) { imgHeightPx.toDp() }
 
-                // Full-viewport touch area for pan + pinch-zoom
+                // Center viewport: gesture detection on bottom layer, image + corner handles on top
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(imgWidthPx, imgHeightPx, imageRatio) {
-                            detectTransformGestures(panZoomLock = false) { _, pan, zoomChange, _ ->
-                                if (currentMode != FramingRatioMode.ORIGINAL) {
-                                    // 1. Zoom — pinch to zoom in/out (1x – 8x)
-                                    val newZoom = if (zoomChange != 1f) {
-                                        (currentZoom * zoomChange).coerceIn(1f, 8f).also { zoom = it }
-                                    } else {
-                                        currentZoom
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Full-viewport touch area for pan + pinch-zoom
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(imgWidthPx, imgHeightPx, imageRatio) {
+                                detectTransformGestures(panZoomLock = false) { _, pan, zoomChange, _ ->
+                                    if (currentMode == FramingRatioMode.ORIGINAL) {
+                                        selectedMode = FramingRatioMode.FREE
+                                        freeWidthFrac = 1f
+                                        freeHeightFrac = 1f
+                                        zoom = 1f
+                                        panX = 0.5f
+                                        panY = 0.5f
                                     }
 
-                                    // 2. Compute current crop window size fractions
+                                    if (zoomChange != 1f) {
+                                        if (currentMode == FramingRatioMode.FREE) {
+                                            val newW = (currentFreeWidth / zoomChange).coerceIn(0.05f, 1f)
+                                            val newH = (currentFreeHeight / zoomChange).coerceIn(0.05f, 1f)
+                                            freeWidthFrac = newW
+                                            freeHeightFrac = newH
+                                        } else {
+                                            zoom = (currentZoom * zoomChange).coerceIn(1f, 8f)
+                                        }
+                                    }
+
                                     val (wBase, hBase) = if (currentMode == FramingRatioMode.FREE) {
                                         Pair(
                                             currentFreeWidth.coerceIn(0.05f, 1f),
@@ -417,26 +457,22 @@ fun WallpaperCropScreen(
                                         else Pair(1f, (1f / r).coerceIn(0.05f, 1f))
                                     }
 
-                                    val wFrac = (wBase / newZoom).coerceIn(0.05f, 1f)
-                                    val hFrac = (hBase / newZoom).coerceIn(0.05f, 1f)
+                                    val z = zoom.coerceAtLeast(1f)
+                                    val wFrac = (wBase / z).coerceIn(0.05f, 1f)
+                                    val hFrac = (hBase / z).coerceIn(0.05f, 1f)
 
                                     val maxLeft = (1f - wFrac).coerceAtLeast(0f)
                                     val maxTop = (1f - hFrac).coerceAtLeast(0f)
 
-                                    // 3. Pan — drag follows finger 1:1 in image-relative space
-                                    //    pan.x > 0 means finger moved right → crop window moves right → panX increases
-                                    //    pan.y > 0 means finger moved down  → crop window moves down  → panY increases
                                     if (maxLeft > 0.0001f && imgWidthPx > 0f) {
-                                        val imageCropWidthPx = imgWidthPx * wFrac
-                                        val availableImageWidthPx = imgWidthPx - imageCropWidthPx
+                                        val availableImageWidthPx = imgWidthPx * maxLeft
                                         if (availableImageWidthPx > 0f) {
                                             val deltaPanX = pan.x / availableImageWidthPx
                                             panX = (currentPanX + deltaPanX).coerceIn(0f, 1f)
                                         }
                                     }
                                     if (maxTop > 0.0001f && imgHeightPx > 0f) {
-                                        val imageCropHeightPx = imgHeightPx * hFrac
-                                        val availableImageHeightPx = imgHeightPx - imageCropHeightPx
+                                        val availableImageHeightPx = imgHeightPx * maxTop
                                         if (availableImageHeightPx > 0f) {
                                             val deltaPanY = pan.y / availableImageHeightPx
                                             panY = (currentPanY + deltaPanY).coerceIn(0f, 1f)
@@ -444,107 +480,187 @@ fun WallpaperCropScreen(
                                     }
                                 }
                             }
-                        }
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onDoubleTap = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                                    if (zoom > 1.05f) {
-                                        zoom = 1f
-                                        panX = 0.5f
-                                        panY = 0.5f
-                                    } else {
-                                        zoom = 2.5f
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                        if (zoom > 1.05f) {
+                                            zoom = 1f
+                                            panX = 0.5f
+                                            panY = 0.5f
+                                        } else {
+                                            zoom = 2.5f
+                                        }
                                     }
-                                }
-                            )
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
+                                )
+                            }
+                    )
+
                     // Image + crop overlay
                     Box(
                         modifier = Modifier
                             .size(width = imgWidthDp, height = imgHeightDp)
-                            .clip(RoundedCornerShape(6.dp))
                     ) {
-                        // Wallpaper image preview
-                        if (previewBitmap != null) {
-                            Image(
-                                bitmap = previewBitmap.asImageBitmap(),
-                                contentDescription = wallpaper.displayTitle,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.FillBounds
-                            )
-                        } else {
-                            WallpaperPreviewImage(
-                                model = wallpaper.fullModel(),
-                                placeholderModel = wallpaper.thumbnailUrl,
-                                contentDescription = wallpaper.displayTitle,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.FillBounds,
-                                clipShape = RoundedCornerShape(0.dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(6.dp))
+                        ) {
+                            // Wallpaper image preview
+                            if (previewBitmap != null) {
+                                Image(
+                                    bitmap = previewBitmap.asImageBitmap(),
+                                    contentDescription = wallpaper.displayTitle,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.FillBounds
+                                )
+                            } else {
+                                WallpaperPreviewImage(
+                                    model = wallpaper.fullModel(),
+                                    placeholderModel = wallpaper.thumbnailUrl,
+                                    contentDescription = wallpaper.displayTitle,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.FillBounds,
+                                    clipShape = RoundedCornerShape(0.dp)
+                                )
+                            }
+
+                            // Scrim, grid, border, corner handles
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val w = size.width
+                                val h = size.height
+
+                                val cropLeft = (cropSettings.left * w).coerceIn(0f, w)
+                                val cropTop = (cropSettings.top * h).coerceIn(0f, h)
+                                val cropRight = (cropSettings.right * w).coerceIn(cropLeft, w)
+                                val cropBottom = (cropSettings.bottom * h).coerceIn(cropTop, h)
+                                val cropW = cropRight - cropLeft
+                                val cropH = cropBottom - cropTop
+
+                                // Outer dimmed scrim
+                                val scrimColor = Color.Black.copy(alpha = 0.65f)
+                                if (cropTop > 0f) drawRect(scrimColor, topLeft = Offset(0f, 0f), size = Size(w, cropTop))
+                                if (cropBottom < h) drawRect(scrimColor, topLeft = Offset(0f, cropBottom), size = Size(w, h - cropBottom))
+                                if (cropLeft > 0f) drawRect(scrimColor, topLeft = Offset(0f, cropTop), size = Size(cropLeft, cropH))
+                                if (cropRight < w) drawRect(scrimColor, topLeft = Offset(cropRight, cropTop), size = Size(w - cropRight, cropH))
+
+                                // Rule-of-thirds grid
+                                val gridColor = Color.White.copy(alpha = 0.28f)
+                                val gridStroke = 1.dp.toPx()
+                                drawLine(gridColor, Offset(cropLeft, cropTop + cropH / 3f), Offset(cropRight, cropTop + cropH / 3f), gridStroke)
+                                drawLine(gridColor, Offset(cropLeft, cropTop + cropH * 2f / 3f), Offset(cropRight, cropTop + cropH * 2f / 3f), gridStroke)
+                                drawLine(gridColor, Offset(cropLeft + cropW / 3f, cropTop), Offset(cropLeft + cropW / 3f, cropBottom), gridStroke)
+                                drawLine(gridColor, Offset(cropLeft + cropW * 2f / 3f, cropTop), Offset(cropLeft + cropW * 2f / 3f, cropBottom), gridStroke)
+
+                                // Center crosshair
+                                val crossColor = Color.White.copy(alpha = 0.55f)
+                                val cx = cropLeft + cropW / 2f
+                                val cy = cropTop + cropH / 2f
+                                val cLen = 7.dp.toPx()
+                                drawLine(crossColor, Offset(cx - cLen, cy), Offset(cx + cLen, cy), 1.5.dp.toPx())
+                                drawLine(crossColor, Offset(cx, cy - cLen), Offset(cx, cy + cLen), 1.5.dp.toPx())
+
+                                // Active frame border (brand pink)
+                                drawRect(
+                                    color = Color(0xFFE91E63),
+                                    topLeft = Offset(cropLeft, cropTop),
+                                    size = Size(cropW, cropH),
+                                    style = Stroke(width = 2.dp.toPx())
+                                )
+
+                                // Corner L-brackets
+                                val bLen = 16.dp.toPx()
+                                val bStroke = 3.5.dp.toPx()
+                                val bColor = Color.White
+                                // Top-Left
+                                drawLine(bColor, Offset(cropLeft, cropTop), Offset(cropLeft + bLen, cropTop), bStroke)
+                                drawLine(bColor, Offset(cropLeft, cropTop), Offset(cropLeft, cropTop + bLen), bStroke)
+                                // Top-Right
+                                drawLine(bColor, Offset(cropRight - bLen, cropTop), Offset(cropRight, cropTop), bStroke)
+                                drawLine(bColor, Offset(cropRight, cropTop), Offset(cropRight, cropTop + bLen), bStroke)
+                                // Bottom-Left
+                                drawLine(bColor, Offset(cropLeft, cropBottom - bLen), Offset(cropLeft, cropBottom), bStroke)
+                                drawLine(bColor, Offset(cropLeft, cropBottom), Offset(cropLeft + bLen, cropBottom), bStroke)
+                                // Bottom-Right
+                                drawLine(bColor, Offset(cropRight, cropBottom - bLen), Offset(cropRight, cropBottom), bStroke)
+                                drawLine(bColor, Offset(cropRight - bLen, cropBottom), Offset(cropRight, cropBottom), bStroke)
+                            }
                         }
 
-                        // Scrim, grid, border, corner handles
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val w = size.width
-                            val h = size.height
+                        // Corner Touch & Drag Handles
+                        if (selectedMode != FramingRatioMode.ORIGINAL) {
+                            val cropLeftPx = (cropSettings.left * imgWidthPx).coerceIn(0f, imgWidthPx)
+                            val cropTopPx = (cropSettings.top * imgHeightPx).coerceIn(0f, imgHeightPx)
+                            val cropRightPx = (cropSettings.right * imgWidthPx).coerceIn(cropLeftPx, imgWidthPx)
+                            val cropBottomPx = (cropSettings.bottom * imgHeightPx).coerceIn(cropTopPx, imgHeightPx)
 
-                            val cropLeft = (cropSettings.left * w).coerceIn(0f, w)
-                            val cropTop = (cropSettings.top * h).coerceIn(0f, h)
-                            val cropRight = (cropSettings.right * w).coerceIn(cropLeft, w)
-                            val cropBottom = (cropSettings.bottom * h).coerceIn(cropTop, h)
-                            val cropW = cropRight - cropLeft
-                            val cropH = cropBottom - cropTop
-
-                            // Outer dimmed scrim
-                            val scrimColor = Color.Black.copy(alpha = 0.65f)
-                            if (cropTop > 0f) drawRect(scrimColor, topLeft = Offset(0f, 0f), size = Size(w, cropTop))
-                            if (cropBottom < h) drawRect(scrimColor, topLeft = Offset(0f, cropBottom), size = Size(w, h - cropBottom))
-                            if (cropLeft > 0f) drawRect(scrimColor, topLeft = Offset(0f, cropTop), size = Size(cropLeft, cropH))
-                            if (cropRight < w) drawRect(scrimColor, topLeft = Offset(cropRight, cropTop), size = Size(w - cropRight, cropH))
-
-                            // Rule-of-thirds grid
-                            val gridColor = Color.White.copy(alpha = 0.28f)
-                            val gridStroke = 1.dp.toPx()
-                            drawLine(gridColor, Offset(cropLeft, cropTop + cropH / 3f), Offset(cropRight, cropTop + cropH / 3f), gridStroke)
-                            drawLine(gridColor, Offset(cropLeft, cropTop + cropH * 2f / 3f), Offset(cropRight, cropTop + cropH * 2f / 3f), gridStroke)
-                            drawLine(gridColor, Offset(cropLeft + cropW / 3f, cropTop), Offset(cropLeft + cropW / 3f, cropBottom), gridStroke)
-                            drawLine(gridColor, Offset(cropLeft + cropW * 2f / 3f, cropTop), Offset(cropLeft + cropW * 2f / 3f, cropBottom), gridStroke)
-
-                            // Center crosshair
-                            val crossColor = Color.White.copy(alpha = 0.55f)
-                            val cx = cropLeft + cropW / 2f
-                            val cy = cropTop + cropH / 2f
-                            val cLen = 7.dp.toPx()
-                            drawLine(crossColor, Offset(cx - cLen, cy), Offset(cx + cLen, cy), 1.5.dp.toPx())
-                            drawLine(crossColor, Offset(cx, cy - cLen), Offset(cx, cy + cLen), 1.5.dp.toPx())
-
-                            // Active frame border (brand pink)
-                            drawRect(
-                                color = Color(0xFFE91E63),
-                                topLeft = Offset(cropLeft, cropTop),
-                                size = Size(cropW, cropH),
-                                style = Stroke(width = 2.dp.toPx())
+                            // Top-Left Handle
+                            CropCornerHandle(
+                                xPx = cropLeftPx,
+                                yPx = cropTopPx,
+                                onDragStart = { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick) },
+                                onDrag = { delta ->
+                                    val deltaL = delta.x / imgWidthPx
+                                    val deltaT = delta.y / imgHeightPx
+                                    updateCropFromCorners(
+                                        cropSettings.left + deltaL,
+                                        cropSettings.top + deltaT,
+                                        cropSettings.right,
+                                        cropSettings.bottom
+                                    )
+                                }
                             )
 
-                            // Corner L-brackets
-                            val bLen = 16.dp.toPx()
-                            val bStroke = 3.5.dp.toPx()
-                            val bColor = Color.White
-                            // Top-Left
-                            drawLine(bColor, Offset(cropLeft, cropTop), Offset(cropLeft + bLen, cropTop), bStroke)
-                            drawLine(bColor, Offset(cropLeft, cropTop), Offset(cropLeft, cropTop + bLen), bStroke)
-                            // Top-Right
-                            drawLine(bColor, Offset(cropRight - bLen, cropTop), Offset(cropRight, cropTop), bStroke)
-                            drawLine(bColor, Offset(cropRight, cropTop), Offset(cropRight, cropTop + bLen), bStroke)
-                            // Bottom-Left
-                            drawLine(bColor, Offset(cropLeft, cropBottom - bLen), Offset(cropLeft, cropBottom), bStroke)
-                            drawLine(bColor, Offset(cropLeft, cropBottom), Offset(cropLeft + bLen, cropBottom), bStroke)
-                            // Bottom-Right
-                            drawLine(bColor, Offset(cropRight, cropBottom - bLen), Offset(cropRight, cropBottom), bStroke)
-                            drawLine(bColor, Offset(cropRight - bLen, cropBottom), Offset(cropRight, cropBottom), bStroke)
+                            // Top-Right Handle
+                            CropCornerHandle(
+                                xPx = cropRightPx,
+                                yPx = cropTopPx,
+                                onDragStart = { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick) },
+                                onDrag = { delta ->
+                                    val deltaR = delta.x / imgWidthPx
+                                    val deltaT = delta.y / imgHeightPx
+                                    updateCropFromCorners(
+                                        cropSettings.left,
+                                        cropSettings.top + deltaT,
+                                        cropSettings.right + deltaR,
+                                        cropSettings.bottom
+                                    )
+                                }
+                            )
+
+                            // Bottom-Left Handle
+                            CropCornerHandle(
+                                xPx = cropLeftPx,
+                                yPx = cropBottomPx,
+                                onDragStart = { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick) },
+                                onDrag = { delta ->
+                                    val deltaL = delta.x / imgWidthPx
+                                    val deltaB = delta.y / imgHeightPx
+                                    updateCropFromCorners(
+                                        cropSettings.left + deltaL,
+                                        cropSettings.top,
+                                        cropSettings.right,
+                                        cropSettings.bottom + deltaB
+                                    )
+                                }
+                            )
+
+                            // Bottom-Right Handle
+                            CropCornerHandle(
+                                xPx = cropRightPx,
+                                yPx = cropBottomPx,
+                                onDragStart = { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick) },
+                                onDrag = { delta ->
+                                    val deltaR = delta.x / imgWidthPx
+                                    val deltaB = delta.y / imgHeightPx
+                                    updateCropFromCorners(
+                                        cropSettings.left,
+                                        cropSettings.top,
+                                        cropSettings.right + deltaR,
+                                        cropSettings.bottom + deltaB
+                                    )
+                                }
+                            )
                         }
                     }
 
@@ -795,5 +911,52 @@ fun WallpaperCropScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun CropCornerHandle(
+    xPx: Float,
+    yPx: Float,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+) {
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    var isDragging by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .offset {
+                IntOffset(
+                    x = xPx.roundToInt() - 28.dp.roundToPx(),
+                    y = yPx.roundToInt() - 28.dp.roundToPx()
+                )
+            }
+            .size(56.dp)
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = {
+                        isDragging = true
+                        currentOnDragStart()
+                    },
+                    onDragEnd = { isDragging = false },
+                    onDragCancel = { isDragging = false },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        currentOnDrag(dragAmount)
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        val handleSize = if (isDragging) 22.dp else 18.dp
+        Surface(
+            shape = CircleShape,
+            color = Color.White,
+            shadowElevation = if (isDragging) 8.dp else 4.dp,
+            border = BorderStroke(if (isDragging) 3.dp else 2.dp, Color(0xFFE91E63)),
+            modifier = Modifier.size(handleSize)
+        ) {}
     }
 }

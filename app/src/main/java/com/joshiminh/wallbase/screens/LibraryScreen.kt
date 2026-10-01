@@ -59,9 +59,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
+import com.joshiminh.wallbase.ui.LocalBarsProgress
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.joshiminh.wallbase.data.entity.AlbumItem
@@ -462,11 +464,16 @@ fun LibraryScreen(
 
         // FAB to add wallpaper
         if (!isWallpaperSelection) {
+            val barsProgress = LocalBarsProgress.current
+            val density = LocalDensity.current
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
+                    .align(Alignment.BottomStart)
                     .navigationBarsPadding()
-                    .padding(end = 16.dp, bottom = 96.dp)
+                    .padding(start = 16.dp, bottom = 96.dp)
+                    .graphicsLayer {
+                        translationY = (1f - barsProgress) * with(density) { 80.dp.toPx() }
+                    }
             ) {
                 FloatingActionButton(onClick = { showDirectAddDialog = true }) {
                     Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add wallpaper")
