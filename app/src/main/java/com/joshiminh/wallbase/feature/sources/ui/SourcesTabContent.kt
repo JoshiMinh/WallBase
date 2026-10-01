@@ -319,7 +319,7 @@ internal fun InstalledTabContent(
             start = WallBaseSpacing.md,
             top = topBarInsetPadding(8.dp, hasTabBar = true),
             end = WallBaseSpacing.md,
-            bottom = bottomBarInsetPadding(WallBaseSpacing.md, hasBottomNav = true)
+            bottom = bottomBarInsetPadding(80.dp, hasBottomNav = true)
         ),
         verticalArrangement = Arrangement.spacedBy(WallBaseSpacing.sm)
     ) {
@@ -458,7 +458,7 @@ private fun AvailableSourceCard(
             },
         shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
@@ -501,7 +501,7 @@ private fun AvailableSourceCard(
                 )
 
                 val authorText = item.author?.takeIf { it.isNotBlank() }?.let { "by $it" }
-                val metaText = listOfNotNull(authorText, "v${item.version}").joinToString(" Â· ")
+                val metaText = listOfNotNull(authorText, "v${item.version}").joinToString(" · ")
                 Text(
                     text = metaText,
                     style = MaterialTheme.typography.bodySmall,
@@ -612,9 +612,9 @@ private fun SourceCard(
         shape = WallBaseShapes.card,
         colors = CardDefaults.cardColors(
             containerColor = if (isDragging) {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            } else {
                 MaterialTheme.colorScheme.surfaceContainerHigh
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
             }
         ),
         border = BorderStroke(

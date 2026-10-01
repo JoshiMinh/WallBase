@@ -227,7 +227,25 @@ fun WallBaseTheme(
     val useDynamicColor = dynamicColor && (appAccentColor == AppAccentColor.DYNAMIC) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val colorScheme = when {
-        useDynamicColor && isDark -> dynamicDarkColorScheme(context)
+        useDynamicColor && isDark -> {
+            val dynamic = dynamicDarkColorScheme(context)
+            if (isAmoled) {
+                dynamic.copy(
+                    background = AmoledBackground,
+                    surface = AmoledSurface,
+                    surfaceDim = AmoledBackground,
+                    surfaceVariant = AmoledSurfaceVariant,
+                    surfaceContainerLowest = AmoledSurfaceContainerLowest,
+                    surfaceContainerLow = AmoledSurfaceContainerLow,
+                    surfaceContainer = AmoledSurfaceContainer,
+                    surfaceContainerHigh = AmoledSurfaceContainerHigh,
+                    surfaceContainerHighest = AmoledSurfaceContainerHighest,
+                    outlineVariant = AmoledOutlineVariant,
+                )
+            } else {
+                dynamic
+            }
+        }
         useDynamicColor && !isDark -> dynamicLightColorScheme(context)
         isAmoled -> buildAmoledColorScheme(appAccentColor)
         isDark -> buildDarkColorScheme(appAccentColor)

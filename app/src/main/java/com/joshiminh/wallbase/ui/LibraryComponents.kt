@@ -403,9 +403,9 @@ fun AlbumGridCard(
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (isDragging) {
-                MaterialTheme.colorScheme.surfaceContainerHighest
+                MaterialTheme.colorScheme.surfaceContainerHigh
             } else {
-                MaterialTheme.colorScheme.surfaceVariant
+                MaterialTheme.colorScheme.surfaceContainer
             }
         ),
         modifier = modifier
@@ -597,11 +597,11 @@ fun AlbumRowCard(
         ),
         colors = CardDefaults.cardColors(
             containerColor = if (isDragging) {
-                MaterialTheme.colorScheme.surfaceContainerHighest
+                MaterialTheme.colorScheme.surfaceContainerHigh
             } else if (selected) {
                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
             } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
+                MaterialTheme.colorScheme.surfaceContainer
             }
         ),
         modifier = modifier

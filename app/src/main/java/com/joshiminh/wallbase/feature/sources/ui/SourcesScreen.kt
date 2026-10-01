@@ -36,6 +36,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
@@ -59,6 +60,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -294,11 +296,8 @@ private fun SourcesScreen(
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "Search sources")
                 }
                 if (selectedTab == 0) {
-                    IconButton(onClick = { showAddSourceModal = true }) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Add custom source")
-                    }
                     IconButton(onClick = { isMultiSelectMode = true }) {
-                        Icon(Icons.Outlined.Check, contentDescription = "Select sources")
+                        Icon(Icons.Outlined.Checklist, contentDescription = "Select sources")
                     }
                 }
             }
@@ -317,7 +316,7 @@ private fun SourcesScreen(
                     onClick = { selectedTab = 0 },
                     text = {
                         Text(
-                            text = "Installed Â· ${visibleSources.size}",
+                            text = "Installed · ${visibleSources.size}",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
                         )
@@ -328,7 +327,7 @@ private fun SourcesScreen(
                     onClick = { selectedTab = 1 },
                     text = {
                         Text(
-                            text = "Available Â· ${extensionsState.communityCatalog.size}",
+                            text = "Available · ${extensionsState.communityCatalog.size}",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
                         )
@@ -454,6 +453,20 @@ private fun SourcesScreen(
                     onUninstall = { item -> pendingUninstallCatalogItem = item },
                     onOpenRepoScreen = onOpenRepoScreen
                 )
+            }
+
+            // FAB to add custom source
+            if (selectedTab == 0 && !isMultiSelectMode) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .navigationBarsPadding()
+                        .padding(end = 16.dp, bottom = 96.dp)
+                ) {
+                    FloatingActionButton(onClick = { showAddSourceModal = true }) {
+                        Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add custom source")
+                    }
+                }
             }
         }
     }
