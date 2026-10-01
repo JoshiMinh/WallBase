@@ -86,18 +86,14 @@ jobs:
           app/build/outputs/apk/release/WallBase-*.apk
         draft: false
         prerelease: false
-        previous_tag: v7.1
+        previous_tag: v7.2
         body: |
-          ## Highlights
+          ## Highlights & Fixes
 
-          - Refined source management and app navigation UI.
-          - Improved direct wallpaper image resolution and download handling.
-          - Refreshed extension icons and website screenshots.
-          - Polished the update dialog and related settings presentation.
-
-          ## Release pace
-
-          The past week has brought an unusually high number of updates and upgrades. We’re slowing down now; we don’t expect another feature release for the next few weeks to a few months while this version settles. Critical fixes may still ship sooner if needed.
+          - Fixed some errors and improved overall app stability.
+          - Standardized codebase architecture into 5 core modules (`core`, `data`, `domain`, `scraper`, `ui`).
+          - Refined floating action button placement, multi-wallpaper album stacks, and crop gesture interactions.
+          - Updated source repository handling, dialogs, and navigation polish.
 
         generate_release_notes: true
       env:
